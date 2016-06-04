@@ -76,11 +76,6 @@
 /* Type of path transformation function for format_view_title(). */
 typedef char * (*path_func)(const char[]);
 
-static WINDOW *ltop_line1;
-static WINDOW *ltop_line2;
-static WINDOW *rtop_line1;
-static WINDOW *rtop_line2;
-
 /* Mutexes for views, located out of FileView so that they are never moved nor
  * copied, which would yield undefined behaviour. */
 static pthread_mutex_t lwin_timestamps_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -194,25 +189,15 @@ create_windows(void)
 	change_win = newwin(1, 1, 0, 0);
 	error_win = newwin(1, 1, 0, 0);
 
-	lborder = newwin(1, 1, 0, 0);
-
 	lwin.title = newwin(1, 1, 0, 0);
 	lwin.win = newwin(1, 1, 0, 0);
 
 	mborder = newwin(1, 1, 0, 0);
 
-	ltop_line1 = newwin(1, 1, 0, 0);
-	ltop_line2 = newwin(1, 1, 0, 0);
-
 	top_line = newwin(1, 1, 0, 0);
-
-	rtop_line1 = newwin(1, 1, 0, 0);
-	rtop_line2 = newwin(1, 1, 0, 0);
 
 	rwin.title = newwin(1, 1, 0, 0);
 	rwin.win = newwin(1, 1, 0, 0);
-
-	rborder = newwin(1, 1, 0, 0);
 
 	stat_win = newwin(1, 1, 0, 0);
 	job_bar = newwin(1, 1, 0, 0);
@@ -274,16 +259,12 @@ correct_size(FileView *view)
 static void
 only_layout(FileView *view, int screen_x, int screen_y)
 {
-	const int vborder_pos_correction = cfg.side_borders_visible ? 1 : 0;
-	const int vborder_size_correction = cfg.side_borders_visible ? -2 : 0;
-
 	//mod by sim1
 	wresize(view->title, 1, screen_x);
 	mvwin(view->title, 0, 0);
 
-	wresize(view->win, get_working_area_height(),
-			screen_x + vborder_size_correction);
-	mvwin(view->win, 1, vborder_pos_correction);
+	wresize(view->win, get_working_area_height(), screen_x);
+	mvwin(view->win, 1, 0);
 }
 
 /* Updates TUI elements sizes and coordinates for vertical configuration of
@@ -291,8 +272,6 @@ only_layout(FileView *view, int screen_x, int screen_y)
 static void
 vertical_layout(int screen_x, int screen_y)
 {
-	const int vborder_pos_correction = cfg.side_borders_visible ? 1 : 0;
-	const int vborder_size_correction = cfg.side_borders_visible ? -1 : 0;
 	const int border_height = get_working_area_height();
 
 	int splitter_pos;
@@ -313,32 +292,24 @@ vertical_layout(int screen_x, int screen_y)
 		curr_stats.splitter_pos = splitter_pos;
 
 	//mod by sim1
-	wresize(lwin.title, 1, splitter_pos - vborder_size_correction);
+	wresize(lwin.title, 1, splitter_pos);
 	mvwin(lwin.title, 0, 0);
 
-	wresize(lwin.win, border_height, splitter_pos + vborder_size_correction);
-	mvwin(lwin.win, 1, vborder_pos_correction);
+	wresize(lwin.win, border_height, splitter_pos);
+	mvwin(lwin.win, 1, 0);
 
-	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) |
-			cfg.cs.color[BORDER_COLOR].attr);
+	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | cfg.cs.color[BORDER_COLOR].attr);
 	wresize(mborder, border_height, splitter_width);
 	mvwin(mborder, 1, splitter_pos);
 
-	mvwin(ltop_line1, 0, 0);
-	mvwin(ltop_line2, 0, 0);
-
 	wresize(top_line, 1, splitter_width);
 	mvwin(top_line, 0, splitter_pos);
-
-	mvwin(rtop_line1, 0, screen_x - 1);
-	mvwin(rtop_line2, 0, screen_x - 1);
 
 	//mod by sim1
 	wresize(rwin.title, 1, screen_x - (splitter_pos + splitter_width));
 	mvwin(rwin.title, 0, splitter_pos + splitter_width);
 
-	wresize(rwin.win, border_height,
-			screen_x - (splitter_pos + splitter_width) + vborder_size_correction);
+	wresize(rwin.win, border_height, screen_x - (splitter_pos + splitter_width));
 	mvwin(rwin.win, 1, splitter_pos + splitter_width);
 }
 
@@ -347,9 +318,6 @@ vertical_layout(int screen_x, int screen_y)
 static void
 horizontal_layout(int screen_x, int screen_y)
 {
-	const int vborder_pos_correction = cfg.side_borders_visible ? 1 : 0;
-	const int vborder_size_correction = cfg.side_borders_visible ? -2 : 0;
-
 	int splitter_pos;
 
 	if(curr_stats.splitter_pos < 0)
@@ -371,32 +339,18 @@ horizontal_layout(int screen_x, int screen_y)
 	wresize(rwin.title, 1, screen_x);
 	mvwin(rwin.title, splitter_pos, 0);
 
-	wresize(lwin.win, splitter_pos - 1, screen_x + vborder_size_correction);
-	mvwin(lwin.win, 1, vborder_pos_correction);
+	wresize(lwin.win, splitter_pos - 1, screen_x);
+	mvwin(lwin.win, 1, 0);
 
-	wresize(rwin.win, get_working_area_height() - splitter_pos,
-			screen_x + vborder_size_correction);
-	mvwin(rwin.win, splitter_pos + 1, vborder_pos_correction);
+	wresize(rwin.win, get_working_area_height() - splitter_pos, screen_x);
+	mvwin(rwin.win, splitter_pos + 1, 0);
 
-	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) |
-			cfg.cs.color[BORDER_COLOR].attr);
+	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | cfg.cs.color[BORDER_COLOR].attr);
 	wresize(mborder, 1, screen_x);
 	mvwin(mborder, splitter_pos, 0);
 
-	mvwin(ltop_line1, 0, 0);
-	mvwin(ltop_line2, splitter_pos, 0);
-
 	wresize(top_line, 1, 2 - screen_x%2);
 	mvwin(top_line, 0, screen_x/2 - 1 + screen_x%2);
-
-	mvwin(rtop_line1, 0, screen_x - 1);
-	mvwin(rtop_line2, splitter_pos, screen_x - 1);
-
-	wresize(lborder, screen_y - 1, 1);
-	mvwin(lborder, 0, 0);
-
-	wresize(rborder, screen_y - 1, 1);
-	mvwin(rborder, 0, screen_x - 1);
 }
 
 static void
@@ -405,7 +359,6 @@ resize_all(void)
 	static float prev_x = -1.f, prev_y = -1.f;
 
 	int screen_x, screen_y;
-	int border_height;
 
 	update_geometry();
 	getmaxyx(stdscr, screen_y, screen_x);
@@ -437,34 +390,12 @@ resize_all(void)
 	wresize(stdscr, screen_y, screen_x);
 	wresize(menu_win, screen_y - 1, screen_x);
 
-	border_height = get_working_area_height();
-
-	wbkgdset(lborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) |
-			cfg.cs.color[BORDER_COLOR].attr);
-	wresize(lborder, border_height, 1);
-	mvwin(lborder, 1, 0);
-
-	wbkgdset(rborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) |
-			cfg.cs.color[BORDER_COLOR].attr);
-	wresize(rborder, border_height, 1);
-	mvwin(rborder, 1, screen_x - 1);
-
 	/* These need a resize at least after terminal size was zero or they grow and
 	 * produce bad looking effect. */
-	wresize(ltop_line1, 1, 1);
-	wresize(ltop_line2, 1, 1);
-	wresize(rtop_line1, 1, 1);
-	wresize(rtop_line2, 1, 1);
-
 	if(curr_stats.number_of_windows == 1)
 	{
 		only_layout(&lwin, screen_x, screen_y);
 		only_layout(&rwin, screen_x, screen_y);
-
-		mvwin(ltop_line1, 0, 0);
-		mvwin(ltop_line2, 0, 0);
-		mvwin(rtop_line1, 0, screen_x - 1);
-		mvwin(rtop_line2, 0, screen_x - 1);
 	}
 	else
 	{
@@ -545,11 +476,6 @@ update_screen(UpdateType update_kind)
 
 	update_attributes();
 
-	if(cfg.side_borders_visible)
-	{
-		clear_border(lborder);
-		clear_border(rborder);
-	}
 	clear_border(mborder);
 
 	if(curr_stats.term_state != TS_NORMAL)
@@ -676,8 +602,7 @@ reload_list(FileView *view)
 	if(curr_stats.load_stage >= 3)
 		load_saving_pos(view, 1);
 	else
-		load_dir_list(view,
-				!(cfg.vifm_info&VIFMINFO_SAVEDIRS) || view->list_pos != 0);
+		load_dir_list(view, !(cfg.vifm_info&VIFMINFO_SAVEDIRS) || view->list_pos != 0);
 }
 
 void
@@ -759,12 +684,6 @@ touch_all_windows(void)
 			update_view(&rwin);
 		}
 
-		if(cfg.side_borders_visible)
-		{
-			update_window_lazy(lborder);
-			update_window_lazy(rborder);
-		}
-
 		if(cfg.display_statusline)
 		{
 			update_window_lazy(stat_win);
@@ -779,14 +698,6 @@ touch_all_windows(void)
 	update_window_lazy(ruler_win);
 	update_window_lazy(input_win);
 	update_window_lazy(status_bar);
-
-	if(!in_menu)
-	{
-		update_window_lazy(ltop_line1);
-		update_window_lazy(ltop_line2);
-		update_window_lazy(rtop_line1);
-		update_window_lazy(rtop_line2);
-	}
 
 	if(vle_mode_is(MSG_MODE))
 	{
@@ -926,40 +837,12 @@ update_attributes(void)
 		return;
 
 	attr = cfg.cs.color[BORDER_COLOR].attr;
-	if(cfg.side_borders_visible)
-	{
-		wbkgdset(lborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | attr);
-		werase(lborder);
-		wbkgdset(rborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | attr);
-		werase(rborder);
-	}
 	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | attr);
 	werase(mborder);
 
-	wbkgdset(ltop_line1, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) |
-			(cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
-	wattrset(ltop_line1, cfg.cs.color[TOP_LINE_COLOR].attr & ~A_REVERSE);
-	werase(ltop_line1);
-
-	wbkgdset(ltop_line2, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) |
-			(cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
-	wattrset(ltop_line2, cfg.cs.color[TOP_LINE_COLOR].attr & ~A_REVERSE);
-	werase(ltop_line2);
-
-	wbkgdset(top_line, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) |
-			(cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
+	wbkgdset(top_line, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) | (cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
 	wattrset(top_line, cfg.cs.color[TOP_LINE_COLOR].attr & ~A_REVERSE);
 	werase(top_line);
-
-	wbkgdset(rtop_line1, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) |
-			(cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
-	wattrset(rtop_line1, cfg.cs.color[TOP_LINE_COLOR].attr & ~A_REVERSE);
-	werase(rtop_line1);
-
-	wbkgdset(rtop_line2, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) |
-			(cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
-	wattrset(rtop_line2, cfg.cs.color[TOP_LINE_COLOR].attr & ~A_REVERSE);
-	werase(rtop_line2);
 
 	attr = cfg.cs.color[STATUS_LINE_COLOR].attr;
 	wbkgdset(stat_win, COLOR_PAIR(cfg.cs.pair[STATUS_LINE_COLOR]) | attr);
@@ -1488,8 +1371,7 @@ ui_view_title_update(FileView *view)
 		return;
 	}
 
-	title = format_view_title(view,
-			cfg.shorten_title_paths ? &replace_home_part : &path_identity);
+	title = format_view_title(view, cfg.shorten_title_paths ? &replace_home_part : &path_identity);
 
 	if(view == selected && cfg.set_title)
 	{
@@ -1528,8 +1410,7 @@ format_view_title(const FileView *view, path_func pf)
 	}
 	else if(flist_custom_active(view))
 	{
-		return format_str("[%s] @ %s", view->custom.title,
-				pf(view->custom.orig_dir));
+		return format_str("[%s] @ %s", view->custom.title, pf(view->custom.orig_dir));
 	}
 	else
 	{
@@ -1566,15 +1447,13 @@ fixup_titles_attributes(const FileView *view, int active_view)
 		col_attr_t col = cfg.cs.color[TOP_LINE_COLOR];
 		cs_mix_colors(&col, &cfg.cs.color[TOP_LINE_SEL_COLOR]);
 
-		wbkgdset(view->title, COLOR_PAIR(colmgr_get_pair(col.fg, col.bg)) |
-				(col.attr & A_REVERSE));
+		wbkgdset(view->title, COLOR_PAIR(colmgr_get_pair(col.fg, col.bg)) | (col.attr & A_REVERSE));
 		wattrset(view->title, col.attr & ~A_REVERSE);
 	}
 	else
 	{
 		col_attr_t col = cfg.cs.color[TOP_LINE_COLOR];
-		const int bg_attr = COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR])
-		                  | (col.attr & A_REVERSE);
+		const int bg_attr = COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) | (col.attr & A_REVERSE);
 
 		wbkgdset(view->title, bg_attr);
 		wattrset(view->title, col.attr & ~A_REVERSE);
@@ -1623,8 +1502,7 @@ ui_view_sort_list_ensure_well_formed(FileView *view, char sort_keys[])
 	}
 
 	if(!found_name_key && i < SK_COUNT &&
-			(!flist_custom_active(view) ||
-			 (sort_keys == view->sort && !view->custom.unsorted)))
+			(!flist_custom_active(view) || (sort_keys == view->sort && !view->custom.unsorted)))
 	{
 		sort_keys[i++] = SK_DEFAULT;
 	}
@@ -1675,9 +1553,8 @@ ui_view_entry_target_type(const dir_entry_t *entry)
 	if(entry->type == FT_LINK)
 	{
 		char *const full_path = format_str("%s/%s", entry->origin, entry->name);
-		const FileType type = (get_symlink_type(full_path) != SLT_UNKNOWN)
-		                    ? FT_DIR
-		                    : FT_LINK;
+		const FileType type = (get_symlink_type(full_path) != SLT_UNKNOWN) ? FT_DIR : FT_LINK;
+
 		free(full_path);
 		return type;
 	}
