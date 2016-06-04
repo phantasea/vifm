@@ -524,7 +524,9 @@ cs_write(void)
 	char def_cs_path[PATH_MAX];
 	size_t i;
 
-	if(create_path(cfg.colors_dir, S_IRWXU) != 0)
+	//mod by sim1
+	//if(create_path(cfg.colors_dir, S_IRWXU) != 0)
+	if(create_path(cfg.colors_dir, S_IRWXU | S_IRWXG | S_IROTH) != 0)
 	{
 		/* Do nothing if local colors directory exists or we've failed to create
 		 * it. */

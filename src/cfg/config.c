@@ -614,7 +614,10 @@ create_scripts_dir(void)
 	FILE *fp;
 
 	snprintf(scripts, sizeof(scripts), "%s/" SCRIPTS_DIR, cfg.config_dir);
-	if(create_path(scripts, S_IRWXU) != 0)
+
+	//mod by sim1
+	//if(create_path(scripts, S_IRWXU) != 0)
+	if(create_path(scripts, S_IRWXU | S_IRWXG | S_IROTH) != 0)
 	{
 		return;
 	}
