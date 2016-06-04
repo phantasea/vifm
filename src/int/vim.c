@@ -179,13 +179,24 @@ vim_view_file(const char filename[], int line, int column, int allow_forking)
 		}
 	}
 
-	if(line < 0 && column < 0)
-		snprintf(cmd, sizeof(cmd), "%s %s %s", vicmd, fork_str, escaped);
-	else if(column < 0)
-		snprintf(cmd, sizeof(cmd), "%s %s +%d %s", vicmd, fork_str, line, escaped);
+	//mod by sim1 for using vimux util
+	if (0 == strcmp(vicmd, "vimux"))
+	{
+		if (line < 0)
+			snprintf(cmd, sizeof(cmd), "%s %s", vicmd, escaped);
+		else
+			snprintf(cmd, sizeof(cmd), "%s -c %d %s", vicmd, line, escaped);
+	}
 	else
-		snprintf(cmd, sizeof(cmd), "%s %s \"+call cursor(%d, %d)\" %s", vicmd,
-				fork_str, line, column, escaped);
+	{
+		if(line < 0 && column < 0)
+			snprintf(cmd, sizeof(cmd), "%s %s %s", vicmd, fork_str, escaped);
+		else if(column < 0)
+			snprintf(cmd, sizeof(cmd), "%s %s +%d %s", vicmd, fork_str, line, escaped);
+		else
+			snprintf(cmd, sizeof(cmd), "%s %s \"+call cursor(%d, %d)\" %s", vicmd,
+					fork_str, line, column, escaped);
+	}
 
 #ifndef _WIN32
 	free(escaped);
