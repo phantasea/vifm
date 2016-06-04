@@ -85,7 +85,8 @@ static size_t determine_width(const char msg[]);
 static keys_add_info_t builtin_cmds[] = {
 	{WK_C_c, {{&cmd_ctrl_c}, .descr = "cancel"}},
 	{WK_C_l, {{&cmd_ctrl_l}, .descr = "redraw"}},
-	{WK_C_m, {{&cmd_ctrl_m}, .descr = "agree to the query"}},
+	//{WK_C_m, {{&cmd_ctrl_m}, .descr = "agree to the query"}},
+	{WK_SPACE, {{&cmd_ctrl_m}, .descr = "agree to the query"}},  //mod by sim1
 	{WK_ESC, {{&cmd_ctrl_c}, .descr = "cancel"}},
 	{WK_n,   {{&cmd_n},      .descr = "deny the query"}},
 	{WK_y,   {{&cmd_y},      .descr = "confirm the query"}},
@@ -413,10 +414,10 @@ get_control_msg(Dialog msg_kind, int global_skip)
 	}
 	else if(global_skip)
 	{
-		return "Press Return to continue or Ctrl-C to skip other error messages";
+		return "Press Space to continue or Ctrl-C to skip other error messages";
 	}
 
-	return "Press Return to continue";
+	return "Press Space to continue";  //mod by sim1
 }
 
 /* Formats dialog control message for custom set of responses.  Returns pointer
