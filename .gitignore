@@ -5,6 +5,7 @@
 /src/compile_info.c
 /src/runtests
 /src/test-suite.log
+/src/tags
 
 # created during build process
 /tests/bin/
@@ -15,7 +16,7 @@
 /src/runtests.log
 /src/runtests.trs
 /Makefile
-/config.h
+/config.h*
 /config.log
 /config.status
 /libtool
@@ -26,6 +27,8 @@
 # *nix executables
 /src/vifm
 /src/vifmrc-converter
+aclocal.m4
+configure
 
 # compiler output
 *.o
