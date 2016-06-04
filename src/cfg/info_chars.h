@@ -121,6 +121,9 @@
 /* Automatically populated filename filter. */
 #define PROP_TYPE_AUTO_FILTER 'F'
 
+/* Star rating of file or dir. */
+#define LINE_TYPE_STAR_RATING '*'  //add by sim1
+
 #endif /* VIFM__CFG__INFO_CHARS_H__ */
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

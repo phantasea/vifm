@@ -39,6 +39,7 @@ enum
 	VIFMINFO_REGISTERS = 1 << 13,
 	VIFMINFO_PHISTORY  = 1 << 14,
 	VIFMINFO_FHISTORY  = 1 << 15,
+	VIFMINFO_RATINGS   = 1 << 16,  //add by sim1
 };
 
 const char * cursorline_enum[3];

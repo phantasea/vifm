@@ -89,6 +89,7 @@ typedef enum
 	SK_BY_NLINKS,         /* Number of hard links. */
 #endif
 	SK_BY_TARGET,         /* Symbolic link target (empty for other file types). */
+  SK_BY_RATING,         /* Star rating. */  //add by sim1
 	/* New elements *must* be added here to keep values stored in existing
 	 * vifminfo files valid.  Don't forget to update SK_LAST below. */
 }
@@ -104,7 +105,7 @@ enum
 #endif
 
 	/* Value of the last sort option. */
-	SK_LAST = SK_BY_TARGET,
+	SK_LAST = SK_BY_RATING,  //mod by sim1
 
 	/* Number of sort options. */
 	SK_COUNT = SK_LAST,
@@ -112,6 +113,20 @@ enum
 	/* Special value to use for unset options. */
 	SK_NONE = SK_LAST + 1
 };
+
+//add by chris for star rating
+#define RATING_MAX_STARS 7
+
+typedef struct rating_entry_t
+{
+	char  *path;                   /* full path */
+	int    star;                   /* star number */
+	struct rating_entry_t *next;   /* next entry */
+} rating_entry_t;
+
+int get_rating_string(char buf[], int len, char path[]);
+void update_rating_info(int star_num, char path[]);
+void update_rating_info_selected(int star_num);
 
 /* Type of file numbering. */
 typedef enum
