@@ -277,8 +277,9 @@ only_layout(FileView *view, int screen_x, int screen_y)
 	const int vborder_pos_correction = cfg.side_borders_visible ? 1 : 0;
 	const int vborder_size_correction = cfg.side_borders_visible ? -2 : 0;
 
-	wresize(view->title, 1, screen_x - 2);
-	mvwin(view->title, 0, 1);
+	//mod by sim1
+	wresize(view->title, 1, screen_x);
+	mvwin(view->title, 0, 0);
 
 	wresize(view->win, get_working_area_height(),
 			screen_x + vborder_size_correction);
@@ -302,7 +303,8 @@ vertical_layout(int screen_x, int screen_y)
 	else
 		splitter_pos = curr_stats.splitter_pos;
 
-	splitter_width = 2 - screen_x%2;
+	//mod by sim1
+	splitter_width = 1 - screen_x%2;
 	if(splitter_pos < 4)
 		splitter_pos = 4;
 	if(splitter_pos > screen_x - 4 - splitter_width)
@@ -310,8 +312,9 @@ vertical_layout(int screen_x, int screen_y)
 	if(curr_stats.splitter_pos >= 0)
 		curr_stats.splitter_pos = splitter_pos;
 
-	wresize(lwin.title, 1, splitter_pos - 1);
-	mvwin(lwin.title, 0, 1);
+	//mod by sim1
+	wresize(lwin.title, 1, splitter_pos - vborder_size_correction);
+	mvwin(lwin.title, 0, 0);
 
 	wresize(lwin.win, border_height, splitter_pos + vborder_size_correction);
 	mvwin(lwin.win, 1, vborder_pos_correction);
@@ -330,7 +333,8 @@ vertical_layout(int screen_x, int screen_y)
 	mvwin(rtop_line1, 0, screen_x - 1);
 	mvwin(rtop_line2, 0, screen_x - 1);
 
-	wresize(rwin.title, 1, screen_x - (splitter_pos + splitter_width + 1));
+	//mod by sim1
+	wresize(rwin.title, 1, screen_x - (splitter_pos + splitter_width));
 	mvwin(rwin.title, 0, splitter_pos + splitter_width);
 
 	wresize(rwin.win, border_height,
@@ -359,11 +363,13 @@ horizontal_layout(int screen_x, int screen_y)
 	if(curr_stats.splitter_pos >= 0)
 		curr_stats.splitter_pos = splitter_pos;
 
-	wresize(lwin.title, 1, screen_x - 2);
-	mvwin(lwin.title, 0, 1);
+	//mod by sim1
+	wresize(lwin.title, 1, screen_x);
+	mvwin(lwin.title, 0, 0);
 
-	wresize(rwin.title, 1, screen_x - 2);
-	mvwin(rwin.title, splitter_pos, 1);
+	//mod by sim1
+	wresize(rwin.title, 1, screen_x);
+	mvwin(rwin.title, splitter_pos, 0);
 
 	wresize(lwin.win, splitter_pos - 1, screen_x + vborder_size_correction);
 	mvwin(lwin.win, 1, vborder_pos_correction);
