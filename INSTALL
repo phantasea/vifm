@@ -26,6 +26,7 @@ when building with Cygwin):
     suppress any spurious build files regeneration.
 
     ./configure
+    (./configure --disable-desktop-files --without-gtk --without-X11 --without-dyn-X11)
     make
     ("su" if you don't have access to /usr/local/bin)
     make install
