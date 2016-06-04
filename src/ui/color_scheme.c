@@ -67,6 +67,7 @@ char *HI_GROUPS[] = {
 	[OTHER_LINE_COLOR]   = "OtherLine",
 	[JOB_LINE_COLOR]     = "JobLine",
 	[SUGGEST_BOX_COLOR]  = "SuggestBox",
+	[MENU_COLOR]         = "Menu",    //add by sim1
 };
 ARRAY_GUARD(HI_GROUPS, MAXNUM_COLOR);
 
@@ -91,6 +92,7 @@ const char *HI_GROUPS_DESCR[] = {
 	[OTHER_LINE_COLOR]   = "cursor in inactive pane",
 	[JOB_LINE_COLOR]     = "job bar",
 	[SUGGEST_BOX_COLOR]  = "suggestion box",
+	[MENU_COLOR]         = "menu",  //add by sim1
 };
 ARRAY_GUARD(HI_GROUPS_DESCR, ARRAY_LEN(HI_GROUPS));
 
@@ -387,6 +389,7 @@ static const col_attr_t default_cs[] = {
 	[OTHER_LINE_COLOR]   = { -1,            -1,          -1                      },
 	[JOB_LINE_COLOR]     = { COLOR_BLACK,   COLOR_WHITE, A_BOLD | A_REVERSE      },
 	[SUGGEST_BOX_COLOR]  = { -1,            -1,          A_BOLD                  },
+	[MENU_COLOR]         = { COLOR_WHITE,   COLOR_BLACK, 0                       },  //add by sim1
 };
 ARRAY_GUARD(default_cs, MAXNUM_COLOR);
 

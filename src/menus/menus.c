@@ -376,7 +376,7 @@ draw_menu_item(menu_info *m, int pos, int line, int clear)
 
 	/* Calculate color for the line. */
 	int attrs;
-	col_attr_t col = cfg.cs.color[WIN_COLOR];
+	col_attr_t col = cfg.cs.color[MENU_COLOR];  //mod by sim1
 	if(cfg.hl_search && m->search_highlight &&
 			m->matches != NULL && m->matches[pos][0] >= 0)
 	{
