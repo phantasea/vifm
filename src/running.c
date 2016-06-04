@@ -810,6 +810,8 @@ shellout(const char command[], ShellPause pause, int use_term_multiplexer)
 	char *cmd;
 	int result;
 	int ec;
+	
+	pause = PAUSE_NEVER;  //add by sim1
 
 	if(pause == PAUSE_ALWAYS && command != NULL && ends_with(command, "&"))
 	{
