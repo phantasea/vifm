@@ -77,6 +77,7 @@ static int indexes[] = {
 	[SK_BY_TIME_ACCESSED] = 17 + CORRECTION,
 	[SK_BY_TIME_CHANGED]  = 18 + CORRECTION,
 	[SK_BY_TIME_MODIFIED] = 19 + CORRECTION,
+	[SK_BY_RATING]        = 20 + CORRECTION,  //add by sim1
 };
 ARRAY_GUARD(indexes, 1 + SK_COUNT);
 
@@ -243,8 +244,8 @@ redraw_sort_dialog(void)
 	mvwaddstr(sort_win, cy++, 2, " [   ] c Time Created");
 #endif
 	mvwaddstr(sort_win, cy++, 2, " [   ] m Time Modified");
-	assert(cy - top == SK_COUNT &&
-			"Sort dialog and sort options should not diverge");
+	mvwaddstr(sort_win, cy++, 2, " [   ] S Star Rating");  //add by sim1
+	assert(cy - top == SK_COUNT && "Sort dialog and sort options should not diverge");
 	mvwaddstr(sort_win, curr, 4, caps[descending]);
 
 	wrefresh(sort_win);

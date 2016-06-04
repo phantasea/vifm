@@ -218,6 +218,8 @@ static void pick_files(FileView *view, int end, keys_info_t *keys_info);
 static void selector_S(key_info_t key_info, keys_info_t *keys_info);
 static void selector_a(key_info_t key_info, keys_info_t *keys_info);
 static void selector_s(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_star(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
+static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 
 static int last_fast_search_char;
 static int last_fast_search_backward = -1;
@@ -296,6 +298,8 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_SCOLON,        {{&cmd_semicolon}, .descr = "repeat char-search forward"}},
 	{WK_SLASH,         {{&cmd_slash},     .descr = "search forward"}},
 	{WK_QM,            {{&cmd_qmark},     .descr = "search backward"}},
+	{WK_STAR,          {{&cmd_star},      .descr = "increase star rating"}},  //add by sim1
+	{WK_HASH,          {{&cmd_hash},      .descr = "decrease star rating"}},  //add by sim1
 	{WK_C,             {{&cmd_C}, .descr = "clone files"}},
 	{WK_F,             {{&cmd_F}, FOLLOWED_BY_MULTIKEY, .descr = "char-search backward"}},
 	{WK_G,             {{&cmd_G}, .descr = "go to the last item"}},
@@ -429,6 +433,40 @@ static keys_add_info_t selectors[] = {
 	{{KEY_END},  {{&cmd_G},  .descr = "go to the last item"}},
 #endif /* ENABLE_EXTENDED_KEYS */
 };
+
+//Add by sim1 **************************************************
+static void
+cmd_star(key_info_t key_info, keys_info_t *keys_info)
+{
+	int star_num = 1;
+	if(key_info.count != NO_COUNT_GIVEN)
+	{
+		star_num = key_info.count;
+	}
+
+	check_marking(curr_view, 0, NULL);
+  update_rating_info_selected(star_num);
+
+	draw_dir_list(curr_view);
+	return;
+}
+
+static void
+cmd_hash(key_info_t key_info, keys_info_t *keys_info)
+{
+	int star_num = -1;
+	if(key_info.count != NO_COUNT_GIVEN)
+	{
+		star_num = 0 - key_info.count;
+	}
+
+	check_marking(curr_view, 0, NULL);
+  update_rating_info_selected(star_num);
+
+	draw_dir_list(curr_view);
+	return;
+}
+//Add by sim1 **************************************************
 
 void
 init_normal_mode(void)

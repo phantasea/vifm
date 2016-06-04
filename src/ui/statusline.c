@@ -187,7 +187,7 @@ update_stat_window_old(FileView *view, int lazy_redraw)
 TSTATIC char *
 expand_status_line_macros(FileView *view, const char format[])
 {
-	return expand_view_macros(view, format, "tAugsEd-lLSz%[]");
+	return expand_view_macros(view, format, "tAugsrEd-lLSz%[]");  //mod by sim1
 }
 
 /* Expands possibly limited set of view macros.  Returns newly allocated string,
@@ -264,6 +264,15 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 			case 's':
 				friendly_size_notation(entry->size, sizeof(buf), buf);
 				break;
+			//add by sim1 ************************************************
+			case 'r':
+				{
+					char path[PATH_MAX] = {0};
+					get_full_path_at(view, view->list_pos, sizeof(path), path);
+					(void)get_rating_string(buf, sizeof(buf), path);
+				}
+				break;
+			//add by sim1 ************************************************
 			case 'E':
 				{
 					uint64_t size = 0;

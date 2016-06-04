@@ -116,6 +116,7 @@ static size_t get_filename_width(const FileView *view, int i);
 static size_t get_filetype_decoration_width(const dir_entry_t *entry);
 static int move_curr_line(FileView *view);
 static void reset_view_columns(FileView *view);
+static void format_rating(int id, const void *data, size_t buf_len, char buf[]);  //add by sim1
 
 void
 fview_init(void)
@@ -151,6 +152,8 @@ fview_init(void)
 
 		{ SK_BY_NLINKS, &format_nlinks },
 #endif
+		//add by sim1
+		{ SK_BY_RATING, &format_rating },
 	};
 	ARRAY_GUARD(sort_to_func, SK_COUNT);
 
@@ -1226,7 +1229,13 @@ format_time(int id, const void *data, size_t buf_len, char buf[])
 
 	if(tm_ptr != NULL)
 	{
-		strftime(buf, buf_len + 1, cfg.time_format, tm_ptr);
+		//mod by sim1 ***************************************
+		//strftime(buf, buf_len + 1, cfg.time_format, tm_ptr);
+		char tmp[40] = {0};
+		strftime(tmp, sizeof(tmp), cfg.time_format, tm_ptr);
+		snprintf(buf, buf_len + 1, " |");
+		strcat(buf, tmp);
+		//mod by sim1 ***************************************
 	}
 	else
 	{
@@ -1297,6 +1306,29 @@ format_nlinks(int id, const void *data, size_t buf_len, char buf[])
 }
 
 #endif
+
+//add by sim1 ***************************************************
+extern int get_rating_string(char buf[], int len, char path[]);
+
+/* File star rating format callback for column_view unit. */
+static void
+format_rating(int id, const void *data, size_t buf_len, char buf[])
+{
+	const column_data_t *cdt = data;
+	FileView *view = cdt->view;
+  int pos = cdt->line_pos;
+
+  char path[PATH_MAX] = {0};
+	get_full_path_at(view, pos, sizeof(path), path);
+	int stars = get_rating_string(buf, buf_len, path);
+	if (stars <= 0)
+	{
+		format_size(id, data, buf_len, buf);
+	}
+
+	return;
+}
+//add by sim1 ***************************************************
 
 void
 fview_set_lsview(FileView *view, int enabled)

@@ -218,6 +218,12 @@ friendly_size_notation(uint64_t num, int str_size, char *str)
 		d /= 1024.0;
 		u++;
 	}
+
+	//add by sim1  ********************************
+	snprintf(str, str_size, "%.1f%s", d, units[u]);
+	return u > 0;
+	//add by sim1  ********************************
+
 	if(u == 0)
 	{
 		snprintf(str, str_size, "%.0f %s", d, units[u]);

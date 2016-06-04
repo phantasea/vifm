@@ -132,6 +132,8 @@ static void cmd_n(key_info_t key_info, keys_info_t *keys_info);
 static void search(key_info_t key_info, int backward, int interactive);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void change_amend_type(AmendType new_amend_type);
+static void cmd_star(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
+static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_y(key_info_t key_info, keys_info_t *keys_info);
 static void accept_and_leave(int save_msg);
 static void reject_and_leave(void);
@@ -192,6 +194,8 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_SCOLON,     {{&cmd_semicolon}, .descr = "repeat char-search forward"}},
 	{WK_SLASH,      {{&cmd_slash},     .descr = "search forward"}},
 	{WK_QM,         {{&cmd_question},  .descr = "search backward"}},
+	{WK_STAR,       {{&cmd_star},      .descr = "increase star rating"}},  //add by sim1
+	{WK_HASH,       {{&cmd_hash},      .descr = "decrease star rating"}},  //add by sim1
 	{WK_C,          {{&cmd_C}, .descr = "clone files"}},
 	{WK_D,          {{&cmd_D}, .descr = "remove files permanently"}},
 	{WK_F,          {{&cmd_F}, FOLLOWED_BY_MULTIKEY, .descr = "char-search backward"}},
@@ -1056,6 +1060,40 @@ change_amend_type(AmendType new_amend_type)
 
 	update();
 }
+
+//Add by sim1 **************************************************
+static void
+cmd_star(key_info_t key_info, keys_info_t *keys_info)
+{
+	int star_num = 1;
+	if(key_info.count != NO_COUNT_GIVEN)
+	{
+		star_num = key_info.count;
+	}
+
+	check_marking(curr_view, 0, NULL);
+  update_rating_info_selected(star_num);
+
+	draw_dir_list(curr_view);
+	return;
+}
+
+static void
+cmd_hash(key_info_t key_info, keys_info_t *keys_info)
+{
+	int star_num = -1;
+	if(key_info.count != NO_COUNT_GIVEN)
+	{
+		star_num = 0 - key_info.count;
+	}
+
+	check_marking(curr_view, 0, NULL);
+  update_rating_info_selected(star_num);
+
+	draw_dir_list(curr_view);
+	return;
+}
+//Add by sim1 **************************************************
 
 /* Yanks files. */
 static void

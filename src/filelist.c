@@ -736,6 +736,13 @@ flist_find_group(FileView *view, int next)
 	char perms[16];
 	get_perm_string(perms, sizeof(perms), pentry->mode);
 #endif
+
+	//add by sim1
+	char rating[RATING_MAX_STARS+1] = {0};
+	char path[PATH_MAX] = {0};
+	get_full_path_at(curr_view, pos, sizeof(path), path);
+	(void)get_rating_string(rating, sizeof(rating), path);
+
 	if(sorting_key == SK_BY_GROUPS)
 	{
 		pmatch = get_group_match(&view->primary_group, pentry->name);
@@ -845,6 +852,18 @@ flist_find_group(FileView *view, int next)
 					return pos;
 				}
 				break;
+			//add by sim1
+			case SK_BY_RATING:
+				{
+					get_full_path_at(curr_view, pos, sizeof(path), path);
+					char nrating[RATING_MAX_STARS+1] = {0};
+					(void)get_rating_string(nrating, sizeof(nrating), path);
+					if(0 != strcmp(nrating, rating))
+					{
+						return pos;
+					}
+					break;
+				}
 #ifndef _WIN32
 			case SK_BY_GROUP_NAME:
 			case SK_BY_GROUP_ID:

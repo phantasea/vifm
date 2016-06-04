@@ -79,6 +79,8 @@
 #define WK_PERCENT L"%"
 #define WK_PLUS    L"+"
 #define WK_QM      L"?"
+#define WK_STAR    L"*"  //add by sim1
+#define WK_HASH    L"#"  //add by sim1
 #define WK_QUOTE   L"'"
 #define WK_RCB     L"}"
 #define WK_RP      L")"

@@ -124,6 +124,8 @@ static IoErrCbResult dispatch_error(io_args_t *args, const ioe_err_t *err);
 static char prompt_user(const io_args_t *args, const char title[],
 		const char msg[], const response_variant variants[]);
 
+extern void copy_rating_info(const char src[], const char dst[], int op);  //add by sim1
+
 /* List of functions that implement operations. */
 static op_func op_funcs[] = {
 	[OP_NONE]     = &op_none,
@@ -331,6 +333,12 @@ op_removesl(ops_t *ops, void *data, const char *src, const char *dst)
 		LOG_INFO_MSG("Running rm command: \"%s\"", cmd);
 		result = background_and_wait_for_errors(cmd, cancellable);
 
+		//add by sim1
+		if (0 == result)
+		{
+			copy_rating_info(src, dst, 0);
+		}
+
 		free(escaped);
 		return result;
 #else
@@ -353,6 +361,12 @@ op_removesl(ops_t *ops, void *data, const char *src, const char *dst)
 			};
 			err = SHFileOperationW(&fo);
 
+			//add by sim1
+			if (0 == err)
+			{
+				copy_rating_info(src, dst, 0);
+			}
+
 			log_msg("Error: %d", err);
 			free(utf16_path);
 
@@ -374,6 +388,12 @@ op_removesl(ops_t *ops, void *data, const char *src, const char *dst)
 				LOG_WERROR(GetLastError());
 			}
 
+			//add by sim1
+			if (0 == !ok)
+			{
+				copy_rating_info(src, dst, 0);
+			}
+
 			free(utf16_path);
 			return !ok;
 		}
@@ -385,7 +405,15 @@ op_removesl(ops_t *ops, void *data, const char *src, const char *dst)
 
 		.cancellable = data == NULL,
 	};
-	return exec_io_op(ops, &ior_rm, &args);
+	
+	//mod by sim1
+  int retval = exec_io_op(ops, &ior_rm, &args);
+	if (0 == retval)
+	{
+		copy_rating_info(src, dst, 0);
+	}
+
+	return retval;
 }
 
 /* OP_COPY operation handler.  Copies file/directory without overwriting
@@ -444,6 +472,12 @@ op_cp(ops_t *ops, void *data, const char src[], const char dst[],
 		LOG_INFO_MSG("Running cp command: \"%s\"", cmd);
 		result = background_and_wait_for_errors(cmd, cancellable);
 
+		//add by sim1
+		if (0 == result)
+		{
+			copy_rating_info(src, dst, 2);
+		}
+
 		free(escaped_dst);
 		free(escaped_src);
 		return result;
@@ -474,6 +508,12 @@ op_cp(ops_t *ops, void *data, const char src[], const char dst[],
 			free(utf16_src);
 		}
 
+		//add by sim1
+		if (0 == ret)
+		{
+			copy_rating_info(src, dst, 2);
+		}
+
 		return ret;
 #endif
 	}
@@ -486,7 +526,15 @@ op_cp(ops_t *ops, void *data, const char src[], const char dst[],
 
 		.cancellable = data == NULL,
 	};
-	return exec_io_op(ops, &ior_cp, &args);
+
+	//mod by sim1
+  int retval = exec_io_op(ops, &ior_cp, &args);
+	if (0 == retval)
+	{
+		copy_rating_info(src, dst, 2);
+	}
+
+	return retval;
 }
 
 /* OP_MOVE operation handler.  Moves file/directory without overwriting
@@ -596,6 +644,8 @@ op_mv(ops_t *ops, void *data, const char src[], const char dst[],
 	{
 		trash_file_moved(src, dst);
 		bmarks_file_moved(src, dst);
+    
+		copy_rating_info(src, dst, 1);  //add by sim1
 	}
 
 	return result;
@@ -849,10 +899,25 @@ op_rmdir(ops_t *ops, void *data, const char *src, const char *dst)
 		snprintf(cmd, sizeof(cmd), "rmdir %s", escaped);
 		free(escaped);
 		LOG_INFO_MSG("Running rmdir command: \"%s\"", cmd);
-		return background_and_wait_for_errors(cmd, 1);
+
+		//mod by sim1
+		int ret =  background_and_wait_for_errors(cmd, 1);
+		if (0 == ret)
+		{
+			copy_rating_info(src, dst, 0);
+		}
+
+		return ret;
 #else
 		wchar_t *const utf16_path = utf8_to_utf16(src);
 		const BOOL r = RemoveDirectoryW(utf16_path);
+
+		//mod by sim1
+		if (r != FALSE)
+		{
+			copy_rating_info(src, dst, 0);
+		}
+
 		free(utf16_path);
 		return r == FALSE;
 #endif
@@ -861,7 +926,15 @@ op_rmdir(ops_t *ops, void *data, const char *src, const char *dst)
 	io_args_t args = {
 		.arg1.path = src,
 	};
-	return exec_io_op(ops, &iop_rmdir, &args);
+	
+	//mod by sim1
+  int retval = exec_io_op(ops, &iop_rmdir, &args);
+	if (0 == retval)
+	{
+		copy_rating_info(src, dst, 0);
+	}
+
+	return retval;
 }
 
 static int

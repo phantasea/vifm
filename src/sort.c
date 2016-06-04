@@ -71,6 +71,8 @@ static int compare_item_count(const dir_entry_t *f, int fdir,
 		const dir_entry_t *s, int sdir);
 static int compare_group(const char f[], const char s[], regex_t *regex);
 static int compare_targets(const dir_entry_t *f, const dir_entry_t *s);
+static int compare_file_rating(const dir_entry_t *f, int fdir, const dir_entry_t *s, int sdir);  //add by sim1
+extern int get_rating_stars(char path[]);  //add by sim1
 
 void
 sort_view(FileView *v)
@@ -365,6 +367,11 @@ sort_dir_list(const void *one, const void *two)
 			retval = first->nlinks - second->nlinks;
 			break;
 #endif
+		//add by sim1  *******************************************************
+		case SK_BY_RATING:
+			retval = compare_file_rating(first, first_is_dir, second, second_is_dir);
+			break;
+		//add by sim1  *******************************************************
 	}
 
 	if(retval == 0)
@@ -570,11 +577,30 @@ get_secondary_key(SortingKey primary_key)
 		case SK_BY_SIZE:
 		case SK_BY_GROUPS:
 		case SK_BY_DIR:
+		case SK_BY_RATING:  //add by sim1
 			return SK_BY_SIZE;
 	}
 	assert(0 && "Unhandled sorting key?");
 	return SK_BY_SIZE;
 }
+
+//add by sim1  *******************************************************
+static int
+compare_file_rating(const dir_entry_t *f, int fdir, const dir_entry_t *s,
+		int sdir)
+{
+	char path[PATH_MAX] = {0};
+	int  fstar, sstar;
+
+	get_full_path_of(f, sizeof(path), path);
+	fstar = get_rating_stars(path);
+
+	get_full_path_of(s, sizeof(path), path);
+	sstar = get_rating_stars(path);
+
+	return (fstar < sstar) ? -1 : (fstar > sstar);
+}
+//add by sim1  *******************************************************
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */

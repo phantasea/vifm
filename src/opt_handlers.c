@@ -227,6 +227,7 @@ static const char *sort_enum[] = {
 	[SK_BY_PERMISSIONS]   = "perms",
 	[SK_BY_NLINKS]        = "nlinks",
 #endif
+	[SK_BY_RATING]        = "rating",  //add by sim1
 };
 ARRAY_GUARD(sort_enum, 1 + SK_COUNT);
 
@@ -390,6 +391,9 @@ static const char *sort_types[][2] = {
 	{ "+nlinks", "by number of hard-links" },
 	{ "-nlinks", "by number of hard-links" },
 #endif
+	{ "rating", "by star rating" },  //add by sim1
+	{"+rating", "by star rating" },  //add by sim1
+	{"-rating", "by star rating" },  //add by sim1
 };
 ARRAY_GUARD(sort_types, SK_COUNT*3);
 
@@ -417,6 +421,7 @@ static const char *vifminfo_set[][2] = {
 	{ "registers", "contents of registers" },
 	{ "phistory",  "prompt history" },
 	{ "fhistory",  "local filter history" },
+	{ "ratings",   "star rating" },  //add by sim1
 };
 
 /* Possible values of 'wildstyle'. */

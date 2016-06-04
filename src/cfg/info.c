@@ -98,6 +98,7 @@ static void put_sort_info(FILE *fp, char leading_char, const FileView *view);
 static int read_optional_number(FILE *f);
 static int read_number(const char line[], long *value);
 static size_t add_to_int_array(int **array, size_t len, int what);
+static void fwrite_rating_info(FILE *const fp);  //add by sim1
 
 void
 read_info_file(int reread)
@@ -347,6 +348,13 @@ read_info_file(int reread)
 		{
 			FileView *view = (type == LINE_TYPE_LWIN_SPECIFIC) ? &lwin : &rwin;
 			set_view_property(view, line_val[0], line_val + 1);
+		}
+		//add by sim1
+		else if(type == LINE_TYPE_STAR_RATING)
+		{
+			char *endp;
+			int star_num = strtol(line_val, &endp, 10);
+			update_rating_info(star_num, endp);
 		}
 	}
 
@@ -859,6 +867,12 @@ update_info_file(const char filename[])
 			fprintf(fp, "c%s\n", cfg.cs.name);
 		}
 
+		//add by sim1
+		if(cfg.vifm_info & VIFMINFO_RATINGS)
+		{
+			fwrite_rating_info(fp);
+		}
+
 		fclose(fp);
 	}
 
@@ -1088,6 +1102,8 @@ write_options(FILE *const fp)
 		fprintf(fp, ",dirstack");
 	if(cfg.vifm_info & VIFMINFO_REGISTERS)
 		fprintf(fp, ",registers");
+	if(cfg.vifm_info & VIFMINFO_RATINGS)  //add by sim1
+		fprintf(fp, ",ratings");
 	fprintf(fp, "\n");
 
 	fprintf(fp, "=%svimhelp\n", cfg.use_vim_help ? "" : "no");
@@ -1492,6 +1508,243 @@ add_to_int_array(int **array, size_t len, int what)
 
 	return len;
 }
+
+//add by sim1 ***************************************************
+rating_entry_t *rating_list = NULL;
+
+static void
+fwrite_rating_info(FILE *const fp)
+{
+	if (NULL == fp)
+	{
+		return;
+	}
+
+	fprintf(fp, "\n# Star ratings:\n");
+
+	rating_entry_t *entry = rating_list;
+	while (entry != NULL)
+	{
+		rating_entry_t *temp = entry->next;
+
+		if (entry->star > 0)
+		{
+			if (path_exists(entry->path, NODEREF))
+			{
+				fprintf(fp, "*%d%s\n", entry->star, entry->path);
+			}
+		}
+
+		if (entry->path != NULL)
+		{
+			free(entry->path);
+		}
+
+		free(entry);
+
+		entry = temp;
+	}
+
+	return;
+}
+
+rating_entry_t*
+create_rating_info(int star_num, char path[])
+{
+	if (star_num <= 0)
+	{
+		return NULL;
+	}
+  
+	if ((NULL == path) || (0 == strlen(path)))
+	{
+		return NULL;
+	}
+  
+	rating_entry_t *entry = (rating_entry_t *)malloc(sizeof(rating_entry_t));
+	if (NULL == entry)
+	{
+		return NULL;
+	}
+
+	entry->path = strdup(path);
+	entry->star = star_num;
+	entry->next = NULL;
+
+	return entry;
+}
+
+rating_entry_t*
+search_rating_info(const char path[])
+{
+	if (NULL == path)
+	{
+		return NULL;
+	}
+
+	rating_entry_t *entry = rating_list;
+	while (entry != NULL)
+	{
+		if (!strcmp(entry->path, path))
+		{
+			return entry;
+		}
+
+		entry = entry->next;
+	}
+
+	return NULL;
+}
+
+void
+update_rating_info(int star_num, char path[])
+{
+	if (NULL == path)
+	{
+		return;
+	}
+
+	rating_entry_t *entry = search_rating_info(path);
+	if (NULL == entry)
+	{
+		if (star_num <= 0)
+		{
+			return;
+		}
+
+		entry = create_rating_info(star_num, path);
+		if (NULL == entry)
+		{
+			return;
+		}
+
+		entry->next = rating_list;
+		rating_list = entry;
+
+		return;
+	}
+
+	if (0 == star_num)
+	{
+		entry->star = 0;
+		return;
+	}
+
+	entry->star += star_num;
+	if (entry->star > RATING_MAX_STARS)
+	{
+		entry->star = RATING_MAX_STARS;
+	}
+	else if (entry->star < 0)
+	{
+		entry->star = 0;
+	}
+
+	return;
+}
+
+void
+update_rating_info_selected(int star_num)
+{
+	char path[PATH_MAX] = {0};
+	dir_entry_t *entry;
+
+	entry = NULL;
+	while (iter_marked_entries(curr_view, &entry))
+	{
+		get_full_path_of(entry, sizeof(path), path);
+		update_rating_info(star_num, path);
+	}
+
+	return;
+}
+
+int
+get_rating_stars(char path[])
+{
+	if (NULL == path)
+	{
+		return 0;
+	}
+
+	rating_entry_t *entry = search_rating_info(path);
+	if (entry != NULL)
+	{
+	  return entry->star;
+	}
+
+	return 0;
+}
+
+int
+get_rating_string(char buf[], int buf_len, char path[])
+{
+		int i, stars;
+		char rating[3*RATING_MAX_STARS + 1] = {0};
+
+    stars = get_rating_stars(path);
+		if (stars > RATING_MAX_STARS)
+		{
+			stars = RATING_MAX_STARS;
+		}
+
+		for (i = 0; i < stars; i++)
+		{
+			strcat(rating, "★");
+		}
+
+    #if 0
+		for (i = RATING_MAX_STARS; i > stars; i--)
+		{
+			strcat(rating, "☆");
+		}
+    #endif
+
+		snprintf(buf, buf_len, "%s", rating);
+		return stars;
+}
+
+void
+copy_rating_info(const char src[], const char dst[], int op)
+{
+	if (NULL == src)
+	{
+		return;
+	}
+
+  rating_entry_t *entry = search_rating_info(src);
+	if (NULL == entry)
+	{
+		return;
+	}
+
+	if (op == 0)
+	{
+		entry->star = 0;
+		return;
+	}
+
+	if (NULL == src)
+	{
+		return;
+	}
+
+	if (op == 1)
+	{
+		free(entry->path);
+		entry->path = strdup(dst);
+		return;
+	}
+
+	if (op == 2)
+	{
+		update_rating_info(entry->star, (char *)dst);
+		return;
+	}
+
+  return;
+}
+//add by sim1 ***************************************************
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */
