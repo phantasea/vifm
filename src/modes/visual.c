@@ -1365,7 +1365,7 @@ revert_selection(int pos)
 	}
 }
 
-/* Checks whether file at specified position in file list referes to parent
+/* Checks whether file at specified position in file list refers to parent
  * directory. */
 static int
 is_parent_dir_at(int pos)
