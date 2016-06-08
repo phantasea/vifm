@@ -55,7 +55,7 @@ static void dump_filenames(const FileView *view, FILE *fp, int nfiles,
 int
 vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 {
-	int bg;
+	int bg = 0;  //mod by sim1
 
 #ifndef _WIN32
 	char *const escaped_rtp = shell_like_escape(PACKAGE_DATA_DIR, 0);
@@ -63,7 +63,8 @@ vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 
 	snprintf(cmd, cmd_size,
 			"%s -c 'set runtimepath+=%s/vim-doc' -c help\\ %s -c only",
-			cfg_get_vicmd(&bg), escaped_rtp, escaped_args);
+			//cfg_get_vicmd(&bg), escaped_rtp, escaped_args);
+			"vim", escaped_rtp, escaped_args);
 
 	free(escaped_args);
 	free(escaped_rtp);
@@ -76,7 +77,8 @@ vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 
 	snprintf(cmd, cmd_size,
 			"%s -c \"set runtimepath+=%s/data/vim-doc\" -c \"help %s\" -c only",
-			cfg_get_vicmd(&bg), escaped_rtp, topic);
+			//cfg_get_vicmd(&bg), escaped_rtp, topic);
+			"vim", escaped_rtp, topic);
 
 	free(escaped_rtp);
 #endif
