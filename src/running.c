@@ -1011,7 +1011,7 @@ static char *
 gen_term_multiplexer_title_arg(const char cmd[])
 {
 	int bg;
-	const char *const vicmd = cfg_get_vicmd(&bg);
+	const char *const vicmd = cfg_get_vicmd(&bg, 0);
 	const char *const visubcmd = strstr(cmd, vicmd);
 	char *command_name = NULL;
 	const char *title;

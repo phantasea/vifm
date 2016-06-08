@@ -55,7 +55,7 @@ static void dump_filenames(const FileView *view, FILE *fp, int nfiles,
 int
 vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 {
-	int bg = 0;  //mod by sim1
+	int bg;
 
 #ifndef _WIN32
 	char *const escaped_rtp = shell_like_escape(PACKAGE_DATA_DIR, 0);
@@ -63,8 +63,7 @@ vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 
 	snprintf(cmd, cmd_size,
 			"%s -c 'set runtimepath+=%s/vim-doc' -c help\\ %s -c only",
-			//cfg_get_vicmd(&bg), escaped_rtp, escaped_args);
-			"vim", escaped_rtp, escaped_args);
+			cfg_get_vicmd(&bg, 1), escaped_rtp, escaped_args);  //mod by sim1
 
 	free(escaped_args);
 	free(escaped_rtp);
@@ -77,8 +76,7 @@ vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 
 	snprintf(cmd, cmd_size,
 			"%s -c \"set runtimepath+=%s/data/vim-doc\" -c \"help %s\" -c only",
-			//cfg_get_vicmd(&bg), escaped_rtp, topic);
-			"vim", escaped_rtp, topic);
+			cfg_get_vicmd(&bg, 1), escaped_rtp, topic);  //mod by sim1
 
 	free(escaped_rtp);
 #endif
@@ -95,7 +93,7 @@ vim_edit_files(int nfiles, char *files[])
 	int bg;
 	int error;
 
-	(void)strappend(&cmd, &len, cfg_get_vicmd(&bg));
+	(void)strappend(&cmd, &len, cfg_get_vicmd(&bg, 0));
 
 	for(i = 0; i < nfiles; ++i)
 	{
@@ -132,7 +130,7 @@ format_edit_selection_cmd(int *bg)
 {
 	const char *const fmt = (get_env_type() == ET_WIN) ? "%\"f" : "%f";
 	char *const files = expand_macros(fmt, NULL, NULL, 1);
-	char *const cmd = format_str("%s %s", cfg_get_vicmd(bg), files);
+	char *const cmd = format_str("%s %s", cfg_get_vicmd(bg, 0), files);
 	free(files);
 	return cmd;
 }
@@ -170,7 +168,7 @@ vim_view_file(const char filename[], int line, int column, int allow_forking)
 	escaped = (char *)enclose_in_dquotes(filename);
 #endif
 
-	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg));
+	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg, 0));
 	trim_right(vicmd);
 	if(!allow_forking)
 	{

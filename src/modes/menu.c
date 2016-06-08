@@ -765,7 +765,7 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 	endwin();
 	curr_stats.need_update = UT_FULL;
 
-	vi_cmd = cfg_get_vicmd(&bg);
+	vi_cmd = cfg_get_vicmd(&bg, 1);  //mod by sim1
 	if(!qf)
 	{
 		char *const arg = shell_like_escape("+exe 'bd!|args' "
