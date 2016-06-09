@@ -62,7 +62,7 @@ vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 	char *const escaped_args = shell_like_escape(topic, 0);
 
 	snprintf(cmd, cmd_size,
-			"%s -c 'set runtimepath+=%s/vim-doc' -c help\\ %s -c only",
+			"%s -c 'set runtimepath+=%s/vim-doc' -c help\\ %s",
 			cfg_get_vicmd(&bg, 1), escaped_rtp, escaped_args);  //mod by sim1
 
 	free(escaped_args);
