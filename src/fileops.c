@@ -1232,6 +1232,19 @@ rename_files(FileView *view, char **list, int nlines, int recursive)
 		return 0;
 	}
 
+	// add by sim1 *****************
+	int bg = cfg.vi_cmd_bg;
+	int bg_x = cfg.vi_x_cmd_bg;
+	char *vicmd = cfg.vi_command;
+	char *vicmd_x = cfg.vi_x_command;
+	char *vicmd_abs = "vim";
+
+	cfg.vi_cmd_bg = 0;
+	cfg.vi_x_cmd_bg = 0;
+	cfg.vi_command = vicmd_abs;
+	cfg.vi_x_command = vicmd_abs;
+	// add by sim1 *****************
+
 	if(nlines == 0)
 	{
 		rename_files_ind(view, files, is_dup, nfiles);
@@ -1259,6 +1272,14 @@ rename_files(FileView *view, char **list, int nlines, int recursive)
 	clean_selected_files(view);
 	redraw_view(view);
 	curr_stats.save_msg = 1;
+
+	// add by sim1 *****************
+	cfg.vi_cmd_bg = bg;
+	cfg.vi_x_cmd_bg = bg_x;
+	cfg.vi_command = vicmd;
+	cfg.vi_x_command = vicmd_x;
+	// add by sim1 *****************
+
 	return 1;
 }
 
