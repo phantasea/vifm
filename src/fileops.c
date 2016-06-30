@@ -201,9 +201,10 @@ static ops_t * get_ops(OPS main_op, const char descr[], const char base_dir[],
 static void progress_msg(const char text[], int ready, int total);
 static int cpmv_prepare(FileView *view, char ***list, int *nlines,
 		CopyMoveLikeOp op, int force, char undo_msg[], size_t undo_msg_len,
-		char *path, int *from_file, int *from_trash);
+		char path[], size_t path_len, int *from_file, int *from_trash);
 static int can_read_selected_files(FileView *view);
-static int check_dir_path(const FileView *view, const char path[], char buf[]);
+static int check_dir_path(const FileView *view, const char path[], char buf[],
+		size_t buf_len);
 static char ** edit_list(size_t count, char **orig, int *nlines,
 		int ignore_change);
 static int edit_file(const char filepath[], int force_changed);
@@ -221,8 +222,6 @@ static int mv_file_f(const char src[], const char dst[], OPS op, int bg,
 		int cancellable, ops_t *ops);
 static int cp_file(const char src_dir[], const char dst_dir[], const char src[],
 		const char dst[], CopyMoveLikeOp op, int cancellable, ops_t *ops);
-static void make_full_path(const char dir[], const char file[], char buf[],
-		size_t buf_len);
 static int cp_file_f(const char src[], const char dst[], CopyMoveLikeOp op,
 		int bg, int cancellable, ops_t *ops);
 static void free_bg_args(bg_args_t *args);
@@ -923,7 +922,7 @@ rename_file_cb(const char new_name[])
 
 	/* Rename file in internal structures for correct positioning of cursor after
 	 * reloading, as cursor will be positioned on the file with the same name. */
-	fentry_rename(entry, new);
+	fentry_rename(curr_view, entry, new);
 
 	ui_view_schedule_reload(curr_view);
 }
@@ -931,7 +930,7 @@ rename_file_cb(const char new_name[])
 static int
 complete_filename_only(const char str[], void *arg)
 {
-	filename_completion(str, CT_FILE_WOE);
+	filename_completion(str, CT_FILE_WOE, 0);
 	return 0;
 }
 
@@ -1091,7 +1090,7 @@ perform_renaming(FileView *view, char **files, int *is_dup, int len,
 
 			++renamed;
 
-			make_full_path(curr_dir, files[i], path, sizeof(path));
+			to_canonic_path(files[i], curr_dir, path, sizeof(path));
 			entry = entry_from_path(view->dir_entry, view->list_rows, path);
 			if(entry == NULL)
 			{
@@ -1106,7 +1105,7 @@ perform_renaming(FileView *view, char **files, int *is_dup, int len,
 				/* For regular views rename file in internal structures for correct
 				 * positioning of cursor after reloading. For custom views rename to
 				 * prevent files from disappearing. */
-				fentry_rename(entry, new_name);
+				fentry_rename(view, entry, new_name);
 
 				if(flist_custom_active(view))
 				{
@@ -1114,7 +1113,7 @@ perform_renaming(FileView *view, char **files, int *is_dup, int len,
 							view->custom.entry_count, path);
 					if(entry != NULL)
 					{
-						fentry_rename(entry, new_name);
+						fentry_rename(view, entry, new_name);
 					}
 				}
 			}
@@ -1564,13 +1563,14 @@ chown_files(int u, int g, uid_t uid, gid_t gid)
 	char undo_msg[COMMAND_GROUP_INFO_LEN + 1];
 	ops_t *ops;
 	dir_entry_t *entry;
+	const char *const curr_dir = flist_get_dir(view);
 
 	ui_cancellation_reset();
 
 	snprintf(undo_msg, sizeof(undo_msg), "ch%s in %s: ",
-			((u && g) || u) ? "own" : "grp", replace_home_part(view->curr_dir));
+			((u && g) || u) ? "own" : "grp", replace_home_part(curr_dir));
 
-	ops = get_ops(OP_CHOWN, "re-owning", view->curr_dir, view->curr_dir);
+	ops = get_ops(OP_CHOWN, "re-owning", curr_dir, curr_dir);
 
 	append_marked_files(view, undo_msg, NULL);
 	cmd_group_begin(undo_msg);
@@ -1578,13 +1578,16 @@ chown_files(int u, int g, uid_t uid, gid_t gid)
 	entry = NULL;
 	while(iter_marked_entries(view, &entry) && !ui_cancellation_requested())
 	{
-		if(u && perform_operation(OP_CHOWN, ops, V(uid), entry->name, NULL) == 0)
+		char full_path[PATH_MAX];
+		get_full_path_of(entry, sizeof(full_path), full_path);
+
+		if(u && perform_operation(OP_CHOWN, ops, V(uid), full_path, NULL) == 0)
 		{
-			add_operation(OP_CHOWN, V(uid), V(entry->uid), entry->name, "");
+			add_operation(OP_CHOWN, V(uid), V(entry->uid), full_path, "");
 		}
-		if(g && perform_operation(OP_CHGRP, ops, V(gid), entry->name, NULL) == 0)
+		if(g && perform_operation(OP_CHGRP, ops, V(gid), full_path, NULL) == 0)
 		{
-			add_operation(OP_CHGRP, V(gid), V(entry->gid), entry->name, "");
+			add_operation(OP_CHGRP, V(gid), V(entry->gid), full_path, "");
 		}
 	}
 	cmd_group_end();
@@ -1694,6 +1697,7 @@ change_link_cb(const char new_target[])
 	char linkto[PATH_MAX];
 	const char *fname;
 	ops_t *ops;
+	const char *const curr_dir = flist_get_dir(curr_view);
 
 	if(is_null_or_empty(new_target))
 	{
@@ -1709,8 +1713,7 @@ change_link_cb(const char new_target[])
 		return;
 	}
 
-	ops = get_ops(OP_SYMLINK2, "re-owning", curr_view->curr_dir,
-			curr_view->curr_dir);
+	ops = get_ops(OP_SYMLINK2, "re-targeting", curr_dir, curr_dir);
 
 	fname = get_last_path_component(full_path);
 	snprintf(undo_msg, sizeof(undo_msg), "cl in %s: on %s from \"%s\" to \"%s\"",
@@ -1770,7 +1773,7 @@ static int
 complete_filename(const char str[], void *arg)
 {
 	const char *name_begin = after_last(str, '/');
-	filename_completion(str, CT_ALL_WOE);
+	filename_completion(str, CT_ALL_WOE, 0);
 	return name_begin - str;
 }
 
@@ -2207,7 +2210,7 @@ is_clone_list_ok(int count, char **list)
 }
 
 int
-clone_files(FileView *view, char **list, int nlines, int force, int copies)
+clone_files(FileView *view, char *list[], int nlines, int force, int copies)
 {
 	int i;
 	char undo_msg[COMMAND_GROUP_INFO_LEN + 1];
@@ -2228,7 +2231,7 @@ clone_files(FileView *view, char **list, int nlines, int force, int copies)
 
 	if(nlines == 1)
 	{
-		with_dir = check_dir_path(view, list[0], path);
+		with_dir = check_dir_path(view, list[0], path, sizeof(path));
 		if(with_dir)
 		{
 			nlines = 0;
@@ -2374,8 +2377,7 @@ clone_file(const dir_entry_t *entry, const char path[], const char clone[],
 	char full_path[PATH_MAX];
 	char clone_name[PATH_MAX];
 
-	snprintf(clone_name, sizeof(clone_name), "%s/%s", path, clone);
-	chosp(clone_name);
+	to_canonic_path(clone, path, clone_name, sizeof(clone_name));
 	if(path_exists(clone_name, DEREF))
 	{
 		if(perform_operation(OP_REMOVESL, NULL, NULL, clone_name, NULL) != 0)
@@ -3195,7 +3197,7 @@ fixup_entry_after_rename(FileView *view, dir_entry_t *entry,
 {
 	if(entry_to_pos(view, entry) == view->list_pos || flist_custom_active(view))
 	{
-		fentry_rename(entry, new_fname);
+		fentry_rename(view, entry, new_fname);
 	}
 }
 
@@ -3237,7 +3239,7 @@ cpmv_files(FileView *view, char **list, int nlines, CopyMoveLikeOp op,
 	}
 
 	err = cpmv_prepare(view, &list, &nlines, op, force, undo_msg,
-			sizeof(undo_msg), path, &from_file, &from_trash);
+			sizeof(undo_msg), path, sizeof(path), &from_file, &from_trash);
 	if(err != 0)
 	{
 		return err > 0;
@@ -3417,8 +3419,8 @@ cpmv_files_bg(FileView *view, char **list, int nlines, int move, int force)
 	args->force = force;
 
 	err = cpmv_prepare(view, &list, &args->nlines, move ? CMLO_MOVE : CMLO_COPY,
-			force, task_desc, sizeof(task_desc), args->path, &args->from_file,
-			&args->use_trash);
+			force, task_desc, sizeof(task_desc), args->path, sizeof(args->path),
+			&args->from_file, &args->use_trash);
 	if(err != 0)
 	{
 		free_bg_args(args);
@@ -3447,8 +3449,8 @@ cpmv_files_bg(FileView *view, char **list, int nlines, int move, int force)
  * message and negative number for other errors. */
 static int
 cpmv_prepare(FileView *view, char ***list, int *nlines, CopyMoveLikeOp op,
-		int force, char undo_msg[], size_t undo_msg_len, char *path, int *from_file,
-		int *from_trash)
+		int force, char undo_msg[], size_t undo_msg_len, char path[],
+		size_t path_len, int *from_file, int *from_trash)
 {
 	char **marked;
 	size_t nmarked;
@@ -3468,7 +3470,7 @@ cpmv_prepare(FileView *view, char ***list, int *nlines, CopyMoveLikeOp op,
 
 	if(*nlines == 1)
 	{
-		if(check_dir_path(other_view, (*list)[0], path))
+		if(check_dir_path(other_view, (*list)[0], path, path_len))
 		{
 			*nlines = 0;
 		}
@@ -3585,19 +3587,18 @@ can_read_selected_files(FileView *view)
  * current directory of the view.  Returns non-zero if value of the path was
  * used, otherwise zero is returned. */
 static int
-check_dir_path(const FileView *view, const char path[], char buf[])
+check_dir_path(const FileView *view, const char path[], char buf[],
+		size_t buf_len)
 {
 	if(path[0] == '/' || path[0] == '~')
 	{
 		char *const expanded_path = expand_tilde(path);
-		strcpy(buf, expanded_path);
+		copy_str(buf, buf_len, expanded_path);
 		free(expanded_path);
 	}
 	else
 	{
-		strcpy(buf, view->curr_dir);
-		strcat(buf, "/");
-		strcat(buf, path);
+		snprintf(buf, buf_len, "%s/%s", view->curr_dir, path);
 	}
 
 	if(is_dir(buf))
@@ -3844,8 +3845,8 @@ mv_file(const char src[], const char src_dir[], const char dst[],
 {
 	char full_src[PATH_MAX], full_dst[PATH_MAX];
 
-	make_full_path(src_dir, src, full_src, sizeof(full_src));
-	make_full_path(dst_dir, dst, full_dst, sizeof(full_dst));
+	to_canonic_path(src, src_dir, full_src, sizeof(full_src));
+	to_canonic_path(dst, dst_dir, full_dst, sizeof(full_dst));
 
 	return mv_file_f(full_src, full_dst, op, 0, cancellable, ops);
 }
@@ -3881,26 +3882,10 @@ cp_file(const char src_dir[], const char dst_dir[], const char src[],
 {
 	char full_src[PATH_MAX], full_dst[PATH_MAX];
 
-	make_full_path(src_dir, src, full_src, sizeof(full_src));
-	make_full_path(dst_dir, dst, full_dst, sizeof(full_dst));
+	to_canonic_path(src, src_dir, full_src, sizeof(full_src));
+	to_canonic_path(dst, dst_dir, full_dst, sizeof(full_dst));
 
 	return cp_file_f(full_src, full_dst, op, 0, cancellable, ops);
-}
-
-/* Makes full path from base directory and path.  Drops base directory if path
- * is absolute. */
-static void
-make_full_path(const char dir[], const char file[], char buf[], size_t buf_len)
-{
-	if(is_path_absolute(file))
-	{
-		copy_str(buf, buf_len, file);
-	}
-	else
-	{
-		snprintf(buf, buf_len, "%s/%s", dir, file);
-	}
-	chosp(buf);
 }
 
 /* Copies file from one location to another.  Returns zero on success, otherwise
@@ -3994,7 +3979,7 @@ go_to_first_file(FileView *view, char **names, int count)
 	redraw_view(view);
 }
 
-void
+int
 make_dirs(FileView *view, char **names, int count, int create_parent)
 {
 	char buf[COMMAND_GROUP_INFO_LEN + 1];
@@ -4004,27 +3989,27 @@ make_dirs(FileView *view, char **names, int count, int create_parent)
 
 	if(!can_add_files_to_view(view))
 	{
-		return;
+		return 1;
 	}
 
 	cp = (void *)(size_t)create_parent;
 
-	for(i = 0; i < count; i++)
+	for(i = 0; i < count; ++i)
 	{
 		if(is_in_string_array(names, i, names[i]))
 		{
 			status_bar_errorf("Name \"%s\" duplicates", names[i]);
-			return;
+			return 1;
 		}
 		if(names[i][0] == '\0')
 		{
 			status_bar_errorf("Name #%d is empty", i + 1);
-			return;
+			return 1;
 		}
 		if(path_exists(names[i], NODEREF))
 		{
 			status_bar_errorf("File \"%s\" already exists", names[i]);
-			return;
+			return 1;
 		}
 	}
 
@@ -4036,29 +4021,21 @@ make_dirs(FileView *view, char **names, int count, int create_parent)
 	get_group_file_list(names, count, buf);
 	cmd_group_begin(buf);
 	n = 0;
-	for(i = 0; i < count && !ui_cancellation_requested(); i++)
+	for(i = 0; i < count && !ui_cancellation_requested(); ++i)
 	{
 		char full[PATH_MAX];
-
-		if(is_path_absolute(names[i]))
-		{
-			copy_str(full, sizeof(full), names[i]);
-		}
-		else
-		{
-			snprintf(full, sizeof(full), "%s/%s", view->curr_dir, names[i]);
-		}
+		to_canonic_path(names[i], view->curr_dir, full, sizeof(full));
 
 		if(perform_operation(OP_MKDIR, NULL, cp, full, NULL) == 0)
 		{
 			add_operation(OP_MKDIR, cp, NULL, full, "");
-			n++;
+			++n;
 		}
 		else if(i == 0)
 		{
-			i--;
-			names++;
-			count--;
+			--i;
+			++names;
+			--count;
 		}
 	}
 	cmd_group_end();
@@ -4067,7 +4044,7 @@ make_dirs(FileView *view, char **names, int count, int create_parent)
 	{
 		if(create_parent)
 		{
-			for(i = 0; i < count; i++)
+			for(i = 0; i < count; ++i)
 			{
 				break_at(names[i], '/');
 			}
@@ -4077,6 +4054,7 @@ make_dirs(FileView *view, char **names, int count, int create_parent)
 
 	status_bar_messagef("%d director%s created%s", n, (n == 1) ? "y" : "ies",
 			get_cancellation_suffix());
+	return 1;
 }
 
 int

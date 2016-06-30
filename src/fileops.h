@@ -95,6 +95,8 @@ int rename_files(FileView *view, char **list, int nlines, int recursive);
 int incdec_names(FileView *view, int k);
 
 #ifndef _WIN32
+/* Sets uid and or gid for marked files.  Non-zero u enables setting of uid,
+ * non-zero g of gid. */
 void chown_files(int u, int g, uid_t uid, gid_t gid);
 #endif
 
@@ -113,7 +115,8 @@ int put_files(FileView *view, int reg_name, int move);
 int put_files_bg(FileView *view, int reg_name, int move);
 
 /* Clones marked files in the view.  Returns new value for save_msg flag. */
-int clone_files(FileView *view, char **list, int nlines, int force, int copies);
+int clone_files(FileView *view, char *list[], int nlines, int force,
+		int copies);
 
 /* Whether set of view files can be altered (renamed, deleted, but not added).
  * Returns non-zero if so, otherwise zero is returned. */
@@ -149,8 +152,9 @@ int cpmv_files(FileView *view, char **list, int nlines, CopyMoveLikeOp op,
  * value for save_msg flag. */
 int cpmv_files_bg(FileView *view, char **list, int nlines, int move, int force);
 
-/* Can modify strings in the names array. */
-void make_dirs(FileView *view, char **names, int count, int create_parent);
+/* Creates directories, possibly including intermediate ones.  Can modify
+ * strings in the names array.  Returns new value for save_msg flag. */
+int make_dirs(FileView *view, char *names[], int count, int create_parent);
 
 int make_files(FileView *view, char **names, int count);
 
