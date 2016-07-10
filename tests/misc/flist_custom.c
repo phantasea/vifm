@@ -33,7 +33,6 @@ static void column_line_print(const void *data, int column_id, const char buf[],
 		size_t offset, AlignType align, const char full_column[]);
 static void setup_custom_view(FileView *view, int very);
 static int filenames_can_include_newline(void);
-static int not_windows(void);
 
 static char test_data[PATH_MAX];
 static const size_t MAX_WIDTH = 20;
@@ -481,7 +480,7 @@ TEST(custom_view_does_not_reset_local_state)
 	columns_clear_column_descs();
 }
 
-TEST(files_with, IF(filenames_can_include_newline))
+TEST(files_with_newline_in_names, IF(filenames_can_include_newline))
 {
 	FILE *const f = fopen(SANDBOX_PATH "/list", "w");
 	fprintf(f, "%s%c", SANDBOX_PATH "/a\nb", '\0');
@@ -493,7 +492,8 @@ TEST(files_with, IF(filenames_can_include_newline))
 	stats_update_shell_type(cfg.shell);
 
 	create_file("a\nb");
-	output_to_custom_flist(&lwin, "cat list", 0);
+	assert_non_null(get_cwd(lwin.curr_dir, sizeof(lwin.curr_dir)));
+	assert_success(output_to_custom_flist(&lwin, "cat list", 0));
 	assert_success(unlink("a\nb"));
 	assert_success(unlink("list"));
 
@@ -597,16 +597,6 @@ filenames_can_include_newline(void)
 		return not_windows();
 	}
 	return 0;
-}
-
-static int
-not_windows(void)
-{
-#ifdef _WIN32
-	return 0;
-#else
-	return 1;
-#endif
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

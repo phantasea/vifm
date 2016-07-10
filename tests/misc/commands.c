@@ -32,7 +32,6 @@ static int op_avail(OPS op);
 static void check_filetype(void);
 static int prog_exists(const char name[]);
 static int has_mime_type_detection(void);
-static int not_windows(void);
 
 static const cmd_add_t commands[] = {
 	{ .name = "builtin",       .abbr = NULL,  .id = -1,      .descr = "descr",
@@ -247,6 +246,17 @@ TEST(shell_invocation_works_in_udf)
 	assert_success(exec_commands("udf", &lwin, CIT_COMMAND));
 	assert_success(access("out", F_OK));
 	assert_success(unlink("out"));
+}
+
+TEST(cd_in_root_works)
+{
+	assert_success(chdir(test_data));
+
+	strcpy(lwin.curr_dir, test_data);
+
+	assert_false(is_root_dir(lwin.curr_dir));
+	assert_success(exec_commands("cd /", &lwin, CIT_COMMAND));
+	assert_true(is_root_dir(lwin.curr_dir));
 }
 
 TEST(double_cd_uses_same_base_for_rel_paths)
@@ -473,21 +483,30 @@ TEST(fileviewer_accepts_negated_patterns)
 	ft_reset(0);
 }
 
-TEST(pattern_anding_and_orring, IF(has_mime_type_detection))
+TEST(pattern_anding_and_orring_failures)
 {
-	assoc_records_t ft;
-
-	ft_init(&prog_exists);
-
+	/* No matching is performed, so we can use application/octet-stream. */
 	assert_failure(exec_commands("filetype /*/,"
 				"<application/octet-stream>{binary-data} app", &lwin, CIT_COMMAND));
 	assert_failure(exec_commands("fileviewer /*/,"
 				"<application/octet-stream>{binary-data} viewer", &lwin, CIT_COMMAND));
+}
 
-	assert_success(exec_commands("filetype {two-lines}<text/plain>,"
-				"<application/octet-stream>{binary-data} app", &lwin, CIT_COMMAND));
-	assert_success(exec_commands("fileviewer {two-lines}<text/plain>,"
-				"<application/octet-stream>{binary-data} viewer", &lwin, CIT_COMMAND));
+TEST(pattern_anding_and_orring, IF(has_mime_type_detection))
+{
+	char cmd[1024];
+	assoc_records_t ft;
+
+	ft_init(&prog_exists);
+
+	snprintf(cmd, sizeof(cmd),
+			"filetype {two-lines}<text/plain>,<%s>{binary-data} app",
+			get_mimetype(TEST_DATA_PATH "/read/binary-data"));
+	assert_success(exec_commands(cmd, &lwin, CIT_COMMAND));
+	snprintf(cmd, sizeof(cmd),
+			"fileviewer {two-lines}<text/plain>,<%s>{binary-data} viewer",
+			get_mimetype(TEST_DATA_PATH "/read/binary-data"));
+	assert_success(exec_commands(cmd, &lwin, CIT_COMMAND));
 
 	ft = ft_get_all_programs(TEST_DATA_PATH "/read/two-lines");
 	assert_int_equal(1, ft.count);
@@ -649,16 +668,6 @@ static int
 has_mime_type_detection(void)
 {
 	return get_mimetype(TEST_DATA_PATH "/read/dos-line-endings") != NULL;
-}
-
-static int
-not_windows(void)
-{
-#ifdef _WIN32
-	return 0;
-#else
-	return 1;
-#endif
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

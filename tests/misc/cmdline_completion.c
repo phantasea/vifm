@@ -5,7 +5,7 @@
 
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* fclose() fopen() free() */
-#include <string.h>
+#include <string.h> /* strdup() */
 #include <wchar.h> /* wcsdup() */
 
 #include "../../src/compat/fs_limits.h"
@@ -16,6 +16,7 @@
 #include "../../src/engine/completion.h"
 #include "../../src/engine/functions.h"
 #include "../../src/engine/options.h"
+#include "../../src/int/path_env.h"
 #include "../../src/modes/cmdline.h"
 #include "../../src/utils/env.h"
 #include "../../src/utils/fs.h"
@@ -27,18 +28,8 @@
 
 #include "utils.h"
 
-#if defined(__CYGWIN__) || defined(_WIN32)
-#define SUFFIX ".exe"
-#define SUFFIXW L".exe"
-#else
-#define SUFFIX ""
-#define SUFFIXW L""
-#endif
-
 static void dummy_handler(OPT_OP op, optval_t val);
-static void create_executable(const char file[]);
 static int dquotes_allowed_in_paths(void);
-static int not_windows(void);
 
 static line_stats_t stats;
 static char *saved_cwd;
@@ -88,8 +79,7 @@ TEARDOWN()
 {
 	restore_cwd(saved_cwd);
 
-	free(cfg.slow_fs_list);
-	cfg.slow_fs_list = NULL;
+	update_string(&cfg.slow_fs_list, NULL);
 
 	free(stats.line);
 	reset_cmds();
@@ -140,25 +130,6 @@ TEST(only_user)
 	free(buf);
 }
 
-TEST(test_set_completion)
-{
-	vle_compl_reset();
-	assert_success(line_completion(&stats));
-	assert_wstring_equal(L"set all", stats.line);
-}
-
-TEST(no_sdquoted_completion_does_nothing)
-{
-	free(stats.line);
-	stats.line = wcsdup(L"command '");
-	stats.len = wcslen(stats.line);
-	stats.index = stats.len;
-
-	vle_compl_reset();
-	assert_success(line_completion(&stats));
-	assert_wstring_equal(L"command '", stats.line);
-}
-
 static void
 prepare_for_line_completion(const wchar_t str[])
 {
@@ -171,10 +142,22 @@ prepare_for_line_completion(const wchar_t str[])
 	vle_compl_reset();
 }
 
+TEST(test_set_completion)
+{
+	prepare_for_line_completion(L"set ");
+	assert_success(line_completion(&stats));
+	assert_wstring_equal(L"set all", stats.line);
+}
+
+TEST(no_sdquoted_completion_does_nothing)
+{
+	prepare_for_line_completion(L"command '");
+	assert_success(line_completion(&stats));
+	assert_wstring_equal(L"command '", stats.line);
+}
+
 TEST(spaces_escaping_leading)
 {
-	char *mb;
-
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
 			TEST_DATA_PATH, "spaces-in-names", saved_cwd);
 	assert_success(chdir(curr_view->curr_dir));
@@ -182,39 +165,31 @@ TEST(spaces_escaping_leading)
 	prepare_for_line_completion(L"touch \\ ");
 	assert_success(line_completion(&stats));
 
-	mb = to_multibyte(stats.line);
-	assert_string_equal("touch \\ begins-with-space", mb);
-	free(mb);
+	assert_wstring_equal(L"touch \\ begins-with-space", stats.line);
 }
 
 TEST(spaces_escaping_everywhere)
 {
-	char *mb;
-
 	assert_success(chdir("../spaces-in-names"));
 
 	prepare_for_line_completion(L"touch \\ s");
 	assert_success(line_completion(&stats));
 
-	mb = to_multibyte(stats.line);
 	/* Whether trailing space is there depends on file system and OS. */
 	if(access("\\ spaces\\ everywhere\\ ", F_OK) == 0)
 	{
-		assert_string_equal("touch \\ spaces\\ everywhere\\ ", mb);
+		assert_wstring_equal(L"touch \\ spaces\\ everywhere\\ ", stats.line);
 	}
 	/* Only one condition is true, but don't use else to make one of asserts fail
 	 * if there are two files somehow. */
 	if(access("\\ spaces\\ everywhere", F_OK) == 0)
 	{
-		assert_string_equal("touch \\ spaces\\ everywhere", mb);
+		assert_wstring_equal(L"touch \\ spaces\\ everywhere", stats.line);
 	}
-	free(mb);
 }
 
 TEST(spaces_escaping_trailing)
 {
-	char *mb;
-
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
 			TEST_DATA_PATH, "spaces-in-names", saved_cwd);
 	assert_success(chdir(curr_view->curr_dir));
@@ -222,25 +197,21 @@ TEST(spaces_escaping_trailing)
 	prepare_for_line_completion(L"touch e");
 	assert_success(line_completion(&stats));
 
-	mb = to_multibyte(stats.line);
 	/* Whether trailing space is there depends on file system and OS. */
 	if(access("ends-with-space\\ ", F_OK) == 0)
 	{
-		assert_string_equal("touch ends-with-space\\ ", mb);
+		assert_wstring_equal(L"touch ends-with-space\\ ", stats.line);
 	}
 	/* Only one condition is true, but don't use else to make one of asserts fail
 	 * if there are too files somehow. */
 	if(access("ends-with-space", F_OK) == 0)
 	{
-		assert_string_equal("touch ends-with-space", mb);
+		assert_wstring_equal(L"touch ends-with-space", stats.line);
 	}
-	free(mb);
 }
 
 TEST(spaces_escaping_middle)
 {
-	char *mb;
-
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
 			TEST_DATA_PATH, "spaces-in-names", saved_cwd);
 	assert_success(chdir(curr_view->curr_dir));
@@ -248,9 +219,7 @@ TEST(spaces_escaping_middle)
 	prepare_for_line_completion(L"touch s");
 	assert_success(line_completion(&stats));
 
-	mb = to_multibyte(stats.line);
-	assert_string_equal("touch spaces\\ in\\ the\\ middle", mb);
-	free(mb);
+	assert_wstring_equal(L"touch spaces\\ in\\ the\\ middle", stats.line);
 }
 
 TEST(squoted_completion)
@@ -362,6 +331,17 @@ TEST(help_cmd_escaping)
 	prepare_for_line_completion(L"help vifm-");
 	assert_success(line_completion(&stats));
 	assert_wstring_equal(L"help vifm-!!", stats.line);
+}
+
+TEST(root_is_completed)
+{
+	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
+			TEST_DATA_PATH, "", saved_cwd);
+	assert_success(chdir(curr_view->curr_dir));
+
+	prepare_for_line_completion(L"cd /");
+	assert_success(line_completion(&stats));
+	assert_true(wcscmp(L"cd /", stats.line) != 0);
 }
 
 TEST(dirs_are_completed_with_trailing_slash)
@@ -477,14 +457,39 @@ TEST(abbreviations)
 	vle_abbr_reset();
 }
 
-TEST(bang_abs_path_completion)
-{
 #if defined(_WIN32) && !defined(_WIN64)
 #define WPRINTF_MBSTR L"S"
 #else
 #define WPRINTF_MBSTR L"s"
 #endif
 
+TEST(bang_exec_completion)
+{
+	char *const original_path_env = strdup(env_get("PATH"));
+
+	restore_cwd(saved_cwd);
+	assert_success(chdir(SANDBOX_PATH));
+	saved_cwd = save_cwd();
+
+	env_set("PATH", saved_cwd);
+	update_path_env(1);
+
+	create_executable("exec-for-completion" EXE_SUFFIX);
+
+	prepare_for_line_completion(L"!exec-for-com" EXE_SUFFIXW);
+	assert_success(line_completion(&stats));
+	assert_wstring_equal(L"!exec-for-completion" EXE_SUFFIXW, stats.line);
+
+	assert_success(unlink("exec-for-completion" EXE_SUFFIX));
+
+	env_set("PATH", original_path_env);
+	update_path_env(1);
+	free(original_path_env);
+}
+
+TEST(bang_abs_path_completion)
+{
+	wchar_t input[PATH_MAX];
 	wchar_t cmd[PATH_MAX];
 	char cwd[PATH_MAX];
 
@@ -494,21 +499,23 @@ TEST(bang_abs_path_completion)
 
 	assert_true(get_cwd(cwd, sizeof(cwd)) == cwd);
 
-	create_executable("exec-for-completion" SUFFIX);
+	create_executable("exec-for-completion" EXE_SUFFIX);
 
+	vifm_swprintf(input, ARRAY_LEN(input),
+			L"!%" WPRINTF_MBSTR L"/exec-for-compl", cwd);
 	vifm_swprintf(cmd, ARRAY_LEN(cmd),
-			L"!%" WPRINTF_MBSTR L"/exec-for-completion" SUFFIXW, cwd);
+			L"!%" WPRINTF_MBSTR L"/exec-for-completion" EXE_SUFFIXW, cwd);
 
-	prepare_for_line_completion(cmd);
+	prepare_for_line_completion(input);
 	assert_success(line_completion(&stats));
 	assert_wstring_equal(cmd, stats.line);
 
 	assert_int_equal(2, vle_compl_get_count());
 
-	assert_success(unlink("exec-for-completion" SUFFIX));
+	assert_success(unlink("exec-for-completion" EXE_SUFFIX));
+}
 
 #undef WPRINTF_MBSTR
-}
 
 TEST(tilde_is_completed_after_emark)
 {
@@ -550,13 +557,13 @@ TEST(bmark_path_is_completed)
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir), SANDBOX_PATH,
 			"", saved_cwd);
 	assert_success(chdir(curr_view->curr_dir));
-	create_executable("exec-for-completion" SUFFIX);
+	create_executable("exec-for-completion" EXE_SUFFIX);
 
 	prepare_for_line_completion(L"bmark! exec");
 	assert_success(line_completion(&stats));
-	assert_wstring_equal(L"bmark! exec-for-completion" SUFFIX, stats.line);
+	assert_wstring_equal(L"bmark! exec-for-completion" EXE_SUFFIX, stats.line);
 
-	assert_success(unlink("exec-for-completion" SUFFIX));
+	assert_success(unlink("exec-for-completion" EXE_SUFFIX));
 }
 
 TEST(delbmark_tags_are_completed)
@@ -618,6 +625,10 @@ TEST(wincmd_completion)
 
 TEST(grep_completion)
 {
+	prepare_for_line_completion(L"grep -");
+	assert_success(line_completion(&stats));
+	assert_wstring_equal(L"grep -", stats.line);
+
 	prepare_for_line_completion(L"grep .");
 	assert_success(line_completion(&stats));
 	assert_wstring_equal(L"grep .", stats.line);
@@ -628,6 +639,8 @@ TEST(grep_completion)
 
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
 			TEST_DATA_PATH, "", saved_cwd);
+	assert_success(chdir(curr_view->curr_dir));
+
 	prepare_for_line_completion(L"grep -o ");
 	assert_success(line_completion(&stats));
 	assert_wstring_equal(L"grep -o existing-files/", stats.line);
@@ -635,6 +648,10 @@ TEST(grep_completion)
 
 TEST(find_completion)
 {
+	prepare_for_line_completion(L"find -");
+	assert_success(line_completion(&stats));
+	assert_wstring_equal(L"find ./-", stats.line);
+
 	prepare_for_line_completion(L"find ..");
 	assert_success(line_completion(&stats));
 	assert_wstring_equal(L"find ../", stats.line);
@@ -645,6 +662,8 @@ TEST(find_completion)
 
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
 			TEST_DATA_PATH, "", saved_cwd);
+	assert_success(chdir(curr_view->curr_dir));
+
 	prepare_for_line_completion(L"find ");
 	assert_success(line_completion(&stats));
 	assert_wstring_equal(L"find existing-files/", stats.line);
@@ -772,15 +791,6 @@ TEST(symlinks_in_paths_are_not_resolved, IF(not_windows))
 	assert_success(remove(SANDBOX_PATH "/dir-link"));
 }
 
-static void
-create_executable(const char file[])
-{
-	create_file(file);
-	assert_success(access(file, F_OK));
-	chmod(file, 0755);
-	assert_success(access(file, X_OK));
-}
-
 static int
 dquotes_allowed_in_paths(void)
 {
@@ -790,16 +800,6 @@ dquotes_allowed_in_paths(void)
 		return 1;
 	}
 	return 0;
-}
-
-static int
-not_windows(void)
-{
-#ifdef _WIN32
-	return 0;
-#else
-	return 1;
-#endif
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

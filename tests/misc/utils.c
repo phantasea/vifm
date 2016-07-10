@@ -1,5 +1,8 @@
 #include "utils.h"
 
+#include <sys/stat.h> /* chmod() */
+#include <unistd.h> /* access() */
+
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* fclose() fopen() */
 #include <string.h> /* memset() strcpy() */
@@ -127,6 +130,15 @@ create_file(const char path[])
 }
 
 void
+create_executable(const char path[])
+{
+	create_file(path);
+	assert_success(access(path, F_OK));
+	chmod(path, 0755);
+	assert_success(access(path, X_OK));
+}
+
+void
 make_abs_path(char buf[], size_t buf_len, const char base[], const char sub[],
 		const char cwd[])
 {
@@ -138,6 +150,16 @@ make_abs_path(char buf[], size_t buf_len, const char base[], const char sub[],
 	{
 		snprintf(buf, buf_len, "%s/%s/%s", cwd, base, sub);
 	}
+}
+
+int
+not_windows(void)
+{
+#ifdef _WIN32
+	return 0;
+#else
+	return 1;
+#endif
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
