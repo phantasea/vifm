@@ -872,6 +872,8 @@ setup_shellout_env(void)
 	char *escaped_path;
 	char *cmd;
 
+	def_prog_mode();
+
 	/* Need to use internal value instead of getcwd() for a symlink directory. */
 	env_set("PWD", curr_view->curr_dir);
 
@@ -907,6 +909,8 @@ cleanup_shellout_env(void)
 {
 	const char *term_multiplexer_fmt;
 	char *cmd;
+
+	reset_prog_mode();
 
 	switch(curr_stats.term_multiplexer)
 	{
