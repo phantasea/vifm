@@ -24,11 +24,11 @@
 #include <windef.h>
 #endif
 
-#include <pthread.h> /* pthread_mutex_t */
-
 #include <sys/types.h> /* pid_t */
 
 #include <stdio.h>
+
+#include "compat/pthread.h"
 
 /* Special value of total amount of work in job_t structure to indicate
  * undefined total number of countable operations. */
@@ -62,13 +62,17 @@ typedef struct job_t
 	pid_t pid;
 	char *cmd;
 	int skip_errors;
+	char *error;
+
+	/* The lock is meant to guard running and exit_code updates in background
+	 * jobs. */
+	pthread_spinlock_t status_lock_for_bg;
 	int running;
 	/* TODO: use or remove this (set to correct value, but not used). */
 	int exit_code;
-	char *error;
 
 	/* For background operations and tasks. */
-	pthread_mutex_t bg_op_guard;
+	pthread_spinlock_t bg_op_lock;
 	bg_op_t bg_op;
 
 #ifndef _WIN32

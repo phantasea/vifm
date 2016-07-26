@@ -26,7 +26,6 @@
 #include <termios.h> /* struct winsize */
 #endif
 #include <sys/time.h> /* gettimeofday() */
-#include <pthread.h> /* PTHREAD_* pthread_* */
 #include <unistd.h>
 
 #include <assert.h> /* assert() */
@@ -44,6 +43,7 @@
 #include "../cfg/info.h"
 #include "../compat/curses.h"
 #include "../compat/fs_limits.h"
+#include "../compat/pthread.h"
 #include "../engine/mode.h"
 #include "../int/term_title.h"
 #include "../modes/dialogs/msg_dialog.h"
@@ -1424,6 +1424,10 @@ static void
 print_view_title(const FileView *view, int active_view, char title[])
 {
 	const size_t title_width = getmaxx(view->title);
+	if(title_width == (size_t)-1)
+	{
+		return;
+	}
 
 	fixup_titles_attributes(view, active_view);
 	werase(view->title);
@@ -1524,7 +1528,7 @@ ui_view_sort_list_get(const FileView *view)
 int
 ui_view_displays_numbers(const FileView *const view)
 {
-	return view->num_type != NT_NONE && !view->ls_view;
+	return view->num_type != NT_NONE && ui_view_displays_columns(view);
 }
 
 int
@@ -1544,7 +1548,8 @@ ui_view_clear_history(FileView *const view)
 int
 ui_view_displays_columns(const FileView *const view)
 {
-	return !view->ls_view;
+	return !view->ls_view
+	    || (flist_custom_active(view) && view->custom.tree_view);
 }
 
 FileType
