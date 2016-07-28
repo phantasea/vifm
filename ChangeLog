@@ -4,6 +4,9 @@
 
 	Added :tree command that converts current view into a tree.
 
+	Added :dmap, :dnoremap and :dunmap commands to configure mappings in
+	dialogs.  Thanks to Sassan Haradji (a.k.a. sassanh).
+
 	Try to save and restore terminal state while running external
 	applications.  Thanks to Losiara.
 
@@ -14,6 +17,11 @@
 
 	Fixed inconsistent file name demangling on moving files from trash in
 	custom view.
+
+	Fixed decreasing number of selected files after zd operation.
+
+	Fixed wrong whole value completion of string list options if entered value
+	contains a comma (,).
 
 0.8.2-beta to 0.8.2
 
