@@ -12,6 +12,22 @@
 
 	Enable restoring files from trash from custom views.
 
+	View current directory on ".." for quickview/view mode.  Thanks to
+	filterfalse.
+
+	Make :put, :touch and :mkdir accept [line] range, which can be used to
+	specify target position in tree-view.  Thanks to filterfalse.
+
+	Enable cancellation of tree preview construction.  Thanks to filterfalse.
+
+	Partially return progress report for menus.  Was disabled by introduction
+	of null byte heuristic.
+
+	Accept paths in :touch, not just file names.  Thanks to filterfalse.
+
+	Consider trailing slash for directories or symbolic links that point to
+	directories for patterns in 'classify'.
+
 	Fixed redirecting stdout of background commands to /dev/null, which could
 	be unwritable descriptor.  Thanks to c02y.
 
@@ -27,6 +43,9 @@
 	when match occurs.  Thanks to filterfalse.
 
 	Fixed incorrect completion of non-first option name of the :set command.
+
+	Fixed assertion failure on file rename of specific pattern (renaming files
+	1, 2 via `:rename 2 3` is the shortest example).  Thanks to aleksejrs.
 
 0.8.2-beta to 0.8.2
 

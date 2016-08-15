@@ -763,7 +763,7 @@ clear_num_window(void)
 void
 show_progress(const char msg[], int period)
 {
-	static char marks[] = {'|', '/', '-', '\\'};
+	static char marks[] = { '|', '/', '-', '\\' };
 	static int mark = 0;
 	static int count = 1;
 	static int total = 0;
@@ -787,15 +787,15 @@ show_progress(const char msg[], int period)
 	++total;
 
 	/* Skip intermediate updates to do not hammer UI with refreshes. */
-	if(period != 1 && count%period != 1)
+	if(period != 1 && count%abs(period) != 1)
 	{
 		return;
 	}
 	count = 1;
 
-	/* Assume that period equal to one means that message already contains counter
-	 * (maybe along with total number). */
-	if(period == 1)
+	/* Assume that period equal to or less than one means that message already
+	 * contains counter (maybe along with total number) or doesn't need one. */
+	if(period <= 1)
 	{
 		ui_sb_quick_msgf("%s %c", msg, marks[mark]);
 	}
@@ -1243,6 +1243,10 @@ void
 ui_get_decors(const dir_entry_t *entry, const char **prefix,
 		const char **suffix)
 {
+	/* The check of actual file type can be relatively slow in some cases, so make
+	 * sure we do it only when needed and at most once. */
+	FileType type = FT_UNK;
+
 	if(entry->name_dec_num == -1)
 	{
 		/* Find a match and cache the result. */
@@ -1253,18 +1257,20 @@ ui_get_decors(const dir_entry_t *entry, const char **prefix,
 			char full_path[PATH_MAX];
 			int i;
 
-			get_full_path_of(entry, sizeof(full_path), full_path);
+			get_full_path_of(entry, sizeof(full_path) - 1U, full_path);
+			type = ui_view_entry_target_type(entry);
+			if(type == FT_DIR)
+			{
+				strcat(full_path, "/");
+			}
 
 			for(i = 0; i < cfg.name_dec_count; ++i)
 			{
 				const file_dec_t *const file_dec = &cfg.name_decs[i];
 				if(matchers_match(file_dec->matchers, full_path))
 				{
-					if(matchers_match(file_dec->matchers, full_path))
-					{
-						((dir_entry_t *)entry)->name_dec_num = i + 1;
-						break;
-					}
+					((dir_entry_t *)entry)->name_dec_num = i + 1;
+					break;
 				}
 			}
 		}
@@ -1272,7 +1278,7 @@ ui_get_decors(const dir_entry_t *entry, const char **prefix,
 
 	if(entry->name_dec_num == 0)
 	{
-		const FileType type = ui_view_entry_target_type(entry);
+		type = (type == FT_UNK) ? ui_view_entry_target_type(entry) : type;
 		*prefix = cfg.type_decs[type][DECORATION_PREFIX];
 		*suffix = cfg.type_decs[type][DECORATION_SUFFIX];
 	}
