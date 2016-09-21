@@ -23,11 +23,15 @@
 
 /* Managing status bar. */
 
-void clean_status_bar(void);
+/* Clears the status bar. */
+void ui_sb_clear(void);
 
 /* Immediately (UI is updated) displays message on the status bar without
  * storing it in message history. */
 void ui_sb_quick_msgf(const char format[], ...) _gnuc_printf(1, 2);
+
+/* Clears message displayed by ui_sb_quick_msgf(). */
+void ui_sb_quick_msg_clear(void);
 
 /* Repeats last message if message is NULL. */
 void status_bar_message(const char message[]);

@@ -76,8 +76,9 @@
 #include "dir_stack.h"
 #include "event_loop.h"
 #include "filelist.h"
-#include "fileops.h"
 #include "filetype.h"
+#include "flist_pos.h"
+#include "fops_common.h"
 #include "ipc.h"
 #include "marks.h"
 #include "ops.h"
@@ -94,7 +95,7 @@ static void move_pair(short int from, short int to);
 static int undo_perform_func(OPS op, void *data, const char src[],
 		const char dst[]);
 static void parse_received_arguments(char *args[]);
-static void remote_cd(FileView *view, const char *path, int handle);
+static void remote_cd(FileView *view, const char path[], int handle);
 static void check_path_for_file(FileView *view, const char path[], int handle);
 static int need_to_switch_active_pane(const char lwin_path[],
 		const char rwin_path[]);
@@ -179,11 +180,19 @@ main(int argc, char *argv[])
 	}
 
 	ipc_init(vifm_args.server_name, &parse_received_arguments);
+	/* Export chosen server name to parsing unit. */
+	{
+		var_val_t value = { .string = (char *)ipc_get_name() };
+		var_t var = var_new(VTYPE_STRING, value);
+		setvar("v:servername", var);
+		var_free(var);
+	}
+
 	args_process(&vifm_args, 0);
 
 	init_background();
 
-	init_fileops(&enter_prompt_mode, &prompt_msg_custom);
+	fops_init(&enter_prompt_mode, &prompt_msg_custom);
 
 	set_view_path(&lwin, vifm_args.lwin_path);
 	set_view_path(&rwin, vifm_args.rwin_path);
@@ -380,12 +389,12 @@ parse_received_arguments(char *argv[])
 		change_window();
 	}
 
-	clean_status_bar();
+	ui_sb_clear();
 	curr_stats.save_msg = 0;
 }
 
 static void
-remote_cd(FileView *view, const char *path, int handle)
+remote_cd(FileView *view, const char path[], int handle)
 {
 	char buf[PATH_MAX];
 
@@ -505,7 +514,7 @@ vifm_restart(void)
 	reset_undo_list();
 
 	/* Directory stack. */
-	clean_stack();
+	dir_stack_clear();
 
 	/* Registers. */
 	regs_reset();
@@ -515,7 +524,7 @@ vifm_restart(void)
 	bmarks_clear();
 
 	/* Reset variables. */
-	clear_variables();
+	clear_envvars();
 	init_variables();
 	/* This update is needed as clear_variables() will reset $PATH. */
 	update_path_env(1);

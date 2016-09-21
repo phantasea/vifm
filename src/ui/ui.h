@@ -35,11 +35,9 @@
 #include "../compat/pthread.h"
 #include "../utils/filter.h"
 #include "../utils/fswatch.h"
-#include "../utils/trie.h"
 #include "../status.h"
 #include "../types.h"
 #include "color_scheme.h"
-#include "column_view.h"
 
 #define SORT_WIN_WIDTH 32
 
@@ -111,7 +109,10 @@ enum
 	SK_COUNT = SK_LAST,
 
 	/* Special value to use for unset options. */
-	SK_NONE = SK_LAST + 1
+	SK_NONE = SK_LAST + 1,
+
+	/* Id ordering.  Defined here to do not add it to sorting keys. */
+	SK_BY_ID = SK_NONE + 1
 };
 
 //add by chris for star rating
@@ -137,6 +138,17 @@ typedef enum
 	NT_MIX  = NT_SEQ | NT_REL, /* All numbers are relative except for current. */
 }
 NumberingType;
+
+/* Variants of custom view. */
+typedef enum
+{
+	CV_REGULAR, /* Sorted list of files. */
+	CV_VERY,    /* No initial sorting of file list is enforced. */
+	CV_TREE,    /* Files of a file system sub-tree. */
+	CV_COMPARE, /* Directory comparison pane. */
+	CV_DIFF,    /* One of two directory comparison panes. */
+}
+CVType;
 
 /* Type of scheduled view update event. */
 typedef enum
@@ -174,6 +186,8 @@ typedef struct dir_entry_t
 	FileType type;
 	int nlinks;       /* Number of hard links to the entry. */
 
+	int id;           /* File uniqueness identifier. */
+
 	int tag;          /* Used to hold temporary data associated with the item,
 	                     e.g. by sorting comparer to perform stable sort or item
 	                     mapping during tree filtering. */
@@ -210,13 +224,7 @@ typedef struct
 	struct
 	{
 		/* Type of the custom view. */
-		enum
-		{
-			CV_REGULAR,  /* Sorted list of files. */
-			CV_UNSORTED, /* No initial sorting of file list is enforced. */
-			CV_TREE,     /* Files of a file system sub-tree. */
-		}
-		type;
+		CVType type;
 
 		/* This is temporary storage for custom list entries used during its
 		 * construction as well as storage for unfiltered custom list if local
@@ -234,11 +242,11 @@ typedef struct
 
 		/* List of paths that should be ignored (including all nested paths).  Used
 		 * by tree-view. */
-		trie_t excluded_paths;
+		struct trie_t *excluded_paths;
 
 		/* Names of files in custom view while it's being composed.  Used for
 		 * duplicate elimination during construction of custom list. */
-		trie_t paths_cache;
+		struct trie_t *paths_cache;
 	}
 	custom;
 
@@ -330,7 +338,7 @@ typedef struct
 
 	/* Handle for column_view unit.  Contains view columns configuration even when
 	 * 'lsview' is on. */
-	columns_t columns;
+	struct columns_t *columns;
 	/* Format string that specifies view columns. */
 	char *view_columns, *view_columns_g;
 
@@ -386,8 +394,8 @@ WINDOW *lborder;
 WINDOW *mborder;
 WINDOW *rborder;
 
-/* Updates the ruler with information from the view. */
-void ui_ruler_update(FileView *view);
+/* Updates the ruler with information from the view (possibly lazily). */
+void ui_ruler_update(FileView *view, int lazy_redraw);
 
 /* Sets text to be displayed on the ruler.  Real window update is postponed for
  * efficiency reasons. */
@@ -407,7 +415,13 @@ int ui_char_pressed(wint_t c);
 
 int setup_ncurses_interface(void);
 
-float get_splitter_pos(int max);
+/* Checks whether custom view of specified type is unsorted.  Returns non-zero
+ * if so, otherwise zero is returned. */
+int cv_unsorted(CVType type);
+
+/* Checks whether custom view of specified type is a compare or diff view.
+ * Returns non-zero if so, otherwise zero is returned. */
+int cv_compare(CVType type);
 
 /* Redraws whole screen with possible reloading of file lists (depends on
  * argument). */
@@ -543,7 +557,7 @@ int ui_view_displays_numbers(const FileView *const view);
  * otherwise zero is returned. */
 int ui_view_is_visible(const FileView *const view);
 
-/* Cleans directory history of the view. */
+/* Clears directory history of the view. */
 void ui_view_clear_history(FileView *const view);
 
 /* Checks whether view displays column view.  Returns non-zero if so, otherwise
@@ -582,6 +596,11 @@ void ui_view_erase(FileView *view);
 /* Same as erase, but ensures that view is updated in all its size on the
  * screen (e.g. to clear anything put there by other programs as well). */
 void ui_view_wipe(FileView *view);
+
+/* Checks whether custom view type of specified view is unsorted.  It doesn't
+ * need the view to be custom, checks just the type.  Returns non-zero if so,
+ * otherwise zero is returned. */
+int ui_view_unsorted(const FileView *view);
 
 /* View update scheduling. */
 

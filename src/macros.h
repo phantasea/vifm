@@ -30,11 +30,17 @@ typedef enum
 {
 	MF_NONE, /* No special macro specified. */
 
-	MF_MENU_OUTPUT,           /* Redirect output to the menu. */
-	MF_MENU_NAV_OUTPUT,       /* Redirect output to the navigation menu. */
-	MF_STATUSBAR_OUTPUT,      /* Redirect output to the status bar. */
-	MF_CUSTOMVIEW_OUTPUT,     /* Redirect output directly to custom view. */
-	MF_VERYCUSTOMVIEW_OUTPUT, /* Redirect output directly to custom view. */
+	MF_MENU_OUTPUT,      /* Redirect output to the menu. */
+	MF_MENU_NAV_OUTPUT,  /* Redirect output to the navigation menu. */
+	MF_STATUSBAR_OUTPUT, /* Redirect output to the status bar. */
+
+	/* Redirect output into custom view. */
+	MF_CUSTOMVIEW_OUTPUT,     /* Applying current sorting. */
+	MF_VERYCUSTOMVIEW_OUTPUT, /* Not changing ordering. */
+
+	/* Redirect output from interactive application into custom view. */
+	MF_CUSTOMVIEW_IOUTPUT,     /* Applying current sorting. */
+	MF_VERYCUSTOMVIEW_IOUTPUT, /* Not changing ordering. */
 
 	MF_SPLIT,       /* Run command in a new screen region. */
 	MF_IGNORE,      /* Completely ignore command output. */
@@ -63,9 +69,9 @@ char * expand_macros(const char command[], const char args[], MacroFlags *flags,
  * single string, so escaping is disabled. */
 char * ma_expand_single(const char command[]);
 
-/* Gets clean part of the viewer.  Returns NULL if there is none, otherwise
+/* Gets clear part of the viewer.  Returns NULL if there is none, otherwise
  * pointer inside the cmd string is returned. */
-const char * ma_get_clean_cmd(const char cmd[]);
+const char * ma_get_clear_cmd(const char cmd[]);
 
 /* Expands macros of form %x in the pattern (%% is expanded to %) according to
  * macros specification. */

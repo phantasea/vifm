@@ -172,7 +172,7 @@ event_loop(const int *quit)
 			{
 				wait_for_enter = 0;
 				curr_stats.save_msg = 0;
-				clean_status_bar();
+				ui_sb_clear();
 				if(c == WC_CR)
 				{
 					continue;
@@ -430,7 +430,7 @@ process_scheduled_updates_of_view(FileView *view)
 			load_saving_pos(view, 1);
 			if(view == curr_view && !is_status_bar_multiline())
 			{
-				ui_ruler_update(view);
+				ui_ruler_update(view, 1);
 			}
 			return 1;
 		case UUE_FULL_RELOAD:

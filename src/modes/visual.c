@@ -39,8 +39,11 @@
 #include "../utils/utils.h"
 #include "../cmd_core.h"
 #include "../filelist.h"
-#include "../fileops.h"
 #include "../filtering.h"
+#include "../flist_pos.h"
+#include "../flist_sel.h"
+#include "../fops_misc.h"
+#include "../fops_rename.h"
 #include "../marks.h"
 #include "../registers.h"
 #include "../running.h"
@@ -151,7 +154,6 @@ static void select_up_one(FileView *view, int start_pos);
 static void select_down_one(FileView *view, int start_pos);
 static void apply_selection(int pos);
 static void revert_selection(int pos);
-static int is_parent_dir_at(int pos);
 static void update(void);
 static int find_update(FileView *view, int backward);
 static void goto_pos_force_update(int pos);
@@ -285,13 +287,13 @@ enter_visual_mode(VisualSubmodes sub_mode)
 	{
 		case VS_NORMAL:
 			amend_type = AT_NONE;
-			clean_selected_files(view);
+			flist_sel_stash(view);
 			backup_selection_flags(view);
 			select_first_one();
 			break;
 		case VS_RESTORE:
 			amend_type = AT_NONE;
-			clean_selected_files(view);
+			flist_sel_stash(view);
 			backup_selection_flags(view);
 			restore_previous_selection();
 			break;
@@ -306,7 +308,7 @@ enter_visual_mode(VisualSubmodes sub_mode)
 }
 
 void
-leave_visual_mode(int save_msg, int goto_top, int clean_selection)
+leave_visual_mode(int save_msg, int goto_top, int clear_selection)
 {
 	if(goto_top)
 	{
@@ -315,7 +317,7 @@ leave_visual_mode(int save_msg, int goto_top, int clean_selection)
 			view->list_pos = ub;
 	}
 
-	if(clean_selection)
+	if(clear_selection)
 	{
 		reset_search_results(view);
 		restore_selection_flags(view);
@@ -493,7 +495,7 @@ call_incdec(int count)
 {
 	int save_msg;
 	check_marking(view, 0, NULL);
-	save_msg = incdec_names(view, count);
+	save_msg = fops_incdec(view, count);
 	accept_and_leave(save_msg);
 }
 
@@ -515,7 +517,7 @@ cmd_C(key_info_t key_info, keys_info_t *keys_info)
 {
 	int save_msg;
 	check_marking(curr_view, 0, NULL);
-	save_msg = clone_files(view, NULL, 0, 0, def_count(key_info.count));
+	save_msg = fops_clone(view, NULL, 0, 0, def_count(key_info.count));
 	accept_and_leave(save_msg);
 }
 
@@ -715,7 +717,7 @@ delete(key_info_t key_info, int use_trash)
 
 	if(count != 0 && confirm_deletion(count, use_trash))
 	{
-		const int save_msg = delete_files(view, def_reg(key_info.reg), use_trash);
+		const int save_msg = fops_delete(view, def_reg(key_info.reg), use_trash);
 		accept_and_leave(save_msg);
 	}
 }
@@ -735,7 +737,7 @@ cmd_f(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_gA(key_info_t key_info, keys_info_t *keys_info)
 {
-	calculate_size_bg(curr_view, 1);
+	fops_size_bg(curr_view, 1);
 	accept_and_leave(0);
 }
 
@@ -743,7 +745,7 @@ cmd_gA(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ga(key_info_t key_info, keys_info_t *keys_info)
 {
-	calculate_size_bg(curr_view, 0);
+	fops_size_bg(curr_view, 0);
 	accept_and_leave(0);
 }
 
@@ -770,7 +772,7 @@ cmd_cw(key_info_t key_info, keys_info_t *keys_info)
 	leave_visual_mode(0, 1, 0);
 
 	check_marking(view, 0, NULL);
-	(void)rename_files(view, NULL, 0, 0);
+	(void)fops_rename(view, NULL, 0, 0);
 }
 
 static void
@@ -787,7 +789,7 @@ cmd_gl(key_info_t key_info, keys_info_t *keys_info)
 	update_marks(view);
 	leave_visual_mode(curr_stats.save_msg, 1, 0);
 	open_file(view, FHE_RUN);
-	clean_selected_files(view);
+	flist_sel_stash(view);
 	redraw_view(view);
 }
 
@@ -812,7 +814,7 @@ do_gu(int upper)
 	int save_msg;
 
 	check_marking(view, 0, NULL);
-	save_msg = change_case(view, upper);
+	save_msg = fops_case(view, upper);
 	accept_and_leave(save_msg);
 }
 
@@ -834,7 +836,7 @@ restore_previous_selection(void)
 	if(ub < 0 || lb < 0)
 		return;
 
-	erase_selection(view);
+	flist_sel_drop(view);
 
 	start_pos = ub;
 	view->list_pos = ub;
@@ -858,10 +860,7 @@ restore_previous_selection(void)
 static void
 select_first_one(void)
 {
-	if(!is_parent_dir_at(view->list_pos))
-	{
-		apply_selection(view->list_pos);
-	}
+	apply_selection(view->list_pos);
 }
 
 /* Go backwards [count] (one by default) files in ls-like sub-mode. */
@@ -872,11 +871,11 @@ cmd_h(key_info_t key_info, keys_info_t *keys_info)
 	{
 		go_to_prev(key_info, keys_info, 1, 1);
 	}
-	else if(view->dir_entry[view->list_pos].child_pos != 0)
+	else if(get_current_entry(view)->child_pos != 0)
 	{
-		const dir_entry_t *entry = &curr_view->dir_entry[curr_view->list_pos];
+		const dir_entry_t *entry = get_current_entry(view);
 		key_info.count = def_count(key_info.count);
-		while (key_info.count-- > 0)
+		while(key_info.count-- > 0)
 		{
 			entry -= entry->child_pos;
 		}
@@ -947,8 +946,11 @@ go_to_next(key_info_t key_info, keys_info_t *keys_info, int def, int step)
 static void
 cmd_m(key_info_t key_info, keys_info_t *keys_info)
 {
-	const dir_entry_t *const entry = &view->dir_entry[view->list_pos];
-	set_user_mark(key_info.multi, entry->origin, entry->name);
+	const dir_entry_t *const curr = get_current_entry(view);
+	if(!fentry_is_fake(curr))
+	{
+		set_user_mark(key_info.multi, curr->origin, curr->name);
+	}
 }
 
 static void
@@ -1060,7 +1062,7 @@ change_amend_type(AmendType new_amend_type)
 
 	if(new_amend_type == AT_NONE)
 	{
-		clean_selected_files(view);
+		flist_sel_stash(view);
 	}
 	else
 	{
@@ -1114,7 +1116,7 @@ cmd_y(key_info_t key_info, keys_info_t *keys_info)
 	int save_msg;
 
 	check_marking(view, 0, NULL);
-	save_msg = yank_files(view, def_reg(key_info.reg));
+	save_msg = fops_yank(view, def_reg(key_info.reg));
 
 	accept_and_leave(save_msg);
 }
@@ -1154,6 +1156,7 @@ update_marks(FileView *view)
 {
 	char start_mark, end_mark;
 	const dir_entry_t *start_entry, *end_entry;
+	int delta;
 
 	if(start_pos >= view->list_rows)
 	{
@@ -1161,12 +1164,22 @@ update_marks(FileView *view)
 	}
 
 	upwards_range = view->list_pos < start_pos;
+	delta = upwards_range ? +1 : -1;
 
 	start_mark = upwards_range ? '<' : '>';
 	end_mark = upwards_range ? '>' : '<';
 
 	start_entry = &view->dir_entry[view->list_pos];
 	end_entry = &view->dir_entry[start_pos];
+	/* Fake entries can't be marked, so skip them on both ends. */
+	while(start_entry != end_entry && fentry_is_fake(start_entry))
+	{
+		start_entry += delta;
+	}
+	while(start_entry != end_entry && fentry_is_fake(end_entry))
+	{
+		end_entry -= delta;
+	}
 
 	set_spec_mark(start_mark, start_entry->origin, start_entry->name);
 	set_spec_mark(end_mark, end_entry->origin, end_entry->name);
@@ -1176,7 +1189,7 @@ update_marks(FileView *view)
 static void
 cmd_zd(key_info_t key_info, keys_info_t *keys_info)
 {
-	flist_custom_exclude(curr_view);
+	flist_custom_exclude(curr_view, key_info.count == 1);
 	accept_and_leave(0);
 }
 
@@ -1240,18 +1253,7 @@ select_up_one(FileView *view, int start_pos)
 	view->list_pos--;
 	if(view->list_pos < 0)
 	{
-		if(is_parent_dir_at(start_pos))
-		{
-			--view->selected_files;
-		}
 		view->list_pos = 0;
-	}
-	else if(view->list_pos == 0 && is_parent_dir_at(0))
-	{
-		if(start_pos == 0)
-		{
-			revert_selection(1);
-		}
 	}
 	else if(view->list_pos < start_pos)
 	{
@@ -1272,15 +1274,11 @@ select_up_one(FileView *view, int start_pos)
 static void
 select_down_one(FileView *view, int start_pos)
 {
-	view->list_pos++;
+	++view->list_pos;
 
 	if(view->list_pos >= view->list_rows)
 	{
 		view->list_pos = view->list_rows - 1;
-	}
-	else if(view->list_pos == 1 && start_pos != 0 && is_parent_dir_at(0))
-	{
-		/* do nothing */
 	}
 	else if(view->list_pos > start_pos)
 	{
@@ -1302,6 +1300,11 @@ static void
 apply_selection(int pos)
 {
 	dir_entry_t *const entry = &view->dir_entry[pos];
+	if(!fentry_is_valid(entry))
+	{
+		return;
+	}
+
 	switch(amend_type)
 	{
 		case AT_NONE:
@@ -1377,28 +1380,19 @@ revert_selection(int pos)
 	}
 }
 
-/* Checks whether file at specified position in file list refers to parent
- * directory. */
-static int
-is_parent_dir_at(int pos)
-{
-	/* Don't allow the ../ dir to be selected. */
-	return is_parent_dir(view->dir_entry[pos].name);
-}
-
 static void
 update(void)
 {
 	redraw_view(view);
-	ui_ruler_update(view);
+	ui_ruler_update(view, 1);
 }
 
 void
 update_visual_mode(void)
 {
-	int pos = view->list_pos;
+	const int pos = view->list_pos;
 
-	clean_selected_files(view);
+	flist_sel_stash(view);
 	view->dir_entry[start_pos].selected = 1;
 	view->selected_files = 1;
 

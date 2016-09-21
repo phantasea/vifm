@@ -53,8 +53,13 @@
 #include "../utils/utils.h"
 #include "../cmd_core.h"
 #include "../filelist.h"
-#include "../fileops.h"
 #include "../filtering.h"
+#include "../flist_pos.h"
+#include "../flist_sel.h"
+#include "../fops_common.h"
+#include "../fops_misc.h"
+#include "../fops_put.h"
+#include "../fops_rename.h"
 #include "../marks.h"
 #include "../registers.h"
 #include "../running.h"
@@ -489,7 +494,7 @@ static void
 cmd_ctrl_a(key_info_t key_info, keys_info_t *keys_info)
 {
 	check_marking(curr_view, 0, NULL);
-	curr_stats.save_msg = incdec_names(curr_view, def_count(key_info.count));
+	curr_stats.save_msg = fops_incdec(curr_view, def_count(key_info.count));
 }
 
 static void
@@ -506,7 +511,7 @@ static void
 cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info)
 {
 	ui_view_reset_search_highlight(curr_view);
-	clean_selected_files(curr_view);
+	flist_sel_stash(curr_view);
 	redraw_current_view();
 }
 
@@ -641,7 +646,7 @@ static void
 cmd_return(key_info_t key_info, keys_info_t *keys_info)
 {
 	open_file(curr_view, FHE_RUN);
-	clean_selected_files(curr_view);
+	flist_sel_stash(curr_view);
 	redraw_current_view();
 }
 
@@ -907,7 +912,7 @@ static void
 cmd_ctrl_x(key_info_t key_info, keys_info_t *keys_info)
 {
 	check_marking(curr_view, 0, NULL);
-	curr_stats.save_msg = incdec_names(curr_view, -def_count(key_info.count));
+	curr_stats.save_msg = fops_incdec(curr_view, -def_count(key_info.count));
 }
 
 static void
@@ -961,7 +966,7 @@ static void
 cmd_C(key_info_t key_info, keys_info_t *keys_info)
 {
 	check_marking(curr_view, 0, NULL);
-	curr_stats.save_msg = clone_files(curr_view, NULL, 0, 0,
+	curr_stats.save_msg = fops_clone(curr_view, NULL, 0, 0,
 			def_count(key_info.count));
 }
 
@@ -1077,20 +1082,20 @@ cmd_G(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_gA(key_info_t key_info, keys_info_t *keys_info)
 {
-	calculate_size_bg(curr_view, 1);
+	fops_size_bg(curr_view, 1);
 }
 
 /* Calculate size of selected directories taking cached sizes into account. */
 static void
 cmd_ga(key_info_t key_info, keys_info_t *keys_info)
 {
-	calculate_size_bg(curr_view, 0);
+	fops_size_bg(curr_view, 0);
 }
 
 static void
 cmd_gf(key_info_t key_info, keys_info_t *keys_info)
 {
-	clean_selected_files(curr_view);
+	flist_sel_stash(curr_view);
 	follow_file(curr_view);
 	redraw_current_view();
 }
@@ -1117,7 +1122,7 @@ static void
 cmd_gr(key_info_t key_info, keys_info_t *keys_info)
 {
 	open_file(curr_view, FHE_ELEVATE_AND_RUN);
-	clean_selected_files(curr_view);
+	flist_sel_stash(curr_view);
 	redraw_current_view();
 }
 #endif
@@ -1192,7 +1197,7 @@ do_gu(key_info_t key_info, keys_info_t *keys_info, int upper)
 	}
 
 	check_marking(curr_view, keys_info->count, keys_info->indexes);
-	curr_stats.save_msg = change_case(curr_view, upper);
+	curr_stats.save_msg = fops_case(curr_view, upper);
 	free_list_of_file_indexes(keys_info);
 }
 
@@ -1432,7 +1437,7 @@ cmd_av(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_cW(key_info_t key_info, keys_info_t *keys_info)
 {
-	rename_current_file(curr_view, 1);
+	fops_rename_current(curr_view, 1);
 }
 
 #ifndef _WIN32
@@ -1440,7 +1445,7 @@ cmd_cW(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_cg(key_info_t key_info, keys_info_t *keys_info)
 {
-	change_group();
+	fops_chgroup();
 }
 #endif
 
@@ -1448,7 +1453,7 @@ cmd_cg(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_cl(key_info_t key_info, keys_info_t *keys_info)
 {
-	curr_stats.save_msg = change_link(curr_view);
+	curr_stats.save_msg = fops_retarget(curr_view);
 }
 
 #ifndef _WIN32
@@ -1456,7 +1461,7 @@ cmd_cl(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_co(key_info_t key_info, keys_info_t *keys_info)
 {
-	change_owner();
+	fops_chuser();
 }
 #endif
 
@@ -1474,11 +1479,11 @@ cmd_cw(key_info_t key_info, keys_info_t *keys_info)
 	if(curr_view->selected_files > 1)
 	{
 		check_marking(curr_view, 0, NULL);
-		rename_files(curr_view, NULL, 0, 0);
+		fops_rename(curr_view, NULL, 0, 0);
 		return;
 	}
 
-	rename_current_file(curr_view, 0);
+	fops_rename_current(curr_view, 0);
 }
 
 /* Delete file. */
@@ -1502,7 +1507,7 @@ delete(key_info_t key_info, int use_trash)
 {
 	keys_info_t keys_info = {};
 
-	if(!can_change_view_files(curr_view))
+	if(!fops_view_can_be_changed(curr_view))
 	{
 		return;
 	}
@@ -1525,7 +1530,7 @@ delete(key_info_t key_info, int use_trash)
 static void
 cmd_D_selector(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(can_change_view_files(curr_view))
+	if(fops_view_can_be_changed(curr_view))
 	{
 		call_delete(key_info, keys_info, 0);
 	}
@@ -1548,7 +1553,7 @@ call_delete(key_info_t key_info, keys_info_t *keys_info, int use_trash)
 
 	if(count != 0 && confirm_deletion(count, use_trash))
 	{
-		curr_stats.save_msg = delete_files(curr_view, def_reg(key_info.reg),
+		curr_stats.save_msg = fops_delete(curr_view, def_reg(key_info.reg),
 				use_trash);
 		free_list_of_file_indexes(keys_info);
 	}
@@ -1581,26 +1586,26 @@ cmd_f(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_h(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(ui_view_displays_columns(curr_view))
+	const dir_entry_t *entry = get_current_entry(curr_view);
+
+	if(!ui_view_displays_columns(curr_view))
 	{
-		if(curr_view->dir_entry[curr_view->list_pos].child_pos != 0)
+		go_to_prev(key_info, keys_info, 1);
+		return;
+	}
+
+	if(entry->child_pos != 0)
+	{
+		key_info.count = def_count(key_info.count);
+		while(key_info.count-- > 0)
 		{
-			const dir_entry_t *entry = &curr_view->dir_entry[curr_view->list_pos];
-			key_info.count = def_count(key_info.count);
-			while (key_info.count-- > 0)
-			{
-				entry -= entry->child_pos;
-			}
-			pick_or_move(keys_info, entry_to_pos(curr_view, entry));
+			entry -= entry->child_pos;
 		}
-		else
-		{
-			cmd_gh(key_info, keys_info);
-		}
+		pick_or_move(keys_info, entry_to_pos(curr_view, entry));
 	}
 	else
 	{
-		go_to_prev(key_info, keys_info, 1);
+		cmd_gh(key_info, keys_info);
 	}
 }
 
@@ -1608,7 +1613,7 @@ static void
 cmd_i(key_info_t key_info, keys_info_t *keys_info)
 {
 	open_file(curr_view, FHE_NO_RUN);
-	clean_selected_files(curr_view);
+	flist_sel_stash(curr_view);
 	redraw_current_view();
 }
 
@@ -1665,9 +1670,12 @@ go_to_next(key_info_t key_info, keys_info_t *keys_info, int step)
 static void
 cmd_m(key_info_t key_info, keys_info_t *keys_info)
 {
-	const dir_entry_t *const entry = &curr_view->dir_entry[curr_view->list_pos];
-	curr_stats.save_msg = set_user_mark(key_info.multi, entry->origin,
-			entry->name);
+	const dir_entry_t *const curr = get_current_entry(curr_view);
+	if(!fentry_is_fake(curr))
+	{
+		curr_stats.save_msg = set_user_mark(key_info.multi, curr->origin,
+				curr->name);
+	}
 }
 
 static void
@@ -1728,7 +1736,7 @@ cmd_p(key_info_t key_info, keys_info_t *keys_info)
 static void
 call_put_files(key_info_t key_info, int move)
 {
-	curr_stats.save_msg = put_files(curr_view, -1, def_reg(key_info.reg), move);
+	curr_stats.save_msg = fops_put(curr_view, -1, def_reg(key_info.reg), move);
 	ui_views_reload_filelists();
 }
 
@@ -1743,7 +1751,8 @@ cmd_rl(key_info_t key_info, keys_info_t *keys_info)
 static void
 call_put_links(key_info_t key_info, int relative)
 {
-	curr_stats.save_msg = put_links(curr_view, def_reg(key_info.reg), relative);
+	curr_stats.save_msg =
+		fops_put_links(curr_view, def_reg(key_info.reg), relative);
 	ui_views_reload_filelists();
 }
 
@@ -1799,21 +1808,21 @@ cmd_q_equals(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_t(key_info_t key_info, keys_info_t *keys_info)
 {
-	dir_entry_t *const entry = &curr_view->dir_entry[curr_view->list_pos];
-	if(entry->selected == 0)
+	dir_entry_t *const curr = get_current_entry(curr_view);
+	/* Special purpose kind of entries can't be selected. */
+	if(!fentry_is_valid(curr))
 	{
-		/* The ../ dir cannot be selected. */
-		if(is_parent_dir(entry->name))
-		{
-			return;
-		}
+		return;
+	}
 
-		entry->selected = 1;
+	if(curr->selected == 0)
+	{
+		curr->selected = 1;
 		++curr_view->selected_files;
 	}
 	else
 	{
-		entry->selected = 0;
+		curr->selected = 0;
 		--curr_view->selected_files;
 	}
 
@@ -1925,10 +1934,10 @@ cmd_y_selector(key_info_t key_info, keys_info_t *keys_info)
 static void
 yank(key_info_t key_info, keys_info_t *keys_info)
 {
-	curr_stats.save_msg = yank_files(curr_view, def_reg(key_info.reg));
+	curr_stats.save_msg = fops_yank(curr_view, def_reg(key_info.reg));
 	free_list_of_file_indexes(keys_info);
 
-	clean_selected_files(curr_view);
+	flist_sel_stash(curr_view);
 	ui_view_schedule_redraw(curr_view);
 }
 
@@ -1978,7 +1987,7 @@ cmd_za(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_zd(key_info_t key_info, keys_info_t *keys_info)
 {
-	flist_custom_exclude(curr_view);
+	flist_custom_exclude(curr_view, key_info.count == 1);
 }
 
 /* Redraw with file in bottom of list. */

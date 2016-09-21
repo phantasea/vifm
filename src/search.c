@@ -35,6 +35,7 @@
 #include "utils/str.h"
 #include "utils/utils.h"
 #include "filelist.h"
+#include "flist_sel.h"
 
 static int find_and_goto_pattern(FileView *view, int wrap_start, int backward);
 static int find_and_goto_match(FileView *view, int start, int backward);
@@ -115,7 +116,7 @@ find_pattern(FileView *view, const char pattern[], int backward, int move,
 
 	if(move && cfg.hl_search)
 	{
-		clean_selected_files(view);
+		flist_sel_stash(view);
 	}
 
 	reset_search_results(view);
@@ -178,9 +179,6 @@ find_pattern(FileView *view, const char pattern[], int backward, int move,
 	view->matches = nmatches;
 	copy_str(view->last_search, sizeof(view->last_search), pattern);
 
-	/* Need to redraw the list so that the matching files are highlighted */
-	draw_dir_list(view);
-
 	view->matches = nmatches;
 	if(nmatches > 0)
 	{
@@ -239,8 +237,7 @@ print_search_msg(const FileView *view, int backward)
 	else
 	{
 		status_bar_messagef("%d of %d matching file%s for: %s",
-				view->dir_entry[view->list_pos].search_match,
-				view->matches,
+				get_current_entry(view)->search_match, view->matches,
 				(view->matches == 1) ? "" : "s", cfg_get_last_search_pattern());
 	}
 }
@@ -248,7 +245,7 @@ print_search_msg(const FileView *view, int backward)
 void
 print_search_next_msg(const FileView *view, int backward)
 {
-	const int match_number = view->dir_entry[view->list_pos].search_match;
+	const int match_number = get_current_entry(view)->search_match;
 	const char search_type = backward ? '?' : '/';
 	status_bar_messagef("(%d of %d) %c%s", match_number, view->matches,
 			search_type, cfg_get_last_search_pattern());

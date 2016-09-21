@@ -48,7 +48,7 @@ static const char PRESS_ENTER_MSG[] = "Press ENTER or type command to continue";
 static int multiline_status_bar;
 
 void
-clean_status_bar(void)
+ui_sb_clear(void)
 {
 	(void)ui_stat_reposition(1, 0);
 
@@ -91,6 +91,19 @@ ui_sb_quick_msgf(const char format[], ...)
 	doupdate();
 
 	va_end(ap);
+}
+
+void
+ui_sb_quick_msg_clear(void)
+{
+	if(curr_stats.save_msg || is_status_bar_multiline())
+	{
+		status_bar_message(NULL);
+	}
+	else
+	{
+		ui_sb_quick_msgf("%s", "");
+	}
 }
 
 void

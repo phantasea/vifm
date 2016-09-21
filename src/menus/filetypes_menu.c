@@ -26,6 +26,7 @@
 
 #include "../compat/fs_limits.h"
 #include "../int/file_magic.h"
+#include "../modes/dialogs/msg_dialog.h"
 #include "../modes/cmdline.h"
 #include "../modes/menu.h"
 #include "../ui/fileview.h"
@@ -34,6 +35,7 @@
 #include "../utils/str.h"
 #include "../utils/string_array.h"
 #include "../filelist.h"
+#include "../flist_sel.h"
 #include "../filetype.h"
 #include "../running.h"
 #include "../types.h"
@@ -55,10 +57,19 @@ show_file_menu(FileView *view, int background)
 
 	int i;
 	int max_len;
+	assoc_records_t ft, magic;
+	char *typed_name;
 
-	char *const typed_name = get_typed_entry_fpath(get_current_entry(view));
-	assoc_records_t ft = ft_get_all_programs(typed_name);
-	assoc_records_t magic = get_magic_handlers(typed_name);
+	dir_entry_t *const entry = get_current_entry(view);
+	if(fentry_is_fake(entry))
+	{
+		show_error_msg("File menu", "Entry doesn't correspond to a file.");
+		return 0;
+	}
+
+	typed_name = get_typed_entry_fpath(entry);
+	ft = ft_get_all_programs(typed_name);
+	magic = get_magic_handlers(typed_name);
 	free(typed_name);
 
 	init_menu_info(&m, strdup("Filetype associated commands"),
@@ -136,7 +147,7 @@ form_filetype_data_entry(assoc_record_t prog)
 static int
 execute_filetype_cb(FileView *view, menu_info *m)
 {
-	if(view->dir_entry[view->list_pos].type == FT_DIR && m->pos == 0)
+	if(get_current_entry(view)->type == FT_DIR && m->pos == 0)
 	{
 		open_dir(view);
 	}
@@ -150,7 +161,7 @@ execute_filetype_cb(FileView *view, menu_info *m)
 		}
 	}
 
-	clean_selected_files(view);
+	flist_sel_stash(view);
 	redraw_view(view);
 	return 0;
 }

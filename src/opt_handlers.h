@@ -42,8 +42,6 @@ enum
 	VIFMINFO_RATINGS   = 1 << 16,  //add by sim1
 };
 
-const char * cursorline_enum[3];
-
 void init_option_handlers(void);
 
 /* Resets local options so that they use values of global options. */

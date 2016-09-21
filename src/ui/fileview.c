@@ -43,6 +43,7 @@
 #include "../utils/utf8.h"
 #include "../utils/utils.h"
 #include "../filelist.h"
+#include "../flist_pos.h"
 #include "../opt_handlers.h"
 #include "../sort.h"
 #include "color_manager.h"
@@ -80,11 +81,12 @@ static size_t calculate_print_width(const FileView *view, int i,
 		size_t max_width);
 static void draw_cell(const FileView *view, const column_data_t *cdt,
 		size_t col_width, size_t print_width);
-static columns_t get_view_columns(const FileView *view);
+static columns_t * get_view_columns(const FileView *view);
 static void consider_scroll_bind(FileView *view);
+static void put_inactive_mark(FileView *view);
 static int prepare_inactive_color(FileView *view, dir_entry_t *entry,
 		int line_color);
-static int clear_current_line_bar(FileView *view, int is_current);
+static void clear_current_line_bar(FileView *view, int is_current);
 static size_t get_effective_scroll_offset(const FileView *view);
 static void column_line_print(const void *data, int column_id, const char buf[],
 		size_t offset, AlignType align, const char full_column[]);
@@ -117,6 +119,7 @@ static void format_owner(int id, const void *data, size_t buf_len, char buf[]);
 static void format_perms(int id, const void *data, size_t buf_len, char buf[]);
 static void format_nlinks(int id, const void *data, size_t buf_len, char buf[]);
 #endif
+static void format_id(int id, const void *data, size_t buf_len, char buf[]);
 static size_t calculate_column_width(FileView *view);
 static size_t get_max_filename_width(const FileView *view);
 static size_t get_filename_width(const FileView *view, int i);
@@ -171,6 +174,7 @@ fview_init(void)
 	{
 		columns_add_column_desc(sort_to_func[i].key, sort_to_func[i].func);
 	}
+	columns_add_column_desc(SK_BY_ID, &format_id);
 }
 
 void
@@ -467,46 +471,65 @@ draw_cell(const FileView *view, const column_data_t *cdt, size_t col_width,
 
 /* Retrieves active view columns handle of the view considering 'lsview' option
  * status.  Returns the handle. */
-static columns_t
+static columns_t *
 get_view_columns(const FileView *view)
 {
-	static columns_t ls_columns = NULL_COLUMNS;
+	/* Note that columns_t performs some caching, so we might want to keep one
+	 * handle per view rather than sharing one. */
 
-	if(ui_view_displays_columns(view))
+	static const column_info_t name_column = {
+		.column_id = SK_BY_NAME, .full_width = 0UL,    .text_width = 0UL,
+		.align = AT_LEFT,        .sizing = ST_AUTO,    .cropping = CT_ELLIPSIS,
+	};
+	static const column_info_t id_column = {
+		.column_id = SK_BY_ID,  .full_width = 7UL,     .text_width = 7UL,
+		.align = AT_LEFT,       .sizing = ST_ABSOLUTE, .cropping = CT_ELLIPSIS,
+	};
+
+	static columns_t *comparison_columns;
+	static columns_t *ls_columns;
+
+	if(!ui_view_displays_columns(view))
 	{
-		return view->columns;
+		if(ls_columns == NULL)
+		{
+			ls_columns = columns_create();
+			columns_add_column(ls_columns, name_column);
+		}
+		return ls_columns;
 	}
 
-	if(ls_columns == NULL_COLUMNS)
+	if(cv_compare(view->custom.type))
 	{
-		column_info_t column_info = {
-			.column_id = SK_BY_NAME, .full_width = 0UL, .text_width = 0UL,
-			.align = AT_LEFT,        .sizing = ST_AUTO, .cropping = CT_ELLIPSIS,
-		};
-
-		ls_columns = columns_create();
-		columns_add_column(ls_columns, column_info);
+		if(comparison_columns == NULL)
+		{
+			comparison_columns = columns_create();
+			columns_add_column(comparison_columns, name_column);
+			columns_add_column(comparison_columns, id_column);
+		}
+		return comparison_columns;
 	}
 
-	return ls_columns;
+	return view->columns;
 }
 
 /* Corrects top of the other view to synchronize it with the current view if
- * 'scrollbind' option is set. */
+ * 'scrollbind' option is set or view is in the compare mode. */
 static void
 consider_scroll_bind(FileView *view)
 {
-	if(cfg.scroll_bind)
+	if(cfg.scroll_bind || view->custom.type == CV_DIFF)
 	{
-		FileView *other = (view == &lwin) ? &rwin : &lwin;
+		FileView *const other = (view == &lwin) ? &rwin : &lwin;
+		const int bind_off = cfg.scroll_bind ? curr_stats.scroll_bind_off : 0;
 		other->top_line = view->top_line/view->column_count;
 		if(view == &lwin)
 		{
-			other->top_line += curr_stats.scroll_bind_off;
+			other->top_line += bind_off;
 		}
 		else
 		{
-			other->top_line -= curr_stats.scroll_bind_off;
+			other->top_line -= bind_off;
 		}
 		other->top_line *= other->column_count;
 		other->top_line = calculate_top_position(other, other->top_line);
@@ -562,9 +585,13 @@ redraw_current_view(void)
 void
 erase_current_line_bar(FileView *view)
 {
-	if(clear_current_line_bar(view, 0) && view == other_view)
+	if(view == other_view)
 	{
 		put_inactive_mark(view);
+	}
+	else
+	{
+		clear_current_line_bar(view, 0);
 	}
 }
 
@@ -587,7 +614,8 @@ fview_cursor_redraw(FileView *view)
 	}
 }
 
-void
+/* Adds inactive cursor mark to the view. */
+static void
 put_inactive_mark(FileView *view)
 {
 	size_t col_width;
@@ -595,7 +623,7 @@ put_inactive_mark(FileView *view)
 	int line_attrs;
 	int line, column;
 
-	(void)clear_current_line_bar(view, 1);
+	clear_current_line_bar(view, 1);
 
 	if(!cfg.extra_padding)
 	{
@@ -604,7 +632,7 @@ put_inactive_mark(FileView *view)
 
 	calculate_table_conf(view, &col_count, &col_width);
 
-	line_attrs = prepare_inactive_color(view, &view->dir_entry[view->list_pos],
+	line_attrs = prepare_inactive_color(view, get_current_entry(view),
 			get_line_color(view, view->list_pos));
 
 	line = view->curr_line/col_count;
@@ -612,6 +640,7 @@ put_inactive_mark(FileView *view)
 	checked_wmove(view->win, line, column);
 
 	wprinta(view->win, INACTIVE_CURSOR_MARK, line_attrs);
+	ui_view_win_changed(view);
 }
 
 int
@@ -687,9 +716,8 @@ prepare_inactive_color(FileView *view, dir_entry_t *entry, int line_color)
 
 /* Redraws directory list without any extra actions that are performed in
  * erase_current_line_bar().  is_current defines whether element under the
- * cursor is being erased.  Returns non-zero if something was actually redrawn,
- * otherwise zero is returned. */
-static int
+ * cursor is being erased. */
+static void
 clear_current_line_bar(FileView *view, int is_current)
 {
 	const int old_cursor = view->curr_line;
@@ -708,18 +736,18 @@ clear_current_line_bar(FileView *view, int is_current)
 
 	if(curr_stats.load_stage < 2)
 	{
-		return 0;
+		return;
 	}
 
 	if(old_cursor < 0)
 	{
-		return 0;
+		return;
 	}
 
 	if(old_pos < 0 || old_pos >= view->list_rows)
 	{
 		/* The entire list is going to be redrawn so just return. */
-		return 0;
+		return;
 	}
 
 	cdt.line_hi_group = get_line_color(view, old_pos),
@@ -731,22 +759,23 @@ clear_current_line_bar(FileView *view, int is_current)
 
 	print_width = calculate_print_width(view, old_pos, col_width);
 
-	if(is_current)
+	if(!ui_view_displays_columns(view))
 	{
-		/* When this function is used to draw cursor position in inactive view, only
-		 * name width should be updated. */
-		col_width = print_width;
-	}
-	else if(!ui_view_displays_columns(view) && cfg.extra_padding)
-	{
-		/* Padding in ls-like view adds additional empty single character between
-		 * columns, on which we shouldn't draw anything here. */
-		--col_width;
+		if(is_current)
+		{
+			/* When this function is used to draw cursor position in inactive ls-like
+			 * view, only name width should be updated. */
+			col_width = print_width;
+		}
+		else if(cfg.extra_padding)
+		{
+			/* Padding in ls-like view adds additional empty single character between
+			 * columns, on which we shouldn't draw anything here. */
+			--col_width;
+		}
 	}
 
 	draw_cell(view, &cdt, col_width, print_width);
-
-	return 1;
 }
 
 int
@@ -932,7 +961,15 @@ column_line_print(const void *data, int column_id, const char buf[],
 
 	checked_wmove(view->win, cdt->current_line, final_offset);
 
-	strcpy(print_buf, buf);
+	if(fentry_is_fake(entry))
+	{
+		memset(print_buf, '.', sizeof(print_buf) - 1U);
+		print_buf[sizeof(print_buf) - 1U] = '\0';
+	}
+	else
+	{
+		strcpy(print_buf, buf);
+	}
 	reserved_width = cfg.extra_padding ? (column_id != FILL_COLUMN_ID) : 0;
 	width_left = padding + ui_view_available_width(view)
 	           - reserved_width - offset;
@@ -1052,6 +1089,7 @@ static int
 prepare_col_color(const FileView *view, dir_entry_t *entry, int primary,
 		int line_color, int current)
 {
+	FileView *const other = (view == &lwin) ? &rwin : &lwin;
 	const col_scheme_t *const cs = ui_view_get_cs(view);
 	col_attr_t col = cs->color[WIN_COLOR];
 
@@ -1060,6 +1098,14 @@ prepare_col_color(const FileView *view, dir_entry_t *entry, int primary,
 	if(primary || current)
 	{
 		mix_in_file_hi(view, entry, line_color, &col);
+	}
+
+	/* If two files on the same line in side-by-side comparison have different
+	 * ids, that's a mismatch. */
+	if(view->custom.type == CV_DIFF &&
+			other->dir_entry[entry_to_pos(view, entry)].id != entry->id)
+	{
+		cs_mix_colors(&col, &cs->color[MISMATCH_COLOR]);
 	}
 
 	if(entry->selected)
@@ -1087,6 +1133,11 @@ static void
 mix_in_file_hi(const FileView *view, dir_entry_t *entry, int type_hi,
 		col_attr_t *col)
 {
+	if(fentry_is_fake(entry))
+	{
+		return;
+	}
+
 	/* Apply file name specific highlights. */
 	mix_in_file_name_hi(view, entry, col);
 
@@ -1440,6 +1491,15 @@ format_rating(int id, const void *data, size_t buf_len, char buf[])
 }
 //add by sim1 ***************************************************
 
+/* File identifier on comparisons format callback for column_view unit. */
+static void
+format_id(int id, const void *data, size_t buf_len, char buf[])
+{
+	const column_data_t *cdt = data;
+	dir_entry_t *entry = &cdt->view->dir_entry[cdt->line_pos];
+	snprintf(buf, buf_len, "#%d", entry->id);
+}
+
 void
 fview_set_lsview(FileView *view, int enabled)
 {
@@ -1554,9 +1614,22 @@ fview_position_updated(FileView *view)
 		view->curr_line = view->list_rows - 1;
 	}
 
-	if(curr_stats.load_stage < 1 ||
-			(!curr_stats.view && !window_shows_dirlist(view)))
+	if(curr_stats.load_stage < 1 || !window_shows_dirlist(view))
 	{
+		return;
+	}
+
+	if(view == other_view)
+	{
+		clear_current_line_bar(view, 0);
+		if(move_curr_line(view))
+		{
+			draw_dir_list(view);
+		}
+		else
+		{
+			put_inactive_mark(view);
+		}
 		return;
 	}
 
@@ -1588,9 +1661,16 @@ fview_position_updated(FileView *view)
 	refresh_view_win(view);
 	update_stat_window(view, 0);
 
-	if(curr_stats.view)
+	if(view == curr_view)
 	{
-		quick_view_file(view);
+		/* We're updating view non-lazily above, so doing the same with the
+		 * ruler. */
+		ui_ruler_update(view, 0);
+
+		if(curr_stats.view)
+		{
+			quick_view_file(view);
+		}
 	}
 }
 
@@ -1654,7 +1734,7 @@ reset_view_columns(FileView *view)
 {
 	if(!ui_view_displays_columns(view) ||
 			(curr_stats.restart_in_progress && flist_custom_active(view) &&
-			 view->custom.type == CV_UNSORTED))
+			 ui_view_unsorted(view)))
 	{
 		return;
 	}

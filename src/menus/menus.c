@@ -55,6 +55,7 @@
 #include "../utils/utils.h"
 #include "../background.h"
 #include "../filelist.h"
+#include "../flist_pos.h"
 #include "../macros.h"
 #include "../marks.h"
 #include "../running.h"
@@ -72,7 +73,6 @@ static void draw_menu_frame(const menu_info *m);
 static void output_handler(const char line[], void *arg);
 static void append_to_string(char **str, const char suffix[]);
 static char * expand_tabulation_a(const char line[], size_t tab_stops);
-static size_t chars_in_str(const char s[], char c);
 static int search_menu(menu_info *m, int start_pos, int print_errors);
 static int search_menu_forwards(menu_info *m, int start_pos);
 static int search_menu_backwards(menu_info *m, int start_pos);
@@ -82,7 +82,7 @@ static int get_match_index(const menu_info *m);
 void
 remove_current_item(menu_info *m)
 {
-	clean_menu_position(m);
+	menu_current_line_erase(m);
 
 	remove_from_string_array(m->items, m->len, m->pos);
 
@@ -108,7 +108,7 @@ remove_current_item(menu_info *m)
 }
 
 void
-clean_menu_position(menu_info *m)
+menu_current_line_erase(menu_info *m)
 {
 	draw_menu_item(m, m->pos, m->current, 1);
 }
@@ -128,7 +128,6 @@ init_menu_info(menu_info *m, char title[], char empty_msg[])
 	m->matches = NULL;
 	m->regexp = NULL;
 	m->title = title;
-	m->args = NULL;
 	m->items = NULL;
 	m->data = NULL;
 	m->key_handler = NULL;
@@ -141,7 +140,6 @@ init_menu_info(menu_info *m, char title[], char empty_msg[])
 void
 reset_popup_menu(menu_info *m)
 {
-	free(m->args);
 	/* Menu elements don't always have data associated with them.  That's why we
 	 * need this check. */
 	if(m->data != NULL)
@@ -337,7 +335,7 @@ goto_selected_directory(FileView *view, const char path[])
 {
 	if(!cfg.auto_ch_pos)
 	{
-		clean_positions_in_history(view);
+		flist_hist_clear(view);
 		curr_stats.ch_pos = 0;
 	}
 	navigate_to(view, path);
@@ -524,7 +522,8 @@ int
 capture_output_to_menu(FileView *view, const char cmd[], int user_sh,
 		menu_info *m)
 {
-	if(process_cmd_output("Loading menu", cmd, user_sh, &output_handler, m) != 0)
+	if(process_cmd_output("Loading menu", cmd, user_sh, 0, &output_handler,
+				m) != 0)
 	{
 		show_error_msgf("Trouble running command", "Unable to run: %s", cmd);
 		return 0;
@@ -590,21 +589,6 @@ expand_tabulation_a(const char line[], size_t tab_stops)
 	}
 
 	return expanded_line;
-}
-
-/* Returns number of c char occurrences in the s string. */
-static size_t
-chars_in_str(const char s[], char c)
-{
-	size_t char_count = 0;
-	while(*s != '\0')
-	{
-		if(*s++ == c)
-		{
-			char_count++;
-		}
-	}
-	return char_count;
 }
 
 int
@@ -721,7 +705,7 @@ menu_to_custom_view(menu_info *m, FileView *view, int very)
 		current = strdup(full_path);
 	}
 
-	if(flist_custom_finish(view, very, 0) != 0)
+	if(flist_custom_finish(view, very ? CV_VERY : CV_REGULAR, 0) != 0)
 	{
 		free(current);
 		return 1;
@@ -743,7 +727,7 @@ capture_output(FileView *view, const char cmd[], int user_sh, menu_info *m,
 	if(custom_view || very_custom_view)
 	{
 		reset_popup_menu(m);
-		output_to_custom_flist(view, cmd, very_custom_view);
+		output_to_custom_flist(view, cmd, very_custom_view, 0);
 		return 0;
 	}
 
@@ -944,7 +928,7 @@ navigate_to_match(menu_info *m, int pos)
 		}
 		else
 		{
-			clean_menu_position(m);
+			menu_current_line_erase(m);
 			move_to_menu_pos(pos, m);
 		}
 		menu_print_search_msg(m);

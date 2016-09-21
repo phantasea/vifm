@@ -62,7 +62,8 @@ B ?=
 BUILD := $(B)bin/build/$(BINSUBDIR)
 
 # engine
-suites += abbrevs autocmds commands completion keys options parsing variables
+suites += abbrevs autocmds commands completion keys options parsing text_buffer
+suites += variables
 # io
 suites += ioeta ionotif iop ior
 # ui
@@ -74,7 +75,7 @@ suites += bmarks env escape fileops filetype filter misc undo utils
 vifm_src := ./ cfg/ compat/ engine/ int/ io/ io/private/ modes/dialogs/ menus/
 vifm_src += modes/ ui/ utils/
 vifm_src := $(wildcard $(addprefix ../src/, $(addsuffix *.c, $(vifm_src))))
-vifm_src := $(filter-out %/tags.c, $(vifm_src))
+vifm_src := $(filter-out %/tags.c %/xxhash.c, $(vifm_src))
 
 # filter out generally non-testable or sources for another platform
 vifm_src := $(filter-out %/vifm.c %/win_helper.c, $(vifm_src))
@@ -147,7 +148,8 @@ ifdef unix_env
     export UBSAN_OPTIONS := halt_on_error=1
 endif
 ifdef win_env
-    override LDFLAGS += $(shell sed -n '/LIBS :=/{s/^[^=]\+=//p;q}' ../src/Makefile.win)
+    override LDFLAGS += \
+        $(shell sed -n '/LIBS :=/{s/^[^=]\+=//p;q}' ../src/Makefile.win)
     # this part is in conditional
     ifeq ($(OS),Windows_NT)
         override LDFLAGS += -lpdcurses

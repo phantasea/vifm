@@ -10,8 +10,18 @@
 	Added "tree" parameter to :sync! that enables synchronization of tree
 	view.  Thanks to filterfalse.
 
-	Try to save and restore terminal state while running external
-	applications.  Thanks to Losiara.
+	Added :compare command to perform comparison in one or two directory
+	trees.  Thanks to anonymous on SourceForge discussion forum and aleksejrs.
+
+	Added CmpMismatch highlight group for highlighting mismatched files on
+	side-by-side comparison.
+
+	Added %Iu and %IU macros, which are %u and %U equivalent, but work better
+	if external command is interactive and changes terminal state.
+
+	Added v:servername variable, which provides access to server name of the
+	running instance used by --remote feature.  Thanks to Marcin
+	Kurczewski (a.k.a. rr-).
 
 	Enable restoring files from trash from custom views.
 
@@ -37,6 +47,17 @@
 	getpanetype() got new value ("tree") to indicate tree-view.  Thanks to
 	filterfalse.
 
+	Disallow applying :chmod on ".." entry.
+
+	Disallow moving/copying/linking files into custom view (put is forbidden,
+	so makes sense to forbid these too).
+
+	Disallow selecting ".." entry with :select command.
+
+	Display path to the conflicting file in conflict resolution dialog.
+
+	Provide better messages on i/o errors with 'syscalls'.  Thanks to Behrooz.
+
 	Fixed redirecting stdout of background commands to /dev/null, which could
 	be unwritable descriptor.  Thanks to c02y.
 
@@ -58,6 +79,24 @@
 
 	Fixed rejecting to clone files in custom view, when name is specified
 	explicitly (form without arguments was properly disabled before).
+
+	Fixed changing attributes of files in custom views on Windows.
+
+	Fixed counting selected files after `:invert s` if there is ".." entry.
+
+	Fixed :pushd and :dirs in custom views.
+
+	Fixed ruler update on `--remote --select`.  Thanks to Marcin
+	Kurczewski (a.k.a. rr-).
+
+	Fixed small leak after aborting on name conflict.
+
+	Fixed possible data loss on moving/copying files over their own parent or
+	child directories via p, P, :move, :copy, :alink and :rlink.  Thanks to
+	Marius Schmidl.
+
+	Fixed concatenation of error lists without separator (newline).  Thanks to
+	Behrooz.
 
 0.8.2-beta to 0.8.2
 
@@ -116,7 +155,7 @@
 	file choosing.  Thanks to Von Welch.
 
 	Added mime type patterns ([!]<list-of-globs>).  Thanks to Ross
-	Hadden (a.k.a.  rosshadden).
+	Hadden (a.k.a. rosshadden).
 
 	Added %z 'statusline' macro that inserts text of a short tip picked at
 	random.  Thanks to qinghao (a.k.a. haobug).

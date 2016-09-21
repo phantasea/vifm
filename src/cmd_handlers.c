@@ -77,17 +77,24 @@
 #include "utils/regexp.h"
 #include "utils/str.h"
 #include "utils/string_array.h"
+#include "utils/trie.h"
 #include "utils/utils.h"
 #include "background.h"
 #include "bmarks.h"
 #include "bracket_notation.h"
 #include "cmd_completion.h"
 #include "cmd_core.h"
+#include "compare.h"
 #include "dir_stack.h"
 #include "filelist.h"
-#include "fileops.h"
 #include "filetype.h"
 #include "filtering.h"
+#include "flist_pos.h"
+#include "flist_sel.h"
+#include "fops_cpmv.h"
+#include "fops_misc.h"
+#include "fops_put.h"
+#include "fops_rename.h"
 #include "macros.h"
 #include "marks.h"
 #include "ops.h"
@@ -131,6 +138,9 @@ static int cquit_cmd(const cmd_info_t *cmd_info);
 static int cunabbrev_cmd(const cmd_info_t *cmd_info);
 static int colorscheme_cmd(const cmd_info_t *cmd_info);
 static int command_cmd(const cmd_info_t *cmd_info);
+static int compare_cmd(const cmd_info_t *cmd_info);
+static int parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
+		ListType *lt, int *single_pane, int *group_ids);
 static int cunmap_cmd(const cmd_info_t *cmd_info);
 static int delete_cmd(const cmd_info_t *cmd_info);
 static int delmarks_cmd(const cmd_info_t *cmd_info);
@@ -256,9 +266,6 @@ static int undolist_cmd(const cmd_info_t *cmd_info);
 static int unlet_cmd(const cmd_info_t *cmd_info);
 static int unmap_cmd(const cmd_info_t *cmd_info);
 static int unselect_cmd(const cmd_info_t *cmd_info);
-static void select_unselect_by_range(const cmd_info_t *cmd_info, int select);
-static int select_unselect_by_filter(const cmd_info_t *cmd_info, int select);
-static int select_unselect_by_pattern(const cmd_info_t *cmd_info, int select);
 static int view_cmd(const cmd_info_t *cmd_info);
 static int vifm_cmd(const cmd_info_t *cmd_info);
 static int vmap_cmd(const cmd_info_t *cmd_info);
@@ -373,6 +380,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "display/define :commands",
 	  .flags = HAS_EMARK,
 	  .handler = &command_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
+	{ .name = "compare",           .abbr = NULL,    .id = COM_COMPARE,
+	  .descr = "compares directories in two panes",
+	  .flags = HAS_COMMENT,
+	  .handler = &compare_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "copy",              .abbr = "co",    .id = COM_COPY,
 	  .descr = "copy files",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
@@ -806,29 +817,6 @@ const cmd_add_t cmds_list[] = {
 };
 const size_t cmds_list_size = ARRAY_LEN(cmds_list);
 
-static void
-select_count(const cmd_info_t *cmd_info, int count)
-{
-	int pos;
-
-	/* Both a starting range and an ending range are given. */
-	pos = cmd_info->end;
-	if(pos < 0)
-		pos = curr_view->list_pos;
-
-	clean_selected_files(curr_view);
-
-	while(count-- > 0 && pos < curr_view->list_rows)
-	{
-		if(!is_parent_dir(curr_view->dir_entry[pos].name))
-		{
-			curr_view->dir_entry[pos].selected = 1;
-			curr_view->selected_files++;
-		}
-		pos++;
-	}
-}
-
 /* Return value of all functions below which name ends with "_cmd" mean:
  *  - <0 -- one of CMDS_* errors from cmds.h;
  *  - =0 -- nothing was outputted to the status bar, don't need to save its
@@ -891,7 +879,7 @@ emark_cmd(const cmd_info_t *cmd_info)
 	{
 		const int use_term_mux = flags != MF_NO_TERM_MUX;
 
-		clean_selected_files(curr_view);
+		flist_sel_stash(curr_view);
 		if(cfg.fast_run)
 		{
 			char *const buf = fast_run_complete(com);
@@ -1262,7 +1250,7 @@ cd_cmd(const cmd_info_t *cmd_info)
 
 	if(!cfg.auto_ch_pos)
 	{
-		clean_positions_in_history(curr_view);
+		flist_hist_clear(curr_view);
 		curr_stats.ch_pos = 0;
 	}
 
@@ -1386,7 +1374,7 @@ chown_cmd(const cmd_info_t *cmd_info)
 
 	if(cmd_info->argc == 0)
 	{
-		change_owner();
+		fops_chuser();
 		return 0;
 	}
 
@@ -1417,9 +1405,7 @@ chown_cmd(const cmd_info_t *cmd_info)
 	}
 
 	mark_selection_or_current(curr_view);
-	chown_files(u, g, uid, gid);
-
-	return 0;
+	return fops_chown(u, g, uid, gid) != 0;
 }
 #endif
 
@@ -1436,10 +1422,10 @@ clone_cmd(const cmd_info_t *cmd_info)
 			status_bar_error("No arguments are allowed if you use \"?\"");
 			return 1;
 		}
-		return clone_files(curr_view, NULL, -1, 0, 1) != 0;
+		return fops_clone(curr_view, NULL, -1, 0, 1) != 0;
 	}
 
-	return clone_files(curr_view, cmd_info->argv, cmd_info->argc, cmd_info->emark,
+	return fops_clone(curr_view, cmd_info->argv, cmd_info->argc, cmd_info->emark,
 			1) != 0;
 }
 
@@ -1608,11 +1594,11 @@ delete_cmd(const cmd_info_t *cmd_info)
 	check_marking(curr_view, 0, NULL);
 	if(cmd_info->bg)
 	{
-		result = delete_files_bg(curr_view, !cmd_info->emark) != 0;
+		result = fops_delete_bg(curr_view, !cmd_info->emark) != 0;
 	}
 	else
 	{
-		result = delete_files(curr_view, reg, !cmd_info->emark) != 0;
+		result = fops_delete(curr_view, reg, !cmd_info->emark) != 0;
 	}
 
 	return result;
@@ -1746,6 +1732,56 @@ make_bmark_path(const char path[])
 	return ret;
 }
 
+/* Compares files in one or two panes to produce their diff or lists of
+ * duplicates or unique files. */
+static int
+compare_cmd(const cmd_info_t *cmd_info)
+{
+	CompareType ct = CT_CONTENTS;
+	ListType lt = LT_ALL;
+	int single_pane = 0, group_ids = 0;
+	if(parse_compare_properties(cmd_info, &ct, &lt, &single_pane,
+				&group_ids) != 0)
+	{
+		return 1;
+	}
+
+	return single_pane
+	     ? (compare_one_pane(curr_view, ct, lt) != 0)
+	     : (compare_two_panes(ct, lt, !group_ids) != 0);
+}
+
+/* Parses comparison properties.  Default values for arguments should be set
+ * before the call.  Returns zero on success, otherwise non-zero is returned and
+ * error message is displayed on the status bar. */
+static int
+parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
+		ListType *lt, int *single_pane, int *group_ids)
+{
+	int i;
+	for(i = 0; i < cmd_info->argc; ++i)
+	{
+		const char *const property = cmd_info->argv[i];
+		if     (strcmp(property, "byname") == 0)     *ct = CT_NAME;
+		else if(strcmp(property, "bysize") == 0)     *ct = CT_SIZE;
+		else if(strcmp(property, "bycontents") == 0) *ct = CT_CONTENTS;
+		else if(strcmp(property, "listall") == 0)    *lt = LT_ALL;
+		else if(strcmp(property, "listunique") == 0) *lt = LT_UNIQUE;
+		else if(strcmp(property, "listdups") == 0)   *lt = LT_DUPS;
+		else if(strcmp(property, "ofboth") == 0)     *single_pane = 0;
+		else if(strcmp(property, "ofone") == 0)      *single_pane = 1;
+		else if(strcmp(property, "groupids") == 0)   *group_ids = 1;
+		else if(strcmp(property, "grouppaths") == 0) *group_ids = 0;
+		else
+		{
+			status_bar_errorf("Unknown comparison property: %s", property);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static int
 dirs_cmd(const cmd_info_t *cmd_info)
 {
@@ -1825,8 +1861,7 @@ edit_cmd(const cmd_info_t *cmd_info)
 		return 0;
 	}
 
-	if(!curr_view->selected_files ||
-			!curr_view->dir_entry[curr_view->list_pos].selected)
+	if(!curr_view->selected_files || !get_current_entry(curr_view)->selected)
 	{
 		char file_to_view[PATH_MAX];
 
@@ -2834,7 +2869,7 @@ invert_state(char state_type)
 	}
 	else if(state_type == 's')
 	{
-		invert_selection(curr_view);
+		flist_sel_invert(curr_view);
 		redraw_view(curr_view);
 		cmds_preserve_selection();
 	}
@@ -3073,7 +3108,7 @@ static int
 mkdir_cmd(const cmd_info_t *cmd_info)
 {
 	const int at = get_at(curr_view, cmd_info);
-	return make_dirs(curr_view, at, cmd_info->argv, cmd_info->argc,
+	return fops_mkdirs(curr_view, at, cmd_info->argv, cmd_info->argc,
 			cmd_info->emark) != 0;
 }
 
@@ -3114,19 +3149,19 @@ cpmv_cmd(const cmd_info_t *cmd_info, int move)
 
 		if(cmd_info->bg)
 		{
-			return cpmv_files_bg(curr_view, NULL, -1, move, cmd_info->emark) != 0;
+			return fops_cpmv_bg(curr_view, NULL, -1, move, cmd_info->emark) != 0;
 		}
 
-		return cpmv_files(curr_view, NULL, -1, op, 0) != 0;
+		return fops_cpmv(curr_view, NULL, -1, op, 0) != 0;
 	}
 
 	if(cmd_info->bg)
 	{
-		return cpmv_files_bg(curr_view, cmd_info->argv, cmd_info->argc, move,
+		return fops_cpmv_bg(curr_view, cmd_info->argv, cmd_info->argc, move,
 				cmd_info->emark) != 0;
 	}
 
-	return cpmv_files(curr_view, cmd_info->argv, cmd_info->argc, op,
+	return fops_cpmv(curr_view, cmd_info->argv, cmd_info->argc, op,
 			cmd_info->emark) != 0;
 }
 
@@ -3153,12 +3188,7 @@ static int
 nohlsearch_cmd(const cmd_info_t *cmd_info)
 {
 	ui_view_reset_search_highlight(curr_view);
-
-	if(curr_view->selected_files != 0)
-	{
-		clean_selected_files(curr_view);
-		redraw_current_view();
-	}
+	flist_sel_stash_if_nonempty(curr_view);
 	return 0;
 }
 
@@ -3226,7 +3256,7 @@ only_cmd(const cmd_info_t *cmd_info)
 static int
 popd_cmd(const cmd_info_t *cmd_info)
 {
-	if(popd() != 0)
+	if(dir_stack_pop() != 0)
 	{
 		status_bar_message("Directory stack empty");
 		return 1;
@@ -3239,14 +3269,14 @@ pushd_cmd(const cmd_info_t *cmd_info)
 {
 	if(cmd_info->argc == 0)
 	{
-		if(swap_dirs() != 0)
+		if(dir_stack_swap() != 0)
 		{
 			status_bar_error("No other directories");
 			return 1;
 		}
 		return 0;
 	}
-	if(pushd() != 0)
+	if(dir_stack_push_current() != 0)
 	{
 		show_error_msg("Memory Error", "Unable to allocate enough memory");
 		return 0;
@@ -3274,10 +3304,10 @@ put_cmd(const cmd_info_t *cmd_info)
 
 	if(cmd_info->bg)
 	{
-		return put_files_bg(curr_view, at, reg, cmd_info->emark) != 0;
+		return fops_put_bg(curr_view, at, reg, cmd_info->emark) != 0;
 	}
 
-	return put_files(curr_view, at, reg, cmd_info->emark) != 0;
+	return fops_put(curr_view, at, reg, cmd_info->emark) != 0;
 }
 
 static int
@@ -3350,7 +3380,7 @@ static int
 rename_cmd(const cmd_info_t *cmd_info)
 {
 	check_marking(curr_view, 0, NULL);
-	return rename_files(curr_view, cmd_info->argv, cmd_info->argc,
+	return fops_rename(curr_view, cmd_info->argv, cmd_info->argc,
 			cmd_info->emark) != 0;
 }
 
@@ -3366,7 +3396,7 @@ static int
 restore_cmd(const cmd_info_t *cmd_info)
 {
 	check_marking(curr_view, 0, NULL);
-	return restore_files(curr_view) != 0;
+	return fops_restore(curr_view) != 0;
 }
 
 /* Creates symbolic links with relative paths to files. */
@@ -3391,10 +3421,10 @@ link_cmd(const cmd_info_t *cmd_info, int absolute)
 			status_bar_error("No arguments are allowed if you use \"?\"");
 			return 1;
 		}
-		return cpmv_files(curr_view, NULL, -1, op, 0) != 0;
+		return fops_cpmv(curr_view, NULL, -1, op, 0) != 0;
 	}
 
-	return cpmv_files(curr_view, cmd_info->argv, cmd_info->argc, op,
+	return fops_cpmv(curr_view, cmd_info->argv, cmd_info->argc, op,
 			cmd_info->emark) != 0;
 }
 
@@ -3431,6 +3461,7 @@ screen_cmd(const cmd_info_t *cmd_info)
 static int
 select_cmd(const cmd_info_t *cmd_info)
 {
+	int error;
 	cmds_preserve_selection();
 
 	/* If no arguments are passed, select the range. */
@@ -3439,25 +3470,29 @@ select_cmd(const cmd_info_t *cmd_info)
 		/* Append to previous selection unless ! is specified. */
 		if(cmd_info->emark)
 		{
-			erase_selection(curr_view);
+			flist_sel_drop(curr_view);
 		}
 
-		select_unselect_by_range(cmd_info, 1);
+		flist_sel_by_range(curr_view, cmd_info->begin, cmd_info->end, 1);
 		return 0;
 	}
 
 	if(cmd_info->begin != NOT_DEF)
 	{
 		status_bar_error("Either range or argument should be supplied.");
-		return CMDS_ERR_CUSTOM;
+		error = 1;
 	}
-
-	if(cmd_info->args[0] == '!' && !char_is_one_of("/{", cmd_info->args[1]))
+	else if(cmd_info->args[0] == '!' && !char_is_one_of("/{", cmd_info->args[1]))
 	{
-		return select_unselect_by_filter(cmd_info, 1);
+		error = flist_sel_by_filter(curr_view, cmd_info->args + 1, cmd_info->emark,
+				1);
+	}
+	else
+	{
+		error = flist_sel_by_pattern(curr_view, cmd_info->args, cmd_info->emark, 1);
 	}
 
-	return select_unselect_by_pattern(cmd_info, 1);
+	return (error ? CMDS_ERR_CUSTOM : 0);
 }
 
 /* Updates/displays global and local options. */
@@ -3600,7 +3635,7 @@ substitute_cmd(const cmd_info_t *cmd_info)
 	}
 
 	mark_selected(curr_view);
-	return substitute_in_names(curr_view, last_pattern, last_sub, ic, glob) != 0;
+	return fops_subst(curr_view, last_pattern, last_sub, ic, glob) != 0;
 }
 
 /* Synchronizes path/cursor position of the other pane with corresponding
@@ -3700,7 +3735,6 @@ parse_sync_properties(const cmd_info_t *cmd_info, int *location,
 		else if(strcmp(property, "tree") == 0)
 		{
 			*location = 1;
-			*filelist = 1;
 			*tree = 1;
 		}
 		else if(strcmp(property, "all") == 0)
@@ -3733,9 +3767,21 @@ sync_location(const char path[], int cv, int sync_cursor_pos, int sync_filters,
 		return;
 	}
 
-	if(cv)
+	if(tree)
 	{
-		flist_custom_clone(other_view, curr_view, tree);
+		/* Normally changing location resets local filter.  Prevent this by
+		 * synchronizing it here (after directory changing, but before loading list
+		 * of files, hence no extra work). */
+		if(sync_filters)
+		{
+			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
+		}
+
+		(void)flist_clone_tree(other_view, curr_view);
+	}
+	else if(cv)
+	{
+		flist_custom_clone(other_view, curr_view);
 		if(sync_filters)
 		{
 			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
@@ -3813,7 +3859,7 @@ static int
 touch_cmd(const cmd_info_t *cmd_info)
 {
 	const int at = get_at(curr_view, cmd_info);
-	return make_files(curr_view, at, cmd_info->argv, cmd_info->argc) != 0;
+	return fops_mkfiles(curr_view, at, cmd_info->argv, cmd_info->argc) != 0;
 }
 
 /* Gets destination position based range.  Returns the position. */
@@ -3855,7 +3901,7 @@ tr_cmd(const cmd_info_t *cmd_info)
 	}
 
 	mark_selected(curr_view);
-	return tr_in_names(curr_view, cmd_info->argv[0], buf) != 0;
+	return fops_tr(curr_view, cmd_info->argv[0], buf) != 0;
 }
 
 /* Lists all valid non-empty trash directories in a menu with optional size of
@@ -3931,172 +3977,32 @@ unmap_cmd(const cmd_info_t *cmd_info)
 static int
 unselect_cmd(const cmd_info_t *cmd_info)
 {
+	int error;
 	cmds_preserve_selection();
 
 	/* If no arguments are passed, unselect the range. */
 	if(cmd_info->argc == 0)
 	{
-		select_unselect_by_range(cmd_info, 0);
+		flist_sel_by_range(curr_view, cmd_info->begin, cmd_info->end, 0);
 		return 0;
 	}
 
 	if(cmd_info->begin != NOT_DEF)
 	{
 		status_bar_error("Either range or argument should be supplied.");
-		return CMDS_ERR_CUSTOM;
+		error = 1;
 	}
-
-	if(cmd_info->args[0] == '!' && !char_is_one_of("/{", cmd_info->args[1]))
+	else if(cmd_info->args[0] == '!' && !char_is_one_of("/{", cmd_info->args[1]))
 	{
-		return select_unselect_by_filter(cmd_info, 0);
-	}
-
-	return select_unselect_by_pattern(cmd_info, 0);
-}
-
-/* Selects or unselects entries in the given range. */
-static void
-select_unselect_by_range(const cmd_info_t *cmd_info, int select)
-{
-	select = (select != 0);
-
-	if(cmd_info->begin == NOT_DEF)
-	{
-		if((curr_view->dir_entry[curr_view->list_pos].selected != 0) != select)
-		{
-			curr_view->dir_entry[curr_view->list_pos].selected = select;
-			curr_view->selected_files += (select ? 1 : -1);
-		}
+		error = flist_sel_by_filter(curr_view, cmd_info->args + 1, cmd_info->emark,
+				0);
 	}
 	else
 	{
-		int i;
-		for(i = cmd_info->begin; i <= cmd_info->end; ++i)
-		{
-			if((curr_view->dir_entry[i].selected != 0) != select)
-			{
-				curr_view->dir_entry[i].selected = select;
-				curr_view->selected_files += (select ? 1 : -1);
-			}
-		}
+		error = flist_sel_by_pattern(curr_view, cmd_info->args, cmd_info->emark, 0);
 	}
 
-	ui_view_schedule_redraw(curr_view);
-}
-
-/* Selects or unselects entries that match list of files supplied by external
- * utility. */
-static int
-select_unselect_by_filter(const cmd_info_t *cmd_info, int select)
-{
-	trie_t selection_trie;
-	char **files;
-	int nfiles;
-	int i;
-
-	if(run_cmd_for_output(cmd_info->args + 1, &files, &nfiles) != 0)
-	{
-		status_bar_error("Failed to start/read output of external command");
-		return CMDS_ERR_CUSTOM;
-	}
-
-	/* Append to previous selection unless ! is specified. */
-	if(select && cmd_info->emark)
-	{
-		erase_selection(curr_view);
-	}
-
-	if(nfiles == 0)
-	{
-		free_string_array(files, nfiles);
-		return 0;
-	}
-
-	/* Compose trie out of absolute paths of files to [un]select. */
-	selection_trie = trie_create();
-	for(i = 0; i < nfiles; ++i)
-	{
-		char canonic_path[PATH_MAX];
-		to_canonic_path(files[i], flist_get_dir(curr_view), canonic_path,
-				sizeof(canonic_path));
-		(void)trie_put(selection_trie, canonic_path);
-	}
-	free_string_array(files, nfiles);
-
-	/* [un]select files that match the list. */
-	select = (select != 0);
-	for(i = 0; i < curr_view->list_rows; ++i)
-	{
-		char full_path[PATH_MAX];
-		void *ignored_data;
-		dir_entry_t *const entry = &curr_view->dir_entry[i];
-
-		if((entry->selected != 0) == select)
-		{
-			continue;
-		}
-
-		get_full_path_of(entry, sizeof(full_path), full_path);
-		if(trie_get(selection_trie, full_path, &ignored_data) == 0)
-		{
-			entry->selected = select;
-			curr_view->selected_files += (select ? 1 : -1);
-		}
-	}
-
-	trie_free(selection_trie);
-
-	ui_view_schedule_redraw(curr_view);
-	return 0;
-}
-
-/* Selects or unselects entries that match given pattern. */
-static int
-select_unselect_by_pattern(const cmd_info_t *cmd_info, int select)
-{
-	int i;
-	char *error;
-	matchers_t *const ms = matchers_alloc(cmd_info->args, 0, 1,
-			cfg_get_last_search_pattern(), &error);
-	if(ms == NULL)
-	{
-		status_bar_errorf("Pattern error: %s", error);
-		free(error);
-		return CMDS_ERR_CUSTOM;
-	}
-
-	select = (select != 0);
-
-	/* Append to previous selection unless ! is specified. */
-	if(select && cmd_info->emark)
-	{
-		erase_selection(curr_view);
-	}
-
-	for(i = 0; i < curr_view->list_rows; ++i)
-	{
-		char file_path[PATH_MAX];
-		dir_entry_t *const entry = &curr_view->dir_entry[i];
-
-		if((entry->selected != 0) == select)
-		{
-			continue;
-		}
-
-		get_full_path_of(entry, sizeof(file_path) - 1U, file_path);
-
-		if(matchers_match(ms, file_path) ||
-				(is_directory_entry(entry) && matchers_match_dir(ms, file_path)))
-		{
-			entry->selected = select;
-			curr_view->selected_files += (select ? 1 : -1);
-		}
-	}
-
-	matchers_free(ms);
-
-	ui_view_schedule_redraw(curr_view);
-	return 0;
+	return (error ? CMDS_ERR_CUSTOM : 0);
 }
 
 static int
@@ -4378,7 +4284,7 @@ yank_cmd(const cmd_info_t *cmd_info)
 	if(result == 0)
 	{
 		check_marking(curr_view, 0, NULL);
-		result = yank_files(curr_view, reg) != 0;
+		result = fops_yank(curr_view, reg) != 0;
 	}
 
 	return result;
@@ -4407,7 +4313,7 @@ get_reg_and_count(const cmd_info_t *cmd_info, int *reg)
 		count = atoi(cmd_info->argv[1]);
 		if(count == 0)
 			return CMDS_ERR_ZERO_COUNT;
-		select_count(cmd_info, count);
+		flist_sel_count(curr_view, cmd_info->end, count);
 	}
 	else if(cmd_info->argc == 1)
 	{
@@ -4416,7 +4322,7 @@ get_reg_and_count(const cmd_info_t *cmd_info, int *reg)
 			int count = atoi(cmd_info->argv[0]);
 			if(count == 0)
 				return CMDS_ERR_ZERO_COUNT;
-			select_count(cmd_info, count);
+			flist_sel_count(curr_view, cmd_info->end, count);
 		}
 		else
 		{
@@ -4481,7 +4387,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 
 	bg = parse_bg_mark(expanded_com);
 
-	clean_selected_files(curr_view);
+	flist_sel_stash(curr_view);
 
 	handled = run_ext_command(expanded_com, flags, bg, &save_msg);
 	if(handled > 0)

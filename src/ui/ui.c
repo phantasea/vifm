@@ -60,6 +60,7 @@
 #include "../utils/utils.h"
 #include "../event_loop.h"
 #include "../filelist.h"
+#include "../flist_sel.h"
 #include "../opt_handlers.h"
 #include "../status.h"
 #include "../vifm.h"
@@ -108,7 +109,7 @@ static void fixup_titles_attributes(const FileView *view, int active_view);
 static uint64_t get_updated_time(uint64_t prev);
 
 void
-ui_ruler_update(FileView *view)
+ui_ruler_update(FileView *view, int lazy_redraw)
 {
 	char *expanded;
 
@@ -118,6 +119,10 @@ ui_ruler_update(FileView *view)
 	expanded = break_in_two(expanded, getmaxx(ruler_win));
 
 	ui_ruler_set(expanded);
+	if(!lazy_redraw)
+	{
+		wrefresh(ruler_win);
+	}
 
 	free(expanded);
 }
@@ -458,6 +463,18 @@ update_geometry(void)
 	load_geometry();
 }
 
+int
+cv_unsorted(CVType type)
+{
+	return type == CV_VERY || cv_compare(type);
+}
+
+int
+cv_compare(CVType type)
+{
+	return type == CV_COMPARE || type == CV_DIFF;
+}
+
 void
 update_screen(UpdateType update_kind)
 {
@@ -504,7 +521,7 @@ update_screen(UpdateType update_kind)
 		}
 		else
 		{
-			clean_status_bar();
+			ui_sb_clear();
 		}
 
 		if(vle_mode_is(VIEW_MODE))
@@ -513,7 +530,7 @@ update_screen(UpdateType update_kind)
 		}
 		else
 		{
-			ui_ruler_update(curr_view);
+			ui_ruler_update(curr_view, 1);
 		}
 	}
 
@@ -612,13 +629,9 @@ change_window(void)
 
 	load_view_options(curr_view);
 
-	if(curr_stats.number_of_windows != 1)
+	if(window_shows_dirlist(other_view))
 	{
-		if(!other_view->explore_mode)
-		{
-			put_inactive_mark(other_view);
-			erase_current_line_bar(other_view);
-		}
+		erase_current_line_bar(other_view);
 	}
 
 	if(curr_stats.view && !is_dir_list_loaded(curr_view))
@@ -787,7 +800,7 @@ show_progress(const char msg[], int period)
 	++total;
 
 	/* Skip intermediate updates to do not hammer UI with refreshes. */
-	if(period != 1 && count%abs(period) != 1)
+	if(abs(period) != 1 && count%abs(period) != 1)
 	{
 		return;
 	}
@@ -1324,7 +1337,7 @@ ui_view_win_changed(FileView *view)
 void
 ui_view_reset_selection_and_reload(FileView *view)
 {
-	clean_selected_files(view);
+	flist_sel_stash(view);
 	load_saving_pos(view, 1);
 }
 
@@ -1513,7 +1526,7 @@ ui_view_sort_list_ensure_well_formed(FileView *view, char sort_keys[])
 
 	if(!found_name_key && i < SK_COUNT &&
 			(!flist_custom_active(view) ||
-			 (sort_keys == view->sort && view->custom.type != CV_UNSORTED)))
+			 (sort_keys == view->sort && !ui_view_unsorted(view))))
 	{
 		sort_keys[i++] = SK_DEFAULT;
 	}
@@ -1527,7 +1540,7 @@ ui_view_sort_list_ensure_well_formed(FileView *view, char sort_keys[])
 char *
 ui_view_sort_list_get(const FileView *view)
 {
-	return (flist_custom_active(view) && view->custom.type == CV_UNSORTED)
+	return (flist_custom_active(view) && ui_view_unsorted(view))
 	     ? (char *)view->custom.sort
 	     : (char *)view->sort_g;
 }
@@ -1556,7 +1569,8 @@ int
 ui_view_displays_columns(const FileView *const view)
 {
 	return !view->ls_view
-	    || (flist_custom_active(view) && view->custom.type == CV_TREE);
+	    || (flist_custom_active(view) &&
+					(view->custom.type == CV_TREE || cv_compare(view->custom.type)));
 }
 
 FileType
@@ -1643,6 +1657,12 @@ ui_view_wipe(FileView *view)
 	}
 	redrawwin(view->win);
 	wrefresh(view->win);
+}
+
+int
+ui_view_unsorted(const FileView *view)
+{
+	return cv_unsorted(view->custom.type);
 }
 
 void

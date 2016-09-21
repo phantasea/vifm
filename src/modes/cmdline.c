@@ -58,6 +58,8 @@
 #include "../cmd_core.h"
 #include "../filelist.h"
 #include "../filtering.h"
+#include "../flist_pos.h"
+#include "../flist_sel.h"
 #include "../marks.h"
 #include "../search.h"
 #include "../status.h"
@@ -456,7 +458,7 @@ handle_empty_input(void)
 		/* Clear selection. */
 		if(prev_mode != MENU_MODE)
 		{
-			clean_selected_files(curr_view);
+			flist_sel_stash(curr_view);
 		}
 		else
 		{
@@ -575,6 +577,12 @@ enter_cmdline_mode(CmdLineSubmode cl_sub_mode, const char cmd[], void *ptr)
 	wchar_t *wcmd;
 	const wchar_t *wprompt;
 	complete_cmd_func complete_func;
+
+	if(cl_sub_mode == CLS_FILTER && curr_view->custom.type == CV_DIFF)
+	{
+		show_error_msg("Filtering", "No local filter for diff views");
+		return;
+	}
 
 	wcmd = to_wide_force(cmd);
 	if(wcmd == NULL)
@@ -801,7 +809,7 @@ leave_cmdline_mode(void)
 
 	curs_set(0);
 	curr_stats.save_msg = 0;
-	clean_status_bar();
+	ui_sb_clear();
 
 	if(vle_mode_is(CMDLINE_MODE))
 	{
@@ -810,7 +818,7 @@ leave_cmdline_mode(void)
 
 	if(!vle_mode_is(MENU_MODE))
 	{
-		ui_ruler_update(curr_view);
+		ui_ruler_update(curr_view, 1);
 	}
 
 	attr = cfg.cs.color[CMD_LINE_COLOR].attr;

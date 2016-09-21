@@ -26,7 +26,7 @@
 #include <stddef.h> /* NULL size_t */
 #include <stdio.h> /* FILE SEEK_SET fclose() fdopen() feof() fseek()
                       tmpfile() */
-#include <stdlib.h> /* free() qsort() */
+#include <stdlib.h> /* free() */
 #include <string.h> /* memmove() strcat() strlen() strncat() */
 
 #include "../cfg/config.h"
@@ -72,6 +72,7 @@ typedef struct
 }
 tree_print_state_t;
 
+static void view_entry(const dir_entry_t *entry);
 static void view_file(const char path[]);
 static FILE * view_dir(const char path[], int max_lines);
 static int print_dir_tree(tree_print_state_t *s, const char path[], int last);
@@ -86,8 +87,6 @@ static void set_prefix_char(tree_print_state_t *s, char c);
 static void print_tree_entry(tree_print_state_t *s, const char path[],
 		int end_line);
 static void print_entry_prefix(tree_print_state_t *s);
-static char ** list_sorted_files(const char path[], int *len);
-static int path_sorter(const void *first, const void *second);
 TSTATIC void view_stream(FILE *fp, int wrapped);
 static int shift_line(char line[], size_t len, size_t offset);
 static size_t add_to_line(FILE *fp, size_t max, char line[], size_t len);
@@ -130,8 +129,7 @@ toggle_quick_view(void)
 void
 quick_view_file(FileView *view)
 {
-	char path[PATH_MAX];
-	const dir_entry_t *entry;
+	const dir_entry_t *curr;
 
 	if(curr_stats.load_stage < 2 || curr_stats.number_of_windows == 1 ||
 	   vle_mode_is(VIEW_MODE) || draw_abandoned_view_mode())
@@ -141,7 +139,21 @@ quick_view_file(FileView *view)
 
 	ui_view_erase(other_view);
 
-	entry = &view->dir_entry[view->list_pos];
+	curr = &view->dir_entry[view->list_pos];
+	if(!fentry_is_fake(curr))
+	{
+		view_entry(curr);
+	}
+
+	refresh_view_win(other_view);
+	ui_view_title_update(other_view);
+}
+
+/* Draws preview of the entry in the other view. */
+static void
+view_entry(const dir_entry_t *entry)
+{
+	char path[PATH_MAX];
 	qv_get_path_to_explore(entry, path, sizeof(path));
 
 	switch(entry->type)
@@ -176,9 +188,6 @@ quick_view_file(FileView *view)
 			view_file(path);
 			break;
 	}
-	refresh_view_win(other_view);
-
-	ui_view_title_update(other_view);
 }
 
 /* Displays contents of file or output of its viewer in the other pane
@@ -188,7 +197,7 @@ view_file(const char path[])
 {
 	int graphics = 0;
 	const char *viewer;
-	const char *clean_cmd;
+	const char *clear_cmd;
 	FILE *fp;
 
 	viewer = qv_get_viewer(path);
@@ -244,8 +253,8 @@ view_file(const char path[])
 	}
 	curr_stats.graphics_preview = graphics;
 
-	clean_cmd = (viewer != NULL) ? ma_get_clean_cmd(viewer) : NULL;
-	update_string(&curr_stats.preview_cleanup, clean_cmd);
+	clear_cmd = (viewer != NULL) ? ma_get_clear_cmd(viewer) : NULL;
+	update_string(&curr_stats.preview_cleanup, clear_cmd);
 
 	wattrset(other_view->win, 0);
 	view_stream(fp, cfg.wrap_quick_view);
@@ -481,29 +490,6 @@ print_entry_prefix(tree_print_state_t *s)
 		fputs(p[1] == '\0' ? "-- " : "   ", s->fp);
 		++p;
 	}
-}
-
-/* Enumerates content of the path in sorted order.  Returns list of names of
- * lengths *len, which can be NULL on empty list, error is indicated by negative
- * *len. */
-static char **
-list_sorted_files(const char path[], int *len)
-{
-	char **const list = list_all_files(path, len);
-	if(*len > 0)
-	{
-		qsort(list, *len, sizeof(*list), &path_sorter);
-	}
-	return list;
-}
-
-/* Wraps stroscmp() for use with qsort(). */
-static int
-path_sorter(const void *first, const void *second)
-{
-	const char *const *const a = first;
-	const char *const *const b = second;
-	return stroscmp(*a, *b);
 }
 
 /* Displays contents read from the fp in the other pane starting from the second
