@@ -43,6 +43,7 @@
 #include "io/ior.h"
 #include "modes/dialogs/msg_dialog.h"
 #include "ui/cancellation.h"
+#include "utils/cancellation.h"
 #include "utils/fs.h"
 #include "utils/log.h"
 #include "utils/macros.h"
@@ -117,13 +118,18 @@ static int op_rmdir(ops_t *ops, void *data, const char *src, const char *dst);
 static int op_mkfile(ops_t *ops, void *data, const char *src, const char *dst);
 static int ops_uses_syscalls(const ops_t *ops);
 static int exec_io_op(ops_t *ops, int (*func)(io_args_t *const),
-		io_args_t *const args);
+		io_args_t *const args, int cancellable);
 static int confirm_overwrite(io_args_t *args, const char src[],
 		const char dst[]);
 static char * pretty_dir_path(const char path[]);
 static IoErrCbResult dispatch_error(io_args_t *args, const ioe_err_t *err);
 static char prompt_user(const io_args_t *args, const char title[],
 		const char msg[], const response_variant variants[]);
+static int ui_cancellation_hook(void *arg);
+#ifndef _WIN32
+static int run_operation_command(ops_t *ops, char cmd[], int cancellable);
+#endif
+static int bg_cancellation_hook(void *arg);
 
 extern void copy_rating_info(const char src[], const char dst[], int op);  //add by sim1
 
@@ -317,7 +323,7 @@ op_removesl(ops_t *ops, void *data, const char *src, const char *dst)
 		free(escaped);
 
 		LOG_INFO_MSG("Running trash command: \"%s\"", cmd);
-		return background_and_wait_for_errors(cmd, cancellable);
+		return run_operation_command(ops, cmd, cancellable);
 #else
 		char cmd[PATH_MAX*2 + 1];
 		snprintf(cmd, sizeof(cmd), "%s \"%s\"", delete_prg, src);
@@ -341,7 +347,7 @@ op_removesl(ops_t *ops, void *data, const char *src, const char *dst)
 
 		snprintf(cmd, sizeof(cmd), "rm -rf %s", escaped);
 		LOG_INFO_MSG("Running rm command: \"%s\"", cmd);
-		result = background_and_wait_for_errors(cmd, cancellable);
+		result = run_operation_command(ops, cmd, cancellable);
 
 		//add by sim1
 		if (0 == result)
@@ -412,12 +418,10 @@ op_removesl(ops_t *ops, void *data, const char *src, const char *dst)
 
 	io_args_t args = {
 		.arg1.path = src,
-
-		.cancellable = data == NULL,
 	};
 	
 	//mod by sim1
-  int retval = exec_io_op(ops, &ior_rm, &args);
+  int retval = exec_io_op(ops, &ior_rm, &args, data == NULL);
 	if (0 == retval)
 	{
 		copy_rating_info(src, dst, 0);
@@ -484,7 +488,7 @@ op_cp(ops_t *ops, void *data, const char src[], const char dst[],
 				fast_file_cloning ? REFLINK_AUTO : "",
 				escaped_src, escaped_dst);
 		LOG_INFO_MSG("Running cp command: \"%s\"", cmd);
-		result = background_and_wait_for_errors(cmd, cancellable);
+		result = run_operation_command(ops, cmd, cancellable);
 
 		//add by sim1
 		if (0 == result)
@@ -537,12 +541,10 @@ op_cp(ops_t *ops, void *data, const char src[], const char dst[],
 		.arg2.dst = dst,
 		.arg3.crs = ca_to_crs(conflict_action),
 		.arg4.fast_file_cloning = fast_file_cloning,
-
-		.cancellable = data == NULL,
 	};
 
 	//mod by sim1
-  int retval = exec_io_op(ops, &ior_cp, &args);
+  int retval = exec_io_op(ops, &ior_cp, &args, data == NULL);
 	if (0 == retval)
 	{
 		copy_rating_info(src, dst, 2);
@@ -614,7 +616,7 @@ op_mv(ops_t *ops, void *data, const char src[], const char dst[],
 		free(escaped_src);
 
 		LOG_INFO_MSG("Running mv command: \"%s\"", cmd);
-		result = background_and_wait_for_errors(cmd, cancellable);
+		result = run_operation_command(ops, cmd, cancellable);
 		if(result != 0)
 		{
 			return result;
@@ -648,10 +650,8 @@ op_mv(ops_t *ops, void *data, const char src[], const char dst[],
 			.arg3.crs = ca_to_crs(conflict_action),
 			/* It's safe to always use fast file cloning on moving files. */
 			.arg4.fast_file_cloning = 1,
-
-			.cancellable = data == NULL,
 		};
-		result = exec_io_op(ops, &ior_mv, &args);
+		result = exec_io_op(ops, &ior_mv, &args, data == NULL);
 	}
 
 	if(result == 0)
@@ -693,7 +693,7 @@ op_chown(ops_t *ops, void *data, const char *src, const char *dst)
 	free(escaped);
 
 	LOG_INFO_MSG("Running chown command: \"%s\"", cmd);
-	return background_and_wait_for_errors(cmd, 1);
+	return run_operation_command(ops, cmd, 1);
 #else
 	return -1;
 #endif
@@ -712,7 +712,7 @@ op_chgrp(ops_t *ops, void *data, const char *src, const char *dst)
 	free(escaped);
 
 	LOG_INFO_MSG("Running chgrp command: \"%s\"", cmd);
-	return background_and_wait_for_errors(cmd, 1);
+	return run_operation_command(ops, cmd, 1);
 #else
 	return -1;
 #endif
@@ -730,7 +730,7 @@ op_chmod(ops_t *ops, void *data, const char *src, const char *dst)
 	free(escaped);
 
 	LOG_INFO_MSG("Running chmod command: \"%s\"", cmd);
-	return background_and_wait_for_errors(cmd, 1);
+	return run_operation_command(ops, cmd, 1);
 }
 
 static int
@@ -744,7 +744,7 @@ op_chmodr(ops_t *ops, void *data, const char *src, const char *dst)
 	free(escaped);
 
 	LOG_INFO_MSG("Running chmodr command: \"%s\"", cmd);
-	return background_and_wait_for_errors(cmd, 1);
+	return run_operation_command(ops, cmd, 1);
 }
 #else
 static int
@@ -816,7 +816,7 @@ op_symlink(ops_t *ops, void *data, const char *src, const char *dst)
 #ifndef _WIN32
 		snprintf(cmd, sizeof(cmd), "ln -s %s %s", escaped_src, escaped_dst);
 		LOG_INFO_MSG("Running ln command: \"%s\"", cmd);
-		result = background_and_wait_for_errors(cmd, 1);
+		result = run_operation_command(ops, cmd, 1);
 #else
 		if(get_exe_dir(exe_dir, ARRAY_LEN(exe_dir)) != 0)
 		{
@@ -840,7 +840,7 @@ op_symlink(ops_t *ops, void *data, const char *src, const char *dst)
 		.arg2.target = dst,
 		.arg3.crs = IO_CRS_REPLACE_FILES,
 	};
-	return exec_io_op(ops, &iop_ln, &args);
+	return exec_io_op(ops, &iop_ln, &args, 0);
 }
 
 static int
@@ -857,7 +857,7 @@ op_mkdir(ops_t *ops, void *data, const char *src, const char *dst)
 				escaped);
 		free(escaped);
 		LOG_INFO_MSG("Running mkdir command: \"%s\"", cmd);
-		return background_and_wait_for_errors(cmd, 1);
+		return run_operation_command(ops, cmd, 1);
 #else
 		if(data == NULL)
 		{
@@ -897,7 +897,7 @@ op_mkdir(ops_t *ops, void *data, const char *src, const char *dst)
 		.arg2.process_parents = data != NULL,
 		.arg3.mode = 0755,
 	};
-	return exec_io_op(ops, &iop_mkdir, &args);
+	return exec_io_op(ops, &iop_mkdir, &args, 0);
 }
 
 static int
@@ -915,7 +915,7 @@ op_rmdir(ops_t *ops, void *data, const char *src, const char *dst)
 		LOG_INFO_MSG("Running rmdir command: \"%s\"", cmd);
 
 		//mod by sim1
-		int ret =  background_and_wait_for_errors(cmd, 1);
+		int ret = run_operation_command(ops, cmd, 1);
 		if (0 == ret)
 		{
 			copy_rating_info(src, dst, 0);
@@ -942,7 +942,7 @@ op_rmdir(ops_t *ops, void *data, const char *src, const char *dst)
 	};
 	
 	//mod by sim1
-  int retval = exec_io_op(ops, &iop_rmdir, &args);
+  int retval = exec_io_op(ops, &iop_rmdir, &args, 0);
 	if (0 == retval)
 	{
 		copy_rating_info(src, dst, 0);
@@ -964,7 +964,7 @@ op_mkfile(ops_t *ops, void *data, const char *src, const char *dst)
 		snprintf(cmd, sizeof(cmd), "touch %s", escaped);
 		free(escaped);
 		LOG_INFO_MSG("Running touch command: \"%s\"", cmd);
-		return background_and_wait_for_errors(cmd, 1);
+		return run_operation_command(ops, cmd, 1);
 #else
 		HANDLE hfile;
 
@@ -985,7 +985,7 @@ op_mkfile(ops_t *ops, void *data, const char *src, const char *dst)
 	io_args_t args = {
 		.arg1.path = src,
 	};
-	return exec_io_op(ops, &iop_mkfile, &args);
+	return exec_io_op(ops, &iop_mkfile, &args, 0);
 }
 
 /* Checks whether specific operation should use system calls.  Returns non-zero
@@ -999,7 +999,8 @@ ops_uses_syscalls(const ops_t *ops)
 /* Executes i/o operation with some predefined pre/post actions.  Returns exit
  * code of i/o operation. */
 static int
-exec_io_op(ops_t *ops, int (*func)(io_args_t *const), io_args_t *const args)
+exec_io_op(ops_t *ops, int (*func)(io_args_t *const), io_args_t *const args,
+		int cancellable)
 {
 	int result;
 
@@ -1016,16 +1017,27 @@ exec_io_op(ops_t *ops, int (*func)(io_args_t *const), io_args_t *const args)
 		ioe_errlst_init(&args->result.errors);
 	}
 
-	if(args->cancellable)
+	if(cancellable)
 	{
-		ui_cancellation_enable();
+		if(ops != NULL && ops->bg)
+		{
+			args->cancellation.arg = ops->bg_op;
+			args->cancellation.hook = &bg_cancellation_hook;
+		}
+		else
+		{
+			/* ui_cancellation_reset() should be called outside this unit to allow
+			 * bulking several operations together. */
+			ui_cancellation_enable();
+			args->cancellation.hook = &ui_cancellation_hook;
+		}
 	}
 
 	curr_ops = ops;
 	result = func(args);
 	curr_ops = NULL;
 
-	if(args->cancellable)
+	if(cancellable && (ops == NULL || !ops->bg))
 	{
 		ui_cancellation_disable();
 	}
@@ -1172,17 +1184,66 @@ prompt_user(const io_args_t *args, const char title[], const char msg[],
 
 	/* Active cancellation conflicts with input processing by putting terminal in
 	 * a cooked mode. */
-	if(args->cancellable)
+	if(args->cancellation.hook != NULL)
 	{
 		raw();
 	}
 	response = prompt_msg_custom(title, msg, variants);
-	if(args->cancellable)
+	if(args->cancellation.hook != NULL)
 	{
 		noraw();
 	}
 
 	return response;
+}
+
+/* Implementation of cancellation hook for I/O unit. */
+static int
+ui_cancellation_hook(void *arg)
+{
+	return ui_cancellation_requested();
+}
+
+#ifndef _WIN32
+
+/* Runs command in background and displays its errors to a user.  To determine
+ * an error uses both stderr stream and exit status.  Returns zero on success,
+ * otherwise non-zero is returned. */
+static int
+run_operation_command(ops_t *ops, char cmd[], int cancellable)
+{
+	if(!cancellable)
+	{
+		return bg_and_wait_for_errors(cmd, &no_cancellation);
+	}
+
+	if(ops != NULL && ops->bg)
+	{
+		const cancellation_t bg_cancellation_info = {
+			.arg = ops->bg_op,
+			.hook = &bg_cancellation_hook,
+		};
+		return bg_and_wait_for_errors(cmd, &bg_cancellation_info);
+	}
+	else
+	{
+		int result;
+		/* ui_cancellation_reset() should be called outside this unit to allow
+		 * bulking several operations together. */
+		ui_cancellation_enable();
+		result = bg_and_wait_for_errors(cmd, &ui_cancellation_info);
+		ui_cancellation_disable();
+		return result;
+	}
+}
+
+#endif
+
+/* Implementation of cancellation hook for background tasks. */
+static int
+bg_cancellation_hook(void *arg)
+{
+	return bg_op_cancelled(arg);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
