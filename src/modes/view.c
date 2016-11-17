@@ -30,6 +30,7 @@
 #include <stdlib.h> /* free() */
 
 #include "../cfg/config.h"
+#include "../compat/curses.h"
 #include "../compat/fs_limits.h"
 #include "../compat/os.h"
 #include "../compat/reallocarray.h"
@@ -99,6 +100,8 @@ typedef struct
 	/* The rest of the state. */
 	FileView *view; /* File view association with the view. */
 	char *filename; /* Full path to the file being viewed. */
+	char *viewer;   /* When non-NULL, specifies custom preview command (no
+	                   implicit %c). */
 	int abandoned;  /* Whether view mode was abandoned. */
 	int graphics;   /* Whether viewer presumably displays graphics. */
 	int wrap;       /* Whether lines are wrapped. */
@@ -279,16 +282,16 @@ static keys_add_info_t builtin_cmds[] = {
 	{{ALT_V},          {{&cmd_b}, .descr = "scroll page up"}},
 #endif
 #ifdef ENABLE_EXTENDED_KEYS
-	{{WC_C_w, KEY_BACKSPACE}, {{&cmd_ctrl_wh}, .descr = "go to left window"}},
-	{{KEY_PPAGE},             {{&cmd_b}, .descr = "scroll page up"}},
-	{{KEY_NPAGE},             {{&cmd_f}, .descr = "scroll page down"}},
-	{{KEY_DOWN},              {{&cmd_j}, .descr = "scroll one line down"}},
-	{{KEY_UP},                {{&cmd_k}, .descr = "scroll one line up"}},
-	{{KEY_HOME},              {{&cmd_g}, .descr = "scroll to the beginning"}},
-	{{KEY_END},               {{&cmd_G}, .descr = "scroll to the end"}},
-	{{KEY_BTAB},              {{&cmd_q}, .descr = "leave view mode"}},
+	{{WC_C_w, K(KEY_BACKSPACE)}, {{&cmd_ctrl_wh}, .descr = "go to left window"}},
+	{{K(KEY_PPAGE)},             {{&cmd_b}, .descr = "scroll page up"}},
+	{{K(KEY_NPAGE)},             {{&cmd_f}, .descr = "scroll page down"}},
+	{{K(KEY_DOWN)},              {{&cmd_j}, .descr = "scroll one line down"}},
+	{{K(KEY_UP)},                {{&cmd_k}, .descr = "scroll one line up"}},
+	{{K(KEY_HOME)},              {{&cmd_g}, .descr = "scroll to the beginning"}},
+	{{K(KEY_END)},               {{&cmd_G}, .descr = "scroll to the end"}},
+	{{K(KEY_BTAB)},              {{&cmd_q}, .descr = "leave view mode"}},
 #else
-	{WK_ESCAPE L"[Z",         {{&cmd_q}, .descr = "leave view mode"}},
+	{WK_ESCAPE L"[Z",            {{&cmd_q}, .descr = "leave view mode"}},
 #endif /* ENABLE_EXTENDED_KEYS */
 };
 
@@ -328,12 +331,13 @@ enter_view_mode(FileView *view, int explore)
 	pick_vi(explore);
 
 	vi->view = view;
+	vi->filename = strdup(full_path);
+
 	if(load_view_data(vi, "File exploring", full_path, NOSILENT) != 0)
 	{
+		update_string(&vi->filename, NULL);
 		return;
 	}
-
-	vi->filename = strdup(full_path);
 
 	vle_mode_set(VIEW_MODE, VMT_SECONDARY);
 
@@ -348,7 +352,35 @@ enter_view_mode(FileView *view, int explore)
 	}
 
 	ui_views_update_titles();
+	view_redraw();
+}
 
+void
+make_abandoned_view(FileView *view, const char cmd[])
+{
+	char full_path[PATH_MAX];
+
+	if(get_file_to_explore(curr_view, full_path, sizeof(full_path)) != 0)
+	{
+		show_error_msg("File exploring", "The file cannot be explored");
+		return;
+	}
+
+	pick_vi(0);
+	reset_view_info(vi);
+
+	vi->view = view;
+	vi->viewer = strdup(cmd);
+	vi->filename = strdup(full_path);
+	vi->abandoned = 1;
+
+	if(load_view_data(vi, "File viewing", full_path, NOSILENT) != 0)
+	{
+		reset_view_info(vi);
+		return;
+	}
+
+	ui_views_update_titles();
 	view_redraw();
 }
 
@@ -447,6 +479,8 @@ try_redraw_explore_view(const FileView *const view, int vi_index)
 void
 leave_view_mode(void)
 {
+	reset_view_info(vi);
+
 	vle_mode_set(NORMAL_MODE, VMT_PRIMARY);
 
 	if(curr_view->explore_mode)
@@ -456,12 +490,10 @@ leave_view_mode(void)
 	}
 	else
 	{
-		quick_view_file(curr_view);
+		qv_draw(curr_view);
 	}
 
 	ui_view_title_update(curr_view);
-
-	reset_view_info(vi);
 
 	if(curr_view->explore_mode || other_view->explore_mode)
 	{
@@ -504,6 +536,11 @@ init_view_info(view_info_t *vi)
 	vi->width = -1;
 	vi->last_search_backward = -1;
 	vi->search_repeat = NO_COUNT_GIVEN;
+	vi->nlines = 0;
+	vi->lines = NULL;
+	vi->widths = NULL;
+	vi->filename = NULL;
+	vi->viewer = NULL;
 }
 
 /* Frees all resources allocated by view_info_t structure instance. */
@@ -517,6 +554,7 @@ free_view_info(view_info_t *vi)
 		regfree(&vi->re);
 	}
 	free(vi->filename);
+	free(vi->viewer);
 }
 
 /* Updates line width and redraws the view. */
@@ -847,7 +885,7 @@ cmd_ctrl_ww(key_info_t key_info, keys_info_t *keys_info)
 	ui_views_update_titles();
 	if(curr_stats.view)
 	{
-		quick_view_file(curr_view);
+		qv_draw(curr_view);
 	}
 }
 
@@ -869,7 +907,7 @@ static void
 cmd_ctrl_wz(key_info_t key_info, keys_info_t *keys_info)
 {
 	leave_view_mode();
-	preview_close();
+	qv_hide();
 }
 
 static void
@@ -1036,7 +1074,7 @@ get_view_data(view_info_t *vi, const char file_to_view[])
 	FILE *fp;
 	const char *const viewer = qv_get_viewer(file_to_view);
 
-	if(is_null_or_empty(viewer))
+	if(vi->viewer == NULL && is_null_or_empty(viewer))
 	{
 		if(is_dir(file_to_view))
 		{
@@ -1059,7 +1097,8 @@ get_view_data(view_info_t *vi, const char file_to_view[])
 	}
 	else
 	{
-		const int graphics = is_graphics_viewer(viewer);
+		const char *const v = (vi->viewer != NULL) ? vi->viewer : viewer;
+		const int graphics = is_graphics_viewer(v);
 		FileView *const curr = curr_view;
 		curr_view = curr_stats.view ? curr_view
 		          : (vi->view != NULL) ? vi->view : curr_view;
@@ -1071,7 +1110,17 @@ get_view_data(view_info_t *vi, const char file_to_view[])
 			 * of them need this). */
 			usleep(50000);
 		}
-		fp = use_info_prog(viewer);
+		if(vi->viewer == NULL)
+		{
+			fp = qv_execute_viewer(viewer);
+		}
+		else
+		{
+			/* Don't add implicit %c to a command with %e macro. */
+			char *const cmd = expand_macros(vi->viewer, NULL, NULL, 1);
+			fp = read_cmd_output(cmd);
+			free(cmd);
+		}
 
 		curr_view = curr;
 		curr_stats.preview_hint = NULL;
@@ -1109,6 +1158,9 @@ replace_vi(view_info_t *const orig, view_info_t *const new)
 {
 	new->filename = orig->filename;
 	orig->filename = NULL;
+
+	new->viewer = orig->viewer;
+	orig->viewer = NULL;
 
 	if(orig->last_search_backward != -1)
 	{
@@ -1609,8 +1661,9 @@ reload_view(view_info_t *vi, int silent)
 	view_info_t new_vi;
 
 	init_view_info(&new_vi);
-	/* The view field is used in get_view_data(). */
+	/* These fields are used in get_view_data(). */
 	new_vi.view = vi->view;
+	new_vi.viewer = vi->viewer;
 
 	if(load_view_data(&new_vi, "File exploring reload", vi->filename, silent)
 			== 0)

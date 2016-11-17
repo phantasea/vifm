@@ -27,6 +27,7 @@
 
 #include "../cfg/config.h"
 #include "../cfg/hist.h"
+#include "../compat/curses.h"
 #include "../engine/keys.h"
 #include "../engine/mode.h"
 #include "../modes/dialogs/msg_dialog.h"
@@ -146,6 +147,16 @@ static void cmd_zd(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zf(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_left_paren(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_right_paren(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_z_k(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_z_j(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_lb_c(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_rb_c(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_lb_d(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_rb_d(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_lb_s(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_rb_s(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_lb_z(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_rb_z(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_left_curly_bracket(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_right_curly_bracket(key_info_t key_info,
 		keys_info_t *keys_info);
@@ -246,14 +257,24 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_z WK_z,     {{&normal_cmd_zz},   .descr = "center cursor position"}},
 	{WK_LP,         {{&cmd_left_paren},  .descr = "go to previous group of files"}},
 	{WK_RP,         {{&cmd_right_paren}, .descr = "go to next group of files"}},
-	{WK_LCB,        {{&cmd_left_curly_bracket},  .descr = "go to previous file/dir"}},
-	{WK_RCB,        {{&cmd_right_curly_bracket}, .descr = "go to next file/dir"}},
+	{WK_z WK_k,     {{&cmd_z_k},  .descr = "go to previous sibling dir"}},
+	{WK_z WK_j,     {{&cmd_z_j},  .descr = "go to next sibling dir"}},
+	{WK_LB WK_c,    {{&cmd_lb_c}, .descr = "go to previous mismatch"}},
+	{WK_RB WK_c,    {{&cmd_rb_c}, .descr = "go to next mismatch"}},
+	{WK_LB WK_d,    {{&cmd_lb_d}, .descr = "go to previous dir"}},
+	{WK_RB WK_d,    {{&cmd_rb_d}, .descr = "go to next dir"}},
+	{WK_LB WK_s,    {{&cmd_lb_s}, .descr = "go to previous selected entry"}},
+	{WK_RB WK_s,    {{&cmd_rb_s}, .descr = "go to next selected entry"}},
+	{WK_LB WK_z,    {{&cmd_lb_z}, .descr = "go to first sibling"}},
+	{WK_RB WK_z,    {{&cmd_rb_z}, .descr = "go to last sibling"}},
+	{WK_LCB,        {{&cmd_left_curly_bracket},  .descr = "go to previous file/dir group"}},
+	{WK_RCB,        {{&cmd_right_curly_bracket}, .descr = "go to next file/dir group"}},
 #ifdef ENABLE_EXTENDED_KEYS
-	{{KEY_PPAGE},   {{&cmd_ctrl_b}, .descr = "scroll page up"}},
-	{{KEY_NPAGE},   {{&cmd_ctrl_f}, .descr = "scroll page down"}},
-	{{KEY_DOWN},    {{&cmd_j},      .descr = "go to item below"}},
-	{{KEY_UP},      {{&cmd_k},      .descr = "go to item above"}},
-	{{KEY_RIGHT},   {{&cmd_l},      .descr = "open selection/go to item to the right"}},
+	{{K(KEY_PPAGE)},   {{&cmd_ctrl_b}, .descr = "scroll page up"}},
+	{{K(KEY_NPAGE)},   {{&cmd_ctrl_f}, .descr = "scroll page down"}},
+	{{K(KEY_DOWN)},    {{&cmd_j},      .descr = "go to item below"}},
+	{{K(KEY_UP)},      {{&cmd_k},      .descr = "go to item above"}},
+	{{K(KEY_RIGHT)},   {{&cmd_l},      .descr = "open selection/go to item to the right"}},
 #endif /* ENABLE_EXTENDED_KEYS */
 };
 
@@ -527,15 +548,14 @@ cmd_D(key_info_t key_info, keys_info_t *keys_info)
 	delete(key_info, 0);
 }
 
+/* Navigates to previous word which starts with specified character. */
 static void
 cmd_F(key_info_t key_info, keys_info_t *keys_info)
 {
 	last_fast_search_char = key_info.multi;
 	last_fast_search_backward = 1;
 
-	if(key_info.count == NO_COUNT_GIVEN)
-		key_info.count = 1;
-	find_goto(key_info.multi, key_info.count, 1);
+	find_goto(key_info.multi, def_count(key_info.count), 1);
 }
 
 static void
@@ -630,15 +650,16 @@ cmd_percent(key_info_t key_info, keys_info_t *keys_info)
 	goto_pos(line - 1);
 }
 
+/* Continues navigation to word which starts with specified character in
+ * opposite direction. */
 static void
 cmd_comma(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(last_fast_search_backward == -1)
-		return;
-
-	if(key_info.count == NO_COUNT_GIVEN)
-		key_info.count = 1;
-	find_goto(last_fast_search_char, key_info.count, !last_fast_search_backward);
+	if(last_fast_search_backward != -1)
+	{
+		find_goto(last_fast_search_char, def_count(key_info.count),
+				!last_fast_search_backward);
+	}
 }
 
 /* Move cursor to the first column in ls-view sub-mode selecting or unselecting
@@ -660,15 +681,16 @@ cmd_colon(key_info_t key_info, keys_info_t *keys_info)
 	enter_cmdline_mode(CLS_COMMAND, "", NULL);
 }
 
+/* Continues navigation to word which starts with specified character in initial
+ * direction. */
 static void
 cmd_semicolon(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(last_fast_search_backward == -1)
-		return;
-
-	if(key_info.count == NO_COUNT_GIVEN)
-		key_info.count = 1;
-	find_goto(last_fast_search_char, key_info.count, last_fast_search_backward);
+	if(last_fast_search_backward != -1)
+	{
+		find_goto(last_fast_search_char, def_count(key_info.count),
+				last_fast_search_backward);
+	}
 }
 
 /* Search forward. */
@@ -722,15 +744,14 @@ delete(key_info_t key_info, int use_trash)
 	}
 }
 
+/* Navigates to next word which starts with specified character. */
 static void
 cmd_f(key_info_t key_info, keys_info_t *keys_info)
 {
 	last_fast_search_char = key_info.multi;
 	last_fast_search_backward = 0;
 
-	if(key_info.count == NO_COUNT_GIVEN)
-		key_info.count = 1;
-	find_goto(key_info.multi, key_info.count, 0);
+	find_goto(key_info.multi, def_count(key_info.count), 0);
 }
 
 /* Calculate size of selected directories ignoring cached sizes. */
@@ -1216,6 +1237,76 @@ cmd_right_paren(key_info_t key_info, keys_info_t *keys_info)
 	goto_pos(flist_find_group(view, 1));
 }
 
+/* Go to previous sibling directory entry or do nothing. */
+static void
+cmd_z_k(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_prev_dir_sibling(view));
+}
+
+/* Go to next sibling directory entry or do nothing. */
+static void
+cmd_z_j(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_next_dir_sibling(view));
+}
+
+/* Go to previous mismatched entry or do nothing. */
+static void
+cmd_lb_c(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_prev_mismatch(view));
+}
+
+/* Go to next mismatched entry or do nothing. */
+static void
+cmd_rb_c(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_next_mismatch(view));
+}
+
+/* Go to previous directory entry or do nothing. */
+static void
+cmd_lb_d(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_prev_dir(view));
+}
+
+/* Go to next directory entry or do nothing. */
+static void
+cmd_rb_d(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_next_dir(view));
+}
+
+/* Go to previous selected entry or do nothing. */
+static void
+cmd_lb_s(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_prev_selected(view));
+}
+
+/* Go to next selected entry or do nothing. */
+static void
+cmd_rb_s(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_next_selected(view));
+}
+
+/* Go to first sibling of the current entry. */
+static void
+cmd_lb_z(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_first_sibling(view));
+}
+
+/* Go to last sibling of the current entry. */
+static void
+cmd_rb_z(key_info_t key_info, keys_info_t *keys_info)
+{
+	goto_pos(flist_last_sibling(view));
+}
+
 /* Moves cursor to the beginning of the previous group of files defined by them
  * being directory or files. */
 static void
@@ -1232,17 +1323,20 @@ cmd_right_curly_bracket(key_info_t key_info, keys_info_t *keys_info)
 	goto_pos(flist_find_dir_group(view, 1));
 }
 
+/* Navigates to next/previous file which starts with given character. */
 static void
 find_goto(int ch, int count, int backward)
 {
-	int pos;
-	pos = ffind(ch, backward, 1);
+	int pos = flist_find_by_ch(view, ch, backward, 1);
 	if(pos < 0 || pos == view->list_pos)
+	{
 		return;
-	while(--count > 0)
+	}
+
+	while(count-- > 0)
 	{
 		goto_pos(pos);
-		pos = ffind(ch, backward, 1);
+		pos = flist_find_by_ch(view, ch, backward, 1);
 	}
 }
 

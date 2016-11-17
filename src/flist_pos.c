@@ -42,6 +42,9 @@ static void correct_list_pos_down(FileView *view, size_t pos_delta);
 static void correct_list_pos_up(FileView *view, size_t pos_delta);
 static void move_cursor_out_of_scope(FileView *view, entry_predicate pred);
 static const char * get_last_ext(const char name[]);
+static int is_mismatched_entry(const dir_entry_t *entry);
+static int find_next(const FileView *view, entry_predicate pred);
+static int find_prev(const FileView *view, entry_predicate pred);
 static int file_can_be_displayed(const char directory[], const char filename[]);
 
 int
@@ -449,6 +452,185 @@ flist_find_dir_group(const FileView *view, int next)
 }
 
 int
+flist_first_sibling(const FileView *view)
+{
+	const int parent = view->list_pos - view->dir_entry[view->list_pos].child_pos;
+	return (parent == view->list_pos ? 0 : parent + 1);
+}
+
+int
+flist_last_sibling(const FileView *view)
+{
+	int pos = view->list_pos - view->dir_entry[view->list_pos].child_pos;
+	if(pos == view->list_pos)
+	{
+		/* For top-level entry, find the last top-level entry. */
+		pos = view->list_rows - 1;
+		while(view->dir_entry[pos].child_pos != 0)
+		{
+			pos -= view->dir_entry[pos].child_pos;
+		}
+	}
+	else
+	{
+		/* For non-top-level entry, go to last tree item and go up until our
+		 * child. */
+		const int parent = pos;
+		pos = parent + view->dir_entry[parent].child_count;
+		while(pos - view->dir_entry[pos].child_pos != parent)
+		{
+			pos -= view->dir_entry[pos].child_pos;
+		}
+	}
+	return pos;
+}
+
+int
+flist_next_dir_sibling(const FileView *view)
+{
+	int pos = view->list_pos;
+	const int parent = view->dir_entry[pos].child_pos == 0
+	                 ? -1
+	                 : pos - view->dir_entry[pos].child_pos;
+	const int past_end = parent == -1
+	                   ? view->list_rows
+	                   : parent + view->dir_entry[parent].child_count;
+	pos += view->dir_entry[pos].child_count + 1;
+	while(pos < past_end)
+	{
+		dir_entry_t *const e = &view->dir_entry[pos];
+		if(is_directory_entry(e))
+		{
+			break;
+		}
+		/* Skip over whole sub-tree. */
+		pos += e->child_count + 1;
+	}
+	return (pos < past_end ? pos : view->list_pos);
+}
+
+int
+flist_prev_dir_sibling(const FileView *view)
+{
+	int pos = view->list_pos;
+	/* Determine original parent (-1 for top-most entry). */
+	const int parent = view->dir_entry[pos].child_pos == 0
+	                 ? -1
+	                 : pos - view->dir_entry[pos].child_pos;
+	--pos;
+	while(pos > parent)
+	{
+		dir_entry_t *const e = &view->dir_entry[pos];
+		const int p = (e->child_pos == 0) ? -1 : (pos - e->child_pos);
+		/* If we find ourselves deeper than originally, just go up one level. */
+		if(p != parent)
+		{
+			pos = p;
+			continue;
+		}
+
+		/* We're looking for directories. */
+		if(is_directory_entry(e))
+		{
+			break;
+		}
+		/* We're on a file on the same level. */
+		--pos;
+	}
+	return (pos > parent ? pos : view->list_pos);
+}
+
+int
+flist_next_dir(const FileView *view)
+{
+	return find_next(view, &is_directory_entry);
+}
+
+int
+flist_prev_dir(const FileView *view)
+{
+	return find_prev(view, &is_directory_entry);
+}
+
+int
+flist_next_selected(const FileView *view)
+{
+	return find_next(view, &is_entry_selected);
+}
+
+int
+flist_prev_selected(const FileView *view)
+{
+	return find_prev(view, &is_entry_selected);
+}
+
+int
+flist_next_mismatch(const FileView *view)
+{
+	return (view->custom.type == CV_DIFF)
+	     ? find_next(view, &is_mismatched_entry)
+	     : view->list_pos;
+}
+
+int
+flist_prev_mismatch(const FileView *view)
+{
+	return (view->custom.type == CV_DIFF)
+	     ? find_prev(view, &is_mismatched_entry)
+	     : view->list_pos;
+}
+
+/* Checks whether entry corresponds to comparison mismatch.  Returns non-zero if
+ * so, otherwise zero is returned. */
+static int
+is_mismatched_entry(const dir_entry_t *entry)
+{
+	/* To avoid passing view pointer here, we exploit the fact that entry_to_pos()
+	 * checks whether it's argument belongs to the given view. */
+	int pos = entry_to_pos(&lwin, entry);
+	FileView *other = &rwin;
+	if(pos == -1)
+	{
+		pos = entry_to_pos(&rwin, entry);
+		other = &lwin;
+	}
+
+	return (other->dir_entry[pos].id != entry->id);
+}
+
+/* Finds position of the next entry matching the predicate.  Returns new
+ * position which isn't changed if no next directory is found. */
+static int
+find_next(const FileView *view, entry_predicate pred)
+{
+	int pos = view->list_pos;
+	while(++pos < view->list_rows)
+	{
+		if(pred(&view->dir_entry[pos]))
+		{
+			break;
+		}
+	}
+	return (pos == view->list_rows ? view->list_pos : pos);
+}
+
+/* Finds position of the previous entry matching the predicate.  Returns new
+ * position which isn't changed if no previous directory is found. */
+static int
+find_prev(const FileView *view, entry_predicate pred)
+{
+	int pos = view->list_pos;
+	while(--pos >= 0)
+	{
+		if(pred(&view->dir_entry[pos]))
+		{
+			break;
+		}
+	}
+	return (pos < 0 ? view->list_pos : pos);
+}
+
+int
 ensure_file_is_selected(FileView *view, const char name[])
 {
 	int file_pos;
@@ -499,6 +681,67 @@ file_can_be_displayed(const char directory[], const char filename[])
 		return cfg_parent_dir_is_visible(is_root_dir(directory));
 	}
 	return path_exists_at(directory, filename, DEREF);
+}
+
+int
+flist_find_by_ch(const FileView *view, int ch, int backward, int wrap)
+{
+	int x;
+	const int upcase = (cfg.case_override & CO_GOTO_FILE)
+	                 ? (cfg.case_ignore & CO_GOTO_FILE)
+	                 : (cfg.ignore_case && !(cfg.smart_case && iswupper(ch)));
+
+	if(upcase)
+	{
+		ch = towupper(ch);
+	}
+
+	x = view->list_pos;
+	do
+	{
+		if(backward)
+		{
+			x--;
+			if(x < 0)
+			{
+				if(wrap)
+					x = view->list_rows - 1;
+				else
+					return -1;
+			}
+		}
+		else
+		{
+			x++;
+			if(x > view->list_rows - 1)
+			{
+				if(wrap)
+					x = 0;
+				else
+					return -1;
+			}
+		}
+
+		if(ch > 255)
+		{
+			wchar_t wc = get_first_wchar(view->dir_entry[x].name);
+			if(upcase)
+				wc = towupper(wc);
+			if(wc == ch)
+				break;
+		}
+		else
+		{
+			int c = view->dir_entry[x].name[0];
+			if(upcase)
+				c = towupper(c);
+			if(c == ch)
+				break;
+		}
+	}
+	while(x != view->list_pos);
+
+	return x;
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

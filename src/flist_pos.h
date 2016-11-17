@@ -103,9 +103,55 @@ int flist_find_group(const FileView *view, int next);
  * entry in corner cases). */
 int flist_find_dir_group(const FileView *view, int next);
 
+/* Finds position of the first child of the parent of the current node.  Returns
+ * new position which isn't changed if already at first child. */
+int flist_first_sibling(const FileView *view);
+
+/* Finds position of the last child of the parent of the current node.  Returns
+ * new position which isn't changed if already at last child. */
+int flist_last_sibling(const FileView *view);
+
+/* Finds position of the next sibling directory entry.  Returns new position
+ * which isn't changed if nothing was found. */
+int flist_next_dir_sibling(const FileView *view);
+
+/* Finds position of the previous sibling directory entry.  Returns new position
+ * which isn't changed if nothing was found. */
+int flist_prev_dir_sibling(const FileView *view);
+
+/* Finds position of the next directory entry.  Returns new position which isn't
+ * changed if no next directory is found. */
+int flist_next_dir(const FileView *view);
+
+/* Finds position of the previous directory entry.  Returns new position which
+ * isn't changed if no previous directory is found. */
+int flist_prev_dir(const FileView *view);
+
+/* Finds position of the next selected entry.  Returns new position which isn't
+ * changed if no next selected entry is found. */
+int flist_next_selected(const FileView *view);
+
+/* Finds position of the previous selected entry.  Returns new position which
+ * isn't changed if no previous selected entry is found. */
+int flist_prev_selected(const FileView *view);
+
+/* Finds position of the next mismatched entry.  Returns new position which
+ * isn't changed if no next such entry is found. */
+int flist_next_mismatch(const FileView *view);
+
+/* Finds position of the previous mismatched entry.  Returns new position which
+ * isn't changed if no previous such entry is found. */
+int flist_prev_mismatch(const FileView *view);
+
 /* Remove dot and regexp filters if it's needed to make file visible.  Returns
  * non-zero if file was found. */
 int ensure_file_is_selected(FileView *view, const char name[]);
+
+/* Finds next/previous file which starts with the given character.  Returns
+ * -1 if nothing was found, otherwise new position.  When wrapping, can also
+ * return current position to signify that there is nowhere to move (no check
+ * whether it matches is performed). */
+int flist_find_by_ch(const FileView *view, int ch, int backward, int wrap);
 
 #endif /* VIFM__FLIST_POS_H__ */
 

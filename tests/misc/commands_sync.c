@@ -19,6 +19,7 @@
 
 #include "utils.h"
 
+static void format_none(int id, const void *data, size_t buf_len, char buf[]);
 static void column_line_print(const void *data, int column_id, const char buf[],
 		size_t offset, AlignType align, const char full_column[]);
 
@@ -146,6 +147,72 @@ TEST(sync_syncs_trees)
 	columns_set_line_print_func(NULL);
 }
 
+TEST(sync_all_does_not_turn_destination_into_tree)
+{
+	columns_add_column_desc(SK_BY_NAME, &format_none);
+	columns_add_column_desc(SK_BY_SIZE, &format_none);
+	columns_set_line_print_func(&column_line_print);
+
+	opt_handlers_setup();
+
+	other_view->curr_dir[0] = '\0';
+	other_view->custom.type = CV_REGULAR;
+	other_view->columns = columns_create();
+
+	assert_true(change_directory(curr_view, SANDBOX_PATH) >= 0);
+	populate_dir_list(curr_view, 0);
+	local_filter_apply(curr_view, "a");
+
+	assert_success(exec_commands("sync! all", curr_view, CIT_COMMAND));
+	assert_false(other_view->custom.type == CV_TREE);
+
+	columns_free(other_view->columns);
+	other_view->columns = NULL;
+	opt_handlers_teardown();
+	columns_set_line_print_func(NULL);
+
+	columns_clear_column_descs();
+}
+
+TEST(sync_localopts_clones_local_options)
+{
+	columns_add_column_desc(SK_BY_NAME, &format_none);
+	columns_add_column_desc(SK_BY_SIZE, &format_none);
+	columns_set_line_print_func(&column_line_print);
+
+	lwin.hide_dot = 1;
+	lwin.hide_dot_g = 1;
+	rwin.hide_dot = 0;
+	rwin.hide_dot_g = 0;
+
+	opt_handlers_setup();
+
+	other_view->curr_dir[0] = '\0';
+	other_view->custom.type = CV_REGULAR;
+	other_view->columns = columns_create();
+
+	assert_true(change_directory(curr_view, SANDBOX_PATH) >= 0);
+	populate_dir_list(curr_view, 0);
+	local_filter_apply(curr_view, "a");
+
+	assert_success(exec_commands("sync! localopts", curr_view, CIT_COMMAND));
+	assert_true(rwin.hide_dot_g);
+	assert_true(rwin.hide_dot);
+
+	columns_free(other_view->columns);
+	other_view->columns = NULL;
+	opt_handlers_teardown();
+	columns_set_line_print_func(NULL);
+
+	columns_clear_column_descs();
+}
+
+static void
+format_none(int id, const void *data, size_t buf_len, char buf[])
+{
+	buf[0] = '\0';
+}
+
 TEST(tree_syncing_applies_properties_of_destination_view)
 {
 	char cwd[PATH_MAX];
@@ -209,6 +276,11 @@ TEST(symlinks_in_paths_are_not_resolved, IF(not_windows))
 			sizeof(canonic_path));
 	assert_string_equal(canonic_path, other_view->curr_dir);
 	assert_success(remove(SANDBOX_PATH "/dir-link"));
+}
+
+TEST(incorrect_parameter_causes_error)
+{
+	assert_failure(exec_commands("sync! nosuchthing", curr_view, CIT_COMMAND));
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

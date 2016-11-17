@@ -134,6 +134,7 @@ static int sub_mode_allows_ee;
 
 static int def_handler(wchar_t key);
 static void update_cmdline_text(line_stats_t *stat);
+static void draw_cmdline_text(line_stats_t *stat);
 static void input_line_changed(void);
 static void handle_empty_input(void);
 static void handle_nonempty_input(void);
@@ -287,15 +288,15 @@ static keys_add_info_t builtin_cmds[] = {
 	{{ALT_PERIOD},    {{&cmd_meta_dot}, .descr = "start/continue last arg completion"}},
 #endif
 #ifdef ENABLE_EXTENDED_KEYS
-	{{KEY_BACKSPACE}, {{&cmd_ctrl_h}, .descr = "remove char to the left"}},
-	{{KEY_DOWN},      {{&cmd_down},   .descr = "prefix-complete next history item"}},
-	{{KEY_UP},        {{&cmd_up},     .descr = "prefix-complete previous history item"}},
-	{{KEY_LEFT},      {{&cmd_left},   .descr = "move cursor to the left"}},
-	{{KEY_RIGHT},     {{&cmd_right},  .descr = "move cursor to the right"}},
-	{{KEY_HOME},      {{&cmd_home},   .descr = "move cursor to the beginning"}},
-	{{KEY_END},       {{&cmd_end},    .descr = "move cursor to the end"}},
-	{{KEY_DC},        {{&cmd_delete}, .descr = "delete current character"}},
-	{{KEY_BTAB},      {{&cmd_shift_tab}, .descr = "complete in reverse order"}},
+	{{K(KEY_BACKSPACE)}, {{&cmd_ctrl_h}, .descr = "remove char to the left"}},
+	{{K(KEY_DOWN)},      {{&cmd_down},   .descr = "prefix-complete next history item"}},
+	{{K(KEY_UP)},        {{&cmd_up},     .descr = "prefix-complete previous history item"}},
+	{{K(KEY_LEFT)},      {{&cmd_left},   .descr = "move cursor to the left"}},
+	{{K(KEY_RIGHT)},     {{&cmd_right},  .descr = "move cursor to the right"}},
+	{{K(KEY_HOME)},      {{&cmd_home},   .descr = "move cursor to the beginning"}},
+	{{K(KEY_END)},       {{&cmd_end},    .descr = "move cursor to the end"}},
+	{{K(KEY_DC)},        {{&cmd_delete}, .descr = "delete current character"}},
+	{{K(KEY_BTAB)},      {{&cmd_shift_tab}, .descr = "complete in reverse order"}},
 #endif /* ENABLE_EXTENDED_KEYS */
 };
 
@@ -331,7 +332,7 @@ def_handler(wchar_t key)
 
 	/* There is no need for resetting completion because of terminal dimensions
 	 * change (note also that iswprint(KEY_RESIZE) might return false). */
-	if(key == KEY_RESIZE)
+	if(key == K(KEY_RESIZE))
 	{
 		return 0;
 	}
@@ -369,14 +370,20 @@ def_handler(wchar_t key)
 	return 0;
 }
 
-/* Update test displayed on the command line and cursor. */
+/* Processes input change and redraw of resulting command-line. */
 static void
 update_cmdline_text(line_stats_t *stat)
 {
+	input_line_changed();
+	draw_cmdline_text(stat);
+}
+
+/* Updates text displayed on the command line and cursor within it. */
+static void
+draw_cmdline_text(line_stats_t *stat)
+{
 	int pair = -1;
 	int attr = 0;
-
-	input_line_changed();
 
 	werase(status_bar);
 
@@ -420,7 +427,7 @@ input_line_changed(void)
 	 * wrong place. */
 	curs_set(0);
 
-	set_view_port();
+	/* set_view_port() should not be called if none of the conditions are true. */
 
 	input_stat.state = PS_NORMAL;
 	if(is_input_line_empty())
@@ -428,12 +435,14 @@ input_line_changed(void)
 		free(previous);
 		previous = NULL;
 
+		set_view_port();
 		handle_empty_input();
 	}
 	else if(previous == NULL || wcscmp(previous, input_stat.line) != 0)
 	{
 		(void)replace_wstring(&previous, input_stat.line);
 
+		set_view_port();
 		handle_nonempty_input();
 	}
 
@@ -501,7 +510,7 @@ handle_nonempty_input(void)
 		case CLS_MENU_FSEARCH:
 		case CLS_MENU_BSEARCH:
 			result = search_menu_list(mbinput, sub_mode_ptr, 0);
-			update_state(result, ((menu_info *)sub_mode_ptr)->matching_entries);
+			update_state(result, menu_get_matches(sub_mode_ptr));
 			break;
 		case CLS_FILTER:
 			set_local_filter(mbinput);
@@ -670,7 +679,7 @@ redraw_cmdline(void)
 
 	line_width = getmaxx(stdscr);
 	update_cmdline_size();
-	update_cmdline_text(&input_stat);
+	draw_cmdline_text(&input_stat);
 	curs_set(1);
 
 	if(input_stat.complete_continue && cfg.wild_menu)

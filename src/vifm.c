@@ -283,10 +283,12 @@ main(int argc, char *argv[])
 	vle_aucmd_execute("DirEnter", lwin.curr_dir, &lwin);
 	vle_aucmd_execute("DirEnter", rwin.curr_dir, &rwin);
 
-	exec_startup_commands(&vifm_args);
-
 	update_screen(UT_FULL);
 	modes_update();
+
+	/* Run startup commands after loading file lists into views, so that commands
+	 * like +1 work. */
+	exec_startup_commands(&vifm_args);
 
 	curr_stats.load_stage = 3;
 
@@ -408,9 +410,9 @@ remote_cd(FileView *view, const char path[], int handle)
 		leave_view_mode();
 	}
 
-	if(curr_stats.view)
+	if(curr_stats.view && (handle || view == other_view))
 	{
-		toggle_quick_view();
+		qv_toggle();
 	}
 
 	copy_str(buf, sizeof(buf), path);

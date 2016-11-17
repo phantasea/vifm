@@ -200,7 +200,12 @@ calc_io_progress(const io_progress_t *const state, int *skip)
 	}
 	else if(estim->total_bytes == 0)
 	{
-		return 0;
+		if(estim->total_items == 0)
+		{
+			return 0;
+		}
+		/* When files are empty, use their number for progress counting. */
+		return (estim->current_item*100*IO_PRECISION)/estim->total_items;
 	}
 	else if(pdata->last_progress >= 100*IO_PRECISION &&
 			estim->current_byte == estim->total_bytes)
@@ -521,7 +526,7 @@ fops_check_file_rename(const char dir[], const char old[], const char new[],
 		return -1;
 	}
 
-	if(path_exists_at(dir, new, DEREF) && stroscmp(old, new) != 0 &&
+	if(path_exists_at(dir, new, NODEREF) && stroscmp(old, new) != 0 &&
 			!is_case_change(old, new))
 	{
 		switch(signal_type)

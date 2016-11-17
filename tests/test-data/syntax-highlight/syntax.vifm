@@ -352,11 +352,19 @@ cqu
 cqui
 cquit
 compare
+cope
+copen
 
 " "hi" should be highlighted as :command and CurrLine/CmpMismatch as highlight
 " groups
 hi CurrLine
 hi CmpMismatch
+
+" "set" should be highlighted as :command
+" "*dotfiles" should be highlighted as 'option'
+" "caseoptions" should be highlighted as 'option'
+set dotfiles nodotfiles invdotfiles dotfiles!
+set caseoptions
 
 " TODO
 
@@ -412,9 +420,11 @@ windo normal :execute 'a'<cr>
 nnoremap bb :
           \ marks<cr>
 
-" "restart" should be highlighted as :command
+" "restart" and write should be highlighted as :command
 " "<cr>" should be highlighted as angle bracket notation
 command! reload :write | restart<cr>
+nnoremap j : execute 'normal! j'
+          \| execute ":!$PREVIEW_CMD %q"<cr>
 
 " "set" should be highlighted as :command
 " "vifminfo" should be highlighted as 'option' name

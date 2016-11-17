@@ -24,6 +24,7 @@
 #include <stddef.h> /* NULL size_t */
 #include <string.h> /* strncat() strlen() */
 
+#include "../../compat/curses.h"
 #include "../../compat/fs_limits.h"
 #include "../../engine/keys.h"
 #include "../../engine/mode.h"
@@ -131,11 +132,11 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_q,      {{&cmd_ctrl_c}, .descr = "close the dialog"}},
 	{WK_t,      {{&cmd_space},  .descr = "toggle current item"}},
 #ifdef ENABLE_EXTENDED_KEYS
-	{{KEY_HOME},  {{&cmd_gg},     .descr = "go to the first item"}},
-	{{KEY_END},   {{&cmd_G},      .descr = "go to the last item"}},
-	{{KEY_UP},    {{&cmd_k},      .descr = "go to item above"}},
-	{{KEY_DOWN},  {{&cmd_j},      .descr = "go to item below"}},
-	{{KEY_RIGHT}, {{&cmd_return}, .descr = "update permissions"}},
+	{{K(KEY_HOME)},  {{&cmd_gg},     .descr = "go to the first item"}},
+	{{K(KEY_END)},   {{&cmd_G},      .descr = "go to the last item"}},
+	{{K(KEY_UP)},    {{&cmd_k},      .descr = "go to item above"}},
+	{{K(KEY_DOWN)},  {{&cmd_j},      .descr = "go to item below"}},
+	{{K(KEY_RIGHT)}, {{&cmd_return}, .descr = "update permissions"}},
 #endif /* ENABLE_EXTENDED_KEYS */
 };
 
@@ -407,16 +408,18 @@ files_attrib(FileView *view, DWORD add, DWORD sub, int recurse_dirs)
 {
 	char undo_msg[COMMAND_GROUP_INFO_LEN];
 	dir_entry_t *entry;
+	size_t len;
+
+	snprintf(undo_msg, sizeof(undo_msg), "chmod in %s: ",
+			replace_home_part(flist_get_dir(view)));
+	len = strlen(undo_msg);
 
 	ui_cancellation_reset();
 
 	entry = NULL;
 	while(iter_selection_or_current(view, &entry) && !ui_cancellation_requested())
 	{
-		size_t len = snprintf(undo_msg, sizeof(undo_msg), "chmod in %s: ",
-				replace_home_part(flist_get_dir(view)));
-
-		if(len >= 2 && undo_msg[len - 2] != ':')
+		if(len >= 2U && undo_msg[len - 2U] != ':')
 		{
 			strncat(undo_msg + len, ", ", sizeof(undo_msg) - len - 1);
 			len += strlen(undo_msg + len);

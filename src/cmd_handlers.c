@@ -139,6 +139,7 @@ static int cunabbrev_cmd(const cmd_info_t *cmd_info);
 static int colorscheme_cmd(const cmd_info_t *cmd_info);
 static int command_cmd(const cmd_info_t *cmd_info);
 static int compare_cmd(const cmd_info_t *cmd_info);
+static int copen_cmd(const cmd_info_t *cmd_info);
 static int parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
 		ListType *lt, int *single_pane, int *group_ids, int *skip_empty);
 static int cunmap_cmd(const cmd_info_t *cmd_info);
@@ -381,9 +382,13 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_EMARK,
 	  .handler = &command_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "compare",           .abbr = NULL,    .id = COM_COMPARE,
-	  .descr = "compares directories in two panes",
+	  .descr = "compare directories in two panes",
 	  .flags = HAS_COMMENT,
 	  .handler = &compare_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
+	{ .name = "copen",             .abbr = "cope",  .id = -1,
+	  .descr = "reopen last displayed navigation menu",
+	  .flags = HAS_COMMENT,
+	  .handler = &copen_cmd,       .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "copy",              .abbr = "co",    .id = COM_COPY,
 	  .descr = "copy files",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
@@ -1751,6 +1756,14 @@ compare_cmd(const cmd_info_t *cmd_info)
 	     : (compare_two_panes(ct, lt, !group_ids, skip_empty) != 0);
 }
 
+/* Opens menu with contents of the last displayed menu with navigation to files
+ * by default, if any. */
+static int
+copen_cmd(const cmd_info_t *cmd_info)
+{
+	return unstash_menu(curr_view) != 0;
+}
+
 /* Parses comparison properties.  Default values for arguments should be set
  * before the call.  Returns zero on success, otherwise non-zero is returned and
  * error message is displayed on the status bar. */
@@ -2525,8 +2538,9 @@ get_all_highlights(void)
 
 	for(i = 0; i < MAXNUM_COLOR; ++i)
 	{
-		msg_len += snprintf(msg + msg_len, sizeof(msg) - msg_len, "%s%s",
+		snprintf(msg + msg_len, sizeof(msg) - msg_len, "%s%s",
 				get_group_str(i, &cs->color[i]), (i < MAXNUM_COLOR - 1) ? "\n" : "");
+		msg_len += strlen(msg + msg_len);
 	}
 
 	if(cs->file_hi_count <= 0)
@@ -2534,14 +2548,16 @@ get_all_highlights(void)
 		return msg;
 	}
 
-	msg_len += snprintf(msg + msg_len, sizeof(msg) - msg_len, "\n\n");
+	snprintf(msg + msg_len, sizeof(msg) - msg_len, "\n\n");
+	msg_len += strlen(msg + msg_len);
 
 	for(i = 0; i < cs->file_hi_count; ++i)
 	{
 		const file_hi_t *const file_hi = &cs->file_hi[i];
 		const char *const line = get_file_hi_str(file_hi->matchers, &file_hi->hi);
-		msg_len += snprintf(msg + msg_len, sizeof(msg) - msg_len, "%s%s", line,
+		snprintf(msg + msg_len, sizeof(msg) - msg_len, "%s%s", line,
 				(i < cs->file_hi_count - 1) ? "\n" : "");
+		msg_len += strlen(msg + msg_len);
 	}
 
 	return msg;
@@ -3683,6 +3699,11 @@ sync_selectively(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
+	if(curr_view->custom.type != CV_TREE)
+	{
+		tree = 0;
+	}
+
 	if(filters)
 	{
 		sync_filters();
@@ -4009,19 +4030,15 @@ unselect_cmd(const cmd_info_t *cmd_info)
 static int
 view_cmd(const cmd_info_t *cmd_info)
 {
-	if(curr_stats.number_of_windows == 1 && (!curr_stats.view || cmd_info->emark))
+	if((!curr_stats.view || cmd_info->emark) && !qv_can_show())
 	{
-		status_bar_error("Cannot view files in one window mode");
-		return 1;
-	}
-	if(other_view->explore_mode)
-	{
-		status_bar_error("Other view already is used for file viewing");
 		return 1;
 	}
 	if(curr_stats.view && cmd_info->emark)
+	{
 		return 0;
-	toggle_quick_view();
+	}
+	qv_toggle();
 	return 0;
 }
 

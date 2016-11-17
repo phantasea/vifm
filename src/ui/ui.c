@@ -89,6 +89,7 @@ static void create_windows(void);
 static void update_geometry(void);
 static int get_working_area_height(void);
 static void clear_border(WINDOW *border);
+static int middle_border_is_visible(void);
 static void update_views(int reload);
 static void reload_lists(void);
 static void reload_list(FileView *view);
@@ -444,8 +445,8 @@ update_geometry(void)
 	update_term_size();
 
 #ifdef _WIN32
-	getmaxyx(stdscr, screen_y, screen_x);
-	resize_term(screen_y, screen_x);
+	/* This resizes vifm to window size. */
+	resize_term(0, 0);
 #endif
 
 	getmaxyx(stdscr, screen_y, screen_x);
@@ -493,7 +494,10 @@ update_screen(UpdateType update_kind)
 
 	update_attributes();
 
-	clear_border(mborder);
+	if(middle_border_is_visible())
+	{
+		clear_border(mborder);
+	}
 
 	if(curr_stats.term_state != TS_NORMAL)
 	{
@@ -582,6 +586,14 @@ clear_border(WINDOW *border)
 	wnoutrefresh(border);
 }
 
+/* Checks whether mborder should be displayed/updated.  Returns non-zero if so,
+ * otherwise zero is returned. */
+static int
+middle_border_is_visible(void)
+{
+	return (curr_stats.number_of_windows == 2 && curr_stats.split == VSPLIT);
+}
+
 /* Updates (redraws or reloads) views. */
 static void
 update_views(int reload)
@@ -603,7 +615,7 @@ reload_lists(void)
 		ui_view_title_update(other_view);
 		if(curr_stats.view)
 		{
-			quick_view_file(curr_view);
+			qv_draw(curr_view);
 		}
 		else if(!other_view->explore_mode)
 		{
@@ -829,7 +841,7 @@ redraw_lists(void)
 	{
 		if(curr_stats.view)
 		{
-			quick_view_file(curr_view);
+			qv_draw(curr_view);
 			refresh_view_win(other_view);
 		}
 		else if(!other_view->explore_mode)
@@ -960,17 +972,6 @@ update_term_size(void)
 	{
 		resizeterm(ws.ws_row, ws.ws_col);
 	}
-#endif
-}
-
-int
-ui_term_is_alive(void)
-{
-#ifndef _WIN32
-	struct winsize ws;
-	return (ioctl(0, TIOCGWINSZ, &ws) != -1);
-#else
-	return 1;
 #endif
 }
 

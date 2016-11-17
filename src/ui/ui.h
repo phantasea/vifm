@@ -265,7 +265,7 @@ typedef struct
 	/* Last used search pattern, empty if none. */
 	char last_search[NAME_MAX];
 
-	int hide_dot; /* Whether dot files are hidden. */
+	int hide_dot, hide_dot_g; /* Whether dot files are hidden. */
 	int prev_invert;
 	int invert; /* whether to invert the filename pattern */
 	int curr_line; /* current line # of the window  */
@@ -414,10 +414,6 @@ void ui_ruler_set(const char val[]);
  * term_state in status structure. */
 void ui_update_term_state(void);
 
-/* Performs a quick check whether terminal is functional.  Returns non-zero if
- * so, otherwise zero is returned. */
-int ui_term_is_alive(void);
-
 /* Checks whether given character was pressed, ignores any other characters. */
 int ui_char_pressed(wint_t c);
 
@@ -455,7 +451,7 @@ void clear_num_window(void);
 /* Displays progress on the status bar, not updating it frequently.  msg can't
  * be NULL.  period - how often status bar should be updated.  If period equals
  * 0 inner counter is reset, do this on start of operation.  For period <= 1,
- * it's absolute value is used and count is not printed. */
+ * its absolute value is used and count is not printed. */
 void show_progress(const char msg[], int period);
 
 void redraw_lists(void);

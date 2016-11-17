@@ -1,4 +1,4 @@
-*vifm-app.txt*    For Vifm version 0.8.2  Last change: 2016 Sep 30
+*vifm-app.txt*    For Vifm version 0.8.2  Last change: 2016 Nov 09
 
  Email for bugs and suggestions: <xaizek@openmailbox.org>
 
@@ -117,7 +117,8 @@ The other command line arguments are:
     are executed in the order they appear in command line.  Commands with
     spaces or special symbols must be enclosed in double or single quotes or
     all special symbols should be escaped (the exact syntax strongly depends
-    on shell).
+    on shell).  "+" argument is equivalent to "$" and thus picks last item
+    of the view.
 --help, -h                                     *vifm---help* *vifm--h*
     show a brief command summary and exit vifm.
 --version, -v                                  *vifm---version* *vifm--v*
@@ -325,7 +326,8 @@ Filters~
                                                *vifm-filters*
 There are three basic file filters:
  - dot files filter (excluding "." and ".." special directories, which
-   appearance is controlled by the |vifm-'dotdirs'| option)
+   appearance is controlled by the |vifm-'dotdirs'| option), see
+   |vifm-'dotfiles'|
  - manual filter for file names
  - automatic filter for file names
  - local filter for file names (see |vifm-=|)
@@ -560,12 +562,12 @@ ZZ - same as |vifm-:quit|.                       *vifm-ZZ*
 
 
 (                                              *vifm-(*
-    goto previous group.  Groups are defined by primary sorting key.
+    go to previous group.  Groups are defined by primary sorting key.
     For name and iname members of each group have same first letter,
     for all other sorting keys vifm uses size, uid, ...
 
 )                                              *vifm-)*
-    goto next group.  See ( key description above.
+    go to next group.  See ( key description above.
 
 
 {                                              *vifm-{*
@@ -575,6 +577,42 @@ ZZ - same as |vifm-:quit|.                       *vifm-ZZ*
 
 }                                              *vifm-}*
     same as {, but in forward direction.
+
+
+[c                                             *vifm-[c*
+    go to previous mismatched entry in directory comparison view or do
+    nothing.
+
+]c                                             *vifm-]c*
+    go to next mismatched entry in directory comparison view or do nothing.
+
+
+[d                                             *vifm-[d*
+    go to previous directory entry or do nothing.
+
+]d                                             *vifm-]d*
+    go to next directory entry or do nothing.
+
+
+[s                                             *vifm-[s*
+    go to previous selected entry or do nothing.
+
+]s                                             *vifm-]s*
+    go to next selected entry or do nothing.
+
+
+[z                                             *vifm-[z*
+    go to first sibling of current entry.
+
+]z                                             *vifm-]z*
+    go to last sibling of current entry.
+
+
+zj                                             *vifm-zj*
+    go to next directory sibling of current entry or do nothing.
+
+zk                                             *vifm-zk*
+    go to previous directory sibling of current entry or do nothing.
 
 Using Count~
                                                *vifm-count* *vifm-[count]*
@@ -1314,6 +1352,10 @@ The builtin commands are:
     is "bycontents listall ofboth grouppaths".  See |vifm-compare-views| for
     details.  Tree structure is incompatible with ls-like view, so value of
     |vifm-'lsview'| option is ignored.
+
+:cope[n]                                       *vifm-:copen* *vifm-:cope*
+    opens menu with contents of the last displayed menu with navigation to
+    files by default, if any.
 
                                                *vifm-:copy* *vifm-:co*
 :[range]co[py][!?][ &]
@@ -2373,6 +2415,9 @@ The command macros may be used in user commands.
             %command.
                                                                *vifm-%S*
   %S        show command output in the status bar.
+                                                               *vifm-%q*
+  %q        redirect command output to quick view, which is activated if
+            disabled.
                                                                *vifm-%s*
   %s        execute command in split window of active terminal
             multiplexer (ignored if not running inside one).
@@ -2646,6 +2691,25 @@ l key in the ":history ." and ":trashes" menus is treated like :cd command.
 This option also affects marks so that navigating to a mark doesn't restore
 cursor position.
 
+                                               *vifm-'caseoptions'*
+caseoptions
+type: charset
+default: ""
+
+This option gives additional control over case sensitivity by allowing
+overriding default behaviour to either always be case sensitive or
+always be case insensitive.  Possible values form pairs of lower and upper
+case letters that configure specific aspect of behaviour:
+  p - always ignore case of paths during completion.
+  P - always match case of paths during completion.
+  g - always ignore case of characters for f/F/;/,.
+  G - always match case of characters for f/F/;/,.
+
+At most one item of each pair takes affect, if both or more are present, only
+the last one matters.  When of none pair's elements are present, the behaviour
+is default (depends on operating system for path completion and on values of
+|vifm-'ignorecase'| and |vifm-'smartcase'| options for file navigation).
+
                                                *vifm-'cdpath'* *vifm-'cd'*
 cdpath cd
 type: string list
@@ -2775,6 +2839,13 @@ Controls displaying of dot directories.  The following values are possible:
 
 Note that empty directories always contain "../" entry regardless of value of
 this option.  "../" disappears at the moment at least one file is created.
+
+                                               *vifm-'dotfiles'*
+dotfiles
+type: boolean
+default: false
+
+Whether dot files are shown in the view.  Can be controlled with z* bindings.
 
                                                *vifm-'fastrun'*
 fastrun
@@ -4130,6 +4201,9 @@ the list, but marked as being cancelled (if cancellation was successfully
 requested).  A message will pop up if the job has already stopped.
 Note that on Windows cancelling external programs like this might not work,
 because their parent shell doesn't have any windows.
+
+e key displays errors of selected job if any were collected.  They are
+displayed in a new menu, but you can get back to jobs menu by pressing h.
 
 --------------------------------------------------------------------------------
 *vifm-custom-views*

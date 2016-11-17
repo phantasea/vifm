@@ -62,7 +62,7 @@ static int should_wait_for_program(const char cmd[]);
 static DWORD handle_process(const char cmd[], HANDLE proc, int *got_exit_code);
 static int get_subsystem(const char filename[]);
 static int get_stream_subsystem(FILE *fp);
-static FILE * use_info_prog_internal(const char cmd[], int out_pipe[2]);
+static FILE * read_cmd_output_internal(const char cmd[], int out_pipe[2]);
 static BOOL CALLBACK close_app_enum(HWND hwnd, LPARAM lParam);
 
 void
@@ -121,6 +121,12 @@ int
 set_sigchld(int block)
 {
 	return 0;
+}
+
+void
+block_all_thread_signals(void)
+{
+	/* No normal signals on Windows. */
 }
 
 int
@@ -565,9 +571,10 @@ stop_process(void)
 void
 update_terminal_settings(void)
 {
+	/* We need ENABLE_WINDOW_INPUT flag to get terminal resize event. */
 	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_ECHO_INPUT |
 			ENABLE_EXTENDED_FLAGS | ENABLE_INSERT_MODE | ENABLE_LINE_INPUT |
-			ENABLE_MOUSE_INPUT | ENABLE_QUICK_EDIT_MODE);
+			ENABLE_MOUSE_INPUT | ENABLE_QUICK_EDIT_MODE | ENABLE_WINDOW_INPUT);
 }
 
 void
@@ -675,7 +682,7 @@ read_cmd_output(const char cmd[])
 	out_fd = dup(_fileno(stdout));
 	err_fd = dup(_fileno(stderr));
 
-	result = use_info_prog_internal(cmd, out_pipe);
+	result = read_cmd_output_internal(cmd, out_pipe);
 
 	_dup2(out_fd, _fileno(stdout));
 	_dup2(err_fd, _fileno(stderr));
@@ -701,7 +708,7 @@ get_installed_data_dir(void)
 }
 
 static FILE *
-use_info_prog_internal(const char cmd[], int out_pipe[2])
+read_cmd_output_internal(const char cmd[], int out_pipe[2])
 {
 	char *args[4];
 	int retcode;
@@ -823,6 +830,19 @@ close_app_enum(HWND hwnd, LPARAM lParam)
 	}
 
 	return TRUE;
+}
+
+time_t
+win_to_unix_time(FILETIME ft)
+{
+	const uint64_t WINDOWS_TICK = 10000000;
+	const uint64_t SEC_TO_UNIX_EPOCH = 11644473600LL;
+
+	/* Be careful with types here, first line is important. */
+	uint64_t win_time = ft.dwHighDateTime;
+	win_time = (win_time << 32) | ft.dwLowDateTime;
+
+	return win_time/WINDOWS_TICK - SEC_TO_UNIX_EPOCH;
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

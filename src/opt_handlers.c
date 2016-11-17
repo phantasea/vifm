@@ -79,6 +79,7 @@ typedef struct
 }
 optinit_t;
 
+static void uni_handler(const char name[], optval_t val, OPT_SCOPE scope);
 static void init_classify(optval_t *val);
 static char * double_commas(const char str[]);
 static void init_cpoptions(optval_t *val);
@@ -86,6 +87,7 @@ static void init_dirsize(optval_t *val);
 static const char * to_endpoint(int i, char buffer[]);
 static void init_timefmt(optval_t *val);
 static void init_trashdir(optval_t *val);
+static void init_dotfiles(optval_t *val);
 static void init_lsview(optval_t *val);
 static void init_shortmess(optval_t *val);
 static void init_iooptions(optval_t *val);
@@ -101,6 +103,7 @@ static void add_options(void);
 static void load_sort_option_inner(FileView *view, char sort_keys[]);
 static void aproposprg_handler(OPT_OP op, optval_t val);
 static void autochpos_handler(OPT_OP op, optval_t val);
+static void caseoptions_handler(OPT_OP op, optval_t val);
 static void cdpath_handler(OPT_OP op, optval_t val);
 static void chaselinks_handler(OPT_OP op, optval_t val);
 static void classify_handler(OPT_OP op, optval_t val);
@@ -147,6 +150,8 @@ static void slowfs_handler(OPT_OP op, optval_t val);
 #endif
 static void smartcase_handler(OPT_OP op, optval_t val);
 static void sortnumbers_handler(OPT_OP op, optval_t val);
+static void dotfiles_global(OPT_OP op, optval_t val);
+static void dotfiles_local(OPT_OP op, optval_t val);
 static void lsview_global(OPT_OP op, optval_t val);
 static void lsview_local(OPT_OP op, optval_t val);
 static void number_global(OPT_OP op, optval_t val);
@@ -229,6 +234,16 @@ static const char *sort_enum[] = {
 	[SK_BY_RATING]        = "rating",  //add by sim1
 };
 ARRAY_GUARD(sort_enum, 1 + SK_COUNT);
+
+/* Possible values of 'caseoptions'. */
+static const char *caseoptions_vals[][2] = {
+	{ "pPgG", "all caseoptions values" },
+	{ "p", "always ignore case of paths during completion" },
+	{ "P", "always match case of paths during completion" },
+	{ "g", "always ignore case of characters for f/F/;/," },
+	{ "G", "always match case of characters for f/F/;/," },
+};
+ARRAY_GUARD(caseoptions_vals, 1 + NUM_CASE_OPTS*2);
 
 /* Possible values of 'cpoptions'. */
 static const char *cpoptions_vals[][2] = {
@@ -457,6 +472,11 @@ options[] = {
 	{ "autochpos", "", "restore cursor after cd",
 	  OPT_BOOL, 0, NULL, &autochpos_handler, NULL,
 	  { .ref.bool_val = &cfg.auto_ch_pos },
+	},
+	{ "caseoptions", "", "case sensitivity overrides",
+	  OPT_CHARSET, ARRAY_LEN(caseoptions_vals), caseoptions_vals,
+		&caseoptions_handler, NULL,
+	  { .ref.str_val = &empty },
 	},
 	{ "cdpath", "cd", "list of prefixes for relative cd",
 	  OPT_STRLIST, 0, NULL, &cdpath_handler, NULL,
@@ -693,7 +713,11 @@ options[] = {
 	  { .ref.bool_val = &cfg.wrap_scan },
 	},
 
-	/* Local options. */
+	/* Local options must be grouped here. */
+	{ "dotfiles", "", "show dot files",
+	  OPT_BOOL, 0, NULL, &dotfiles_global, &dotfiles_local,
+	  { .init = &init_dotfiles },
+	},
 	{ "lsview", "", "display items in a table",
 	  OPT_BOOL, 0, NULL, &lsview_global, &lsview_local,
 	  { .init = &init_lsview },
@@ -735,9 +759,78 @@ void
 init_option_handlers(void)
 {
 	static int opt_changed;
-	init_options(&opt_changed);
+	init_options(&opt_changed, &uni_handler);
 	load_options_defaults();
 	add_options();
+}
+
+/* Additional handler for processing of global-local options, namely for
+ * updating the other view. */
+static void
+uni_handler(const char name[], optval_t val, OPT_SCOPE scope)
+{
+	/* += and similar operators act in their way only for the current view, the
+	 * other view just gets value resulted from the operation.  The behaviour is
+	 * fine and doesn't seem to be a bug. */
+
+	static size_t first_local = (size_t)-1;
+
+	size_t i;
+
+	if(!curr_stats.global_local_settings)
+	{
+		return;
+	}
+
+	/* Find first local option once. */
+	if(first_local == (size_t)-1)
+	{
+		for(first_local = 0U; first_local < ARRAY_LEN(options); ++first_local)
+		{
+			if(options[first_local].local_handler != NULL)
+			{
+				break;
+			}
+		}
+	}
+
+	/* Look up option name and update it in the other view if found. */
+	for(i = first_local; i < ARRAY_LEN(options); ++i)
+	{
+		if(strcmp(options[i].name, name) == 0)
+		{
+			FileView *const tmp_view = curr_view;
+			curr_view = other_view;
+
+			/* Make sure option value remains valid even if updated in the handler.
+			 * Do this before calling load_view_options(), because it can change the
+			 * value. */
+			if(ONE_OF(options[i].type, OPT_STR, OPT_STRLIST, OPT_CHARSET))
+			{
+				val.str_val = strdup(val.str_val);
+			}
+
+			load_view_options(curr_view);
+
+			if(scope == OPT_LOCAL)
+			{
+				options[i].local_handler(OP_SET, val);
+			}
+			else
+			{
+				options[i].global_handler(OP_SET, val);
+			}
+
+			if(ONE_OF(options[i].type, OPT_STR, OPT_STRLIST, OPT_CHARSET))
+			{
+				free(val.str_val);
+			}
+
+			curr_view = tmp_view;
+			load_view_options(curr_view);
+			break;
+		}
+	}
 }
 
 /* Composes the default value for the 'classify' option. */
@@ -862,6 +955,13 @@ static void
 init_trashdir(optval_t *val)
 {
 	val->str_val = cfg.trash_dir;
+}
+
+/* Initializes 'dotfiles' option from global value. */
+static void
+init_dotfiles(optval_t *val)
+{
+	val->bool_val = !curr_view->hide_dot_g;
 }
 
 static void
@@ -999,7 +1099,7 @@ load_options_defaults(void)
 		{
 			options[i].initializer.init(&options[i].val);
 		}
-		else if(options[i].type == OPT_STR || options[i].type == OPT_STRLIST)
+		else if(ONE_OF(options[i].type, OPT_STR, OPT_STRLIST, OPT_CHARSET))
 		{
 			options[i].val.str_val = *options[i].initializer.ref.str_val;
 		}
@@ -1037,6 +1137,10 @@ reset_local_options(FileView *view)
 
 	memcpy(view->sort, view->sort_g, sizeof(view->sort));
 	load_sort_option_inner(view, view->sort);
+
+	view->hide_dot = view->hide_dot_g;
+	val.int_val = !view->hide_dot_g;
+	set_option("dotfiles", val, OPT_LOCAL);
 
 	fview_set_lsview(view, view->ls_view_g);
 	val.int_val = view->ls_view_g;
@@ -1079,6 +1183,11 @@ load_view_options(FileView *view)
 	val.str_val = view->sort_groups_g;
 	set_option("sortgroups", val, OPT_GLOBAL);
 
+	val.bool_val = !view->hide_dot;
+	set_option("dotfiles", val, OPT_LOCAL);
+	val.bool_val = !view->hide_dot_g;
+	set_option("dotfiles", val, OPT_GLOBAL);
+
 	val.bool_val = view->ls_view;
 	set_option("lsview", val, OPT_LOCAL);
 	val.bool_val = view->ls_view_g;
@@ -1113,6 +1222,9 @@ clone_local_options(const FileView *from, FileView *to, int defer_slow)
 
 	to->num_type = from->num_type;
 	to->num_type_g = from->num_type_g;
+
+	to->hide_dot = from->hide_dot;
+	to->hide_dot_g = from->hide_dot_g;
 
 	replace_string(&to->sort_groups, from->sort_groups);
 	replace_string(&to->sort_groups_g, from->sort_groups_g);
@@ -1179,9 +1291,9 @@ load_sort_option_inner(FileView *view, char sort_keys[])
 		const char option_mark = (sort_option < 0) ? '-' : '+';
 		const char *const option_name = sort_enum[abs(sort_option)];
 
-		opt_val_len += snprintf(opt_val + opt_val_len,
-				sizeof(opt_val) - opt_val_len, "%s%c%s", comma, option_mark,
-				option_name);
+		snprintf(opt_val + opt_val_len, sizeof(opt_val) - opt_val_len, "%s%c%s",
+				comma, option_mark, option_name);
+		opt_val_len += strlen(opt_val + opt_val_len);
 	}
 
 	val.str_val = opt_val;
@@ -1226,6 +1338,7 @@ process_set_args(const char args[], int global, int local)
 	{
 		status_bar_message(text_buffer);
 	}
+
 	return error ? -1 : (text_buffer[0] != '\0');
 }
 
@@ -1244,6 +1357,52 @@ autochpos_handler(OPT_OP op, optval_t val)
 		flist_hist_clear(curr_view);
 		flist_hist_clear(other_view);
 	}
+}
+
+/* Handles changes of 'caseoptions' option.  Updates configuration and
+ * normalizes option value. */
+static void
+caseoptions_handler(OPT_OP op, optval_t val)
+{
+	char valid_val[32];
+	const char *p;
+
+	cfg.case_override = 0;
+	cfg.case_ignore = 0;
+
+	p = val.str_val;
+	while(*p != '\0')
+	{
+		if(*p == 'P' || *p == 'p')
+		{
+			cfg.case_override |= CO_PATH_COMPL;
+			cfg.case_ignore = (*p == 'p')
+			                ? (cfg.case_ignore | CO_PATH_COMPL)
+			                : (cfg.case_ignore & ~CO_PATH_COMPL);
+		}
+		else if(*p == 'g' || *p == 'G')
+		{
+			cfg.case_override |= CO_GOTO_FILE;
+			cfg.case_ignore = (*p == 'g')
+			                ? (cfg.case_ignore | CO_GOTO_FILE)
+			                : (cfg.case_ignore & ~CO_GOTO_FILE);
+		}
+
+		++p;
+	}
+
+	valid_val[0] = '\0';
+	if(cfg.case_override & CO_PATH_COMPL)
+	{
+		strcat(valid_val, (cfg.case_ignore & CO_PATH_COMPL) ? "p" : "P");
+	}
+	if(cfg.case_override & CO_GOTO_FILE)
+	{
+		strcat(valid_val, (cfg.case_ignore & CO_GOTO_FILE) ? "g" : "G");
+	}
+	val.str_val = valid_val;
+
+	set_option("caseoptions", val, OPT_GLOBAL);
 }
 
 /* Specifies directories to check on cding by relative path. */
@@ -1942,15 +2101,26 @@ sortnumbers_handler(OPT_OP op, optval_t val)
 	redraw_lists();
 }
 
+/* Handles switch that controls visibility of dot files globally. */
+static void
+dotfiles_global(OPT_OP op, optval_t val)
+{
+	curr_view->hide_dot_g = !val.bool_val;
+}
+
+/* Handles switch that controls visibility of dot files locally. */
+static void
+dotfiles_local(OPT_OP op, optval_t val)
+{
+	curr_view->hide_dot = !val.bool_val;
+	ui_view_schedule_reload(curr_view);
+}
+
 /* Handles switch that controls column vs. ls-like view in global option. */
 static void
 lsview_global(OPT_OP op, optval_t val)
 {
 	curr_view->ls_view_g = val.bool_val;
-	if(curr_stats.global_local_settings)
-	{
-		other_view->ls_view_g = val.bool_val;
-	}
 }
 
 /* Handles switch that controls column vs. ls-like view in local option. */
@@ -1958,10 +2128,6 @@ static void
 lsview_local(OPT_OP op, optval_t val)
 {
 	fview_set_lsview(curr_view, val.bool_val);
-	if(curr_stats.global_local_settings)
-	{
-		fview_set_lsview(other_view, val.bool_val);
-	}
 }
 
 /* Handles file numbers displaying toggle in global option. */
@@ -1969,10 +2135,6 @@ static void
 number_global(OPT_OP op, optval_t val)
 {
 	update_num_type(curr_view, &curr_view->num_type_g, NT_SEQ, val.bool_val);
-	if(curr_stats.global_local_settings)
-	{
-		update_num_type(other_view, &other_view->num_type_g, NT_SEQ, val.bool_val);
-	}
 }
 
 /* Handles file numbers displaying toggle in local option. */
@@ -1980,10 +2142,6 @@ static void
 number_local(OPT_OP op, optval_t val)
 {
 	update_num_type(curr_view, &curr_view->num_type, NT_SEQ, val.bool_val);
-	if(curr_stats.global_local_settings)
-	{
-		update_num_type(other_view, &other_view->num_type, NT_SEQ, val.bool_val);
-	}
 }
 
 /* Handles changes of minimum width of file number field in global option. */
@@ -1991,10 +2149,6 @@ static void
 numberwidth_global(OPT_OP op, optval_t val)
 {
 	set_numberwidth(curr_view, &curr_view->num_width_g, val.int_val);
-	if(curr_stats.global_local_settings)
-	{
-		set_numberwidth(other_view, &other_view->num_width_g, val.int_val);
-	}
 }
 
 /* Handles changes of minimum width of file number field in local option. */
@@ -2002,10 +2156,6 @@ static void
 numberwidth_local(OPT_OP op, optval_t val)
 {
 	set_numberwidth(curr_view, &curr_view->num_width, val.int_val);
-	if(curr_stats.global_local_settings)
-	{
-		set_numberwidth(other_view, &other_view->num_width, val.int_val);
-	}
 }
 
 /* Sets number width for the view. */
@@ -2025,10 +2175,6 @@ static void
 relativenumber_global(OPT_OP op, optval_t val)
 {
 	update_num_type(curr_view, &curr_view->num_type_g, NT_REL, val.bool_val);
-	if(curr_stats.global_local_settings)
-	{
-		update_num_type(other_view, &other_view->num_type_g, NT_REL, val.bool_val);
-	}
 }
 
 /* Handles relative file numbers displaying toggle in local option. */
@@ -2036,10 +2182,6 @@ static void
 relativenumber_local(OPT_OP op, optval_t val)
 {
 	update_num_type(curr_view, &curr_view->num_type, NT_REL, val.bool_val);
-	if(curr_stats.global_local_settings)
-	{
-		update_num_type(other_view, &other_view->num_type, NT_REL, val.bool_val);
-	}
 }
 
 /* Handles toggling of boolean number related option and updates current view if
@@ -2065,15 +2207,7 @@ update_num_type(FileView *view, NumberingType *num_type, NumberingType type,
 static void
 sort_global(OPT_OP op, optval_t val)
 {
-	char *const value = strdup(val.str_val);
-
-	set_sort(curr_view, curr_view->sort_g, value);
-	if(curr_stats.global_local_settings)
-	{
-		set_sort(other_view, other_view->sort_g, value);
-	}
-
-	free(value);
+	set_sort(curr_view, curr_view->sort_g, val.str_val);
 }
 
 /* Handler for local 'sort' option, parses the value and checks it for
@@ -2081,27 +2215,13 @@ sort_global(OPT_OP op, optval_t val)
 static void
 sort_local(OPT_OP op, optval_t val)
 {
-	char *const value = strdup(val.str_val);
-
 	/* Make sure we don't sort unsorted custom view on :restart or when it's a
 	 * compare view. */
 	char *const sort = (curr_stats.restart_in_progress ||
 	                    cv_compare(curr_view->custom.type))
 	                 ? ui_view_sort_list_get(curr_view)
 	                 : curr_view->sort;
-	set_sort(curr_view, sort, value);
-	if(curr_stats.global_local_settings)
-	{
-		/* Make sure we don't sort unsorted custom view on :restart or when it's a
-		 * compare view. */
-		char *const sort = (curr_stats.restart_in_progress ||
-		                    cv_compare(other_view->custom.type))
-		                 ? ui_view_sort_list_get(other_view)
-		                 : other_view->sort;
-		set_sort(other_view, sort, value);
-	}
-
-	free(value);
+	set_sort(curr_view, sort, val.str_val);
 }
 
 /* Sets sorting value for the view. */
@@ -2171,32 +2291,15 @@ set_sort(FileView *view, char sort_keys[], char order[])
 static void
 sortgroups_global(OPT_OP op, optval_t val)
 {
-	char *const value = strdup(val.str_val);
-
-	set_sortgroups(curr_view, &curr_view->sort_groups_g, value);
-	if(curr_stats.global_local_settings)
-	{
-		set_sortgroups(other_view, &other_view->sort_groups_g, value);
-	}
-
-	free(value);
+	set_sortgroups(curr_view, &curr_view->sort_groups_g, val.str_val);
 }
 
 /* Handles local 'sortgroup' option changes. */
 static void
 sortgroups_local(OPT_OP op, optval_t val)
 {
-	char *const value = strdup(val.str_val);
-
-	set_sortgroups(curr_view, &curr_view->sort_groups, value);
+	set_sortgroups(curr_view, &curr_view->sort_groups, val.str_val);
 	sorting_changed(curr_view, 0);
-	if(curr_stats.global_local_settings)
-	{
-		set_sortgroups(other_view, &other_view->sort_groups, value);
-		sorting_changed(other_view, 0);
-	}
-
-	free(value);
 }
 
 /* Sets sort_groups fields (*opt) of the view to the value handling malformed
@@ -2269,10 +2372,6 @@ static void
 sortorder_global(OPT_OP op, optval_t val)
 {
 	set_sortorder(curr_view, (val.enum_item == 1) ? 0 : 1, curr_view->sort_g);
-	if(curr_stats.global_local_settings)
-	{
-		set_sortorder(other_view, (val.enum_item == 1) ? 0 : 1, other_view->sort_g);
-	}
 }
 
 /* Handles local 'sortorder' option and corrects ordering for primary sorting
@@ -2281,10 +2380,6 @@ static void
 sortorder_local(OPT_OP op, optval_t val)
 {
 	set_sortorder(curr_view, (val.enum_item == 1) ? 0 : 1, curr_view->sort);
-	if(curr_stats.global_local_settings)
-	{
-		set_sortorder(other_view, (val.enum_item == 1) ? 0 : 1, other_view->sort);
-	}
 }
 
 /* Updates sorting order for the view. */
@@ -2307,30 +2402,14 @@ set_sortorder(FileView *view, int ascending, char sort_keys[])
 static void
 viewcolumns_global(OPT_OP op, optval_t val)
 {
-	char *const value = strdup(val.str_val);
-
-	replace_string(&curr_view->view_columns_g, value);
-	if(curr_stats.global_local_settings)
-	{
-		replace_string(&other_view->view_columns_g, value);
-	}
-
-	free(value);
+	replace_string(&curr_view->view_columns_g, val.str_val);
 }
 
 /* Handler of local 'viewcolumns' option, which defines custom view columns. */
 static void
 viewcolumns_local(OPT_OP op, optval_t val)
 {
-	char *const value = strdup(val.str_val);
-
-	set_viewcolumns(curr_view, value);
-	if(curr_stats.global_local_settings)
-	{
-		set_viewcolumns(other_view, value);
-	}
-
-	free(value);
+	set_viewcolumns(curr_view, val.str_val);
 }
 
 /* Setups view columns for the view. */
@@ -2339,6 +2418,14 @@ set_viewcolumns(FileView *view, const char view_columns[])
 {
 	const int update_columns_ui = ui_view_displays_columns(view);
 	set_view_columns_option(view, view_columns, update_columns_ui);
+}
+
+void
+load_dot_filter_option(const FileView *view)
+{
+	const optval_t val = { .bool_val = !view->hide_dot };
+	set_option("dotfiles", val, OPT_GLOBAL);
+	set_option("dotfiles", val, OPT_LOCAL);
 }
 
 void
@@ -2799,7 +2886,7 @@ text_option_changed(void)
 {
 	if(curr_stats.view)
 	{
-		quick_view_file(curr_view);
+		qv_draw(curr_view);
 	}
 	else if(other_view->explore_mode)
 	{

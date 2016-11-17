@@ -34,6 +34,7 @@
 #include "../ui/fileview.h"
 #include "../ui/ui.h"
 #include "../utils/file_streams.h"
+#include "../utils/filemon.h"
 #include "../utils/filter.h"
 #include "../utils/fs.h"
 #include "../utils/log.h"
@@ -48,6 +49,7 @@
 #include "../dir_stack.h"
 #include "../filelist.h"
 #include "../filetype.h"
+#include "../filtering.h"
 #include "../marks.h"
 #include "../opt_handlers.h"
 #include "../registers.h"
@@ -66,7 +68,7 @@ static void get_history(FileView *view, int reread, const char *dir,
 static void set_view_property(FileView *view, char type, const char value[]);
 static int copy_file(const char src[], const char dst[]);
 static int copy_file_internal(FILE *const src, FILE *const dst);
-static void update_info_file(const char filename[]);
+static void update_info_file(const char filename[], int merge);
 static void process_hist_entry(FileView *view, const char dir[],
 		const char file[], int pos, char ***lh, int *nlh, int **lhp, size_t *nlhp);
 static char * convert_old_trash_path(const char trash_path[]);
@@ -101,6 +103,9 @@ static int read_number(const char line[], long *value);
 static size_t add_to_int_array(int **array, size_t len, int what);
 static void fwrite_rating_info(FILE *const fp);  //add by sim1
 
+/* Monitor to check for changes of vifminfo file. */
+static filemon_t vifminfo_mon;
+
 void
 read_info_file(int reread)
 {
@@ -114,6 +119,8 @@ read_info_file(int reread)
 
 	if((fp = os_fopen(info_file, "r")) == NULL)
 		return;
+
+	(void)filemon_from_file(info_file, &vifminfo_mon);
 
 	while((line = read_vifminfo_line(fp, line)) != NULL)
 	{
@@ -452,8 +459,7 @@ set_view_property(FileView *view, char type, const char value[])
 {
 	if(type == PROP_TYPE_DOTFILES)
 	{
-		const int bool_val = atoi(value);
-		view->hide_dot = bool_val;
+		set_dot_files_visible(view, !atoi(value));
 	}
 	else if(type == PROP_TYPE_AUTO_FILTER)
 	{
@@ -480,7 +486,14 @@ write_info_file(void)
 
 	if(os_access(info_file, R_OK) != 0 || copy_file(info_file, tmp_file) == 0)
 	{
-		update_info_file(tmp_file);
+		filemon_t current_vifminfo_mon;
+		int vifminfo_changed;
+
+		vifminfo_changed = filemon_from_file(info_file, &current_vifminfo_mon) != 0
+		                || !filemon_equal(&vifminfo_mon, &current_vifminfo_mon);
+
+		update_info_file(tmp_file, vifminfo_changed);
+		(void)filemon_from_file(tmp_file, &vifminfo_mon);
 
 		if(rename_file(tmp_file, info_file) != 0)
 		{
@@ -544,7 +557,7 @@ copy_file_internal(FILE *const src, FILE *const dst)
 /* Reads contents of the filename file as an info file and updates it with the
  * state of current instance. */
 static void
-update_info_file(const char filename[])
+update_info_file(const char filename[], int merge)
 {
 	/* TODO: refactor this function update_info_file() */
 
@@ -571,7 +584,7 @@ update_info_file(const char filename[])
 
 	non_conflicting_marks = strdup(valid_marks);
 
-	if((fp = os_fopen(filename, "r")) != NULL)
+	if(merge && (fp = os_fopen(filename, "r")) != NULL)
 	{
 		size_t nlhp = 0UL, nrhp = 0UL, nbt = 0UL, nbmt = 0UL;
 		char *line = NULL, *line2 = NULL, *line3 = NULL, *line4 = NULL;
@@ -711,7 +724,7 @@ update_info_file(const char filename[])
 				if((line2 = read_vifminfo_line(fp, line2)) != NULL)
 				{
 					char *const trash_name = convert_old_trash_path(line_val);
-					if(exists_in_trash(trash_name) && !is_in_trash(trash_name))
+					if(!trash_includes(line2))
 					{
 						ntrash = add_to_string_array(&trash, ntrash, 2, trash_name, line2);
 					}
@@ -1012,6 +1025,8 @@ write_options(FILE *const fp)
 	fprintf(fp, "=]numberwidth=%d\n", rwin.num_width_g);
 	fprintf(fp, "=[%srelativenumber\n", (lwin.num_type_g & NT_REL) ? "" : "no");
 	fprintf(fp, "=]%srelativenumber\n", (rwin.num_type_g & NT_REL) ? "" : "no");
+	fprintf(fp, "=[%sdotfiles\n", lwin.hide_dot_g ? "" : "no");
+	fprintf(fp, "=]%sdotfiles\n", rwin.hide_dot_g ? "" : "no");
 
 	fprintf(fp, "%s", "=confirm=");
 	if(cfg.confirm & CONFIRM_DELETE)
@@ -1025,6 +1040,13 @@ write_options(FILE *const fp)
 		fprintf(fp, "%s", "rootparent,");
 	if(cfg.dot_dirs & DD_NONROOT_PARENT)
 		fprintf(fp, "%s", "nonrootparent,");
+	fprintf(fp, "\n");
+
+	fprintf(fp, "%s", "=caseoptions=");
+	if(cfg.case_override & CO_PATH_COMPL)
+		fprintf(fp, "%c", (cfg.case_ignore & CO_PATH_COMPL) ? 'p' : 'P');
+	if(cfg.case_override & CO_GOTO_FILE)
+		fprintf(fp, "%c", (cfg.case_ignore & CO_GOTO_FILE) ? 'g' : 'G');
 	fprintf(fp, "\n");
 
 	fprintf(fp, "%s", "=suggestoptions=");

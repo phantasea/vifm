@@ -210,7 +210,7 @@ expand_envvars(const char str[], int escape_vals)
 }
 
 int
-friendly_size_notation(uint64_t num, int str_size, char *str)
+friendly_size_notation(uint64_t num, int str_size, char str[])
 {
 	static const char* iec_units[] = {
 		"  B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"
@@ -226,11 +226,11 @@ friendly_size_notation(uint64_t num, int str_size, char *str)
 
 	units = cfg.use_iec_prefixes ? iec_units : si_units;
 
-	u = 0;
-	while(d >= 1023.5 && u < ARRAY_LEN(iec_units) - 1)
+	u = 0U;
+	while(d >= 1023.5 && u < ARRAY_LEN(iec_units) - 1U)
 	{
 		d /= 1024.0;
-		u++;
+		++u;
 	}
 
 	//add by sim1  ********************************
@@ -238,23 +238,22 @@ friendly_size_notation(uint64_t num, int str_size, char *str)
 	return u > 0;
 	//add by sim1  ********************************
 
-	if(u == 0)
+	if(u == 0 || d > 9)
 	{
 		snprintf(str, str_size, "%.0f %s", d, units[u]);
 	}
 	else
 	{
-		if(d > 9)
-			snprintf(str, str_size, "%.0f %s", d, units[u]);
-		else
+		size_t len;
+		snprintf(str, str_size, "%.1f %s", d, units[u]);
+		len = strlen(str);
+		if(str[len - strlen(units[u]) - 1U - 1U] == '0')
 		{
-			size_t len = snprintf(str, str_size, "%.1f %s", d, units[u]);
-			if(str[len - strlen(units[u]) - 1 - 1] == '0')
-				snprintf(str, str_size, "%.0f %s", d, units[u]);
+			snprintf(str, str_size, "%.0f %s", d, units[u]);
 		}
 	}
 
-	return u > 0;
+	return u > 0U;
 }
 
 const char *
@@ -286,12 +285,13 @@ make_name_unique(const char filename[])
 	int i;
 
 #ifndef _WIN32
-	len = snprintf(unique, sizeof(unique), "%s_%u%u_00", filename, getppid(),
+	snprintf(unique, sizeof(unique), "%s_%u%u_00", filename, getppid(),
 			get_pid());
 #else
 	/* TODO: think about better name uniqualization on Windows. */
-	len = snprintf(unique, sizeof(unique), "%s_%u_00", filename, get_pid());
+	snprintf(unique, sizeof(unique), "%s_%u_00", filename, get_pid());
 #endif
+	len = strlen(unique);
 	i = 0;
 
 	while(path_exists(unique, DEREF))
@@ -555,11 +555,12 @@ def_count(int count)
 }
 
 char *
-parse_file_spec(const char spec[], int *line_num)
+parse_file_spec(const char spec[], int *line_num, const char cwd[])
 {
 	char *path_buf;
 	const char *colon;
-	const size_t bufs_len = 2 + strlen(spec) + 1 + 1;
+	const size_t bufs_len = strlen(cwd) + 1U + strlen(spec) + 1U + 1U;
+	char canonicalized[PATH_MAX];
 
 	path_buf = malloc(bufs_len);
 	if(path_buf == NULL)
@@ -573,7 +574,7 @@ parse_file_spec(const char spec[], int *line_num)
 	}
 	else
 	{
-		copy_str(path_buf, bufs_len, "./");
+		snprintf(path_buf, bufs_len, "%s/", cwd);
 	}
 
 #ifdef _WIN32
@@ -618,12 +619,21 @@ parse_file_spec(const char spec[], int *line_num)
 	}
 
 	chomp(path_buf);
+	canonicalize_path(path_buf, canonicalized, sizeof(canonicalized));
 
 #ifdef _WIN32
-	to_forward_slash(path_buf);
+	to_forward_slash(canonicalized);
 #endif
 
-	return replace_tilde(path_buf);
+	if(!ends_with_slash(path_buf) && !is_root_dir(canonicalized) &&
+			strcmp(canonicalized, "./") != 0)
+	{
+		chosp(canonicalized);
+	}
+
+	free(path_buf);
+
+	return replace_tilde(strdup(canonicalized));
 }
 
 /* Checks whether str points to a valid line number.  Returns non-zero if so,

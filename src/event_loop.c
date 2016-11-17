@@ -108,12 +108,6 @@ event_loop(const int *quit)
 		size_t counter;
 		int got_input;
 
-		if(!ensure_term_is_ready())
-		{
-			wait_for_enter = 0;
-			continue;
-		}
-
 		lwin.user_selection = 1;
 		rwin.user_selection = 1;
 
@@ -127,18 +121,17 @@ event_loop(const int *quit)
 			                         ? MIN(timeout, cfg.sug.delay)
 			                         : timeout;
 
+			if(!ensure_term_is_ready())
+			{
+				wait_for_enter = 0;
+				continue;
+			}
+
 			modes_periodic();
 
 			bg_check();
 
 			got_input = (get_char_async_loop(status_bar, &c, actual_timeout) != ERR);
-
-			/* This loop can be infinite if terminal becomes not available, so force
-			 * checking terminal state here. */
-			if(!got_input && !ui_term_is_alive())
-			{
-				vifm_finish("Terminal is not available.");
-			}
 
 			/* If suggestion delay timed out, reset it and wait the rest of the
 			 * timeout. */
@@ -156,6 +149,13 @@ event_loop(const int *quit)
 				timeout = cfg.timeout_len;
 				continue;
 			}
+
+			if(got_input && c == K(KEY_RESIZE))
+			{
+				modes_redraw();
+				continue;
+			}
+
 			break;
 		}
 		while(1);
@@ -332,8 +332,8 @@ ensure_term_is_ready(void)
  *  - checks for new IPC messages;
  *  - checks whether contents of displayed directories changed;
  *  - redraws UI if requested.
- * Returns KEY_CODE_YES for functional keys, OK for wide character and ERR
- * otherwise (e.g. after timeout). */
+ * Returns KEY_CODE_YES for functional keys (preprocesses *c in this case), OK
+ * for wide character and ERR otherwise (e.g. after timeout). */
 static int
 get_char_async_loop(WINDOW *win, wint_t *c, int timeout)
 {
@@ -375,6 +375,10 @@ get_char_async_loop(WINDOW *win, wint_t *c, int timeout)
 			result = compat_wget_wch(win, c);
 			if(result != ERR)
 			{
+				if(result == KEY_CODE_YES)
+				{
+					*c = K(*c);
+				}
 				return result;
 			}
 

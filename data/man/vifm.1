@@ -1,4 +1,4 @@
-.TH VIFM 1 "September 30, 2016" "vifm 0.8.2"
+.TH VIFM 1 "November 09, 2016" "vifm 0.8.2"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -92,7 +92,8 @@ See also "Client\-Server" section below.
 Run command-line mode <command> on startup.  Commands in such arguments are
 executed in the order they appear in command line.  Commands with spaces or
 special symbols must be enclosed in double or single quotes or all special
-symbols should be escaped (the exact syntax strongly depends on shell).
+symbols should be escaped (the exact syntax strongly depends on shell).  "+"
+argument is equivalent to "$" and thus picks last item of of the view.
 .TP
 .BI "\-\-help, \-h"
 Show a brief command summary and exit vifm.
@@ -394,7 +395,7 @@ There are three basic file filters:
 .RS 2
 .IP \- 2
 dot files filter (excluding "." and ".." special directories, which appearance
-is controlled by the 'dotdirs' option);
+is controlled by the 'dotdirs' option), see 'dotfiles' option;
 .IP \- 2
 manual filter for file names;
 .IP \- 2
@@ -641,12 +642,12 @@ nothing right after startup or :restart command).  The command doesn't depend on
 command-line history and can be used with completely disabled history.
 .TP
 .BI (
-goto previous group.  Groups are defined by primary sorting key.  For name and
+go to previous group.  Groups are defined by primary sorting key.  For name and
 iname members of each group have same first letter, for all other sorting keys
 vifm uses size, uid, ...
 .TP
 .BI )
-goto next group.  See ( key description above.
+go to next group.  See ( key description above.
 .TP
 .BI {
 similar to ( key, but always considers whether entry is file or directory and
@@ -654,6 +655,36 @@ thus speeds up navigation to closest previous entry of the opposite type.
 .TP
 .BI }
 same as {, but in forward direction.
+.TP
+.BI [c
+go to previous mismatched entry in directory comparison view or do nothing.
+.TP
+.BI ]c
+go to next mismatched entry in directory comparison view or do nothing.
+.TP
+.BI [d
+go to previous directory entry or do nothing.
+.TP
+.BI ]d
+go to next directory entry or do nothing.
+.TP
+.BI [s
+go to previous selected entry or do nothing.
+.TP
+.BI ]s
+go to next selected entry or do nothing.
+.TP
+.BI [z
+go to first sibling of current entry.
+.TP
+.BI ]z
+go to last sibling of current entry.
+.TP
+.BI zj
+go to next directory sibling of current entry or do nothing.
+.TP
+.BI zk
+go to previous directory sibling of current entry or do nothing.
 .\" ---------------------------------------------------------------------------
 .SH Using Count
 .\" ---------------------------------------------------------------------------
@@ -1522,6 +1553,12 @@ compare files in one or two views according the arguments.  The default
 is "bycontents listall ofboth grouppaths".  See "Compare views" section below
 for details.  Tree structure is incompatible with ls-like view, so value of
 \'lsview' option is ignored.
+.TP
+.BI "                                         :copen"
+.TP
+.BI ":cope[n]"
+opens menu with contents of the last displayed menu with navigation to files by
+default, if any.
 .TP
 .BI "                                         :copy"
 .TP
@@ -2883,6 +2920,9 @@ same as %U, but gives up terminal before running external command.
 .BI %S
 Show command output in the status bar.
 .TP
+.BI %q
+redirect command output to quick view, which is activated if disabled.
+.TP
 .BI %s
 Execute command in split window of active terminal multiplexer (ignored if not
 running inside one).
@@ -3238,6 +3278,25 @@ default: terminal width on startup
 .br
 Terminal width in characters.
 .TP
+.BI "'caseoptions'"
+type: charset
+.br
+default: ""
+.br
+This option gives additional control over case sensitivity by allowing
+overriding default behaviour to either always be case sensitive or
+always be case insensitive.  Possible values form pairs of lower and
+upper case letters that configure specific aspect of behaviour:
+  p - always ignore case of paths during completion.
+  P - always match case of paths during completion.
+  g - always ignore case of characters for f/F/;/,.
+  G - always match case of characters for f/F/;/,.
+
+At most one item of each pair takes affect, if both or more are present, only
+the last one matters.  When none of pair's elements are present, the behaviour
+is default (depends on operating system for path completion and on values of
+\'ignorecase' and 'smartcase' options for file navigation).
+.TP
 .BI "'cdpath' 'cd'"
 type: string list
 .br
@@ -3367,6 +3426,13 @@ Controls displaying of dot directories.  The following values are possible:
 
 Note that empty directories always contain "../" entry regardless of value of
 this option.  "../" disappears at the moment at least one file is created.
+.TP
+.BI 'dotfiles'
+type: boolean
+.br
+default: false
+.br
+Whether dot files are shown in the view.  Can be controlled with z* bindings.
 .TP
 .BI 'fastrun'
 type: boolean
@@ -4912,6 +4978,9 @@ the list, but marked as being cancelled (if cancellation was successfully
 requested).  A message will pop up if the job has already stopped.
 Note that on Windows cancelling external programs like this might not work,
 because their parent shell doesn't have any windows.
+
+e key displays errors of selected job if any were collected.  They are
+displayed in a new menu, but you can get back to jobs menu by pressing h.
 
 .\" ---------------------------------------------------------------------------
 .SH Custom views

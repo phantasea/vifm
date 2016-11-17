@@ -81,7 +81,7 @@ int refers_to_slower_fs(const char from[], const char to[]);
 
 /* Fills supplied buffer with user friendly representation of file size.
  * Returns non-zero in case resulting string is a shortened variant of size. */
-int friendly_size_notation(uint64_t num, int str_size, char *str);
+int friendly_size_notation(uint64_t num, int str_size, char str[]);
 
 /* Returns pointer to a statically allocated buffer. */
 const char * enclose_in_dquotes(const char str[]);
@@ -154,7 +154,7 @@ int is_graphics_viewer(const char viewer[]);
 /* Extracts path and line number from the spec (default line number is 1).
  * Returns path in as newly allocated string and sets *line_num to line number,
  * otherwise NULL is returned. */
-char * parse_file_spec(const char spec[], int *line_num);
+char * parse_file_spec(const char spec[], int *line_num, const char cwd[]);
 
 /* Fills buf of the length buf_len with path to mount point of the path.
  * Returns non-zero on error, otherwise zero is returned. */
@@ -175,6 +175,9 @@ void wait_for_data_from(pid_t pid, FILE *f, int fd,
 /* Blocks/unblocks SIGCHLD signal.  Returns zero on success, otherwise non-zero
  * is returned. */
 int set_sigchld(int block);
+
+/* Blocks all signals of current thread that can be blocked. */
+void block_all_thread_signals(void);
 
 /* Checks for executable by its path.  Mutates path by appending executable
  * prefixes on Windows.  Returns non-zero if path points to an executable,

@@ -193,7 +193,6 @@ init_flist(FileView *view)
 	view->history_pos = 0;
 	view->on_slow_fs = 0;
 
-	view->hide_dot = 1;
 	view->matches = 0;
 
 	view->custom.entries = NULL;
@@ -226,6 +225,8 @@ reset_view(FileView *view)
 {
 	fview_view_reset(view);
 	filters_view_reset(view);
+
+	view->hide_dot_g = view->hide_dot = 1;
 
 	memset(&view->sort[0], SK_NONE, sizeof(view->sort));
 	ui_view_sort_list_ensure_well_formed(view, view->sort);
@@ -422,7 +423,9 @@ save_view_history(FileView *view, const char path[], const char file[], int pos)
 	{
 		x = view->history_num - 1;
 		while(x > view->history_pos)
-			view->history[x--].dir[0] = '\0';
+		{
+			cfg_free_history_items(&view->history[x--], 1);
+		}
 		view->history_num = view->history_pos + 1;
 	}
 	x = view->history_num;
@@ -901,19 +904,6 @@ fill_with_shared(FileView *view)
 	while(res == ERROR_MORE_DATA);
 
 	free(wserver);
-}
-
-static time_t
-win_to_unix_time(FILETIME ft)
-{
-	const uint64_t WINDOWS_TICK = 10000000;
-	const uint64_t SEC_TO_UNIX_EPOCH = 11644473600LL;
-	uint64_t win_time;
-
-	win_time = ft.dwHighDateTime;
-	win_time = (win_time << 32) | ft.dwLowDateTime;
-
-	return win_time/WINDOWS_TICK - SEC_TO_UNIX_EPOCH;
 }
 #endif
 
@@ -3014,7 +3004,8 @@ get_file_size_by_entry(const FileView *view, size_t pos)
 int
 is_directory_entry(const dir_entry_t *entry)
 {
-	if(entry->type == FT_DIR)
+	/* If node has child nodes, it must be a directory. */
+	if(entry->type == FT_DIR || entry->child_count != 0)
 	{
 		return 1;
 	}
@@ -3225,16 +3216,6 @@ mark_files_at(FileView *view, int count, const int indexes[])
 	}
 }
 
-static void
-clear_marking(FileView *view)
-{
-	int i;
-	for(i = 0; i < view->list_rows; ++i)
-	{
-		view->dir_entry[i].marked = 0;
-	}
-}
-
 int
 mark_selected(FileView *view)
 {
@@ -3257,10 +3238,22 @@ mark_selection_or_current(FileView *view)
 	dir_entry_t *const curr = get_current_entry(view);
 	if(view->selected_files == 0 && fentry_is_valid(curr))
 	{
-		curr->selected = 1;
-		view->selected_files = 1;
+		clear_marking(view);
+		curr->marked = 1;
+		return 1;
 	}
 	return mark_selected(view);
+}
+
+/* Unmarks all entries of the view. */
+static void
+clear_marking(FileView *view)
+{
+	int i;
+	for(i = 0; i < view->list_rows; ++i)
+	{
+		view->dir_entry[i].marked = 0;
+	}
 }
 
 int
@@ -3305,7 +3298,7 @@ flist_add_custom_line(FileView *view, const char line[])
 	/* Skip empty lines. */
 	char *const path = (skip_whitespace(line)[0] == '\0')
 	                 ? NULL
-	                 : parse_file_spec(line, &line_num);
+	                 : parse_file_spec(line, &line_num, ".");
 	if(path != NULL)
 	{
 		flist_custom_add(view, path);
@@ -3556,7 +3549,7 @@ add_files_recursively(FileView *view, const char path[], trie_t *excluded_paths,
 
 		free(full_path);
 
-		show_progress("Building tree...", 10000);
+		show_progress("Building tree...", 1000);
 	}
 
 	free_string_array(lst, len);

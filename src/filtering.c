@@ -33,6 +33,7 @@
 #include "filelist.h"
 #include "flist_pos.h"
 #include "flist_sel.h"
+#include "opt_handlers.h"
 
 static void reset_filter(filter_t *filter);
 static int is_newly_filtered(FileView *view, const dir_entry_t *entry,
@@ -89,26 +90,42 @@ reset_filter(filter_t *filter)
 void
 set_dot_files_visible(FileView *view, int visible)
 {
-	view->hide_dot = !visible;
+	view->hide_dot_g = view->hide_dot = !visible;
 	ui_view_schedule_reload(view);
+	if(view == curr_view)
+	{
+		load_dot_filter_option(view);
+	}
 	if(curr_stats.global_local_settings)
 	{
 		FileView *other = (view == curr_view) ? other_view : curr_view;
-		other->hide_dot = !visible;
+		other->hide_dot_g = other->hide_dot = !visible;
 		ui_view_schedule_reload(other);
+		if(other == curr_view)
+		{
+			load_dot_filter_option(other);
+		}
 	}
 }
 
 void
 toggle_dot_files(FileView *view)
 {
-	view->hide_dot = !view->hide_dot;
+	view->hide_dot_g = view->hide_dot = !view->hide_dot;
 	ui_view_schedule_reload(view);
+	if(view == curr_view)
+	{
+		load_dot_filter_option(view);
+	}
 	if(curr_stats.global_local_settings)
 	{
 		FileView *other = (view == curr_view) ? other_view : curr_view;
-		other->hide_dot = !other->hide_dot;
+		other->hide_dot_g = other->hide_dot = !other->hide_dot;
 		ui_view_schedule_reload(other);
+		if(other == curr_view)
+		{
+			load_dot_filter_option(other);
+		}
 	}
 }
 

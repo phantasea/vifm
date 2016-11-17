@@ -70,7 +70,7 @@ wait_for_bg(void)
 	int counter = 0;
 	while(bg_has_active_jobs())
 	{
-		usleep(2000);
+		usleep(5000);
 		if(++counter > 100)
 		{
 			assert_fail("Waiting for too long.");
@@ -92,6 +92,16 @@ set_to_sandbox_path(char buf[], size_t buf_len)
 		assert_non_null(get_cwd(cwd, sizeof(cwd)));
 		snprintf(buf, buf_len, "%s/%s", cwd, SANDBOX_PATH);
 	}
+}
+
+int
+not_windows(void)
+{
+#ifdef _WIN32
+	return 0;
+#else
+	return 1;
+#endif
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
