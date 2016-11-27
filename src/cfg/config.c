@@ -819,6 +819,20 @@ cfg_get_vicmd(int *bg, int abs)  //mod by sim1
 	}
 }
 
+//add by sim1
+void cfg_set_vicmd(const char vicmd[])
+{
+	if ((curr_stats.exec_env_type == EET_EMULATOR_WITH_X)
+			&& (cfg.vi_x_command[0] != '\0'))
+	{
+		replace_string(&cfg.vi_x_command, vicmd);
+		return;
+	}
+
+	replace_string(&cfg.vi_command, vicmd);
+	return;
+}
+
 void
 cfg_resize_histories(int new_len)
 {

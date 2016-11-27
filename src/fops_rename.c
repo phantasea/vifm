@@ -163,6 +163,10 @@ complete_filename_only(const char str[], void *arg)
 	return 0;
 }
 
+//add by sim1
+extern void cfg_set_vicmd(const char vicmd[]);
+extern const char * cfg_get_vicmd(int *bg, int abs);
+
 int
 fops_rename(FileView *view, char *list[], int nlines, int recursive)
 {
@@ -182,6 +186,12 @@ fops_rename(FileView *view, char *list[], int nlines, int recursive)
 	{
 		return 0;
 	}
+
+	//add by sim1
+	int bg = 0;
+	char vicmd[PATH_MAX] = {0};
+	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg, 0));
+	cfg_set_vicmd("vim");
 
 	nfiles = 0;
 	files = NULL;
@@ -206,6 +216,8 @@ fops_rename(FileView *view, char *list[], int nlines, int recursive)
 	{
 		free_string_array(files, nfiles);
 		show_error_msg("Memory Error", "Unable to allocate enough memory");
+
+		cfg_set_vicmd(vicmd);  //add by sim1
 		return 0;
 	}
 
@@ -245,6 +257,8 @@ fops_rename(FileView *view, char *list[], int nlines, int recursive)
 	flist_sel_stash(view);
 	redraw_view(view);
 	curr_stats.save_msg = 1;
+
+	cfg_set_vicmd(vicmd);  //add by sim1
 	return 1;
 }
 
