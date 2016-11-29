@@ -179,6 +179,10 @@ int is_directory_entry(const dir_entry_t *entry);
  * returned.  List of entries shouldn't be reloaded between invocations of this
  * function. */
 int iter_selected_entries(FileView *view, dir_entry_t **entry);
+
+// Loads pointer to the next directory entry in file list of the view.
+int iter_directory_entry(FileView *view, dir_entry_t **entry);  //add by sim1
+
 /* Same as iter_selected_entries() function, but traverses selected items only
  * if current element is selected, otherwise only current element is
  * processed. */

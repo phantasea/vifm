@@ -2789,6 +2789,36 @@ is_directory_entry(const dir_entry_t *entry)
 	return 0;
 }
 
+//add by sim1
+int is_nondirectory_entry(const dir_entry_t *entry)
+{
+	/* If node has child nodes, it must be a directory. */
+	if(entry->type == FT_DIR || entry->child_count != 0)
+	{
+		return 0;
+	}
+
+	if(entry->type == FT_LINK)
+	{
+		char full_path[PATH_MAX];
+		get_full_path_of(entry, sizeof(full_path), full_path);
+		return !(get_symlink_type(full_path) != SLT_UNKNOWN);
+	}
+
+	return 1;
+}
+
+int iter_directory_entry(FileView *view, dir_entry_t **entry)
+{
+	return iter_entries(view, entry, &is_directory_entry);
+}
+
+int iter_nondirectory_entry(FileView *view, dir_entry_t **entry)
+{
+	return iter_entries(view, entry, &is_nondirectory_entry);
+}
+//add by sim1 --- END
+
 int
 iter_selected_entries(FileView *view, dir_entry_t **entry)
 {

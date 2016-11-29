@@ -42,6 +42,9 @@ void toggle_dot_files(FileView *view);
 
 void filter_selected_files(FileView *view);
 
+void filter_directorys(FileView *view);  //add by sim1
+void filter_nondirectory(FileView *view);  //add by sim1
+
 void remove_filename_filter(FileView *view);
 
 /* Checks whether file name filter of the view is empty.  Returns non-zero if

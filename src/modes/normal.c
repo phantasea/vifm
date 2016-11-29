@@ -215,6 +215,8 @@ static void cmd_zO(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zR(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_za(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zd(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zD(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zx(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zf(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zm(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zo(key_info_t key_info, keys_info_t *keys_info);
@@ -382,17 +384,19 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_y WK_y,        {{&cmd_yy}, .nim = 1, .descr = "yank files"}},
 	{WK_y,             {{&cmd_y_selector}, FOLLOWED_BY_SELECTOR, .descr = "yank files"}},
 	{WK_v,             {{&cmd_V},  .descr = "go to visual mode"}},
+	{WK_z WK_D,        {{&cmd_zD}, .descr = "all all nondirectory to filter"}},
 	{WK_z WK_M,        {{&cmd_zM}, .descr = "apply filename filters only"}},
 	{WK_z WK_O,        {{&cmd_zO}, .descr = "remove filename filters (except local one)"}},
 	{WK_z WK_R,        {{&cmd_zR}, .descr = "filter no files"}},
 	{WK_z WK_a,        {{&cmd_za}, .descr = "toggle dot files visibility"}},
-	{WK_z WK_d,        {{&cmd_zd}, .descr = "exclude custom view entry"}},
+	{WK_z WK_d,        {{&cmd_zd}, .descr = "add all directorys to filter"}},
 	{WK_z WK_b,        {{&normal_cmd_zb}, .descr = "push cursor to the bottom"}},
 	{WK_z WK_f,        {{&cmd_zf}, .descr = "add current file to filter"}},
 	{WK_z WK_m,        {{&cmd_zm}, .descr = "hide dot files"}},
 	{WK_z WK_o,        {{&cmd_zo}, .descr = "show dot files"}},
 	{WK_z WK_r,        {{&cmd_zr}, .descr = "clear local filter"}},
 	{WK_z WK_t,        {{&normal_cmd_zt},   .descr = "push cursor to the top"}},
+	{WK_z WK_x,        {{&cmd_zx}, .descr = "exclude custom view entry"}},
 	{WK_z WK_z,        {{&normal_cmd_zz},   .descr = "center cursor position"}},
 	{WK_LP,            {{&cmd_left_paren},  .descr = "go to previous group of files"}},
 	{WK_RP,            {{&cmd_right_paren}, .descr = "go to next group of files"}},
@@ -1975,12 +1979,25 @@ cmd_za(key_info_t key_info, keys_info_t *keys_info)
 	toggle_dot_files(curr_view);
 }
 
-/* Excludes entries from custom view. */
+//mod by sim1
+static void
+cmd_zD(key_info_t key_info, keys_info_t *keys_info)
+{
+	filter_nondirectory(curr_view);
+}
+
 static void
 cmd_zd(key_info_t key_info, keys_info_t *keys_info)
 {
+	filter_directorys(curr_view);
+}
+
+static void
+cmd_zx(key_info_t key_info, keys_info_t *keys_info)
+{
 	flist_custom_exclude(curr_view, key_info.count == 1);
 }
+//mod by sim1
 
 /* Redraw with file in bottom of list. */
 void
