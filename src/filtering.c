@@ -129,23 +129,22 @@ toggle_dot_files(FileView *view)
 	}
 }
 
-//add by sim1
-void filter_nondirectory(FileView *view)
+//mod by sim1
+void filter_files(FileView *view, iter_view_entry iter)
 {
-	dir_entry_t *entry;
+	dir_entry_t *entry = NULL;
+	int filtered = 0;
 	filter_t filter;
-	int filtered;
 
 	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);
 
 	/* Traverse items and update/create filter values. */
-	entry = NULL;
-	while(iter_nondirectory_entry(view, &entry))
+	while (iter(view, &entry))
 	{
 		const char *name = entry->name;
 		char name_with_slash[NAME_MAX + 1 + 1];
 
-		if(is_directory_entry(entry))
+		if (is_directory_entry(entry))
 		{
 			append_slash(entry->name, name_with_slash, sizeof(name_with_slash));
 			name = name_with_slash;
@@ -155,15 +154,14 @@ void filter_nondirectory(FileView *view)
 		(void)filter_append(&filter, name);
 	}
 
-	/* Even current file might be unavailable for filtering.  In this case, just
-	 * do nothing. */
-	if(filter_is_empty(&filter))
+	/* Even current file might be unavailable for filtering.  In this case, just do nothing. */
+	if (filter_is_empty(&filter))
 	{
 		filter_dispose(&filter);
 		return;
 	}
 
-	if(view->custom.type == CV_DIFF)
+	if (view->custom.type == CV_DIFF)
 	{
 		(void)filter_in_compare(view, &filter, &is_newly_filtered);
 		ui_view_schedule_redraw(view);
@@ -171,11 +169,9 @@ void filter_nondirectory(FileView *view)
 		return;
 	}
 
-	/* Update entry lists to remove entries that must be filtered out now.  No
-	 * view reload is needed. */
-	filtered = zap_entries(view, view->dir_entry, &view->list_rows,
-			&is_newly_filtered, &filter, 0, 1);
-	if(flist_custom_active(view))
+	/* Update entry lists to remove entries that must be filtered out now.  No view reload is needed. */
+	filtered = zap_entries(view, view->dir_entry, &view->list_rows, &is_newly_filtered, &filter, 0, 1);
+	if (flist_custom_active(view))
 	{
 		(void)zap_entries(view, view->local_filter.entries,
 				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);
@@ -189,131 +185,25 @@ void filter_nondirectory(FileView *view)
 
 	flist_ensure_pos_is_valid(view);
 	ui_view_schedule_redraw(view);
+
+	return;
+}
+
+void filter_nondirectory(FileView *view)
+{
+	filter_files(view, iter_nondirectory_entry);
 }
 
 void filter_directorys(FileView *view)
 {
-	dir_entry_t *entry;
-	filter_t filter;
-	int filtered;
-
-	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);
-
-	/* Traverse items and update/create filter values. */
-	entry = NULL;
-	while(iter_directory_entry(view, &entry))
-	{
-		const char *name = entry->name;
-		char name_with_slash[NAME_MAX + 1 + 1];
-
-		if(is_directory_entry(entry))
-		{
-			append_slash(entry->name, name_with_slash, sizeof(name_with_slash));
-			name = name_with_slash;
-		}
-
-		(void)filter_append(&view->auto_filter, name);
-		(void)filter_append(&filter, name);
-	}
-
-	/* Even current file might be unavailable for filtering.  In this case, just
-	 * do nothing. */
-	if(filter_is_empty(&filter))
-	{
-		filter_dispose(&filter);
-		return;
-	}
-
-	if(view->custom.type == CV_DIFF)
-	{
-		(void)filter_in_compare(view, &filter, &is_newly_filtered);
-		ui_view_schedule_redraw(view);
-		filter_dispose(&filter);
-		return;
-	}
-
-	/* Update entry lists to remove entries that must be filtered out now.  No
-	 * view reload is needed. */
-	filtered = zap_entries(view, view->dir_entry, &view->list_rows,
-			&is_newly_filtered, &filter, 0, 1);
-	if(flist_custom_active(view))
-	{
-		(void)zap_entries(view, view->local_filter.entries,
-				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);
-	}
-	else
-	{
-		view->filtered += filtered;
-	}
-
-	filter_dispose(&filter);
-
-	flist_ensure_pos_is_valid(view);
-	ui_view_schedule_redraw(view);
+	filter_files(view, iter_directory_entry);
 }
-//add by sim1 ---END
 
-void
-filter_selected_files(FileView *view)
+void filter_selected_files(FileView *view)
 {
-	dir_entry_t *entry;
-	filter_t filter;
-	int filtered;
-
-	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);
-
-	/* Traverse items and update/create filter values. */
-	entry = NULL;
-	while(iter_selection_or_current(view, &entry))
-	{
-		const char *name = entry->name;
-		char name_with_slash[NAME_MAX + 1 + 1];
-
-		if(is_directory_entry(entry))
-		{
-			append_slash(entry->name, name_with_slash, sizeof(name_with_slash));
-			name = name_with_slash;
-		}
-
-		(void)filter_append(&view->auto_filter, name);
-		(void)filter_append(&filter, name);
-	}
-
-	/* Even current file might be unavailable for filtering.  In this case, just
-	 * do nothing. */
-	if(filter_is_empty(&filter))
-	{
-		filter_dispose(&filter);
-		return;
-	}
-
-	if(view->custom.type == CV_DIFF)
-	{
-		(void)filter_in_compare(view, &filter, &is_newly_filtered);
-		ui_view_schedule_redraw(view);
-		filter_dispose(&filter);
-		return;
-	}
-
-	/* Update entry lists to remove entries that must be filtered out now.  No
-	 * view reload is needed. */
-	filtered = zap_entries(view, view->dir_entry, &view->list_rows,
-			&is_newly_filtered, &filter, 0, 1);
-	if(flist_custom_active(view))
-	{
-		(void)zap_entries(view, view->local_filter.entries,
-				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);
-	}
-	else
-	{
-		view->filtered += filtered;
-	}
-
-	filter_dispose(&filter);
-
-	flist_ensure_pos_is_valid(view);
-	ui_view_schedule_redraw(view);
+	filter_files(view, iter_selection_or_current);
 }
+//mod by sim1 ---END
 
 /* zap_entries() filter to filter-out files that match filter passed in the
  * arg. */
