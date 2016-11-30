@@ -214,6 +214,7 @@ static void cmd_zM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zO(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zR(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_za(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zA(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zd(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zD(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zx(key_info_t key_info, keys_info_t *keys_info);
@@ -384,6 +385,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_y WK_y,        {{&cmd_yy}, .nim = 1, .descr = "yank files"}},
 	{WK_y,             {{&cmd_y_selector}, FOLLOWED_BY_SELECTOR, .descr = "yank files"}},
 	{WK_v,             {{&cmd_V},  .descr = "go to visual mode"}},
+	{WK_z WK_A,        {{&cmd_zA}, .descr = "show only dot files"}},
 	{WK_z WK_D,        {{&cmd_zD}, .descr = "all all nondirectory to filter"}},
 	{WK_z WK_M,        {{&cmd_zM}, .descr = "apply filename filters only"}},
 	{WK_z WK_O,        {{&cmd_zO}, .descr = "remove filename filters (except local one)"}},
@@ -1977,6 +1979,13 @@ static void
 cmd_za(key_info_t key_info, keys_info_t *keys_info)
 {
 	toggle_dot_files(curr_view);
+}
+
+//add by sim1
+static void
+cmd_zA(key_info_t key_info, keys_info_t *keys_info)
+{
+	filter_nondotfiles(curr_view);
 }
 
 //mod by sim1

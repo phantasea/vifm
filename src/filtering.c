@@ -189,6 +189,11 @@ void filter_files(FileView *view, iter_view_entry iter)
 	return;
 }
 
+void filter_nondotfiles(FileView *view)
+{
+	filter_files(view, iter_nondotfile_entry);
+}
+
 void filter_nondirectory(FileView *view)
 {
 	filter_files(view, iter_nondirectory_entry);

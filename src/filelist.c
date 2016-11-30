@@ -2808,6 +2808,16 @@ int is_nondirectory_entry(const dir_entry_t *entry)
 	return 1;
 }
 
+int is_nondotfile_entry(const dir_entry_t *entry)
+{
+	if (entry->name[0] != '.')
+	{
+		return 1;
+	}
+
+	return 0;
+}
+
 int iter_directory_entry(FileView *view, dir_entry_t **entry)
 {
 	return iter_entries(view, entry, &is_directory_entry);
@@ -2816,6 +2826,11 @@ int iter_directory_entry(FileView *view, dir_entry_t **entry)
 int iter_nondirectory_entry(FileView *view, dir_entry_t **entry)
 {
 	return iter_entries(view, entry, &is_nondirectory_entry);
+}
+
+int iter_nondotfile_entry(FileView *view, dir_entry_t **entry)
+{
+	return iter_entries(view, entry, &is_nondotfile_entry);
 }
 //add by sim1 --- END
 
