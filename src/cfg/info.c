@@ -102,7 +102,10 @@ static void put_sort_info(FILE *fp, char leading_char, const FileView *view);
 static int read_optional_number(FILE *f);
 static int read_number(const char line[], long *value);
 static size_t add_to_int_array(int **array, size_t len, int what);
-static void fwrite_rating_info(FILE *const fp);  //add by sim1
+
+//add by sim1
+static void fwrite_rating_info(FILE *const fp);
+static rating_entry_t *rating_list = NULL;
 
 /* Monitor to check for changes of vifminfo file. */
 static filemon_t vifminfo_mon;
@@ -1539,8 +1542,6 @@ add_to_int_array(int **array, size_t len, int what)
 }
 
 //add by sim1 ***************************************************
-rating_entry_t *rating_list = NULL;
-
 static void
 fwrite_rating_info(FILE *const fp)
 {
@@ -1577,7 +1578,7 @@ fwrite_rating_info(FILE *const fp)
 	return;
 }
 
-rating_entry_t*
+rating_entry_t *
 create_rating_info(int star_num, char path[])
 {
 	if (star_num <= 0)
@@ -1603,10 +1604,10 @@ create_rating_info(int star_num, char path[])
 	return entry;
 }
 
-rating_entry_t*
+rating_entry_t *
 search_rating_info(const char path[])
 {
-	if (NULL == path)
+	if ((NULL == path) || (0 == strlen(path)))
 	{
 		return NULL;
 	}
@@ -1676,9 +1677,8 @@ void
 update_rating_info_selected(int star_num)
 {
 	char path[PATH_MAX] = {0};
-	dir_entry_t *entry;
+	dir_entry_t *entry = NULL;
 
-	entry = NULL;
 	while (iter_marked_entries(curr_view, &entry))
 	{
 		get_full_path_of(entry, sizeof(path), path);
@@ -1719,15 +1719,8 @@ get_rating_string(char buf[], int buf_len, char path[])
 
 		for (i = 0; i < stars; i++)
 		{
-			strcat(rating, "★");
+			strcat(rating, "★"); //strcat(rating, "☆");
 		}
-
-    #if 0
-		for (i = RATING_MAX_STARS; i > stars; i--)
-		{
-			strcat(rating, "☆");
-		}
-    #endif
 
 		snprintf(buf, buf_len, "%s", rating);
 		return stars;
@@ -1736,7 +1729,7 @@ get_rating_string(char buf[], int buf_len, char path[])
 void
 copy_rating_info(const char src[], const char dst[], int op)
 {
-	if (NULL == src)
+	if ((NULL == src) || (NULL == dst))
 	{
 		return;
 	}
@@ -1750,25 +1743,15 @@ copy_rating_info(const char src[], const char dst[], int op)
 	if (op == 0)
 	{
 		entry->star = 0;
-		return;
 	}
-
-	if (NULL == src)
-	{
-		return;
-	}
-
-	if (op == 1)
+	else if (op == 1)
 	{
 		free(entry->path);
 		entry->path = strdup(dst);
-		return;
 	}
-
-	if (op == 2)
+	else if (op == 2)
 	{
 		update_rating_info(entry->star, (char *)dst);
-		return;
 	}
 
   return;

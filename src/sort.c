@@ -67,7 +67,7 @@ static int compare_item_count(const dir_entry_t *f, int fdir,
 		const dir_entry_t *s, int sdir);
 static int compare_group(const char f[], const char s[], regex_t *regex);
 static int compare_targets(const dir_entry_t *f, const dir_entry_t *s);
-static int compare_file_rating(const dir_entry_t *f, int fdir, const dir_entry_t *s, int sdir);  //add by sim1
+static int compare_rating(const dir_entry_t *f, const dir_entry_t *s);  //add by sim1
 
 /* View which is being sorted. */
 static FileView* view;
@@ -448,7 +448,7 @@ sort_dir_list(const void *one, const void *two)
 #endif
 		//add by sim1  *******************************************************
 		case SK_BY_RATING:
-			retval = compare_file_rating(first, first_is_dir, second, second_is_dir);
+			retval = compare_rating(first, second);
 			break;
 		//add by sim1  *******************************************************
 	}
@@ -665,8 +665,7 @@ get_secondary_key(SortingKey primary_key)
 
 //add by sim1  *******************************************************
 static int
-compare_file_rating(const dir_entry_t *f, int fdir, const dir_entry_t *s,
-		int sdir)
+compare_rating(const dir_entry_t *f, const dir_entry_t *s)
 {
 	char path[PATH_MAX] = {0};
 	int  fstar, sstar;
