@@ -365,6 +365,7 @@ read_info_file(int reread)
 			int star_num = strtol(line_val, &endp, 10);
 			update_rating_info(star_num, endp);
 		}
+		//add by sim1 --- END
 	}
 
 	free(line);
@@ -887,6 +888,7 @@ update_info_file(const char filename[], int merge)
 		{
 			fwrite_rating_info(fp);
 		}
+		//add by sim1 --- END
 
 		fclose(fp);
 	}
@@ -1126,8 +1128,10 @@ write_options(FILE *const fp)
 		fprintf(fp, ",dirstack");
 	if(cfg.vifm_info & VIFMINFO_REGISTERS)
 		fprintf(fp, ",registers");
-	if(cfg.vifm_info & VIFMINFO_RATINGS)  //add by sim1
+	//add by sim1
+	if(cfg.vifm_info & VIFMINFO_RATINGS)
 		fprintf(fp, ",ratings");
+	//add by sim1 --- END
 	fprintf(fp, "\n");
 
 	fprintf(fp, "=%svimhelp\n", cfg.use_vim_help ? "" : "no");

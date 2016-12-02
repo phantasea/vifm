@@ -236,7 +236,7 @@ friendly_size_notation(uint64_t num, int str_size, char str[])
 
 	//add by sim1  ********************************
 	snprintf(str, str_size, "%.1f%s", d, units[u]);
-	return u > 0;
+	return u > 0U;
 	//add by sim1  ********************************
 
 	if(u == 0 || d > 9)

@@ -68,7 +68,6 @@ static int compare_item_count(const dir_entry_t *f, int fdir,
 static int compare_group(const char f[], const char s[], regex_t *regex);
 static int compare_targets(const dir_entry_t *f, const dir_entry_t *s);
 static int compare_file_rating(const dir_entry_t *f, int fdir, const dir_entry_t *s, int sdir);  //add by sim1
-extern int get_rating_stars(char path[]);  //add by sim1
 
 /* View which is being sorted. */
 static FileView* view;
@@ -665,6 +664,8 @@ get_secondary_key(SortingKey primary_key)
 }
 
 //add by sim1  *******************************************************
+extern int get_rating_stars(char path[]);  //add by sim1
+
 static int
 compare_file_rating(const dir_entry_t *f, int fdir, const dir_entry_t *s,
 		int sdir)

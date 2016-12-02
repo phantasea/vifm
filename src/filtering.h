@@ -47,6 +47,7 @@ typedef int (*iter_view_entry)(FileView *view, dir_entry_t **entry);
 void filter_directorys(FileView *view);
 void filter_nondirectory(FileView *view);
 void filter_nondotfiles(FileView *view);
+//add by sim1 --- END
 
 void remove_filename_filter(FileView *view);
 
