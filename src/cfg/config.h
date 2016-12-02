@@ -287,7 +287,7 @@ int cfg_source_file(const char filename[]);
 /* Gets editor invocation command.  Sets *bg to indicate whether the command
  * should be executed in background.  Returns pointer to a string from
  * configuration variables. */
-const char * cfg_get_vicmd(int *bg, int abs);
+const char * cfg_get_vicmd(int *bg);
 
 /* Changes size of all histories.  Zero or negative length disables history. */
 void cfg_resize_histories(int new_len);

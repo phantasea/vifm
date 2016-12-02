@@ -165,7 +165,7 @@ complete_filename_only(const char str[], void *arg)
 
 //add by sim1
 extern void cfg_set_vicmd(const char vicmd[]);
-extern const char * cfg_get_vicmd(int *bg, int abs);
+extern const char * cfg_get_vicmd(int *bg);
 
 int
 fops_rename(FileView *view, char *list[], int nlines, int recursive)
@@ -190,7 +190,7 @@ fops_rename(FileView *view, char *list[], int nlines, int recursive)
 	//add by sim1
 	int bg = 0;
 	char vicmd[PATH_MAX] = {0};
-	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg, 0));
+	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg));
 	cfg_set_vicmd("vim");
 
 	nfiles = 0;

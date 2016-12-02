@@ -743,7 +743,8 @@ format_help_cmd(char cmd[], size_t cmd_size)
 {
 	int bg;
 	char *const escaped = shell_like_escape(cfg.config_dir, 0);
-	snprintf(cmd, cmd_size, "%s %s/" VIFM_HELP, cfg_get_vicmd(&bg, 1), escaped);  //mod by sim1
+	//snprintf(cmd, cmd_size, "%s %s/" VIFM_HELP, cfg_get_vicmd(&bg), escaped);
+	snprintf(cmd, cmd_size, "%s %s/" VIFM_HELP, "vim", escaped);  //mod by sim1
 	free(escaped);
 	return bg;
 }

@@ -801,22 +801,22 @@ show_sourcing_error(const char filename[], int line_num)
 }
 
 const char *
-cfg_get_vicmd(int *bg, int abs)  //mod by sim1
+cfg_get_vicmd(int *bg)
 {
 	if(curr_stats.exec_env_type != EET_EMULATOR_WITH_X)
 	{
 		*bg = cfg.vi_cmd_bg;
-		return !abs ? cfg.vi_command : "vim";
+		return cfg.vi_command;
 	}
 	else if(cfg.vi_x_command[0] != '\0')
 	{
 		*bg = cfg.vi_x_cmd_bg;
-		return !abs ? cfg.vi_x_command : "gvim";
+		return cfg.vi_x_command;
 	}
 	else
 	{
 		*bg = cfg.vi_cmd_bg;
-		return !abs ? cfg.vi_command : "vim";
+		return cfg.vi_command;
 	}
 }
 
