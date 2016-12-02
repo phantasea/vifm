@@ -1472,8 +1472,6 @@ format_nlinks(int id, const void *data, size_t buf_len, char buf[])
 #endif
 
 //add by sim1 ***************************************************
-extern int get_rating_string(char buf[], int len, char path[]);
-
 /* File star rating format callback for column_view unit. */
 static void
 format_rating(int id, const void *data, size_t buf_len, char buf[])
