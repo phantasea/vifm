@@ -200,7 +200,7 @@ refresh_window(WINDOW *win, int lazily)
 TSTATIC char *
 expand_status_line_macros(FileView *view, const char format[])
 {
-	return expand_view_macros(view, format, "tAugsrEd-lLSz%[]");  //mod by sim1
+	return expand_view_macros(view, format, "tfAugsrEd-lLSz%[]");  //mod by sim1
 }
 
 /* Expands possibly limited set of view macros.  Returns newly allocated string,
@@ -260,6 +260,9 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 		{
 			case 't':
 				format_entry_name(curr, sizeof(buf), buf);
+				break;
+			case 'f':
+				get_short_path_of(view, curr, 1, 0, sizeof(buf), buf);
 				break;
 			case 'A':
 #ifndef _WIN32

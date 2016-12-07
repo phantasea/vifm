@@ -263,7 +263,7 @@ correct_size(FileView *view)
 /* Updates TUI elements sizes and coordinates for single window
  * configuration. */
 static void
-only_layout(FileView *view, int screen_x, int screen_y)
+only_layout(FileView *view, int screen_x)
 {
 	//mod by sim1
 	wresize(view->title, 1, screen_x);
@@ -276,7 +276,7 @@ only_layout(FileView *view, int screen_x, int screen_y)
 /* Updates TUI elements sizes and coordinates for vertical configuration of
  * panes: left one and right one. */
 static void
-vertical_layout(int screen_x, int screen_y)
+vertical_layout(int screen_x)
 {
 	const int border_height = get_working_area_height();
 
@@ -400,15 +400,18 @@ resize_all(void)
 	 * produce bad looking effect. */
 	if(curr_stats.number_of_windows == 1)
 	{
-		only_layout(&lwin, screen_x, screen_y);
-		only_layout(&rwin, screen_x, screen_y);
+		//mod by sim1
+		//only_layout(&lwin, screen_x, screen_y);
+		//only_layout(&rwin, screen_x, screen_y);
+		only_layout(&lwin, screen_x);
+		only_layout(&rwin, screen_x);
 	}
 	else
 	{
 		if(curr_stats.split == HSPLIT)
 			horizontal_layout(screen_x, screen_y);
 		else
-			vertical_layout(screen_x, screen_y);
+			vertical_layout(screen_x);
 	}
 
 	correct_size(&lwin);
