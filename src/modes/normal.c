@@ -245,6 +245,7 @@ static void selector_s(key_info_t key_info, keys_info_t *keys_info);
 //add by sim1
 static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 //add by sim1 --- END
 
 static int last_fast_search_char;
@@ -387,7 +388,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_u,             {{&cmd_u},            .descr = "undo file operation"}},
 	{WK_y WK_y,        {{&cmd_yy}, .nim = 1, .descr = "yank files"}},
 	{WK_y,             {{&cmd_y_selector}, FOLLOWED_BY_SELECTOR, .descr = "yank files"}},
-	{WK_v,             {{&cmd_V},  .descr = "go to visual mode"}},
+	{WK_v,             {{&cmd_v},  .descr = "go to view mode"}},
 	{WK_z WK_A,        {{&cmd_zA}, .descr = "show only dot files"}},
 	{WK_z WK_D,        {{&cmd_zD}, .descr = "show only directorys"}},
 	{WK_z WK_M,        {{&cmd_zM}, .descr = "apply filename filters only"}},
@@ -515,6 +516,25 @@ cmd_hash(key_info_t key_info, keys_info_t *keys_info)
   update_rating_info_selected(star_num);
 
 	draw_dir_list(curr_view);
+	return;
+}
+
+static void
+cmd_v(key_info_t key_info, keys_info_t *keys_info)
+{
+	if (curr_stats.number_of_windows == 1)
+	{
+		cmd_e(key_info, keys_info);
+		return;
+	}
+
+	if (!curr_stats.view && !qv_can_show())
+	{
+		return;
+	}
+
+	qv_toggle();
+	//cmd_shift_tab(key_info, keys_info);
 	return;
 }
 //Add by sim1 **************************************************
@@ -1564,20 +1584,6 @@ cmd_dp(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_e(key_info_t key_info, keys_info_t *keys_info)
 {
-	//add by sim1 --------------------------
-	if (curr_stats.number_of_windows != 1)
-	{
-		if (!curr_stats.view && !qv_can_show())
-		{
-			return;
-		}
-
-		qv_toggle();
-		//cmd_shift_tab(key_info, keys_info);
-		return;
-	}
-	//add by sim1 --------------------------
-
 	if(curr_stats.view)
 	{
 		status_bar_error("Another type of file viewing is activated");
