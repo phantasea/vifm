@@ -241,8 +241,11 @@ static void pick_files(FileView *view, int end, keys_info_t *keys_info);
 static void selector_S(key_info_t key_info, keys_info_t *keys_info);
 static void selector_a(key_info_t key_info, keys_info_t *keys_info);
 static void selector_s(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_star(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
-static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
+
+//add by sim1
+static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
+//add by sim1 --- END
 
 static int last_fast_search_char;
 static int last_fast_search_backward = -1;
@@ -1561,6 +1564,20 @@ cmd_dp(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_e(key_info_t key_info, keys_info_t *keys_info)
 {
+	//add by sim1 --------------------------
+	if (curr_stats.number_of_windows != 1)
+	{
+		if (!curr_stats.view && !qv_can_show())
+		{
+			return;
+		}
+
+		qv_toggle();
+		//cmd_shift_tab(key_info, keys_info);
+		return;
+	}
+	//add by sim1 --------------------------
+
 	if(curr_stats.view)
 	{
 		status_bar_error("Another type of file viewing is activated");
