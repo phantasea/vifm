@@ -690,6 +690,14 @@ cmd_emark_selector(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_i(key_info_t key_info, keys_info_t *keys_info)
 {
+	//add by sim1 ----------
+	if(curr_stats.view)
+	{
+		cmd_shift_tab(key_info, keys_info);
+		return;
+	}
+	//add by sim1 ----------
+
 	if(cfg.tab_switches_pane)
 	{
 		cmd_space(key_info, keys_info);
@@ -1633,6 +1641,14 @@ cmd_h(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_i(key_info_t key_info, keys_info_t *keys_info)
 {
+	//add by sim1 ----------
+	if (curr_stats.view && (curr_stats.number_of_windows != 1))
+	{
+		cmd_shift_tab(key_info, keys_info);
+		return;
+	}
+	//add by sim1 ----------
+		
 	open_file(curr_view, FHE_NO_RUN);
 	flist_sel_stash(curr_view);
 	redraw_current_view();
