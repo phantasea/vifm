@@ -1143,6 +1143,7 @@ write_options(FILE *const fp)
 	fprintf(fp, "=wordchars=%s\n",
 			escape_spaces(get_option_value("wordchars", OPT_GLOBAL)));
 	fprintf(fp, "=%swrap\n", cfg.wrap_quick_view ? "" : "no");
+	fprintf(fp, "=%sprefervsplit\n", cfg.prefer_vsplit ? "" : "no");  //add by sim1
 }
 
 /* Stores list of associations to the file. */

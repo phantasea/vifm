@@ -101,6 +101,7 @@ static void cmd_ctrl_wH(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wJ(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wK(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wL(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ctrl_wb(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wh(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wj(key_info_t key_info, keys_info_t *keys_info);
@@ -274,6 +275,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_w WK_J,      {{&cmd_ctrl_wJ}, .descr = "move window to the bottom"}},
 	{WK_C_w WK_K,      {{&cmd_ctrl_wK}, .descr = "move window to the top"}},
 	{WK_C_w WK_L,      {{&cmd_ctrl_wL}, .descr = "move window to the right"}},
+	{WK_C_w WK_S,      {{&cmd_ctrl_wS}, .descr = "toggle split"}},  //add by sim1
 	{WK_C_w WK_C_b,    {{&cmd_ctrl_wb}, .descr = "go to bottom-right window"}},
 	{WK_C_w WK_b,      {{&cmd_ctrl_wb}, .descr = "go to bottom-right window"}},
 	{WK_C_w WK_C_h,    {{&cmd_ctrl_wh}, .descr = "go to left window"}},
@@ -534,7 +536,6 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 	}
 
 	qv_toggle();
-	//cmd_shift_tab(key_info, keys_info);
 	return;
 }
 //Add by sim1 **************************************************
@@ -691,7 +692,7 @@ static void
 cmd_ctrl_i(key_info_t key_info, keys_info_t *keys_info)
 {
 	//add by sim1 ----------
-	if(curr_stats.view)
+	if (curr_stats.view && (curr_stats.number_of_windows != 1))
 	{
 		cmd_shift_tab(key_info, keys_info);
 		return;
@@ -851,6 +852,29 @@ cmd_ctrl_ws(key_info_t key_info, keys_info_t *keys_info)
 {
 	split_view(HSPLIT);
 }
+
+//add by sim1 -------------------
+/* toggle split and only mode. */
+static void
+cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
+{
+	if (curr_stats.number_of_windows == 1)
+	{
+		if (cfg.prefer_vsplit)
+		{
+			split_view(VSPLIT);
+		}
+		else
+		{
+			split_view(HSPLIT);
+		}
+	}
+	else
+	{
+		only();
+	}
+}
+//add by sim1 -------------------
 
 /* Go to top-left window. */
 static void
@@ -1641,14 +1665,6 @@ cmd_h(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_i(key_info_t key_info, keys_info_t *keys_info)
 {
-	//add by sim1 ----------
-	if (curr_stats.view && (curr_stats.number_of_windows != 1))
-	{
-		cmd_shift_tab(key_info, keys_info);
-		return;
-	}
-	//add by sim1 ----------
-		
 	open_file(curr_view, FHE_NO_RUN);
 	flist_sel_stash(curr_view);
 	redraw_current_view();
@@ -2027,7 +2043,7 @@ cmd_zA(key_info_t key_info, keys_info_t *keys_info)
 	filter_nondotfiles(curr_view);
 }
 
-//mod by sim1
+//mod by sim1 ------------
 static void
 cmd_zD(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -2045,7 +2061,7 @@ cmd_zx(key_info_t key_info, keys_info_t *keys_info)
 {
 	flist_custom_exclude(curr_view, key_info.count == 1);
 }
-//mod by sim1
+//mod by sim1 ------------
 
 /* Redraw with file in bottom of list. */
 void
