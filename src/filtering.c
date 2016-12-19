@@ -130,7 +130,8 @@ toggle_dot_files(FileView *view)
 }
 
 //mod by sim1
-void filter_files(FileView *view, iter_view_entry iter)
+void
+filter_files(FileView *view, iter_view_entry iter)
 {
 	dir_entry_t *entry = NULL;
 	int filtered = 0;
@@ -144,7 +145,7 @@ void filter_files(FileView *view, iter_view_entry iter)
 		const char *name = entry->name;
 		char name_with_slash[NAME_MAX + 1 + 1];
 
-		if (is_directory_entry(entry))
+		if(fentry_is_dir(entry))
 		{
 			append_slash(entry->name, name_with_slash, sizeof(name_with_slash));
 			name = name_with_slash;
@@ -191,17 +192,17 @@ void filter_files(FileView *view, iter_view_entry iter)
 
 void filter_nondotfiles(FileView *view)
 {
-	filter_files(view, iter_nondotfile_entry);
+	filter_files(view, iter_nondotfile_entries);
 }
 
 void filter_nondirectory(FileView *view)
 {
-	filter_files(view, iter_nondirectory_entry);
+	filter_files(view, iter_nondirectory_entries);
 }
 
 void filter_directorys(FileView *view)
 {
-	filter_files(view, iter_directory_entry);
+	filter_files(view, iter_directory_entries);
 }
 
 void filter_selected_files(FileView *view)
@@ -222,7 +223,7 @@ is_newly_filtered(FileView *view, const dir_entry_t *entry, void *arg)
 	char name_with_slash[NAME_MAX + 1 + 1];
 	const char *filename = entry->name;
 
-	if(is_directory_entry(entry))
+	if(fentry_is_dir(entry))
 	{
 		append_slash(filename, name_with_slash, sizeof(name_with_slash));
 		filename = name_with_slash;
@@ -563,7 +564,7 @@ update_filtering_lists(FileView *view, int add, int clear)
 			}
 		}
 
-		if(is_directory_entry(entry))
+		if(fentry_is_dir(entry))
 		{
 			append_slash(name, name_with_slash, sizeof(name_with_slash));
 			name = name_with_slash;
@@ -852,7 +853,7 @@ local_filter_matches(FileView *view, const dir_entry_t *entry)
 	 * regexps. */
 	char name_with_slash[NAME_MAX + 1 + 1];
 	const char *filename = entry->name;
-	if(is_directory_entry(entry))
+	if(fentry_is_dir(entry))
 	{
 		append_slash(filename, name_with_slash, sizeof(name_with_slash));
 		filename = name_with_slash;
