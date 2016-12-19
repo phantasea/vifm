@@ -294,7 +294,7 @@ static int get_reg(const char arg[], int *reg);
 static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
 static int explore_cmd(const cmd_info_t *cmd_info);  //add by sim1
-static int swap_cmd(const cmd_info_t *cmd_info);  //add by sim1
+static int switch_cmd(const cmd_info_t *cmd_info);  //add by sim1
 
 const cmd_add_t cmds_list[] = {
 	{ .name = "",                  .abbr = NULL,    .id = COM_GOTO,
@@ -724,10 +724,10 @@ const cmd_add_t cmds_list[] = {
 	         | HAS_SELECTION_SCOPE,
 	  .handler = &substitute_cmd,  .min_args = 0,   .max_args = 3, },
 	//add by sim1 ------------------------------------------
-	{ .name = "swap",              .abbr = "sw",    .id = -1,
-	  .descr = "swap pane, like cmd_shift_tab",
+	{ .name = "switch",              .abbr = "sw",    .id = -1,
+	  .descr = "switch pane, like cmd_shift_tab",
 	  .flags = 0,
-	  .handler = &swap_cmd,        .min_args = 0,   .max_args = 0, },
+	  .handler = &switch_cmd,        .min_args = 0,   .max_args = 0, },
 	//add by sim1 ------------------------------------------
 	{ .name = "sync",              .abbr = NULL,    .id = COM_SYNC,
 	  .descr = "synchronize properties of views",
@@ -4522,7 +4522,7 @@ explore_cmd(const cmd_info_t *cmd_info)
 }
 
 static int
-swap_cmd(const cmd_info_t *cmd_info)
+switch_cmd(const cmd_info_t *cmd_info)
 {
 	if(curr_stats.view)
 	{

@@ -221,7 +221,7 @@ cfg_init(void)
 	cfg.case_override = 0;
 	cfg.case_ignore = 0;
 
-	cfg.prefer_vsplit = 1;  //add by sim1
+	cfg.prefer_vsplit = 0;  //add by sim1
 }
 
 void
