@@ -47,6 +47,7 @@ static var_t has_builtin(const call_info_t *call_info);
 static var_t layoutis_builtin(const call_info_t *call_info);
 static var_t paneisat_builtin(const call_info_t *call_info);
 static var_t system_builtin(const call_info_t *call_info);
+static var_t isactive_builtin(const call_info_t *call_info);  //add by sim1
 
 static const function_t functions[] = {
 	/* Name          Description                 Argc  Handler  */
@@ -59,6 +60,7 @@ static const function_t functions[] = {
 	{ "layoutis",    "query current layout",       1, &layoutis_builtin },
 	{ "paneisat",    "query pane location",        1, &paneisat_builtin },
 	{ "system",      "execute external command",   1, &system_builtin },
+	{ "isactive",    "check for specific feature", 1, &isactive_builtin },  //add by sim1
 };
 
 void
@@ -346,6 +348,28 @@ system_builtin(const call_info_t *call_info)
 	free(var_val.string);
 	return result;
 }
+
+//add by sim1 ------------------------
+static var_t
+isactive_builtin(const call_info_t *call_info)
+{
+	int result = 0;
+	char *type = var_to_string(call_info->argv[0]);
+
+	if(strcmp(type, "explore") == 0)
+	{
+		result = curr_view->explore_mode;
+	}
+	else if(strcmp(type, "preview") == 0)
+	{
+		result = curr_stats.view;
+	}
+
+	free(type);
+
+	return var_from_bool(result);
+}
+//add by sim1 ------------------------
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */

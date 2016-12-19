@@ -293,6 +293,8 @@ static int get_reg_and_count(const cmd_info_t *cmd_info, int *reg);
 static int get_reg(const char arg[], int *reg);
 static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
+static int explore_cmd(const cmd_info_t *cmd_info);  //add by sim1
+static int switch_cmd(const cmd_info_t *cmd_info);  //add by sim1
 
 const cmd_add_t cmds_list[] = {
 	{ .name = "",                  .abbr = NULL,    .id = COM_GOTO,
@@ -469,6 +471,12 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "execute expressions as :commands",
 	  .flags = 0,
 	  .handler = &exe_cmd,         .min_args = 0,   .max_args = NOT_DEF, },
+	//add by sim1 ------------------------------------------
+	{ .name = "explore",           .abbr = "exp",   .id = -1,
+	  .descr = "control visibility of explore",
+	  .flags = 0,
+	  .handler = &explore_cmd,     .min_args = 0,   .max_args = 0, },
+	//add by sim1 ------------------------------------------
 	{ .name = "exit",              .abbr = "exi",   .id = -1,
 	  .descr = "exit the application",
 	  .flags = HAS_EMARK | HAS_COMMENT,
@@ -715,6 +723,12 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_RANGE | HAS_REGEXP_ARGS | HAS_COMMENT | HAS_CUST_SEP
 	         | HAS_SELECTION_SCOPE,
 	  .handler = &substitute_cmd,  .min_args = 0,   .max_args = 3, },
+	//add by sim1 ------------------------------------------
+	{ .name = "switch",              .abbr = "sw",    .id = -1,
+	  .descr = "switch pane, like cmd_shift_tab",
+	  .flags = 0,
+	  .handler = &switch_cmd,        .min_args = 0,   .max_args = 0, },
+	//add by sim1 ------------------------------------------
 	{ .name = "sync",              .abbr = NULL,    .id = COM_SYNC,
 	  .descr = "synchronize properties of views",
 	  .flags = HAS_EMARK | HAS_COMMENT | HAS_MACROS_FOR_CMD,
@@ -4489,6 +4503,37 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 
 	return save_msg;
 }
+
+//add by sim1 -----------------------
+extern void enter_view_mode(FileView *view, int explore);
+
+static int
+explore_cmd(const cmd_info_t *cmd_info)
+{
+	if(curr_stats.view)
+	{
+		status_bar_error("Another type of file viewing is activated");
+		curr_stats.save_msg = 1;
+		return 1;
+	}
+
+	enter_view_mode(curr_view, 1);
+	return 0;
+}
+
+static int
+switch_cmd(const cmd_info_t *cmd_info)
+{
+	if(curr_stats.view)
+	{
+		enter_view_mode(other_view, 0);
+		return 0;
+	}
+
+	go_to_other_pane();
+	return 0;
+}
+//add by sim1 -----------------------
 
 /* Checks for background mark and trims it from the command.  Returns non-zero
  * if mark is found, and zero otherwise. */

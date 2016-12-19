@@ -205,6 +205,7 @@ static void wordchars_handler(OPT_OP op, optval_t val);
 static void wrap_handler(OPT_OP op, optval_t val);
 static void text_option_changed(void);
 static void wrapscan_handler(OPT_OP op, optval_t val);
+static void prefervsplit_handler(OPT_OP op, optval_t val);  //add by sim1
 
 static const char *sort_enum[] = {
 	/* SK_* start with 1. */
@@ -591,6 +592,12 @@ options[] = {
 	  OPT_INT, 0, NULL, &mintimeoutlen_handler, NULL,
 	  { .ref.int_val = &cfg.min_timeout_len },
 	},
+	//add by sim1 ---------------------------
+	{ "prefervsplit", "pvs", "while splitting, prefer vertical split",
+	  OPT_BOOL, 0, NULL, &prefervsplit_handler, NULL,
+	  { .ref.bool_val = &cfg.prefer_vsplit },
+	},
+	//add by sim1 ---------------------------
 	{ "rulerformat", "ruf", "format of the ruler",
 	  OPT_STR, 0, NULL, &rulerformat_handler, NULL,
 	  { .ref.str_val = &cfg.ruler_format },
@@ -2900,6 +2907,14 @@ wrapscan_handler(OPT_OP op, optval_t val)
 {
 	cfg.wrap_scan = val.bool_val;
 }
+
+//add by sim1 ---------------------------
+static void
+prefervsplit_handler(OPT_OP op, optval_t val)
+{
+	cfg.prefer_vsplit = val.bool_val;
+}
+//add by sim1 ---------------------------
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */
