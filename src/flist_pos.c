@@ -266,6 +266,12 @@ flist_find_group(const FileView *view, int next)
 	{
 		pmatch = get_group_match(&view->primary_group, pentry->name);
 	}
+
+	//add by sim1 ------
+	char full[PATH_MAX];
+	int nstars, pstars;
+	//add by sim1 ------
+
 	while(pos > lb && pos < ub)
 	{
 		dir_entry_t *nentry;
@@ -371,6 +377,18 @@ flist_find_group(const FileView *view, int next)
 					return pos;
 				}
 				break;
+			//add by sim1 ---------------------
+			case SK_BY_RATING:
+				get_full_path_of(nentry, sizeof(full), full);
+				nstars = get_rating_stars(full);
+				get_full_path_of(pentry, sizeof(full), full);
+				pstars = get_rating_stars(full);
+				if (nstars != pstars)
+				{
+					return pos;
+				}
+				break;
+				//add by sim1 ---------------------
 #ifndef _WIN32
 			case SK_BY_GROUP_NAME:
 			case SK_BY_GROUP_ID:
