@@ -858,20 +858,19 @@ cmd_ctrl_ws(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 {
-	if (curr_stats.number_of_windows == 1)
+	if (curr_stats.number_of_windows != 1)
 	{
-		if (cfg.prefer_vsplit)
-		{
-			split_view(VSPLIT);
-		}
-		else
-		{
-			split_view(HSPLIT);
-		}
+		only();
+		return;
+	}
+
+	if (cfg.prefer_vsplit)
+	{
+		split_view(VSPLIT);
 	}
 	else
 	{
-		only();
+		split_view(HSPLIT);
 	}
 }
 //add by sim1 -------------------
