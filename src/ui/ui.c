@@ -401,8 +401,6 @@ resize_all(void)
 	if(curr_stats.number_of_windows == 1)
 	{
 		//mod by sim1
-		//only_layout(&lwin, screen_x, screen_y);
-		//only_layout(&rwin, screen_x, screen_y);
 		only_layout(&lwin, screen_x);
 		only_layout(&rwin, screen_x);
 	}

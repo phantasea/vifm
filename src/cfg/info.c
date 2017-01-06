@@ -104,7 +104,7 @@ static int read_number(const char line[], long *value);
 static size_t add_to_int_array(int **array, size_t len, int what);
 
 //add by sim1
-static void fwrite_rating_info(FILE *const fp);
+static void write_rating_info(FILE *const fp);
 static rating_entry_t *rating_list = NULL;
 
 /* Monitor to check for changes of vifminfo file. */
@@ -889,7 +889,7 @@ update_info_file(const char filename[], int merge)
 		//add by sim1
 		if(cfg.vifm_info & VIFMINFO_RATINGS)
 		{
-			fwrite_rating_info(fp);
+			write_rating_info(fp);
 		}
 		//add by sim1 --- END
 
@@ -1544,7 +1544,7 @@ add_to_int_array(int **array, size_t len, int what)
 
 //add by sim1 ***************************************************
 static void
-fwrite_rating_info(FILE *const fp)
+write_rating_info(FILE *const fp)
 {
 	if (NULL == fp)
 	{
