@@ -1,4 +1,4 @@
-.TH VIFM 1 "December 27, 2016" "vifm 0.8.2"
+.TH VIFM 1 "January 14, 2017" "vifm 0.8.2"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -314,7 +314,7 @@ Ctrl-W | and Ctrl-W _ maximise current view by default.
 .TP
 Marks are set the same way as they are in vi.
 .LP
-You can use this characters for marks [a\-z][A\-Z][0\-9].
+You can use these characters for marks [a\-z][A\-Z][0\-9].
 .TP
 .BI m[a\-z][A\-Z][0\-9]
 set a mark for the file at the current cursor position.
@@ -582,8 +582,10 @@ only for *nix
 .br
 change file group.
 .TP
-.BI cp
-change file attributes (permission on *nix and properties on Windows).
+.BI [count]cp
+change file attributes (permission on *nix and properties on Windows).  If
+[count] is specified, it's treated as numerical argument for non-recursive
+`chmod` command (of the form [0-7]{3,4}).
 .TP
 .BI [count]C
 clone file [count] times.
@@ -3473,8 +3475,9 @@ type: string list
 default: ""
 .br
 Sets characters used to fill borders.
-  item       default  Used for
-  vborder:c  ' '      left, middle and right vertical borders
+
+  item         default    used for
+  vborder:c    ' '        left, middle and right vertical borders
 
 If value is omitted, its default value is used.  Example:
 .EX
@@ -3613,7 +3616,8 @@ type: boolean
 .br
 default: false
 .br
-Use KiB, MiB, ... instead of KB, MB, ...
+Use KiB, MiB, ... suffixes instead of K, M, ... when printing size in
+human-friendly format.
 .TP
 .BI "'ignorecase' 'ic'"
 type: boolean
@@ -3816,6 +3820,31 @@ T \- truncate status-bar messages in the middle if they are too long to fit on \
 the command line.  "..." will appear in the middle.
 .br
 p \- use tilde shortening in view titles.
+
+.TP
+.BI 'sizefmt'
+type: string list
+.br
+default: "units:iec"
+.br
+Configures the way size is formatted in human-friendly way.
+
+    item          value         meaning
+    units:        iec           Use 1024 byte units (K or KiB, etc.).
+                                See 'iec' option.
+                  si            Use 1000 byte units (KB, etc.).
+    precision:    i > 0         How many fraction digits to consider.
+                  {not set}     Precision of 1 for integer part < 10,
+                                0 otherwise (provides old behaviour).
+
+Numbers are rounded from zero.  Trailing zeros are dropped.
+
+Example:
+.EX
+
+  set sizefmt=units:iec,precision:2
+.EE
+
 .TP
 .BI 'slowfs'
 type: string list

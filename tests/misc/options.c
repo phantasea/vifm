@@ -280,6 +280,35 @@ TEST(classify_state_is_not_changed_if_format_is_wong)
 	assert_int_equal(1, cfg.name_dec_count);
 }
 
+TEST(classify_does_not_stop_on_empty_prefix)
+{
+	dir_entry_t entry = {
+		.name = "read",
+		.origin = TEST_DATA_PATH,
+		.name_dec_num = -1,
+	};
+
+	const char *prefix, *suffix;
+
+	assert_success(exec_commands("set classify=:dir:/,:link:@,:fifo:|", &lwin,
+				CIT_COMMAND));
+
+	entry.type = FT_DIR;
+	ui_get_decors(&entry, &prefix, &suffix);
+	assert_string_equal("", prefix);
+	assert_string_equal("/", suffix);
+
+	entry.type = FT_LINK;
+	ui_get_decors(&entry, &prefix, &suffix);
+	assert_string_equal("", prefix);
+	assert_string_equal("@", suffix);
+
+	entry.type = FT_FIFO;
+	ui_get_decors(&entry, &prefix, &suffix);
+	assert_string_equal("", prefix);
+	assert_string_equal("|", suffix);
+}
+
 TEST(suggestoptions_all_values)
 {
 	cfg.sug.flags = 0;
@@ -516,6 +545,82 @@ TEST(sorting_is_set_correctly_on_restart)
 
 	assert_int_equal(SK_BY_INAME, lwin.sort[0]);
 	assert_int_equal(SK_BY_INAME, lwin.sort_g[0]);
+}
+
+TEST(fillchars_is_set_on_correct_input)
+{
+	(void)replace_string(&cfg.border_filler, "x");
+	assert_success(exec_commands("set fillchars=vborder:a", &lwin, CIT_COMMAND));
+	assert_string_equal("a", cfg.border_filler);
+	update_string(&cfg.border_filler, NULL);
+}
+
+TEST(fillchars_not_changed_on_wrong_input)
+{
+	(void)replace_string(&cfg.border_filler, "x");
+	assert_failure(exec_commands("set fillchars=vorder:a", &lwin, CIT_COMMAND));
+	assert_string_equal("x", cfg.border_filler);
+	update_string(&cfg.border_filler, NULL);
+}
+
+TEST(values_in_fillchars_are_deduplicated)
+{
+	(void)replace_string(&cfg.border_filler, "x");
+
+	assert_success(exec_commands("set fillchars=vborder:a", &lwin, CIT_COMMAND));
+	assert_success(exec_commands("set fillchars+=vborder:b", &lwin, CIT_COMMAND));
+	assert_string_equal("b", cfg.border_filler);
+	update_string(&cfg.border_filler, NULL);
+
+	vle_tb_clear(vle_err);
+	assert_success(set_options("fillchars?", OPT_GLOBAL));
+	assert_string_equal("  fillchars=vborder:b", vle_tb_get_data(vle_err));
+
+	update_string(&cfg.border_filler, NULL);
+}
+
+TEST(sizefmt_is_set_on_correct_input)
+{
+	cfg.sizefmt.base = -1;
+	cfg.sizefmt.precision = -1;
+
+	assert_success(exec_commands("set sizefmt=units:iec", &lwin, CIT_COMMAND));
+
+	assert_int_equal(1024, cfg.sizefmt.base);
+	assert_int_equal(0, cfg.sizefmt.precision);
+
+	assert_success(exec_commands("set sizefmt=units:si,precision:1", &lwin,
+				CIT_COMMAND));
+
+	assert_int_equal(1000, cfg.sizefmt.base);
+	assert_int_equal(1, cfg.sizefmt.precision);
+}
+
+TEST(sizefmt_not_changed_on_wrong_input)
+{
+	cfg.sizefmt.base = -1;
+	cfg.sizefmt.precision = -1;
+
+	assert_failure(exec_commands("set sizefmt=wrong", &lwin, CIT_COMMAND));
+	assert_failure(exec_commands("set sizefmt=units:wrong", &lwin, CIT_COMMAND));
+	assert_failure(exec_commands("set sizefmt=precision:0", &lwin, CIT_COMMAND));
+
+	assert_int_equal(-1, cfg.sizefmt.base);
+	assert_int_equal(-1, cfg.sizefmt.precision);
+}
+
+TEST(values_in_sizefmt_are_deduplicated)
+{
+	(void)replace_string(&cfg.border_filler, "x");
+
+	assert_success(exec_commands("set sizefmt=units:si", &lwin, CIT_COMMAND));
+	assert_success(exec_commands("set sizefmt+=units:iec,precision:10", &lwin,
+				CIT_COMMAND));
+
+	vle_tb_clear(vle_err);
+	assert_success(set_options("sizefmt?", OPT_GLOBAL));
+	assert_string_equal("  sizefmt=units:iec,precision:10",
+			vle_tb_get_data(vle_err));
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
