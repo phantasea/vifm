@@ -361,7 +361,7 @@ filter_temporary_nodes(FileView *view, dir_entry_t *list)
 
 		if(entry->temporary)
 		{
-			free_dir_entry(view, entry);
+			fentry_free(view, entry);
 			continue;
 		}
 
@@ -558,7 +558,7 @@ update_filtering_lists(FileView *view, int add, int clear)
 			{
 				if(clear)
 				{
-					free_dir_entry(view, entry);
+					fentry_free(view, entry);
 				}
 				continue;
 			}
@@ -591,7 +591,7 @@ update_filtering_lists(FileView *view, int add, int clear)
 		{
 			if(clear)
 			{
-				free_dir_entry(view, entry);
+				fentry_free(view, entry);
 			}
 		}
 	}
@@ -603,7 +603,7 @@ update_filtering_lists(FileView *view, int add, int clear)
 		if(!parent_added && parent_entry != NULL && list_size != 0U &&
 				view->dir_entry[0].name != parent_entry->name)
 		{
-			free_dir_entry(view, parent_entry);
+			fentry_free(view, parent_entry);
 		}
 	}
 	if(add)
