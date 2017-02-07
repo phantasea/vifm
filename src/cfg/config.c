@@ -562,7 +562,7 @@ setup_dirs(void)
 {
 	LOG_FUNC_ENTER;
 
-	char rc_file[PATH_MAX];
+	char rc_file[PATH_MAX + 8];
 
 	if(is_dir(cfg.config_dir))
 	{
@@ -597,8 +597,8 @@ copy_help_file(void)
 {
 	LOG_FUNC_ENTER;
 
-	char src[PATH_MAX];
-	char dst[PATH_MAX];
+	char src[PATH_MAX + 16];
+	char dst[PATH_MAX + 16];
 
 	io_args_t args = {
 		.arg1.src = src,
@@ -618,7 +618,7 @@ copy_help_file(void)
 static void
 create_scripts_dir(void)
 {
-	char scripts[PATH_MAX];
+	char scripts[PATH_MAX + 16];
 	char readme[PATH_MAX];
 	FILE *fp;
 
@@ -654,8 +654,8 @@ copy_rc_file(void)
 {
 	LOG_FUNC_ENTER;
 
-	char src[PATH_MAX];
-	char dst[PATH_MAX];
+	char src[PATH_MAX + 16];
+	char dst[PATH_MAX + 16];
 
 	io_args_t args = {
 		.arg1.src = src,
