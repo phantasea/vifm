@@ -276,10 +276,16 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 				if(curr->type == FT_LINK)
 				{
 					char full_path[PATH_MAX + 1];
+					char link_path[PATH_MAX + 1];  //add by sim1
 					get_full_path_of(curr, sizeof(full_path), full_path);
-					if(get_link_target(full_path, buf, sizeof(buf)) != 0)
+					//mod by sim1
+					if(get_link_target(full_path, link_path, sizeof(link_path)) != 0)
 					{
 						copy_str(buf, sizeof(buf), "Failed to resolve link");
+					}
+					else
+					{
+						snprintf(buf, sizeof(buf), " -> %s", link_path);
 					}
 				}
 				break;
@@ -362,7 +368,9 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 				if(curr_stats.number_of_windows == 1)
 				{
 					FileView *const other = (view == curr_view) ? other_view : curr_view;
-					copy_str(buf, sizeof(buf), replace_home_part(other->curr_dir));
+					//mod by chris
+					//copy_str(buf, sizeof(buf), replace_home_part(other->curr_dir));
+					snprintf(buf, sizeof(buf), " || %s", replace_home_part(other->curr_dir));
 				}
 				break;
 			case '[':
