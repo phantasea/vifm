@@ -24,7 +24,7 @@
 #include <assert.h> /* assert() */
 #include <ctype.h> /* isdigit() */
 #include <stddef.h> /* NULL size_t */
-#include <stdlib.h> /* RAND_MAX rand() */
+#include <stdlib.h> /* RAND_MAX free() rand() */
 #include <string.h> /* strcat() strdup() strlen() */
 #include <time.h> /* time() */
 #include <unistd.h>
@@ -34,8 +34,11 @@
 #include "../compat/reallocarray.h"
 #include "../engine/mode.h"
 #include "../modes/modes.h"
+#include "../utils/fs.h"
 #include "../utils/log.h"
 #include "../utils/macros.h"
+#include "../utils/path.h"
+#include "../utils/str.h"
 #include "../utils/string_array.h"
 #include "../utils/test_helpers.h"
 #include "../utils/utf8.h"
@@ -43,8 +46,6 @@
 #include "../background.h"
 #include "../filelist.h"
 #include "ui.h"
-
-#include "../utils/str.h"
 
 static void update_stat_window_old(FileView *view, int lazy_redraw);
 static void refresh_window(WINDOW *win, int lazily);
@@ -119,14 +120,14 @@ update_stat_window_old(FileView *view, int lazy_redraw)
 	const dir_entry_t *const curr = get_current_entry(view);
 	char name_buf[160*2 + 1];
 	char perm_buf[26];
-	char size_buf[56];
+	char size_buf[64];
 	char id_buf[52];
 	int x;
 	int cur_x;
 	size_t print_width;
 	char *filename;
 
-	if(fentry_is_fake(curr))
+	if(curr == NULL || fentry_is_fake(curr))
 	{
 		werase(stat_win);
 		refresh_window(stat_win, lazy_redraw);
@@ -200,7 +201,7 @@ refresh_window(WINDOW *win, int lazily)
 TSTATIC char *
 expand_status_line_macros(FileView *view, const char format[])
 {
-	return expand_view_macros(view, format, "tfAugsrEd-lLSz%[]");  //mod by sim1
+	return expand_view_macros(view, format, "tTfaAugsrEdD-lLSz%[]");  //mod by sim1
 }
 
 /* Expands possibly limited set of view macros.  Returns newly allocated string,
@@ -225,11 +226,16 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 	char c;
 	int nexpansions = 0;
 
+	if(curr == NULL || fentry_is_fake(curr))
+	{
+		return result;
+	}
+
 	while((c = **format) != '\0')
 	{
 		size_t width = 0;
 		int left_align = 0;
-		char buf[PATH_MAX];
+		char buf[PATH_MAX + 1];
 		const char *const next = ++*format;
 		int skip, ok;
 
@@ -256,10 +262,26 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 
 		skip = 0;
 		ok = 1;
+		buf[0] = '\0';
 		switch(c)
 		{
+			case 'a':
+				friendly_size_notation(get_free_space(curr_view->curr_dir), sizeof(buf),
+						buf);
+				break;
 			case 't':
 				format_entry_name(curr, sizeof(buf), buf);
+				break;
+			case 'T':
+				if(curr->type == FT_LINK)
+				{
+					char full_path[PATH_MAX + 1];
+					get_full_path_of(curr, sizeof(full_path), full_path);
+					if(get_link_target(full_path, buf, sizeof(buf)) != 0)
+					{
+						copy_str(buf, sizeof(buf), "Failed to resolve link");
+					}
+				}
 				break;
 			case 'f':
 				get_short_path_of(view, curr, 1, 0, sizeof(buf), buf);
@@ -336,6 +358,13 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 			case 'z':
 				copy_str(buf, sizeof(buf), get_tip());
 				break;
+			case 'D':
+				if(curr_stats.number_of_windows == 1)
+				{
+					FileView *const other = (view == curr_view) ? other_view : curr_view;
+					copy_str(buf, sizeof(buf), replace_home_part(other->curr_dir));
+				}
+				break;
 			case '[':
 				{
 					char *const opt_str = parse_view_macros(view, format, macros, 1);
@@ -352,11 +381,9 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 					}
 					return result;
 				}
-				else
-				{
-					LOG_INFO_MSG("Unmatched %%]");
-					ok = 0;
-				}
+
+				LOG_INFO_MSG("Unmatched %%]");
+				ok = 0;
 				break;
 
 			default:
@@ -365,7 +392,7 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 				break;
 		}
 
-		if(char_is_one_of("tAugsEd", c) && fentry_is_fake(curr))
+		if(char_is_one_of("tTAugsEd", c) && fentry_is_fake(curr))
 		{
 			buf[0] = '\0';
 		}

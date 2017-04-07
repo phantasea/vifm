@@ -84,6 +84,15 @@
 	previous sibling directories of current path (in global sorting order of
 	current pane).  Thanks to sudo-nice.
 
+	Added %D 'statusline' macro that displays path of the other pane in
+	single-pane layout.  Thanks to sudo-nice.
+
+	Added %T 'statusline' macro that displays symbolic link target.  Thanks to
+	sudo-nice.
+
+	Added %a 'statusline' macro that displays amount of free space available at
+	current partition.  Thanks to sudo-nice.
+
 	Changed size formatting to round from zero (matches behaviour of e.g.
 	`ls`).
 
@@ -190,6 +199,9 @@
 
 	Improved sorting performance in the presence of huge amount of symbolic
 	links.  Thanks to Marcin Kurczewski (a.k.a. rr-).
+
+	Properly recover from invalid/strange UNC root on Windows.  Don't end up
+	with empty filelist.
 
 	Fixed redirecting stdout of background commands to /dev/null, which could
 	be unwritable descriptor.  Thanks to c02y.
@@ -349,6 +361,9 @@
 
 	Fixed processing of environment variables containing non-latin characters
 	on Windows.
+
+	Fixed printing ^L character for --choose-dir on Windows.  Thanks to Phil
+	Runninger.
 
 0.8.2-beta to 0.8.2
 
