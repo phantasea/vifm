@@ -264,7 +264,11 @@ typedef struct config_t
 	int case_override; /* Flag set here means the fact of the override. */
 	int case_ignore;   /* Flag here means case should be either always ignored or
 	                      always respected. */
-	int prefer_vsplit;  /* add by sim1: whether prefer vertical split while splitting */
+	//add by sim1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	int  prefer_vsplit;  /* whether prefer vsplit */
+	char *hsviewcols;  /* view columns for hsplit */
+	char *vsviewcols;  /* view columns for vsplit */
+	//add by sim1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 	/* Settings of size formatting. */
 	struct

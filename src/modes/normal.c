@@ -862,21 +862,24 @@ cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 	{
 		only();
 
-		//load_view_columns_option(curr_view, "-{name}...,{rating},17{mtime}");
+		load_view_columns_option(curr_view, cfg.hsviewcols);
+		load_view_columns_option(other_view, cfg.hsviewcols);
 		return;
 	}
 
 	if (cfg.prefer_vsplit)
 	{
 		split_view(VSPLIT);
+		load_view_columns_option(curr_view, cfg.vsviewcols);
+		load_view_columns_option(other_view, cfg.vsviewcols);
 	}
 	else
 	{
 		split_view(HSPLIT);
+		load_view_columns_option(curr_view, cfg.hsviewcols);
+		load_view_columns_option(other_view, cfg.hsviewcols);
 	}
 
-	//load_view_columns_option(curr_view, "-{name}...,{rating}");
-	//load_view_columns_option(other_view, "-{name}...,{rating}");
 	return;
 }
 //add by sim1 -------------------
