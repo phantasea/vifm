@@ -861,6 +861,8 @@ cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 	if (curr_stats.number_of_windows != 1)
 	{
 		only();
+
+		//load_view_columns_option(curr_view, "-{name}...,{rating},17{mtime}");
 		return;
 	}
 
@@ -872,6 +874,10 @@ cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 	{
 		split_view(HSPLIT);
 	}
+
+	//load_view_columns_option(curr_view, "-{name}...,{rating}");
+	//load_view_columns_option(other_view, "-{name}...,{rating}");
+	return;
 }
 //add by sim1 -------------------
 
