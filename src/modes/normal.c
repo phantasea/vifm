@@ -861,23 +861,16 @@ cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 	if (curr_stats.number_of_windows != 1)
 	{
 		only();
-
-		load_view_columns_option(curr_view, cfg.hsviewcols);
-		load_view_columns_option(other_view, cfg.hsviewcols);
 		return;
 	}
 
 	if (cfg.prefer_vsplit)
 	{
 		split_view(VSPLIT);
-		load_view_columns_option(curr_view, cfg.vsviewcols);
-		load_view_columns_option(other_view, cfg.vsviewcols);
 	}
 	else
 	{
 		split_view(HSPLIT);
-		load_view_columns_option(curr_view, cfg.hsviewcols);
-		load_view_columns_option(other_view, cfg.hsviewcols);
 	}
 
 	return;
