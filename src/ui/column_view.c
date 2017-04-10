@@ -269,7 +269,10 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 	size_t i;
 	size_t prev_col_end = 0;
 
-	recalculate_if_needed(cols, max_line_width);
+	//mod by sim1 ******************************
+	//recalculate_if_needed(cols, max_line_width);
+	recalculate(cols, max_line_width);
+	//mod by sim1 ******************************
 
 	for(i = 0U; i < cols->count; ++i)
 	{
