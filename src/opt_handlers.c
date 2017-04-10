@@ -210,8 +210,6 @@ static void wrap_handler(OPT_OP op, optval_t val);
 static void text_option_changed(void);
 static void wrapscan_handler(OPT_OP op, optval_t val);
 static void prefervsplit_handler(OPT_OP op, optval_t val);  //add by sim1
-static void hsviewcols_handler(OPT_OP op, optval_t val);    //add by sim1
-static void vsviewcols_handler(OPT_OP op, optval_t val);    //add by sim1
 
 static const char *sort_enum[] = {
 	/* SK_* start with 1. */
@@ -771,16 +769,6 @@ options[] = {
 	  &sortorder_local,
 	  { .init = &init_sortorder },
 	},
-	//add by sim1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-	{ "hsviewcols", "", "view columns for horizontal split",
-	  OPT_STR, 0, NULL, &hsviewcols_handler, NULL,
-	  { .ref.str_val = &cfg.hsviewcols },
-	},
-	{ "vsviewcols", "", "view columns for vertical split",
-	  OPT_STR, 0, NULL, &vsviewcols_handler, NULL,
-	  { .ref.str_val = &cfg.vsviewcols },
-	},
-	//add by sim1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	{ "viewcolumns", "", "specification of view columns",
 	  OPT_STRLIST, 0, NULL, &viewcolumns_global, &viewcolumns_local,
 	  { .ref.str_val = &empty },
@@ -3045,27 +3033,13 @@ wrapscan_handler(OPT_OP op, optval_t val)
 	cfg.wrap_scan = val.bool_val;
 }
 
-//add by sim1 ---------------------------
+//add by sim1 ***************************
 static void
 prefervsplit_handler(OPT_OP op, optval_t val)
 {
 	cfg.prefer_vsplit = val.bool_val;
 }
-//add by sim1 ---------------------------
-
-//add by sim1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-static void
-hsviewcols_handler(OPT_OP op, optval_t val)
-{
-	(void)replace_string(&cfg.hsviewcols, val.str_val);
-}
-
-static void
-vsviewcols_handler(OPT_OP op, optval_t val)
-{
-	(void)replace_string(&cfg.vsviewcols, val.str_val);
-}
-//add by sim1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+//add by sim1 ***************************
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */

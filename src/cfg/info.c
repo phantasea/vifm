@@ -1133,17 +1133,15 @@ write_options(FILE *const fp)
 		fprintf(fp, ",dirstack");
 	if(cfg.vifm_info & VIFMINFO_REGISTERS)
 		fprintf(fp, ",registers");
-	//add by sim1 <<<<<<<<<<<<<<<<<<<<<<
+	//add by sim1 **********************
 	if(cfg.vifm_info & VIFMINFO_RATINGS)
 		fprintf(fp, ",ratings");
-	//add by sim1 >>>>>>>>>>>>>>>>>>>>>>
+	//add by sim1 **********************
 	fprintf(fp, "\n");
 
-	//add by sim1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	//add by sim1 **************************************************
 	fprintf(fp, "=%sprefervsplit\n", cfg.prefer_vsplit ? "" : "no");
-	fprintf(fp, "=hsviewcols=%s\n", escape_spaces(cfg.hsviewcols));
-	fprintf(fp, "=vsviewcols=%s\n", escape_spaces(cfg.vsviewcols));
-	//add by sim1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	//add by sim1 **************************************************
 
 	fprintf(fp, "=%svimhelp\n", cfg.use_vim_help ? "" : "no");
 	fprintf(fp, "=%swildmenu\n", cfg.wild_menu ? "" : "no");

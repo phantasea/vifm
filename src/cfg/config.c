@@ -220,11 +220,9 @@ cfg_init(void)
 	cfg.case_override = 0;
 	cfg.case_ignore = 0;
 
-	//add by sim1 <<<<<<<<<<<<<<
+	//add by sim1 ********
 	cfg.prefer_vsplit = 0;
-	cfg.hsviewcols = strdup("");
-	cfg.vsviewcols = strdup("");
-	//add by sim1 >>>>>>>>>>>>>>
+	//add by sim1 ********
 
 	cfg.sizefmt.base = 1024;
 	cfg.sizefmt.precision = 0;

@@ -1316,14 +1316,14 @@ cmd_ZQ(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
 {
-	//add by sim1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	//add by sim1 *****************************
 	if (flist_custom_active(curr_view) 
 			&& (CV_TREE == curr_view->custom.type))
 	{
 		cmd_h(key_info, keys_info);
 		return;
 	}
-	//add by sim1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	//add by sim1 *****************************
 
 	vifm_try_leave(1, 0, 0);
 }
@@ -2077,14 +2077,15 @@ cmd_za(key_info_t key_info, keys_info_t *keys_info)
 	toggle_dot_files(curr_view);
 }
 
-//add by sim1
+//add by sim1 ************
 static void
 cmd_zA(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_nondotfiles(curr_view);
 }
+//add by sim1 ************
 
-//mod by sim1 ------------
+//mod by sim1 ************
 static void
 cmd_zD(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -2102,7 +2103,7 @@ cmd_zx(key_info_t key_info, keys_info_t *keys_info)
 {
 	flist_custom_exclude(curr_view, key_info.count == 1);
 }
-//mod by sim1 ------------
+//mod by sim1 ************
 
 /* Redraw with file in bottom of list. */
 void
