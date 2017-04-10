@@ -17,6 +17,7 @@
  */
 
 #include "column_view.h"
+#include "ui.h"  //add by sim1
 
 #include <assert.h> /* assert() */
 #include <stddef.h> /* NULL size_t */
@@ -280,6 +281,18 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 		AlignType align;
 		const column_t *const col = &cols->list[i];
 
+		//add by sim1 ***************************************
+		if (curr_stats.number_of_windows > 1)
+		{
+			if ((col->info.column_id == SK_BY_TIME_MODIFIED)
+					|| (col->info.column_id == SK_BY_TIME_CHANGED)
+					|| (col->info.column_id == SK_BY_TIME_ACCESSED))
+			{
+				continue;
+			}
+		}
+		//add by sim1 ***************************************
+
 		col->func(col->info.column_id, data, sizeof(col_buffer), col_buffer);
 		strcpy(full_column, col_buffer);
 		align = decorate_output(col, col_buffer, max_line_width);
@@ -515,6 +528,19 @@ update_abs_and_rel_widths(columns_t *cols, size_t *max_width)
 	{
 		size_t effective_width;
 		column_t *col = &cols->list[i];
+
+		//add by sim1 ***************************************
+		if (curr_stats.number_of_windows > 1)
+		{
+			if ((col->info.column_id == SK_BY_TIME_MODIFIED)
+					|| (col->info.column_id == SK_BY_TIME_CHANGED)
+					|| (col->info.column_id == SK_BY_TIME_ACCESSED))
+			{
+				continue;
+			}
+		}
+		//add by sim1 ***************************************
+
 		if(col->info.sizing == ST_ABSOLUTE)
 		{
 			effective_width = MIN(col->info.full_width, width_left);
