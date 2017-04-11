@@ -269,10 +269,7 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 	size_t i;
 	size_t prev_col_end = 0;
 
-	//mod by sim1 ******************************
-	//recalculate_if_needed(cols, max_line_width);
-	recalculate(cols, max_line_width);
-	//mod by sim1 ******************************
+	recalculate_if_needed(cols, max_line_width);
 
 	for(i = 0U; i < cols->count; ++i)
 	{
@@ -285,7 +282,7 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 		const column_t *const col = &cols->list[i];
 
 		//add by sim1 ***************************************
-		if (curr_stats.number_of_windows > 1)
+		if ((curr_stats.number_of_windows > 1) && (curr_stats.split == VSPLIT))
 		{
 			if ((col->info.column_id == SK_BY_TIME_MODIFIED)
 					|| (col->info.column_id == SK_BY_TIME_CHANGED)
@@ -533,7 +530,7 @@ update_abs_and_rel_widths(columns_t *cols, size_t *max_width)
 		column_t *col = &cols->list[i];
 
 		//add by sim1 ***************************************
-		if (curr_stats.number_of_windows > 1)
+		if ((curr_stats.number_of_windows > 1) && (curr_stats.split == VSPLIT))
 		{
 			if ((col->info.column_id == SK_BY_TIME_MODIFIED)
 					|| (col->info.column_id == SK_BY_TIME_CHANGED)
