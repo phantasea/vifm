@@ -4485,7 +4485,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 -----------------------
-extern void enter_view_mode(FileView *view, int explore);
+extern void view_enter_mode(FileView *view, int explore);
 
 static int
 explore_cmd(const cmd_info_t *cmd_info)
@@ -4497,7 +4497,7 @@ explore_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	enter_view_mode(curr_view, 1);
+	view_enter_mode(curr_view, 1);
 	return 0;
 }
 
@@ -4506,7 +4506,7 @@ switch_cmd(const cmd_info_t *cmd_info)
 {
 	if(curr_stats.view)
 	{
-		enter_view_mode(other_view, 0);
+		view_enter_mode(other_view, 0);
 		return 0;
 	}
 
