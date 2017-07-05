@@ -1,8 +1,9 @@
 Vifm - vi[m] like file manager
-2001 - 2016
+2001 - 2017
 
-Updated: 16 October, 2016
-Version: 0.8.2
+Version: 0.9
+
+This file last updated: 20 June, 2017
 
 Brief Description
 
@@ -20,24 +21,40 @@ Brief Description
 Contacts
 
     Website: https://vifm.info/
-    Wiki: https://wiki.vifm.info/
-    Q&A: https://q2a.vifm.info/
-    Read-only news mailing list: vifm-announce@lists.sourceforge.net
-    Email for bugs, suggestions and comments on vifm: xaizek@openmailbox.org
+    Wiki:    https://wiki.vifm.info/
+    Q&A:     https://q2a.vifm.info/
 
-    Subscribe to the mailing list at:
-    https://lists.sourceforge.net/lists/listinfo/vifm-announce
+    Bugs and feature requests can be reported at:
+    * https://github.com/vifm/vifm/issues
+    * https://sourceforge.net/p/vifm/_list/tickets
+
+    The preferred way of posting usage questions is Q&A site:
+    * https://q2a.vifm.info/
+
+    Bugs, suggestions and comments can also be communicated via email:
+    * xaizek@openmailbox.org
+
+    Read-only and very low traffic news mailing list is at:
+    * vifm-announce@lists.sourceforge.net
+    Subscription form for it is here:
+    * https://lists.sourceforge.net/lists/listinfo/vifm-announce
 
     Repositories:
-    SorceForge: http://sourceforge.net/projects/vifm/
-    GitHub: https://github.com/vifm/vifm
+    * https://sourceforge.net/projects/vifm/
+    * https://github.com/vifm/vifm
 
     Vim plugin repositories:
-    GitHub: https://github.com/vifm/vifm.vim
+    * https://github.com/vifm/vifm.vim
+    * https://github.com/vifm/neovim-vifm
+
+    Collection of color schemes is available at:
+    * https://github.com/vifm/vifm-colors
 
 Package content
 
     .
+    |
+    |-- build-aux/ - part of autotools' machinery
     |
     |-- data/ - documentation, sample vifmrc, icons
     |  |
@@ -245,7 +262,7 @@ Package content
     |  |-- vifm.c - contains main initialization/termination code
     |  `-- win_helper.c - needed for temporary rights evaluation on Windows
     |
-    |-- tests/ - unit tests
+    |-- tests/ - test suites
     |
     |-- AUTHORS - list of code contributors
     |-- BUGS - some of known issues

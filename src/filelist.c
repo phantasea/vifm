@@ -59,6 +59,7 @@
 #include "utils/fswatch.h"
 #include "utils/log.h"
 #include "utils/macros.h"
+#include "utils/matcher.h"
 #include "utils/path.h"
 #include "utils/regexp.h"
 #include "utils/str.h"
@@ -102,6 +103,7 @@ static void disable_view_sorting(FileView *view);
 static void enable_view_sorting(FileView *view);
 static void exclude_in_compare(FileView *view, int selection_only);
 static void mark_group(FileView *view, FileView *other, int idx);
+static int got_excluded(FileView *view, const dir_entry_t *entry, void *arg);
 static int exclude_temporary_entries(FileView *view);
 static int is_temporary(FileView *view, const dir_entry_t *entry, void *arg);
 static void uncompress_traverser(const char name[], int valid,
@@ -149,6 +151,7 @@ static dir_entry_t * pick_sibling(FileView *view, entries_t parent_dirs,
 static int iter_entries(FileView *view, dir_entry_t **entry,
 		entry_predicate pred);
 static void clear_marking(FileView *view);
+static int set_position_by_path(FileView *view, const char path[]);
 static int flist_load_tree_internal(FileView *view, const char path[],
 		int reload);
 static int make_tree(FileView *view, const char path[], int reload,
@@ -391,12 +394,12 @@ navigate_to_file_in_custom_view(FileView *view, const char dir[],
 		const char file[])
 {
 	char full_path[PATH_MAX];
-	dir_entry_t *entry;
 
 	snprintf(full_path, sizeof(full_path), "%s/%s", dir, file);
 
 	if(custom_list_is_incomplete(view))
 	{
+		const dir_entry_t *entry;
 		entry = entry_from_path(view, view->local_filter.entries,
 				view->local_filter.entry_count, full_path);
 		if(entry == NULL)
@@ -413,14 +416,12 @@ navigate_to_file_in_custom_view(FileView *view, const char dir[],
 		}
 	}
 
-	entry = entry_from_path(view, view->dir_entry, view->list_rows, full_path);
-	if(entry == NULL)
+	if(set_position_by_path(view, full_path) != 0)
 	{
 		/* File might not exist anymore at that location. */
 		return 1;
 	}
 
-	view->list_pos = entry_to_pos(view, entry);
 	ui_view_schedule_redraw(view);
 	return 0;
 }
@@ -805,9 +806,10 @@ fill_dir_entry(dir_entry_t *entry, const char path[], const struct dirent *d)
 	}
 
 	entry->size = (uintmax_t)s.st_size;
-	entry->mode = s.st_mode;
 	entry->uid = s.st_uid;
 	entry->gid = s.st_gid;
+	entry->mode = s.st_mode;
+	entry->inode = s.st_ino;
 	entry->mtime = s.st_mtime;
 	entry->atime = s.st_atime;
 	entry->ctime = s.st_ctime;
@@ -1011,6 +1013,7 @@ flist_custom_finish_internal(FileView *view, CVType type, int reload,
 
 	sort_dir_list(0, view);
 
+	ui_view_schedule_redraw(view);
 	flist_ensure_pos_is_valid(view);
 
 	return 0;
@@ -1060,6 +1063,7 @@ void
 flist_custom_exclude(FileView *view, int selection_only)
 {
 	dir_entry_t *entry;
+	trie_t *excluded;
 
 	if(!flist_custom_active(view))
 	{
@@ -1073,17 +1077,27 @@ flist_custom_exclude(FileView *view, int selection_only)
 	}
 
 	entry = NULL;
+	excluded = trie_create();
 	while(iter_selection_or_current(view, &entry))
 	{
+		char full_path[PATH_MAX];
+
 		entry->temporary = 1;
+
+		get_full_path_of(entry, sizeof(full_path), full_path);
+		(void)trie_put(excluded, full_path);
 
 		if(view->custom.type == CV_TREE)
 		{
-			char full_path[PATH_MAX];
-			get_full_path_of(entry, sizeof(full_path), full_path);
 			(void)trie_put(view->custom.excluded_paths, full_path);
 		}
 	}
+
+	/* Update copy of list of entries made by local filter (it might be empty,
+	 * which is OK). */
+	(void)zap_entries(view, view->local_filter.entries,
+			&view->local_filter.entry_count, &got_excluded, excluded, 1, 1);
+	trie_free(excluded);
 
 	(void)exclude_temporary_entries(view);
 }
@@ -1151,6 +1165,22 @@ mark_group(FileView *view, FileView *other, int idx)
 			other->dir_entry[i].temporary = 1;
 		}
 	}
+}
+
+/* zap_entries() filter to filter-out files, which were just excluded from the
+ * view.  Returns non-zero if entry is to be kept and zero otherwise. */
+static int
+got_excluded(FileView *view, const dir_entry_t *entry, void *arg)
+{
+	void *data;
+	trie_t *const excluded = arg;
+	int excluded_entry;
+
+	char full_path[PATH_MAX];
+	get_full_path_of(entry, sizeof(full_path), full_path);
+
+	excluded_entry = (trie_get(excluded, full_path, &data) == 0);
+	return !excluded_entry;
 }
 
 /* Excludes view entries that are marked as "temporary".  Returns number of
@@ -1358,7 +1388,6 @@ void
 flist_goto_by_path(FileView *view, const char path[])
 {
 	char full_path[PATH_MAX];
-	dir_entry_t *entry;
 	const char *const name = get_last_path_component(path);
 
 	get_current_full_path(view, sizeof(full_path), full_path);
@@ -1382,11 +1411,7 @@ flist_goto_by_path(FileView *view, const char path[])
 		return;
 	}
 
-	entry = entry_from_path(view, view->dir_entry, view->list_rows, path);
-	if(entry != NULL)
-	{
-		view->list_pos = entry_to_pos(view, entry);
-	}
+	(void)set_position_by_path(view, path);
 }
 
 dir_entry_t *
@@ -1636,9 +1661,15 @@ populate_custom_view(FileView *view, int reload)
 	{
 		if(custom_list_is_incomplete(view))
 		{
-			/* Load initial list of custom entries if it's available. */
+			char selected_path[PATH_MAX];
+			get_current_full_path(view, sizeof(selected_path), selected_path);
+
+			/* Replacing list of entries invalidates cursor position, so we remember
+			 * previously selected file and try to position at it again. */
 			replace_dir_entries(view, &view->dir_entry, &view->list_rows,
 					view->local_filter.entries, view->local_filter.entry_count);
+
+			(void)set_position_by_path(view, selected_path);
 		}
 
 		(void)zap_entries(view, view->dir_entry, &view->list_rows,
@@ -1856,6 +1887,7 @@ zap_entries(FileView *view, dir_entry_t *entries, int *count, zap_filter filter,
 
 		if(filter(view, entry, arg))
 		{
+			/* We're keeping this entry. */
 			if(i != j)
 			{
 				entries[j] = entries[i];
@@ -1908,7 +1940,11 @@ zap_entries(FileView *view, dir_entry_t *entries, int *count, zap_filter filter,
 			fentry_free(view, &entry[k]);
 		}
 
-		if(view->list_pos >= i && view->list_pos < i + nremoved)
+		/* If we're removing file from main list of entries and cursor is right on
+		 * this file, move cursor at position this file would take in resulting
+		 * list. */
+		if(entries == view->dir_entry && view->list_pos >= i &&
+				view->list_pos < i + nremoved)
 		{
 			view->list_pos = j;
 		}
@@ -2275,7 +2311,7 @@ rescue_from_empty_filelist(FileView *view)
 
 	show_error_msgf("Filter error",
 			"The %s\"%s\" pattern did not match any files. It was reset.",
-			view->invert ? "" : "inverted ", view->manual_filter.raw);
+			view->invert ? "" : "inverted ", matcher_get_expr(view->manual_filter));
 
 	filename_filter_clear(view);
 
@@ -2320,6 +2356,7 @@ init_dir_entry(FileView *view, dir_entry_t *entry, const char name[])
 	entry->uid = (uid_t)-1;
 	entry->gid = (gid_t)-1;
 	entry->mode = (mode_t)0;
+	entry->inode = (ino_t)0;
 #else
 	entry->attrs = 0;
 #endif
@@ -2464,7 +2501,7 @@ alloc_dir_entry(dir_entry_t **list, int list_size)
 }
 
 void
-check_if_filelist_have_changed(FileView *view)
+check_if_filelist_has_changed(FileView *view)
 {
 	int failed, changed;
 	const char *const curr_dir = flist_get_dir(view);
@@ -3370,16 +3407,27 @@ flist_load_tree(FileView *view, const char path[])
 
 	if(full_path[0] != '\0')
 	{
-		const dir_entry_t *entry;
-		entry = entry_from_path(view, view->dir_entry, view->list_rows, full_path);
-		if(entry != NULL)
-		{
-			view->list_pos = entry_to_pos(view, entry);
-		}
+		(void)set_position_by_path(view, full_path);
 	}
 
 	ui_view_schedule_redraw(view);
 	return 0;
+}
+
+/* Looks up entry by its path in main entry list of the view and updates cursor
+ * position when such entry is found.  Returns zero if position was updated,
+ * otherwise non-zero is returned. */
+static int
+set_position_by_path(FileView *view, const char path[])
+{
+	const dir_entry_t *entry;
+	entry = entry_from_path(view, view->dir_entry, view->list_rows, path);
+	if(entry != NULL)
+	{
+		view->list_pos = entry_to_pos(view, entry);
+		return 0;
+	}
+	return 1;
 }
 
 int
@@ -3647,9 +3695,10 @@ init_parent_entry(FileView *view, dir_entry_t *entry, const char path[])
 
 #ifndef _WIN32
 	entry->size = (uintmax_t)s.st_size;
-	entry->mode = s.st_mode;
 	entry->uid = s.st_uid;
 	entry->gid = s.st_gid;
+	entry->mode = s.st_mode;
+	entry->inode = s.st_ino;
 #else
 	/* Windows doesn't like returning size of directories even if it can. */
 	entry->size = get_file_size(entry->name);

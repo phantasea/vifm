@@ -18,6 +18,7 @@
 #include "../../src/utils/dynarray.h"
 #include "../../src/utils/filter.h"
 #include "../../src/utils/fs.h"
+#include "../../src/utils/matcher.h"
 #include "../../src/utils/path.h"
 #include "../../src/utils/str.h"
 #include "../../src/cmd_core.h"
@@ -36,24 +37,17 @@ static void column_line_print(const void *data, int column_id, const char buf[],
 static void setup_custom_view(FileView *view, int very);
 static int filenames_can_include_newline(void);
 
-static char test_data[PATH_MAX];
+static char cwd[PATH_MAX + 1];
+static char test_data[PATH_MAX + 1];
 static const size_t MAX_WIDTH = 20;
 static char buf1[80 + 1];
 static char buf2[80 + 1];
 
 SETUP_ONCE()
 {
-	char cwd[PATH_MAX];
 	assert_non_null(get_cwd(cwd, sizeof(cwd)));
 
-	if(is_path_absolute(TEST_DATA_PATH))
-	{
-		snprintf(test_data, sizeof(test_data), "%s", TEST_DATA_PATH);
-	}
-	else
-	{
-		snprintf(test_data, sizeof(test_data), "%s/%s", cwd, TEST_DATA_PATH);
-	}
+	make_abs_path(test_data, sizeof(test_data), TEST_DATA_PATH, "", cwd);
 }
 
 SETUP()
@@ -150,7 +144,8 @@ TEST(reload_considers_local_filter)
 	assert_int_equal(1, lwin.list_rows);
 	assert_string_equal("b", lwin.dir_entry[0].name);
 
-	filter_dispose(&lwin.manual_filter);
+	matcher_free(lwin.manual_filter);
+	lwin.manual_filter = NULL;
 	filter_dispose(&lwin.auto_filter);
 }
 
@@ -169,7 +164,7 @@ TEST(reload_does_not_remove_broken_symlinks, IF(not_windows))
 
 	assert_false(flist_custom_active(&lwin));
 
-	copy_str(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH);
+	assert_non_null(get_cwd(lwin.curr_dir, sizeof(lwin.curr_dir)));
 	flist_custom_start(&lwin, "test");
 	flist_custom_add(&lwin, test_file);
 	flist_custom_add(&lwin, "./broken-link");
@@ -198,7 +193,7 @@ TEST(symlinks_to_dirs_are_recognized_as_dirs, IF(not_windows))
 
 	assert_false(flist_custom_active(&lwin));
 
-	copy_str(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH);
+	assert_non_null(get_cwd(lwin.curr_dir, sizeof(lwin.curr_dir)));
 	flist_custom_start(&lwin, "test");
 	flist_custom_add(&lwin, "./dir-link");
 	assert_true(flist_custom_finish(&lwin, CV_REGULAR, 0) == 0);
@@ -225,7 +220,8 @@ TEST(locally_filtered_files_are_not_lost_on_reload)
 	load_dir_list(&lwin, 1);
 	assert_int_equal(1, lwin.filtered);
 
-	filter_dispose(&lwin.manual_filter);
+	matcher_free(lwin.manual_filter);
+	lwin.manual_filter = NULL;
 	filter_dispose(&lwin.auto_filter);
 }
 
@@ -489,8 +485,13 @@ TEST(custom_view_does_not_reset_local_state)
 
 TEST(files_with_newline_in_names, IF(filenames_can_include_newline))
 {
-	FILE *const f = fopen(SANDBOX_PATH "/list", "w");
-	fprintf(f, "%s%c", SANDBOX_PATH "/a\nb", '\0');
+	char path[PATH_MAX + 1];
+	FILE *f;
+
+	make_abs_path(path, sizeof(path), SANDBOX_PATH, "a\nb", cwd);
+
+	f = fopen(SANDBOX_PATH "/list", "w");
+	fprintf(f, "%s%c", path, '\0');
 	fclose(f);
 
 	assert_success(chdir(SANDBOX_PATH));
@@ -555,22 +556,33 @@ TEST(renaming_dir_in_cv_adjust_its_children_entries)
 
 TEST(symlinks_are_not_resolved_in_origins, IF(not_windows))
 {
+	char path[PATH_MAX + 1];
+
+	/* symlink() is not available on Windows, but the rest of the code is fine. */
 #ifndef _WIN32
-	assert_success(symlink(TEST_DATA_PATH "/existing-files",
-				SANDBOX_PATH "/link"));
+	{
+		char src[PATH_MAX + 1], dst[PATH_MAX + 1];
+		make_abs_path(src, sizeof(src), TEST_DATA_PATH, "existing-files", cwd);
+		make_abs_path(dst, sizeof(dst), SANDBOX_PATH, "link", cwd);
+		assert_success(symlink(src, dst));
+	}
 #endif
 
 	assert_success(chdir(SANDBOX_PATH "/link"));
-	copy_str(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH "/link");
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "link",
+			cwd);
 	flist_custom_start(&lwin, "test");
-	flist_custom_add(&lwin, SANDBOX_PATH "/link"); /* Absolute path. */
-	flist_custom_add(&lwin, "a");                  /* Relative path. */
+	make_abs_path(path, sizeof(path), SANDBOX_PATH, "link", cwd);
+	flist_custom_add(&lwin, path); /* Absolute path. */
+	flist_custom_add(&lwin, "a");  /* Relative path. */
 	assert_true(flist_custom_finish(&lwin, CV_REGULAR, 0) == 0);
 
-	assert_true(paths_are_equal(SANDBOX_PATH, lwin.dir_entry[0].origin));
-	assert_true(paths_are_equal(SANDBOX_PATH "/link", lwin.dir_entry[1].origin));
+	make_abs_path(path, sizeof(path), SANDBOX_PATH, "", cwd);
+	assert_true(paths_are_equal(path, lwin.dir_entry[0].origin));
+	make_abs_path(path, sizeof(path), SANDBOX_PATH, "link", cwd);
+	assert_true(paths_are_equal(path, lwin.dir_entry[1].origin));
 
-	assert_success(remove(SANDBOX_PATH "/link"));
+	assert_success(remove(path));
 }
 
 TEST(files_are_excluded_from_custom_view)
@@ -614,7 +626,62 @@ TEST(applying_local_filter_saves_custom_list)
 	load_dir_list(&lwin, 1);
 	assert_int_equal(2, lwin.list_rows);
 
-	filter_dispose(&lwin.manual_filter);
+	matcher_free(lwin.manual_filter);
+	lwin.manual_filter = NULL;
+	filter_dispose(&lwin.auto_filter);
+}
+
+TEST(excluded_entries_do_not_return)
+{
+	filters_view_reset(&lwin);
+
+	assert_false(flist_custom_active(&lwin));
+
+	flist_custom_start(&lwin, "test");
+	flist_custom_add(&lwin, TEST_DATA_PATH "/existing-files/a");
+	flist_custom_add(&lwin, TEST_DATA_PATH "/existing-files/b");
+	assert_true(flist_custom_finish(&lwin, CV_REGULAR, 0) == 0);
+
+	local_filter_apply(&lwin, ".");
+	load_dir_list(&lwin, 1);
+	assert_int_equal(2, lwin.list_rows);
+
+	flist_custom_exclude(&lwin, 0);
+	assert_int_equal(1, lwin.list_rows);
+
+	load_dir_list(&lwin, 1);
+	assert_int_equal(1, lwin.list_rows);
+
+	matcher_free(lwin.manual_filter);
+	lwin.manual_filter = NULL;
+	filter_dispose(&lwin.auto_filter);
+}
+
+TEST(excluding_entries_does_not_affect_local_filter_list)
+{
+	filters_view_reset(&lwin);
+
+	assert_false(flist_custom_active(&lwin));
+
+	flist_custom_start(&lwin, "test");
+	flist_custom_add(&lwin, TEST_DATA_PATH "/existing-files/a");
+	flist_custom_add(&lwin, TEST_DATA_PATH "/existing-files/b");
+	flist_custom_add(&lwin, TEST_DATA_PATH "/existing-files/c");
+	assert_true(flist_custom_finish(&lwin, CV_REGULAR, 0) == 0);
+
+	local_filter_apply(&lwin, "[ab]");
+	load_dir_list(&lwin, 1);
+	assert_int_equal(2, lwin.list_rows);
+
+	flist_custom_exclude(&lwin, 0);
+	assert_int_equal(1, lwin.list_rows);
+
+	local_filter_remove(&lwin);
+	load_dir_list(&lwin, 1);
+	assert_int_equal(2, lwin.list_rows);
+
+	matcher_free(lwin.manual_filter);
+	lwin.manual_filter = NULL;
 	filter_dispose(&lwin.auto_filter);
 }
 
@@ -640,7 +707,8 @@ TEST(failed_loadin_of_cv_does_not_override_saved_list)
 	load_dir_list(&lwin, 1);
 	assert_int_equal(2, lwin.list_rows);
 
-	filter_dispose(&lwin.manual_filter);
+	matcher_free(lwin.manual_filter);
+	lwin.manual_filter = NULL;
 	filter_dispose(&lwin.auto_filter);
 }
 
@@ -655,6 +723,58 @@ TEST(loading_cv_resets_search_results)
 	/* We need to reset the count as its non-zero value implies that search has
 	 * already been done. */
 	assert_int_equal(0, lwin.matches);
+}
+
+TEST(cursor_is_positioned_close_to_disappeared_file)
+{
+	char *const saved_cwd = save_cwd();
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
+	assert_success(chdir(SANDBOX_PATH));
+	create_file("1");
+	create_file("2");
+	create_file("3");
+	create_file("4");
+	create_file("5");
+	create_file("6");
+
+	filters_view_reset(&lwin);
+
+	flist_custom_start(&lwin, "test");
+	flist_custom_add(&lwin, "1");
+	flist_custom_add(&lwin, "2");
+	flist_custom_add(&lwin, "3");
+	flist_custom_add(&lwin, "4");
+	flist_custom_add(&lwin, "5");
+	flist_custom_add(&lwin, "6");
+	assert_true(flist_custom_finish(&lwin, CV_REGULAR, 0) == 0);
+	assert_int_equal(6, lwin.list_rows);
+
+	local_filter_apply(&lwin, "[4-6]");
+	load_dir_list(&lwin, 1);
+	assert_int_equal(3, lwin.list_rows);
+
+	lwin.list_pos = 2;
+	assert_success(unlink("6"));
+	/* This reloads view zipping removed and filtered-out files.  It should try to
+	 * stay close to original position. */
+	load_dir_list(&lwin, 1);
+	assert_int_equal(2, lwin.list_rows);
+
+	/* Both 2 and 1 are valid answers, list_pos is automatically corrected. */
+	assert_true(lwin.list_pos == 1 || lwin.list_pos == 2);
+
+	matcher_free(lwin.manual_filter);
+	lwin.manual_filter = NULL;
+	filter_dispose(&lwin.auto_filter);
+
+	restore_cwd(saved_cwd);
+	assert_success(chdir(SANDBOX_PATH));
+	assert_success(unlink("1"));
+	assert_success(unlink("2"));
+	assert_success(unlink("3"));
+	assert_success(unlink("4"));
+	assert_success(unlink("5"));
 }
 
 static void

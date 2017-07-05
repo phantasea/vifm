@@ -39,7 +39,7 @@ static void list_servers(void);
 static void get_path_or_std(const char dir[], const char arg[], char output[]);
 static void handle_arg_or_fail(const char arg[], int select, const char dir[],
 		args_t *args);
-static int handle_path_arg(const char arg[], int select, const char dir[],
+static int handle_path_spec(const char arg[], int select, const char dir[],
 		args_t *args);
 static int is_path_arg(const char arg[]);
 static void parse_path(const char dir[], const char path[], char buf[]);
@@ -218,7 +218,7 @@ get_path_or_std(const char dir[], const char arg[], char output[])
 static void
 handle_arg_or_fail(const char arg[], int select, const char dir[], args_t *args)
 {
-	if(handle_path_arg(arg, select, dir, args) == 0)
+	if(handle_path_spec(arg, select, dir, args) == 0)
 	{
 		if(strcmp(args->lwin_path, "-") == 0 && strcmp(args->rwin_path, "-") == 0)
 		{
@@ -235,7 +235,9 @@ handle_arg_or_fail(const char arg[], int select, const char dir[], args_t *args)
 		quit_on_arg_parsing(EXIT_FAILURE);
 	}
 #ifdef ENABLE_REMOTE_CMDS
-	else
+	/* IPC won't happen before full initialization.  Yet this check will allow
+	 * testing this unit. */
+	else if(curr_stats.load_stage > 2)
 	{
 		show_error_msgf("--remote error", "Invalid argument: %s", arg);
 	}
@@ -245,9 +247,17 @@ handle_arg_or_fail(const char arg[], int select, const char dir[], args_t *args)
 /* Handles path command-line argument.  Returns zero on successful handling,
  * otherwise non-zero is returned. */
 static int
-handle_path_arg(const char arg[], int select, const char dir[], args_t *args)
+handle_path_spec(const char arg[], int select, const char dir[], args_t *args)
 {
-	if(!is_path_arg(arg))
+	const int cv_marker = (!select && strcmp(arg, "-") == 0);
+	/* XXX: should we use path_exists_at() here and in is_path_arg()? */
+	const int dash_to_select = select && strcmp(arg, "-") == 0
+	                        && path_exists(arg, NODEREF);
+	if(dash_to_select)
+	{
+		arg = "./-";
+	}
+	else if(!cv_marker && !is_path_arg(arg))
 	{
 		return 1;
 	}
@@ -271,9 +281,8 @@ handle_path_arg(const char arg[], int select, const char dir[], args_t *args)
 static int
 is_path_arg(const char arg[])
 {
-	/* FIXME: why allow inexistent absolute paths? */
-	return path_exists(arg, DEREF) || is_path_absolute(arg) || is_root_dir(arg)
-		  || strcmp(arg, "-") == 0;
+	/* FIXME: why allow nonexistent absolute or root paths? */
+	return path_exists(arg, NODEREF) || is_path_absolute(arg) || is_root_dir(arg);
 }
 
 /* Ensures that path is in suitable form for processing.  buf should be at least

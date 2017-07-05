@@ -1,9 +1,11 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(vifm, 0.8.2, xaizek@openmailbox.org, vifm, https://vifm.info)
-AC_CONFIG_SRCDIR(configure.ac)
+AC_INIT(vifm, 0.9, xaizek@openmailbox.org, vifm, https://vifm.info)
+AC_CONFIG_SRCDIR(src/vifm.c)
+AC_CONFIG_AUX_DIR(build-aux)
+AC_CONFIG_MACRO_DIR(build-aux/m4)
 AM_INIT_AUTOMAKE([no-dist-gzip dist-bzip2])
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(build-aux/config.h)
 
 AC_DEFINE([PACKAGE_SYSCONF_DIR], [], [Configuration directory of the package.])
 AC_DEFINE([PACKAGE_DATA_DIR], [], [Data directory of the package.])
@@ -19,6 +21,7 @@ AC_PROG_CC
 AM_PROG_CC_STDC
 AC_HEADER_STDC
 AM_PROG_CC_C_O
+AM_SILENT_RULES([yes])
 
 AC_LANG(C)
 
@@ -346,15 +349,13 @@ dnl Set PACKAGE_SOURCE_DIR in config.h.
 packagesrcdir=`cd $srcdir && pwd`
 AC_DEFINE_UNQUOTED(PACKAGE_SOURCE_DIR, "${packagesrcdir}")
 
-dnl Use -Wall if we have gcc.
-changequote(,)dnl
-if test "x$GCC" = "xyes"; then
-  case " $CFLAGS " in
-  *[\ \	]-Wall[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wall" ;;
-  esac
-fi
-changequote([,])dnl
+dnl Use -Wall if available.
+AX_CHECK_COMPILE_FLAG([-Wall], [
+    case " $CFLAGS " in
+      *[\ \	]-Wall[\ \	]*) ;;
+      *) CFLAGS="$CFLAGS -Wall" ;;
+    esac
+  ])
 
 dnl Define _DARWIN_C_SOURCE macro while compiling on OS X.
 if test -n "$OSX_HOST" ; then
@@ -371,11 +372,16 @@ dnl from libc)
 AC_CHECK_LIB(m, pow, [LIBS="$LIBS -lm"])
 
 dnl Use pthread library
-AC_CHECK_LIB(pthread, pthread_create,
-	[LIBS="$LIBS -lpthread"
-	AC_CHECK_HEADER([pthread.h], [], [AC_MSG_ERROR([pthread.h header not found.])])
-	],
-	[AC_MSG_ERROR([libpthread not found])])
+AX_CHECK_COMPILE_FLAG([-pthread], [
+    TESTS_CFLAGS="$CFLAGS -pthread"
+    CFLAGS="$CFLAGS -pthread"
+    ], [
+    AC_CHECK_LIB(pthread, pthread_create,
+      [LIBS="$LIBS -lpthread"
+      AC_CHECK_HEADER([pthread.h], [], [AC_MSG_ERROR([pthread.h header not found.])])
+      ],
+      [AC_MSG_ERROR([libpthread not found])])
+  ])
 
 dnl Check for all required elements in pthread.h.
 AC_CHECK_FUNC([pthread_create], [], [AC_MSG_ERROR([pthread_create() function not found.])])
@@ -739,9 +745,10 @@ CFLAGS="$CFLAGS $SANITIZERS_CFLAGS"
 LDFLAGS="$LDFLAGS $SANITIZERS_CFLAGS"
 
 dnl Include config.h in all translation units implicitly
-CFLAGS="$CFLAGS -include ../config.h"
+CFLAGS="$CFLAGS -include ../build-aux/config.h"
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
 Makefile
 src/Makefile
 ])
+AC_OUTPUT

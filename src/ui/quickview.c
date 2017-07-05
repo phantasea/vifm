@@ -159,7 +159,7 @@ qv_draw(FileView *view)
 	const dir_entry_t *curr;
 
 	if(curr_stats.load_stage < 2 || curr_stats.number_of_windows == 1 ||
-	   vle_mode_is(VIEW_MODE) || draw_abandoned_view_mode())
+	   vle_mode_is(VIEW_MODE) || view_detached_draw())
 	{
 		return;
 	}
@@ -631,11 +631,11 @@ qv_hide(void)
 	}
 	if(lwin.explore_mode)
 	{
-		view_explore_mode_quit(&lwin);
+		view_quit_explore_mode(&lwin);
 	}
 	if(rwin.explore_mode)
 	{
-		view_explore_mode_quit(&rwin);
+		view_quit_explore_mode(&rwin);
 	}
 }
 
@@ -718,12 +718,21 @@ qv_get_path_to_explore(const dir_entry_t *entry, char buf[], size_t buf_len)
 {
 	if(entry->type == FT_DIR && is_parent_dir(entry->name))
 	{
-		copy_str(buf, buf_len, entry->origin);
+		char *const typed_fname = format_str("%s%s../", entry->origin,
+				ends_with_slash(entry->origin) ? "" : "/");
+
+		/* In the absence of handler for ".." entry, transform it into path to its
+		 * origin. */
+		if(ft_get_viewer(typed_fname) == NULL)
+		{
+			free(typed_fname);
+			copy_str(buf, buf_len, entry->origin);
+			return;
+		}
+		free(typed_fname);
 	}
-	else
-	{
-		get_full_path_of(entry, buf_len, buf);
-	}
+
+	get_full_path_of(entry, buf_len, buf);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

@@ -6,7 +6,12 @@
 #include <string.h> /* strcpy() strdup() */
 
 #include "../../src/cfg/config.h"
+#include "../../src/compat/fs_limits.h"
+#include "../../src/engine/keys.h"
+#include "../../src/menus/map_menu.h"
 #include "../../src/menus/menus.h"
+#include "../../src/modes/modes.h"
+#include "../../src/ui/statusbar.h"
 #include "../../src/utils/fs.h"
 #include "../../src/utils/string_array.h"
 
@@ -31,6 +36,7 @@ TEARDOWN()
 TEST(can_navigate_to_broken_symlink, IF(not_windows))
 {
 	char *saved_cwd;
+	char buf[PATH_MAX + 1];
 
 	strcpy(lwin.curr_dir, ".");
 
@@ -42,11 +48,11 @@ TEST(can_navigate_to_broken_symlink, IF(not_windows))
 	assert_success(symlink("/wrong/path", "broken-link"));
 #endif
 
+	make_abs_path(buf, sizeof(buf), SANDBOX_PATH , "broken-link:", saved_cwd);
 	/* Were trying to open broken link, which will fail, but the parsing part
 	 * should succeed. */
 	restore_cwd(saved_cwd);
-	assert_success(goto_selected_file(&m, &lwin, SANDBOX_PATH "/broken-link:",
-				1));
+	assert_success(goto_selected_file(&m, &lwin, buf, 1));
 
 	assert_success(remove(SANDBOX_PATH "/broken-link"));
 }
@@ -201,6 +207,22 @@ TEST(null_pattern_causes_pattern_reuse)
 	assert_int_equal(1, m.pos);
 	assert_true(search_menu_list(NULL, &m, 1));
 	assert_int_equal(2, m.pos);
+}
+
+TEST(empty_mappings_menu_is_not_displayed)
+{
+	init_modes();
+
+	status_bar_message("");
+	assert_failure(show_map_menu(&lwin, "normal", NORMAL_MODE, L"nonsense"));
+	assert_string_equal("No mappings found", get_last_message());
+
+	vle_keys_user_add(L"this", L"that", NORMAL_MODE, 0);
+	status_bar_message("");
+	assert_failure(show_map_menu(&lwin, "normal", NORMAL_MODE, L"nonsense"));
+	assert_string_equal("No mappings found", get_last_message());
+
+	vle_keys_reset();
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

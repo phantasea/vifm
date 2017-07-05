@@ -1,4 +1,69 @@
-0.8.2 to current
+0.9 to current
+
+	Added "inode" sorting key, which sorts entries by inode number.  Thanks to
+	eco0414.
+
+	Added retry/ignore/abort prompt for file copying and directory/file/symlink
+	creation when 'syscalls' is on.  Thanks to einhander.
+
+	Changed :filter command to accept pattern (//, ////, {} or {{}}).  Thanks
+	to rbong.
+
+	Improved parsing of optional numbers in vifminfo.  Thanks to Aris
+	Fergadis (a.k.a. afergadis).
+
+	Indicate preview created with %q with "Command: cmd".
+
+	Better detection of write errors on file copying.  The error was reported,
+	but it wasn't treated as a hard error specific case related to caching.
+
+0.9-beta to 0.9
+
+	Escape $ and ` in %" macros on *nix systems.  Thanks to filterfalse.
+
+	Don't use :filextype in sample vifmrc for OS X, we can't tell whether
+	graphical system is running.  Thanks to piotryordanov.
+
+	Do not add extra slash to path on picking files in the root.  Thanks to
+	filterfalse.
+
+	Properly escape newline when passing things into shell.  Thanks to
+	filterfalse.
+
+	View current directory on ".." for quickview/view mode only if no viewer
+	matches such entry.
+
+	Expand macros in :[un]select !{command}.  Thanks to Michael Corvin.
+
+	Update the other view after file deletion (that file might be visible
+	there too).
+
+	Execute startup commands in directory of current pane.
+
+	Fixed ruler being updated when it shouldn't even be visible.  Thanks to
+	filterfalse.
+
+	Fixed incorrect existence check for files that end with forward slash on
+	*nix.  Thanks to filterfalse.
+
+	Fixed treating `--select -` as `-` on command-line.  Thanks to
+	filterfalse.
+
+	Fixed ignoring `-` when `--no-configs` is specified.  Thanks to
+	filterfalse.
+
+	Fixed choosing files in custom views with --on-choose.
+
+	Fixed redrawing view after loading custom list in case when cursor is
+	positioned on ".." entry.  Thanks to filterfalse.
+
+	Fixed restoring of excluded items from custom view if local filter isn't
+	empty.  Thanks to filterfalse.
+
+	Fixed incorrect cursor positioning on removing elements from custom view
+	with local filter.
+
+0.8.2 to 0.9-beta
 
 	Removed -Werror in tests from non-developer builds.
 
@@ -18,7 +83,7 @@
 	Added CmpMismatch highlight group for highlighting mismatched files on
 	side-by-side comparison.
 
-	Added %Iu and %IU macros, which are %u and %U equivalent, but work better
+	Added %Iu and %IU macros, which are %u and %U equivalents, but work better
 	if external command is interactive and changes terminal state.
 
 	Added v:servername variable, which provides access to server name of the
@@ -141,7 +206,7 @@
 	Don't disable preview on `--remote --select` if it doesn't hide updated
 	pane.  Thanks to Marcin Kurczewski (a.k.a. rr-).
 
-	Try to match terminal size on Windows.  Thanks to randomizedthinking.
+	Handle terminal resize on Windows 10.  Thanks to randomizedthinking.
 
 	Escape first tilde in paths that go to the shell.  Thanks to Marius
 	Schmidl.
@@ -155,7 +220,7 @@
 	thread (prevents blocking of tools which produce huge amount of output).
 	Thanks to Stas Malavin.
 
-	Limit maximum height of message popup, just print how many lines we're
+	Limited maximum height of message popup, just print how many lines we're
 	skipping.
 
 	No vifminfo merging if file change isn't detected.  Might result in faster
@@ -364,6 +429,12 @@
 
 	Fixed printing ^L character for --choose-dir on Windows.  Thanks to Phil
 	Runninger.
+
+	Fixed updating CWD on switching views.  Thanks to Svyatoslav
+	Mishyn (a.k.a. juef).
+
+	Fixed plugin in versions of Vim where :argadd without argument doesn't
+	work.  Thanks to eco0414.
 
 0.8.2-beta to 0.8.2
 

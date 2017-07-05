@@ -49,6 +49,7 @@
 #include "../ui/statusline.h"
 #include "../ui/ui.h"
 #include "../utils/macros.h"
+#include "../utils/matcher.h"
 #include "../utils/path.h"
 #include "../utils/str.h"
 #include "../utils/test_helpers.h"
@@ -736,7 +737,10 @@ prepare_cmdline_mode(const wchar_t prompt[], const wchar_t cmd[],
 
 	update_cmdline_size();
 	update_cmdline_text(&input_stat);
-	curs_set(1);
+	if(curr_stats.load_stage > 0)
+	{
+		curs_set(1);
+	}
 
 	curr_stats.save_msg = 1;
 
@@ -820,7 +824,10 @@ leave_cmdline_mode(void)
 	input_stat.initial_line = NULL;
 	input_stat.line_buf = NULL;
 
-	curs_set(0);
+	if(curr_stats.load_stage > 0)
+	{
+		curs_set(0);
+	}
 	curr_stats.save_msg = 0;
 	ui_sb_clear();
 
@@ -1818,7 +1825,7 @@ cmd_ctrl_xxe(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_xm(key_info_t key_info, keys_info_t *keys_info)
 {
-	paste_str(curr_view->manual_filter.raw, 0);
+	paste_str(matcher_get_undec(curr_view->manual_filter), 0);
 }
 
 /* Inserts name root of current file of active pane into current cursor

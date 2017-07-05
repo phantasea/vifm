@@ -20,6 +20,7 @@
 #
 # make              -- builds and runs all tests
 # make build        -- builds all tests without running them
+# make check        -- builds all tests and then runs them
 # make <dir>        -- runs specific test suite
 # make <dir>.<name> -- runs specific fixture
 #
@@ -123,16 +124,16 @@ AT = $(AT_$(V))
 
 # setup compile and link flags (partially depends on OS)
 override CFLAGS := $(CFLAGS) -MMD -pipe -Wall -Wno-char-subscripts \
-                   -Istic/ -include $(B)../config.h -fsigned-char -DTEST \
-                   -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED \
+                   -Istic/ -include $(B)../build-aux/config.h -fsigned-char \
+                   -DTEST -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED \
                    -D_FILE_OFFSET_BITS=64
-override LDFLAGS := $(LDFLAGS) -lpthread
+override LDFLAGS := $(LDFLAGS)
 ifeq (,$(findstring clang,$(CC)))
     # clang is inconvenient with regard to this flag, don't do coverage with it
     override LDFLAGS += --coverage
 endif
 ifdef unix_env
-    MF := $(B)../src/Makefile
+    MF := $(abspath $(B)../src/Makefile)
     ifneq ($(wildcard $(MF)),)
         override LDFLAGS += \
             $(shell grep -m1    'LIBS =' $(MF) | sed 's/^[^=]*=//') \
@@ -148,14 +149,18 @@ ifdef unix_env
     export UBSAN_OPTIONS := halt_on_error=1
 endif
 ifdef win_env
+    override CFLAGS += -pthread
     override LDFLAGS += \
         $(shell sed -n '/LIBS :=/{s/^[^=]\+=//p;q}' ../src/Makefile.win)
-    # this part is in conditional
+    # this part is in conditional of ../src/Makefile.win
     ifeq ($(OS),Windows_NT)
         override LDFLAGS += -lpdcurses
     else
         override LDFLAGS += -lcurses
     endif
+endif
+ifeq (,$(findstring -lpthread,$(LDFLAGS)))
+    override LDFLAGS += -pthread
 endif
 
 ifdef DEBUG
@@ -171,7 +176,7 @@ ifdef DEBUG
     ifeq ($(DEBUG),valgrind)
         TEST_RUN_PREFIX := valgrind --track-origins=yes --leak-check=full \
                            --log-file=valgrind-report --error-exitcode=5 \
-                           --suppressions=$(abspath .)/../.valgrind.supp
+                           --suppressions=$(abspath .)/../src/.valgrind.supp
         TEST_RUN_POST := || (e=$$$$?; if [ $$$$e -eq 5 ]; then \
                                           cat valgrind-report; \
                                       fi; \

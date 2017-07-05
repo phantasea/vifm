@@ -1,4 +1,4 @@
-.TH VIFM 1 "April 02, 2017" "vifm 0.8.2"
+.TH VIFM 1 "June 24, 2017" "vifm 0.9"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -433,6 +433,8 @@ to a directory name before testing whether it matches the filter.  Examples:
   " filter files and directories which names end with '.o'
   :filter /^.*\\.o\\/?$/
 .EE
+
+Note: vifm uses extended regular expressions.
 .TP
 .BI za
 toggle visibility of dot files.
@@ -1751,6 +1753,11 @@ actions:
          \\ {Extract here}
          \\ tar \-xf %c,
 .EE
+
+Note that on OS X when `open` is used to call an app, vifm is unable to
+check whether that app is actually available.  So if automatic skipping
+of programs that aren't there is desirable, `open` should be replaced
+with an actual command.
 .TP
 .BI ":filet[ype] filename"
 list (in menu mode) currently registered patterns that match specified file
@@ -1810,6 +1817,9 @@ Just as if all :filextype commands were not there.
 The purpose of such differentiation is to allow comfortable use of vifm
 with same settings in desktop environment/through remote connection (SSH)/\
 in native console.
+
+Note that on OS X $DISPLAY isn't defined unless you define it, so
+:filextype should be used only if you set $DISPLAY in some way.
 .TP
 .BI ":filext[ype] filename"
 list (in menu mode) currently registered patterns that match specified file
@@ -1837,32 +1847,32 @@ list (in menu mode) currently registered patterns that match specified filename.
 .TP
 .BI "                                         :filter"
 .TP
-.BI ":filter[!] regular_expression_pattern"
-.TP
-.BI ":filter[!] /regular_expression_pattern/[flags]"
-will filter all the files out of the directory listing that match the regular
-expression.  Using second variant you can use the bar ('|') symbol without
-escaping.  Empty regular expression (specified by //, "" or '') means using of
-the last search pattern.  Use '!' to control state of filter inversion after
-updating filter value (also see 'cpoptions' description).  Filter is matched
-case sensitively on *nix and case insensitively on Windows.
+.BI ":filter[!] {pattern}"
+filter files matching the pattern out of directory listings.  '!' controls state
+of filter inversion after updating filter value (see also 'cpoptions'
+description).  Filter is matched case sensitively on *nix and case insensitively
+on Windows.  See "File Filters" and "Patterns" sections.
 
-Supported flags:
-  \- "i" makes filter case insensitive;
-  \- "I" makes filter case sensitive.
-
-Flags might be repeated multiple times, later ones win (e.g. "iiiI" is
-equivalent to "I" and "IiIi" is the same as "i").
-
+Example:
 .EX
-" filter all files ending in .o from the filelist.
-:filter /\.o$/
+
+  " filter all files ending in .o from the filelist.
+  :filter /\.o$/
 .EE
 
-Note: vifm uses extended regular expressions.
+.TP
+.BI ":filter[!] {empty-pattern}"
+same as above, but use last search pattern as pattern value.
+
+Example:
+.EX
+
+  :filter //I
+.EE
+
 .TP
 .BI ":filter"
-reset filter (set it to empty string) and show all files.
+reset filter (set it to an empty string) and show all files.
 .TP
 .BI ":filter!"
 same as :invert.
@@ -3170,7 +3180,13 @@ There are six possible ways to write a single pattern:
 undecorated-pattern
 .RE
 
-To combine several patterns (AND them), make sure you're using of the first
+Flags of regular expressions mean the following:
+  - "i" makes filter case insensitive;
+  - "I" makes filter case sensitive.
+They can be repeated multiple times, but the later one takes precedence (e.g.
+"iiiI" is equivalent to "I" and "IiIi" is the same as "i").
+
+To combine several patterns (AND them), make sure you're using one of the first
 five forms and write patterns one after another, like this:
 .EX
   <text/plain>{*.vifm}
@@ -3189,10 +3205,11 @@ Five first forms can include leading exclamation mark that negates pattern
 matching.
 
 The last form is implicitly refers to one of others.  :highlight does not accept
-undecorated form, while :filetype, :filextype, :fileviewer and 'classify' treat
-it as list of name globs.
+undecorated form, while :filetype, :filextype, :fileviewer, :select, :unselect
+and 'classify' treat it as list of name globs.
 
-Regular expression patterns are case insensitive by default.
+Regular expression patterns are case insensitive by default, see description
+of commands, which might override default behaviour.
 
 "Globs" section below provides short overview of globs and some important points
 that one needs to know about them.
@@ -3924,6 +3941,7 @@ etc.):
    [+\-]uid     \- owner id (*nix only)
    [+\-]uname   \- owner name (*nix only)
    [+\-]nlinks  \- number of hard links (*nix only)
+   [+\-]inode   \- inode number (*nix only)
    [+\-]size    \- size
    [+\-]nitems  \- number of items in a directory (zero for files)
    [+\-]groups  \- groups extracted via regexps from 'sortgroups'

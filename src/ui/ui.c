@@ -112,7 +112,16 @@ static uint64_t get_updated_time(uint64_t prev);
 void
 ui_ruler_update(FileView *view, int lazy_redraw)
 {
+	const int ruler_is_visible = !vle_mode_is(CMDLINE_MODE)
+	                          && !is_status_bar_multiline();
 	char *expanded;
+
+	if(!ruler_is_visible)
+	{
+		/* Do nothing, especially don't update layout because it might be a custom
+		 * layout at the moment. */
+		return;
+	}
 
 	update_statusbar_layout();
 
@@ -652,7 +661,14 @@ change_window(void)
 
 	if(curr_stats.view && !is_dir_list_loaded(curr_view))
 	{
+		/* This view hasn't been loaded since startup yet, do it now. */
 		navigate_to(curr_view, curr_view->curr_dir);
+	}
+	else
+	{
+		/* Change working directory, so that %c macro and other cwd-sensitive things
+		 * work as expected. */
+		(void)vifm_chdir(flist_get_dir(curr_view));
 	}
 
 	if(window_shows_dirlist(&lwin) && window_shows_dirlist(&rwin))
@@ -1073,7 +1089,7 @@ void
 switch_panes(void)
 {
 	switch_panes_content();
-	try_activate_view_mode();
+	view_try_activate_mode();
 }
 
 void
@@ -1117,7 +1133,7 @@ switch_panes_content(void)
 
 	if(!vle_mode_is(VIEW_MODE))
 	{
-		view_switch_views();
+		view_switch_panes();
 	}
 
 	tmp = lwin.win;
@@ -1170,7 +1186,7 @@ void
 go_to_other_pane(void)
 {
 	change_window();
-	try_activate_view_mode();
+	view_try_activate_mode();
 }
 
 void
@@ -1430,6 +1446,11 @@ format_view_title(const FileView *view, path_func pf)
 	}
 	else if(curr_stats.view && view == other_view)
 	{
+		const char *const viewer = view_detached_get_viewer();
+		if(viewer != NULL)
+		{
+			return format_str("Command: %s", viewer);
+		}
 		return format_str("File: %s", get_current_file_name(curr_view));
 	}
 	else if(flist_custom_active(view))

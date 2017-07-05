@@ -14,23 +14,21 @@
 
 # autotools generated files
 /autom4te.cache/
+/build-aux/config.h
+/build-aux/stamp-h1
 /src/Makefile
 /src/runtests.log
 /src/runtests.trs
 /Makefile
-/config.h*
+/congig.h*
 /config.log
 /config.status
-/libtool
 /stamp-h1
 .deps/
 .dirstamp
 
 # *nix executables
 /src/vifm
-/src/vifmrc-converter
-aclocal.m4
-configure
 
 # compiler output
 *.o

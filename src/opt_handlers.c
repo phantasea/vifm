@@ -236,6 +236,7 @@ static const char *sort_enum[] = {
 	[SK_BY_OWNER_NAME]    = "uname",
 	[SK_BY_PERMISSIONS]   = "perms",
 	[SK_BY_NLINKS]        = "nlinks",
+	[SK_BY_INODE]         = "inode",
 #endif
 	[SK_BY_RATING]        = "rating",  //add by sim1
 };
@@ -400,6 +401,10 @@ static const char *sort_types[][2] = {
 	{ "mode",  "by file mode" },
 	{ "+mode", "by file mode" },
 	{ "-mode", "by file mode" },
+
+	{ "inode",  "by file inode number" },
+	{ "+inode", "by file inode number" },
+	{ "-inode", "by file inode number" },
 
 	{ "uid",  "by user ID" },
 	{ "+uid", "by user ID" },
@@ -2100,7 +2105,7 @@ sizefmt_handler(OPT_OP op, optval_t val)
 		else if(starts_with_lit(part, "precision:"))
 		{
 			const char *const val = after_first(part, ':');
-			if(!read_int(val, &precision) || precision <= 0 || precision > INT_MAX)
+			if(!read_int(val, &precision) || precision <= 0)
 			{
 				vle_tb_append_linef(vle_err, "Invalid precision value: %s", val);
 				break;
@@ -2682,8 +2687,8 @@ suggestoptions_handler(OPT_OP op, optval_t val)
 	}
 }
 
-/* Converts line to a number.  Handles overflow/underflow.  Returns non-zero on
- * success and zero otherwise. */
+/* Converts line to a number.  Handles overflow/underflow by saturating
+ * resulting value.  Returns non-zero on success and zero otherwise. */
 static int
 read_int(const char line[], int *i)
 {

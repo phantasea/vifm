@@ -157,6 +157,7 @@ vifm_main(int argc, char *argv[])
 	char dir[PATH_MAX];
 	char **files = NULL;
 	int nfiles = 0;
+	int lwin_cv, rwin_cv;
 
 	if(get_cwd(dir, sizeof(dir)) == NULL)
 	{
@@ -168,12 +169,14 @@ vifm_main(int argc, char *argv[])
 	args_parse(&vifm_args, argc, argv, dir);
 	args_process(&vifm_args, 1);
 
-	if(strcmp(vifm_args.lwin_path, "-") == 0 ||
-			strcmp(vifm_args.rwin_path, "-") == 0)
+	lwin_cv = (strcmp(vifm_args.lwin_path, "-") == 0 && vifm_args.lwin_handle);
+	rwin_cv = (strcmp(vifm_args.rwin_path, "-") == 0 && vifm_args.rwin_handle);
+	if(lwin_cv || rwin_cv)
 	{
 		files = read_stream_lines(stdin, &nfiles, 1, NULL, NULL);
 		if(reopen_term_stdin() != 0)
 		{
+			free_string_array(files, nfiles);
 			return EXIT_FAILURE;
 		}
 	}
@@ -201,6 +204,8 @@ vifm_main(int argc, char *argv[])
 
 	if(init_status(&cfg) != 0)
 	{
+		free_string_array(files, nfiles);
+
 		puts("Error during session status initialization.");
 		return -1;
 	}
@@ -256,11 +261,13 @@ vifm_main(int argc, char *argv[])
 	curr_stats.original_stdout = reopen_term_stdout();
 	if(curr_stats.original_stdout == NULL)
 	{
+		free_string_array(files, nfiles);
 		return -1;
 	}
 
 	if(!setup_ncurses_interface())
 	{
+		free_string_array(files, nfiles);
 		return -1;
 	}
 
@@ -287,19 +294,19 @@ vifm_main(int argc, char *argv[])
 	{
 		load_scheme();
 		cfg_load();
-
-		if(strcmp(vifm_args.lwin_path, "-") == 0)
-		{
-			flist_custom_set(&lwin, "-", dir, files, nfiles);
-		}
-		else if(strcmp(vifm_args.rwin_path, "-") == 0)
-		{
-			flist_custom_set(&rwin, "-", dir, files, nfiles);
-		}
 	}
-	/* Load colors in any case to load color pairs. */
-	cs_load_pairs();
 
+	if(lwin_cv)
+	{
+		flist_custom_set(&lwin, "-", dir, files, nfiles);
+	}
+	else if(rwin_cv)
+	{
+		flist_custom_set(&rwin, "-", dir, files, nfiles);
+	}
+	free_string_array(files, nfiles);
+
+	cs_load_pairs();
 	cs_write();
 	setup_signals();
 
@@ -321,8 +328,10 @@ vifm_main(int argc, char *argv[])
 	flist_hist_save(&rwin, NULL, NULL, -1);
 
 	/* Trigger auto-commands for initial directories. */
-	vle_aucmd_execute("DirEnter", lwin.curr_dir, &lwin);
-	vle_aucmd_execute("DirEnter", rwin.curr_dir, &rwin);
+	(void)vifm_chdir(flist_get_dir(&lwin));
+	vle_aucmd_execute("DirEnter", flist_get_dir(&lwin), &lwin);
+	(void)vifm_chdir(flist_get_dir(&rwin));
+	vle_aucmd_execute("DirEnter", flist_get_dir(&rwin), &rwin);
 
 	update_screen(UT_FULL);
 	modes_update();
@@ -443,12 +452,12 @@ remote_cd(FileView *view, const char path[], int handle)
 
 	if(view->explore_mode)
 	{
-		leave_view_mode();
+		view_leave_mode();
 	}
 
 	if(view == other_view && vle_mode_is(VIEW_MODE))
 	{
-		leave_view_mode();
+		view_leave_mode();
 	}
 
 	if(curr_stats.view && (handle || view == other_view))
@@ -468,7 +477,7 @@ remote_cd(FileView *view, const char path[], int handle)
 static void
 check_path_for_file(FileView *view, const char path[], int handle)
 {
-	if(path[0] == '\0' || is_dir(path) || strcmp(path, "-") == 0)
+	if(path[0] == '\0' || is_dir(path) || (handle && strcmp(path, "-") == 0))
 	{
 		return;
 	}
@@ -598,8 +607,10 @@ vifm_restart(void)
 	curr_stats.restart_in_progress = 0;
 
 	/* Trigger auto-commands for initial directories. */
-	vle_aucmd_execute("DirEnter", lwin.curr_dir, &lwin);
-	vle_aucmd_execute("DirEnter", rwin.curr_dir, &rwin);
+	(void)vifm_chdir(flist_get_dir(&lwin));
+	vle_aucmd_execute("DirEnter", flist_get_dir(&lwin), &lwin);
+	(void)vifm_chdir(flist_get_dir(&rwin));
+	vle_aucmd_execute("DirEnter", flist_get_dir(&rwin), &rwin);
 
 	update_screen(UT_REDRAW);
 }
@@ -611,6 +622,9 @@ exec_startup_commands(const args_t *args)
 	size_t i;
 	for(i = 0; i < args->ncmds; ++i)
 	{
+		/* Make sure we're executing commands in correct directory. */
+		(void)vifm_chdir(flist_get_dir(curr_view));
+
 		(void)exec_commands(args->cmds[i], curr_view, CIT_COMMAND);
 	}
 }

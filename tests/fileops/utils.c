@@ -12,6 +12,7 @@
 #include "../../src/utils/dynarray.h"
 #include "../../src/utils/fs.h"
 #include "../../src/utils/fswatch.h"
+#include "../../src/utils/matcher.h"
 #include "../../src/utils/path.h"
 #include "../../src/background.h"
 #include "../../src/filelist.h"
@@ -19,11 +20,13 @@
 void
 view_setup(FileView *view)
 {
+	char *error;
+
 	view->list_rows = 0;
 	view->dir_entry = NULL;
 
 	assert_success(filter_init(&view->local_filter.filter, 1));
-	assert_success(filter_init(&view->manual_filter, 1));
+	assert_non_null(view->manual_filter = matcher_alloc("", 0, 0, "", &error));
 	assert_success(filter_init(&view->auto_filter, 1));
 
 	view->sort[0] = SK_NONE;
@@ -42,7 +45,8 @@ view_teardown(FileView *view)
 	dynarray_free(view->dir_entry);
 
 	filter_dispose(&view->local_filter.filter);
-	filter_dispose(&view->manual_filter);
+	matcher_free(view->manual_filter);
+	view->manual_filter = NULL;
 	filter_dispose(&view->auto_filter);
 
 	fswatch_free(view->watch);
@@ -91,6 +95,21 @@ set_to_sandbox_path(char buf[], size_t buf_len)
 		char cwd[PATH_MAX];
 		assert_non_null(get_cwd(cwd, sizeof(cwd)));
 		snprintf(buf, buf_len, "%s/%s", cwd, SANDBOX_PATH);
+	}
+}
+
+void
+make_abs_path(char buf[], size_t buf_len, const char base[], const char sub[],
+		const char cwd[])
+{
+	if(is_path_absolute(base))
+	{
+		snprintf(buf, buf_len, "%s%s%s", base, (sub[0] == '\0' ? "" : "/"), sub);
+	}
+	else
+	{
+		snprintf(buf, buf_len, "%s/%s%s%s", cwd, base, (sub[0] == '\0' ? "" : "/"),
+				sub);
 	}
 }
 
