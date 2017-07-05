@@ -20,7 +20,7 @@
 /src/runtests.log
 /src/runtests.trs
 /Makefile
-/congig.h*
+/config.h*
 /config.log
 /config.status
 /stamp-h1
@@ -29,6 +29,8 @@
 
 # *nix executables
 /src/vifm
+/src/vifmrc-converter
+aclocal.m4
 
 # compiler output
 *.o
