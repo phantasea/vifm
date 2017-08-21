@@ -77,13 +77,13 @@
 /* Type of path transformation function for format_view_title(). */
 typedef char * (*path_func)(const char[]);
 
-/* Mutexes for views, located out of FileView so that they are never moved nor
+/* Mutexes for views, located out of view_t so that they are never moved nor
  * copied, which would yield undefined behaviour. */
 static pthread_mutex_t lwin_timestamps_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t rwin_timestamps_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-FileView lwin = { .timestamps_mutex = &lwin_timestamps_mutex };
-FileView rwin = { .timestamps_mutex = &rwin_timestamps_mutex };
+view_t lwin = { .timestamps_mutex = &lwin_timestamps_mutex };
+view_t rwin = { .timestamps_mutex = &rwin_timestamps_mutex };
 
 static void create_windows(void);
 static void update_geometry(void);
@@ -92,31 +92,31 @@ static void clear_border(WINDOW *border);
 static int middle_border_is_visible(void);
 static void update_views(int reload);
 static void reload_lists(void);
-static void reload_list(FileView *view);
-static void update_view(FileView *view);
+static void reload_list(view_t *view);
+static void update_view(view_t *view);
 static void update_window_lazy(WINDOW *win);
 static void update_term_size(void);
 static void update_statusbar_layout(void);
-static int get_ruler_width(FileView *view);
-static char * expand_ruler_macros(FileView *view, const char format[]);
+static int are_statusbar_widgets_visible(void);
+static int get_ruler_width(view_t *view);
+static char * expand_ruler_macros(view_t *view, const char format[]);
 static void switch_panes_content(void);
-static void update_origins(FileView *view, const char *old_main_origin);
+static void update_origins(view_t *view, const char *old_main_origin);
 static void set_splitter(int pos);
 static char * path_identity(const char path[]);
-static char * format_view_title(const FileView *view, path_func pf);
-static void print_view_title(const FileView *view, int active_view,
-		char title[]);
-static void fixup_titles_attributes(const FileView *view, int active_view);
+static char * format_view_title(const view_t *view, path_func pf);
+static void print_view_title(const view_t *view, int active_view, char title[]);
+static void fixup_titles_attributes(const view_t *view, int active_view);
+static int is_in_miller_view(const view_t *view);
+static int is_forced_list_mode(const view_t *view);
 static uint64_t get_updated_time(uint64_t prev);
 
 void
-ui_ruler_update(FileView *view, int lazy_redraw)
+ui_ruler_update(view_t *view, int lazy_redraw)
 {
-	const int ruler_is_visible = !vle_mode_is(CMDLINE_MODE)
-	                          && !is_status_bar_multiline();
 	char *expanded;
 
-	if(!ruler_is_visible)
+	if(!are_statusbar_widgets_visible())
 	{
 		/* Do nothing, especially don't update layout because it might be a custom
 		 * layout at the moment. */
@@ -198,7 +198,7 @@ setup_ncurses_interface(void)
 }
 
 /* Initializes all WINDOW variables by calling newwin() to create ncurses
- * windows. */
+ * windows and configures hardware cursor. */
 static void
 create_windows(void)
 {
@@ -222,6 +222,25 @@ create_windows(void)
 	status_bar = newwin(1, 1, 0, 0);
 	ruler_win = newwin(1, 1, 0, 0);
 	input_win = newwin(1, 1, 0, 0);
+
+	leaveok(menu_win, FALSE);
+	leaveok(sort_win, FALSE);
+	leaveok(change_win, FALSE);
+	leaveok(error_win, FALSE);
+	leaveok(lwin.win, FALSE);
+	leaveok(rwin.win, FALSE);
+	leaveok(status_bar, FALSE);
+
+	leaveok(lborder, TRUE);
+	leaveok(lwin.title, TRUE);
+	leaveok(mborder, TRUE);
+	leaveok(top_line, TRUE);
+	leaveok(rwin.title, TRUE);
+	leaveok(rborder, TRUE);
+	leaveok(stat_win, TRUE);
+	leaveok(job_bar, TRUE);
+	leaveok(ruler_win, TRUE);
+	leaveok(input_win, TRUE);
 }
 
 void
@@ -261,21 +280,17 @@ ui_char_pressed(wint_t c)
 }
 
 static void
-correct_size(FileView *view)
+correct_size(view_t *view)
 {
-	int x, y;
-
-	getmaxyx(view->win, y, x);
-	view->window_width = x - 1;
-	view->window_rows = y - 1;
+	getmaxyx(view->win, view->window_rows, view->window_cols);
 	view->column_count = calculate_columns_count(view);
-	view->window_cells = view->column_count*y;
+	view->window_cells = view->column_count*view->window_rows;
 }
 
 /* Updates TUI elements sizes and coordinates for single window
  * configuration. */
 static void
-only_layout(FileView *view, int screen_x)
+only_layout(view_t *view, int screen_x)
 {
 	//mod by sim1
 	wresize(view->title, 1, screen_x);
@@ -489,6 +504,12 @@ cv_compare(CVType type)
 	return type == CV_COMPARE || type == CV_DIFF;
 }
 
+int
+cv_tree(CVType type)
+{
+	return type == CV_TREE || type == CV_CUSTOM_TREE;
+}
+
 void
 update_screen(UpdateType update_kind)
 {
@@ -639,7 +660,7 @@ reload_lists(void)
 
 /* reloads view on window_reload() call */
 static void
-reload_list(FileView *view)
+reload_list(view_t *view)
 {
 	if(curr_stats.load_stage >= 3)
 		load_saving_pos(view, 1);
@@ -656,7 +677,7 @@ change_window(void)
 
 	if(window_shows_dirlist(other_view))
 	{
-		erase_current_line_bar(other_view);
+		put_inactive_mark(other_view);
 	}
 
 	if(curr_stats.view && !is_dir_list_loaded(curr_view))
@@ -685,7 +706,7 @@ change_window(void)
 void
 swap_view_roles(void)
 {
-	FileView *const tmp = curr_view;
+	view_t *const tmp = curr_view;
 	curr_view = other_view;
 	other_view = tmp;
 }
@@ -754,7 +775,7 @@ touch_all_windows(void)
 
 /* Updates all parts of file view. */
 static void
-update_view(FileView *view)
+update_view(view_t *view)
 {
 	update_window_lazy(view->title);
 
@@ -968,6 +989,18 @@ resize_for_menu_like(void)
 	return 0;
 }
 
+void
+ui_setup_for_menu_like(void)
+{
+	scrollok(menu_win, FALSE);
+	curs_set(0);
+	werase(menu_win);
+	werase(status_bar);
+	werase(ruler_win);
+	wrefresh(status_bar);
+	wrefresh(ruler_win);
+}
+
 /* Query terminal size from the "device" and pass it to curses library. */
 static void
 update_term_size(void)
@@ -1005,6 +1038,13 @@ update_statusbar_layout(void)
 	int ruler_width;
 	int fields_pos;
 
+	if(!are_statusbar_widgets_visible())
+	{
+		/* We might be in command-line mode in which case we shouldn't change the
+		 * layout in any way. */
+		return;
+	}
+
 	getmaxyx(stdscr, screen_y, screen_x);
 
 	ruler_width = get_ruler_width(curr_view);
@@ -1022,9 +1062,17 @@ update_statusbar_layout(void)
 	wnoutrefresh(input_win);
 }
 
+/* Checks whether ruler and input bar are visible.  Returns non-zero if so, zero
+ * is returned otherwise. */
+static int
+are_statusbar_widgets_visible(void)
+{
+	return !vle_mode_is(CMDLINE_MODE) && !is_status_bar_multiline();
+}
+
 /* Gets "recommended" width for the ruler.  Returns the width. */
 static int
-get_ruler_width(FileView *view)
+get_ruler_width(view_t *view)
 {
 	char *expanded;
 	int len;
@@ -1047,13 +1095,13 @@ get_ruler_width(FileView *view)
  * string.  Returns newly allocated string, which should be freed by the caller,
  * or NULL if there is not enough memory. */
 static char *
-expand_ruler_macros(FileView *view, const char format[])
+expand_ruler_macros(view_t *view, const char format[])
 {
 	return expand_view_macros(view, format, "-lLS%[]");
 }
 
 void
-refresh_view_win(FileView *view)
+refresh_view_win(view_t *view)
 {
 	if(curr_stats.restart_in_progress)
 	{
@@ -1071,10 +1119,10 @@ refresh_view_win(FileView *view)
 }
 
 void
-move_window(FileView *view, int horizontally, int first)
+move_window(view_t *view, int horizontally, int first)
 {
 	const SPLIT split_type = horizontally ? HSPLIT : VSPLIT;
-	const FileView *const desired_view = first ? &lwin : &rwin;
+	const view_t *const desired_view = first ? &lwin : &rwin;
 	split_view(split_type);
 	if(view != desired_view)
 	{
@@ -1093,7 +1141,7 @@ switch_panes(void)
 }
 
 void
-ui_view_pick(FileView *view, FileView **old_curr, FileView **old_other)
+ui_view_pick(view_t *view, view_t **old_curr, view_t **old_other)
 {
 	*old_curr = curr_view;
 	*old_other = other_view;
@@ -1107,7 +1155,7 @@ ui_view_pick(FileView *view, FileView **old_curr, FileView **old_other)
 }
 
 void
-ui_view_unpick(FileView *view, FileView *old_curr, FileView *old_other)
+ui_view_unpick(view_t *view, view_t *old_curr, view_t *old_other)
 {
 	if(curr_view != view)
 	{
@@ -1127,7 +1175,7 @@ ui_view_unpick(FileView *view, FileView *old_curr, FileView *old_other)
 static void
 switch_panes_content(void)
 {
-	FileView tmp_view;
+	view_t tmp_view;
 	WINDOW* tmp;
 	int t;
 
@@ -1144,9 +1192,9 @@ switch_panes_content(void)
 	lwin.window_rows = rwin.window_rows;
 	rwin.window_rows = t;
 
-	t = lwin.window_width;
-	lwin.window_width = rwin.window_width;
-	rwin.window_width = t;
+	t = lwin.window_cols;
+	lwin.window_cols = rwin.window_cols;
+	rwin.window_cols = t;
 
 	t = lwin.local_cs;
 	lwin.local_cs = rwin.local_cs;
@@ -1168,7 +1216,7 @@ switch_panes_content(void)
 
 /* Updates pointers to main (default) origins in file list entries. */
 static void
-update_origins(FileView *view, const char *old_main_origin)
+update_origins(view_t *view, const char *old_main_origin)
 {
 	char *const new_origin = &view->curr_dir[0];
 	int i;
@@ -1238,7 +1286,7 @@ move_splitter(int by, int fact)
 }
 
 void
-ui_view_resize(FileView *view, int to)
+ui_view_resize(view_t *view, int to)
 {
 	int pos;
 
@@ -1350,20 +1398,20 @@ ui_display_too_small_term_msg(void)
 }
 
 void
-ui_view_win_changed(FileView *view)
+ui_view_win_changed(view_t *view)
 {
 	wnoutrefresh(view->win);
 }
 
 void
-ui_view_reset_selection_and_reload(FileView *view)
+ui_view_reset_selection_and_reload(view_t *view)
 {
 	flist_sel_stash(view);
 	load_saving_pos(view, 1);
 }
 
 void
-ui_view_reset_search_highlight(FileView *view)
+ui_view_reset_search_highlight(view_t *view)
 {
 	if(view->matches != 0)
 	{
@@ -1400,11 +1448,11 @@ ui_views_update_titles(void)
 }
 
 void
-ui_view_title_update(FileView *view)
+ui_view_title_update(view_t *view)
 {
 	char *title;
 	const int gen_view = vle_mode_is(VIEW_MODE) && !curr_view->explore_mode;
-	FileView *selected = gen_view ? other_view : curr_view;
+	view_t *selected = gen_view ? other_view : curr_view;
 
 	if(curr_stats.load_stage < 2)
 	{
@@ -1436,7 +1484,7 @@ path_identity(const char path[])
  * Returns newly allocated string, which should be freed by the caller, or NULL
  * if there is not enough memory. */
 static char *
-format_view_title(const FileView *view, path_func pf)
+format_view_title(const view_t *view, path_func pf)
 {
 	if(view->explore_mode)
 	{
@@ -1466,7 +1514,7 @@ format_view_title(const FileView *view, path_func pf)
 /* Prints view title (which can be changed for printing).  Takes care of setting
  * correct attributes. */
 static void
-print_view_title(const FileView *view, int active_view, char title[])
+print_view_title(const view_t *view, int active_view, char title[])
 {
 	const size_t title_width = getmaxx(view->title);
 	if(title_width == (size_t)-1)
@@ -1489,7 +1537,7 @@ print_view_title(const FileView *view, int active_view, char title[])
 
 /* Updates attributes for view titles and top line. */
 static void
-fixup_titles_attributes(const FileView *view, int active_view)
+fixup_titles_attributes(const view_t *view, int active_view)
 {
 	if(active_view)
 	{
@@ -1532,7 +1580,7 @@ ui_view_sort_list_contains(const char sort[SK_COUNT], char key)
 }
 
 void
-ui_view_sort_list_ensure_well_formed(FileView *view, char sort_keys[])
+ui_view_sort_list_ensure_well_formed(view_t *view, char sort_keys[])
 {
 	int found_name_key = 0;
 	int i = -1;
@@ -1564,7 +1612,7 @@ ui_view_sort_list_ensure_well_formed(FileView *view, char sort_keys[])
 }
 
 char *
-ui_view_sort_list_get(const FileView *view, const char sort[])
+ui_view_sort_list_get(const view_t *view, const char sort[])
 {
 	return (flist_custom_active(view) && ui_view_unsorted(view))
 	     ? (char *)view->custom.sort
@@ -1572,19 +1620,19 @@ ui_view_sort_list_get(const FileView *view, const char sort[])
 }
 
 int
-ui_view_displays_numbers(const FileView *const view)
+ui_view_displays_numbers(const view_t *view)
 {
 	return view->num_type != NT_NONE && ui_view_displays_columns(view);
 }
 
 int
-ui_view_is_visible(const FileView *const view)
+ui_view_is_visible(const view_t *view)
 {
 	return curr_stats.number_of_windows == 2 || curr_view == view;
 }
 
 void
-ui_view_clear_history(FileView *const view)
+ui_view_clear_history(view_t *view)
 {
 	cfg_free_history_items(view->history, view->history_num);
 	view->history_num = 0;
@@ -1592,11 +1640,11 @@ ui_view_clear_history(FileView *const view)
 }
 
 int
-ui_view_displays_columns(const FileView *const view)
+ui_view_displays_columns(const view_t *view)
 {
 	return !view->ls_view
-	    || (flist_custom_active(view) &&
-					(view->custom.type == CV_TREE || cv_compare(view->custom.type)));
+	    || is_in_miller_view(view)
+	    || is_forced_list_mode(view);
 }
 
 FileType
@@ -1615,44 +1663,84 @@ ui_view_entry_target_type(const dir_entry_t *entry)
 }
 
 int
-ui_view_available_width(const FileView *const view)
+ui_view_available_width(const view_t *view)
 {
 	const int correction = cfg.extra_padding ? -2 : 0;
-	return ((int)view->window_width + 1) + correction;
+	return view->window_cols + correction
+	     - ui_view_left_reserved(view) - ui_view_right_reserved(view);
 }
 
 int
-ui_qv_left(const FileView *view)
+ui_view_left_reserved(const view_t *view)
+{
+	const int total = view->miller_ratios[0] + view->miller_ratios[1]
+	                + view->miller_ratios[2];
+	return is_in_miller_view(view)
+	     ? (view->window_cols*view->miller_ratios[0])/total : 0;
+}
+
+int
+ui_view_right_reserved(const view_t *view)
+{
+	dir_entry_t *const entry = get_current_entry(view);
+	const int total = view->miller_ratios[0] + view->miller_ratios[1]
+	                + view->miller_ratios[2];
+	return is_in_miller_view(view)
+	    && fentry_is_dir(entry) && !is_parent_dir(entry->name)
+	     ? (view->window_cols*view->miller_ratios[2])/total
+	     : 0;
+}
+
+/* Whether miller columns should be displayed.  Returns non-zero if so,
+ * otherwise zero is returned. */
+static int
+is_in_miller_view(const view_t *view)
+{
+	return view->miller_view
+	    && !flist_custom_active(view);
+}
+
+/* Whether view must display straight single-column file list.  Returns non-zero
+ * if so, otherwise zero is returned. */
+static int
+is_forced_list_mode(const view_t *view)
+{
+	return flist_custom_active(view)
+	    && (cv_tree(view->custom.type) || cv_compare(view->custom.type));
+}
+
+int
+ui_qv_left(const view_t *view)
 {
 	return cfg.extra_padding ? 1 : 0;
 }
 
 int
-ui_qv_top(const FileView *view)
+ui_qv_top(const view_t *view)
 {
 	return cfg.extra_padding ? 1 : 0;
 }
 
 int
-ui_qv_height(const FileView *view)
+ui_qv_height(const view_t *view)
 {
-	return cfg.extra_padding ? view->window_rows - 1 : view->window_rows + 1;
+	return cfg.extra_padding ? view->window_rows - 2 : view->window_rows;
 }
 
 int
-ui_qv_width(const FileView *view)
+ui_qv_width(const view_t *view)
 {
-	return cfg.extra_padding ? view->window_width - 1 : view->window_width + 1;
+	return cfg.extra_padding ? view->window_cols - 2 : view->window_cols;
 }
 
 const col_scheme_t *
-ui_view_get_cs(const FileView *view)
+ui_view_get_cs(const view_t *view)
 {
 	return view->local_cs ? &view->cs : &cfg.cs;
 }
 
 void
-ui_view_erase(FileView *view)
+ui_view_erase(view_t *view)
 {
 	const col_scheme_t *cs = ui_view_get_cs(view);
 	const int bg = COLOR_PAIR(cs->pair[WIN_COLOR]) | cs->color[WIN_COLOR].attr;
@@ -1661,7 +1749,7 @@ ui_view_erase(FileView *view)
 }
 
 void
-ui_view_wipe(FileView *view)
+ui_view_wipe(view_t *view)
 {
 	int i;
 	int height;
@@ -1686,13 +1774,13 @@ ui_view_wipe(FileView *view)
 }
 
 int
-ui_view_unsorted(const FileView *view)
+ui_view_unsorted(const view_t *view)
 {
 	return cv_unsorted(view->custom.type);
 }
 
 void
-ui_view_schedule_redraw(FileView *view)
+ui_view_schedule_redraw(view_t *view)
 {
 	pthread_mutex_lock(view->timestamps_mutex);
 	view->postponed_redraw = get_updated_time(view->postponed_redraw);
@@ -1700,7 +1788,7 @@ ui_view_schedule_redraw(FileView *view)
 }
 
 void
-ui_view_schedule_reload(FileView *view)
+ui_view_schedule_reload(view_t *view)
 {
 	pthread_mutex_lock(view->timestamps_mutex);
 	view->postponed_reload = get_updated_time(view->postponed_reload);
@@ -1708,7 +1796,7 @@ ui_view_schedule_reload(FileView *view)
 }
 
 void
-ui_view_schedule_full_reload(FileView *view)
+ui_view_schedule_full_reload(view_t *view)
 {
 	pthread_mutex_lock(view->timestamps_mutex);
 	view->postponed_full_reload = get_updated_time(view->postponed_full_reload);
@@ -1735,7 +1823,7 @@ get_updated_time(uint64_t prev)
 }
 
 UiUpdateEvent
-ui_view_query_scheduled_event(FileView *view)
+ui_view_query_scheduled_event(view_t *view)
 {
 	UiUpdateEvent event;
 

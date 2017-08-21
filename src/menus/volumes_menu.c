@@ -33,17 +33,17 @@
 #include "../flist_pos.h"
 #include "menus.h"
 
-static int execute_volumes_cb(FileView *view, menu_data_t *m);
+static int execute_volumes_cb(view_t *view, menu_data_t *m);
 
 int
-show_volumes_menu(FileView *view)
+show_volumes_menu(view_t *view)
 {
 	char c;
 	char vol_name[MAX_PATH];
 	char file_buf[MAX_PATH];
 
 	static menu_data_t m;
-	init_menu_data(&m, view, strdup("Mounted Volumes"),
+	menus_init_data(&m, view, strdup("Mounted Volumes"),
 			strdup("No volumes mounted"));
 	m.execute_handler = &execute_volumes_cb;
 
@@ -62,13 +62,13 @@ show_volumes_menu(FileView *view)
 		}
 	}
 
-	return display_menu(m.state, view);
+	return menus_enter(m.state, view);
 }
 
 /* Callback that is called when menu item is selected.  Should return non-zero
  * to stay in menu mode. */
 static int
-execute_volumes_cb(FileView *view, menu_data_t *m)
+execute_volumes_cb(view_t *view, menu_data_t *m)
 {
 	char path_buf[4];
 	copy_str(path_buf, sizeof(path_buf), m->items[m->pos]);

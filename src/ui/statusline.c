@@ -47,10 +47,10 @@
 #include "../filelist.h"
 #include "ui.h"
 
-static void update_stat_window_old(FileView *view, int lazy_redraw);
+static void update_stat_window_old(view_t *view, int lazy_redraw);
 static void refresh_window(WINDOW *win, int lazily);
-TSTATIC char * expand_status_line_macros(FileView *view, const char format[]);
-static char * parse_view_macros(FileView *view, const char **format,
+TSTATIC char * expand_status_line_macros(view_t *view, const char format[]);
+static char * parse_view_macros(view_t *view, const char **format,
 		const char macros[], int opt);
 static int expand_num(char buf[], size_t buf_len, int val);
 static const char * get_tip(void);
@@ -72,7 +72,7 @@ static int job_bar_changed;
 static pthread_spinlock_t job_bar_changed_lock;
 
 void
-update_stat_window(FileView *view, int lazy_redraw)
+update_stat_window(view_t *view, int lazy_redraw)
 {
 	int x;
 	char *buf;
@@ -115,7 +115,7 @@ update_stat_window(FileView *view, int lazy_redraw)
 /* Formats status line in the "old way" (before introduction of 'statusline'
  * option). */
 static void
-update_stat_window_old(FileView *view, int lazy_redraw)
+update_stat_window_old(view_t *view, int lazy_redraw)
 {
 	const dir_entry_t *const curr = get_current_entry(view);
 	char name_buf[160*2 + 1];
@@ -142,7 +142,7 @@ update_stat_window_old(FileView *view, int lazy_redraw)
 	filename = get_current_file_name(view);
 	print_width = utf8_strsnlen(filename, 20 + MAX(0, x - 83));
 	snprintf(name_buf, MIN(sizeof(name_buf), print_width + 1), "%s", filename);
-	friendly_size_notation(curr->size, sizeof(size_buf), size_buf);
+	friendly_size_notation(fentry_get_size(curr), sizeof(size_buf), size_buf);
 
 	get_uid_string(curr, 0, sizeof(id_buf), id_buf);
 	if(id_buf[0] != '\0')
@@ -199,7 +199,7 @@ refresh_window(WINDOW *win, int lazily)
  * format string.  Returns newly allocated string, which should be freed by the
  * caller, or NULL if there is not enough memory. */
 TSTATIC char *
-expand_status_line_macros(FileView *view, const char format[])
+expand_status_line_macros(view_t *view, const char format[])
 {
 	return expand_view_macros(view, format, "tTfaAugsrEdD-lLSz%[]");  //mod by sim1
 }
@@ -207,7 +207,7 @@ expand_status_line_macros(FileView *view, const char format[])
 /* Expands possibly limited set of view macros.  Returns newly allocated string,
  * which should be freed by the caller. */
 char *
-expand_view_macros(FileView *view, const char format[], const char macros[])
+expand_view_macros(view_t *view, const char format[], const char macros[])
 {
 	return parse_view_macros(view, &format, macros, 0);
 }
@@ -217,7 +217,7 @@ expand_view_macros(FileView *view, const char format[], const char macros[])
  * calls.  Returns newly allocated string, which should be freed by the
  * caller. */
 static char *
-parse_view_macros(FileView *view, const char **format, const char macros[],
+parse_view_macros(view_t *view, const char **format, const char macros[],
 		int opt)
 {
 	const dir_entry_t *const curr = get_current_entry(view);
@@ -307,7 +307,7 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 				get_gid_string(curr, 0, sizeof(buf), buf);
 				break;
 			case 's':
-				friendly_size_notation(curr->size, sizeof(buf), buf);
+				friendly_size_notation(fentry_get_size(curr), sizeof(buf), buf);
 				break;
 			//add by sim1 ************************************************
 			case 'r':
@@ -320,24 +320,20 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 			//add by sim1 ************************************************
 			case 'E':
 				{
-					uint64_t size = 0;
-					if(view->selected_files > 0)
+					uint64_t size = 0U;
+
+					typedef int (*iter_f)(view_t *view, dir_entry_t **entry);
+					/* No current element for visual mode, since it can contain truly
+					 * empty selection when cursor is on ../ directory. */
+					iter_f iter = vle_mode_is(VISUAL_MODE) ? &iter_selected_entries
+					                                       : &iter_selection_or_current;
+
+					dir_entry_t *entry = NULL;
+					while(iter(view, &entry))
 					{
-						int i;
-						for(i = 0; i < view->list_rows; i++)
-						{
-							if(view->dir_entry[i].selected)
-							{
-								size += get_file_size_by_entry(view, i);
-							}
-						}
+						size += fentry_get_size(entry);
 					}
-					/* Make exception for VISUAL_MODE, since it can contain empty
-					 * selection when cursor is on ../ directory. */
-					else if(!vle_mode_is(VISUAL_MODE))
-					{
-						size = get_file_size_by_entry(view, view->list_pos);
-					}
+
 					friendly_size_notation(size, sizeof(buf), buf);
 				}
 				break;
@@ -368,7 +364,7 @@ parse_view_macros(FileView *view, const char **format, const char macros[],
 			case 'D':
 				if(curr_stats.number_of_windows == 1)
 				{
-					FileView *const other = (view == curr_view) ? other_view : curr_view;
+					view_t *const other = (view == curr_view) ? other_view : curr_view;
 					//mod by sim1
 					//copy_str(buf, sizeof(buf), replace_home_part(other->curr_dir));
 					snprintf(buf, sizeof(buf), " ‖ %s", replace_home_part(other->curr_dir));

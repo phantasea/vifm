@@ -67,8 +67,8 @@ typedef enum
 }
 AmendType;
 
-static void backup_selection_flags(FileView *view);
-static void restore_selection_flags(FileView *view);
+static void backup_selection_flags(view_t *view);
+static void restore_selection_flags(view_t *view);
 static void cmd_ctrl_a(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_b(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info);
@@ -142,7 +142,7 @@ static void cmd_y(key_info_t key_info, keys_info_t *keys_info);
 static void accept_and_leave(int save_msg);
 static void reject_and_leave(void);
 static void leave_clearing_selection(int go_to_top, int save_msg);
-static void update_marks(FileView *view);
+static void update_marks(view_t *view);
 static void cmd_zd(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zf(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_left_paren(key_info_t key_info, keys_info_t *keys_info);
@@ -161,17 +161,17 @@ static void cmd_left_curly_bracket(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_right_curly_bracket(key_info_t key_info,
 		keys_info_t *keys_info);
 static void find_goto(int ch, int count, int backward);
-static void select_up_one(FileView *view, int start_pos);
-static void select_down_one(FileView *view, int start_pos);
+static void select_up_one(view_t *view, int start_pos);
+static void select_down_one(view_t *view, int start_pos);
 static void apply_selection(int pos);
 static void revert_selection(int pos);
 static void update(void);
-static int find_update(FileView *view, int backward);
+static int find_update(view_t *view, int backward);
 static void goto_pos_force_update(int pos);
 static void goto_pos(int pos);
 static int move_pos(int pos);
 
-static FileView *view;
+static view_t *view;
 static int start_pos;
 static int last_fast_search_char;
 static int last_fast_search_backward = -1;
@@ -355,7 +355,7 @@ leave_visual_mode(int save_msg, int goto_top, int clear_selection)
 /* Stores current values of selected flags of all items in the directory for
  * future use. */
 static void
-backup_selection_flags(FileView *view)
+backup_selection_flags(view_t *view)
 {
 	int i;
 	for(i = 0; i < view->list_rows; ++i)
@@ -367,7 +367,7 @@ backup_selection_flags(FileView *view)
 /* Restore previous state of selected flags stored by
  * backup_selection_flags(). */
 static void
-restore_selection_flags(FileView *view)
+restore_selection_flags(view_t *view)
 {
 	int i;
 
@@ -448,11 +448,9 @@ cmd_ctrl_f(key_info_t key_info, keys_info_t *keys_info)
 static void
 page_scroll(int base, int direction)
 {
-	int new_pos;
-	/* Two lines gap. */
-	int lines = view->window_rows - 1;
-	int offset = lines*view->column_count;
-	new_pos = base + direction*offset;
+	enum { GAP_SIZE = 2 };
+	const int offset = (view->window_rows - GAP_SIZE)*view->column_count;
+	const int new_pos = base + direction*offset;
 	scroll_by_files(view, direction*offset);
 	goto_pos(new_pos);
 }
@@ -1175,7 +1173,7 @@ leave_clearing_selection(int go_to_top, int save_msg)
 }
 
 static void
-update_marks(FileView *view)
+update_marks(view_t *view)
 {
 	char start_mark, end_mark;
 	const dir_entry_t *start_entry, *end_entry;
@@ -1344,7 +1342,7 @@ find_goto(int ch, int count, int backward)
 
 /* move up one position in the window, adding to the selection list */
 static void
-select_up_one(FileView *view, int start_pos)
+select_up_one(view_t *view, int start_pos)
 {
 	view->list_pos--;
 	if(view->list_pos < 0)
@@ -1368,7 +1366,7 @@ select_up_one(FileView *view, int start_pos)
 
 /* move down one position in the window, adding to the selection list */
 static void
-select_down_one(FileView *view, int start_pos)
+select_down_one(view_t *view, int start_pos)
 {
 	++view->list_pos;
 
@@ -1499,7 +1497,7 @@ update_visual_mode(void)
 }
 
 int
-find_vpattern(FileView *view, const char pattern[], int backward,
+find_vpattern(view_t *view, const char pattern[], int backward,
 		int print_errors)
 {
 	int i;
@@ -1526,7 +1524,7 @@ find_vpattern(FileView *view, const char pattern[], int backward,
 
 /* returns non-zero when it finds something */
 static int
-find_update(FileView *view, int backward)
+find_update(view_t *view, int backward)
 {
 	const int old_pos = view->list_pos;
 	const int found = goto_search_match(view, backward);

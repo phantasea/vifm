@@ -47,13 +47,13 @@ static const wchar_t *prefix;
 static size_t prefix_len;
 
 int
-show_map_menu(FileView *view, const char mode_str[], int mode,
+show_map_menu(view_t *view, const char mode_str[], int mode,
 		const wchar_t start[])
 {
 	const int dialogs = mode == SORT_MODE || mode == ATTR_MODE
 	                 || mode == CHANGE_MODE || mode == FILE_INFO_MODE;
 
-	init_menu_data(&m, view,
+	menus_init_data(&m, view,
 			format_str("Mappings for %s mode%s", mode_str, dialogs ? "s" : ""),
 			strdup("No mappings found"));
 
@@ -71,7 +71,7 @@ show_map_menu(FileView *view, const char mode_str[], int mode,
 		m.len = 0;
 	}
 
-	return display_menu(m.state, view);
+	return menus_enter(m.state, view);
 }
 
 /* Adds matching key information to the menu after pre-formatting. */

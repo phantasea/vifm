@@ -41,50 +41,50 @@ typedef enum
 }
 HistoryType;
 
-static int show_history(FileView *view, HistoryType type, hist_t *hist,
+static int show_history(view_t *view, HistoryType type, hist_t *hist,
 		const char title[]);
-static int execute_history_cb(FileView *view, menu_data_t *m);
-static KHandlerResponse history_khandler(FileView *view, menu_data_t *m,
+static int execute_history_cb(view_t *view, menu_data_t *m);
+static KHandlerResponse history_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 
 int
-show_cmdhistory_menu(FileView *view)
+show_cmdhistory_menu(view_t *view)
 {
 	return show_history(view, CMDHISTORY, &cfg.cmd_hist, "Command Line History");
 }
 
 int
-show_fsearchhistory_menu(FileView *view)
+show_fsearchhistory_menu(view_t *view)
 {
 	return show_history(view, FSEARCHHISTORY, &cfg.search_hist, "Search History");
 }
 
 int
-show_bsearchhistory_menu(FileView *view)
+show_bsearchhistory_menu(view_t *view)
 {
 	return show_history(view, BSEARCHHISTORY, &cfg.search_hist, "Search History");
 }
 
 int
-show_prompthistory_menu(FileView *view)
+show_prompthistory_menu(view_t *view)
 {
 	return show_history(view, PROMPTHISTORY, &cfg.prompt_hist, "Prompt History");
 }
 
 int
-show_filterhistory_menu(FileView *view)
+show_filterhistory_menu(view_t *view)
 {
 	return show_history(view, FILTERHISTORY, &cfg.filter_hist, "Filter History");
 }
 
 /* Returns non-zero if status bar message should be saved. */
 static int
-show_history(FileView *view, HistoryType type, hist_t *hist, const char title[])
+show_history(view_t *view, HistoryType type, hist_t *hist, const char title[])
 {
 	int i;
 	static menu_data_t m;
 
-	init_menu_data(&m, view, strdup(title), strdup("History disabled or empty"));
+	menus_init_data(&m, view, strdup(title), strdup("History disabled or empty"));
 	m.execute_handler = &execute_history_cb;
 	m.key_handler = &history_khandler;
 	m.extra_data = type;
@@ -94,13 +94,13 @@ show_history(FileView *view, HistoryType type, hist_t *hist, const char title[])
 		m.len = add_to_string_array(&m.items, m.len, 1, hist->items[i]);
 	}
 
-	return display_menu(m.state, view);
+	return menus_enter(m.state, view);
 }
 
 /* Callback that is invoked when menu item is selected.  Should return non-zero
  * to stay in menu mode. */
 static int
-execute_history_cb(FileView *view, menu_data_t *m)
+execute_history_cb(view_t *view, menu_data_t *m)
 {
 	const char *const line = m->items[m->pos];
 
@@ -133,7 +133,7 @@ execute_history_cb(FileView *view, menu_data_t *m)
 /* Menu-specific shortcut handler.  Returns code that specifies both taken
  * actions and what should be done next. */
 static KHandlerResponse
-history_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
+history_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"c") == 0)
 	{

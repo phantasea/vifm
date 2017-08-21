@@ -31,19 +31,19 @@
 #include "menus.h"
 
 static char * format_item(const char trash_dir[], int calc_size);
-static int execute_trashes_cb(FileView *view, menu_data_t *m);
-static KHandlerResponse trashes_khandler(FileView *view, menu_data_t *m,
+static int execute_trashes_cb(view_t *view, menu_data_t *m);
+static KHandlerResponse trashes_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 
 int
-show_trashes_menu(FileView *view, int calc_size)
+show_trashes_menu(view_t *view, int calc_size)
 {
 	char **trashes;
 	int ntrashes;
 	int i;
 
 	static menu_data_t m;
-	init_menu_data(&m, view,
+	menus_init_data(&m, view,
 			format_str("%sNon-empty trash directories", calc_size ? "[  size] " : ""),
 			strdup("No non-empty trash directories found"));
 
@@ -62,7 +62,7 @@ show_trashes_menu(FileView *view, int calc_size)
 
 	free_string_array(trashes, ntrashes);
 
-	return display_menu(m.state, view);
+	return menus_enter(m.state, view);
 }
 
 /* Formats single menu item.  Returns pointer to newly allocated string. */
@@ -92,25 +92,25 @@ format_item(const char trash_dir[], int calc_size)
 /* Callback that is called when menu item is selected.  Return non-zero to stay
  * in menu mode and zero otherwise. */
 static int
-execute_trashes_cb(FileView *view, menu_data_t *m)
+execute_trashes_cb(view_t *view, menu_data_t *m)
 {
 	const char *const item = m->items[m->pos];
 	const char *const trash_dir = m->extra_data ? strchr(item, ']') + 2 : item;
-	goto_selected_directory(view, trash_dir);
+	menus_goto_dir(view, trash_dir);
 	return 0;
 }
 
 /* Menu-specific shortcut handler.  Returns code that specifies both taken
  * actions and what should be done next. */
 static KHandlerResponse
-trashes_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
+trashes_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"dd") == 0)
 	{
 		const char *const item = m->items[m->pos];
 		const char *trash_dir = m->extra_data ? strchr(item, ']') + 2 : item;
 		trash_empty(trash_dir);
-		remove_current_item(m->state);
+		menus_remove_current(m->state);
 		return KHR_REFRESH_WINDOW;
 	}
 	return KHR_UNHANDLED;

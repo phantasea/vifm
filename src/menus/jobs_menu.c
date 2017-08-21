@@ -32,24 +32,24 @@
 #include "../background.h"
 #include "menus.h"
 
-static int execute_jobs_cb(FileView *view, menu_data_t *m);
-static KHandlerResponse jobs_khandler(FileView *view, menu_data_t *m,
+static int execute_jobs_cb(view_t *view, menu_data_t *m);
+static KHandlerResponse jobs_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 static int cancel_job(menu_data_t *m, bg_job_t *job);
-static void show_job_errors(FileView *view, menu_data_t *m, bg_job_t *job);
-static KHandlerResponse errs_khandler(FileView *view, menu_data_t *m,
+static void show_job_errors(view_t *view, menu_data_t *m, bg_job_t *job);
+static KHandlerResponse errs_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 
 /* Menu jobs description. */
 static menu_data_t jobs_m;
 
 int
-show_jobs_menu(FileView *view)
+show_jobs_menu(view_t *view)
 {
 	bg_job_t *p;
 	int i;
 
-	init_menu_data(&jobs_m, view, strdup("Pid --- Command"),
+	menus_init_data(&jobs_m, view, strdup("Pid --- Command"),
 			strdup("No jobs currently running"));
 	jobs_m.execute_handler = &execute_jobs_cb;
 	jobs_m.key_handler = &jobs_khandler;
@@ -98,13 +98,13 @@ show_jobs_menu(FileView *view)
 
 	jobs_m.len = i;
 
-	return display_menu(jobs_m.state, view);
+	return menus_enter(jobs_m.state, view);
 }
 
 /* Callback that is called when menu item is selected.  Should return non-zero
  * to stay in menu mode. */
 static int
-execute_jobs_cb(FileView *view, menu_data_t *m)
+execute_jobs_cb(view_t *view, menu_data_t *m)
 {
 	/* TODO: write code for job control. */
 	return 0;
@@ -113,7 +113,7 @@ execute_jobs_cb(FileView *view, menu_data_t *m)
 /* Menu-specific shortcut handler.  Returns code that specifies both taken
  * actions and what should be done next. */
 static KHandlerResponse
-jobs_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
+jobs_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"dd") == 0)
 	{
@@ -123,7 +123,7 @@ jobs_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
 			return KHR_REFRESH_WINDOW;
 		}
 
-		draw_menu(m->state);
+		menus_partial_redraw(m->state);
 		return KHR_REFRESH_WINDOW;
 	}
 	else if(wcscmp(keys, L"e") == 0)
@@ -166,7 +166,7 @@ cancel_job(menu_data_t *m, bg_job_t *job)
 /* Shows job errors if there is something and the job is still running.
  * Switches to separate menu description. */
 static void
-show_job_errors(FileView *view, menu_data_t *m, bg_job_t *job)
+show_job_errors(view_t *view, menu_data_t *m, bg_job_t *job)
 {
 	char *cmd = NULL, *errors = NULL;
 	size_t errors_len = 0U;
@@ -199,11 +199,11 @@ show_job_errors(FileView *view, menu_data_t *m, bg_job_t *job)
 	{
 		static menu_data_t m;
 
-		init_menu_data(&m, view, format_str("Job errors (%s)", cmd), NULL);
+		menus_init_data(&m, view, format_str("Job errors (%s)", cmd), NULL);
 		m.key_handler = &errs_khandler;
 		m.items = break_into_lines(errors, errors_len, &m.len, 0);
 
-		reenter_menu_mode(&m);
+		menu_reenter_mode(&m);
 	}
 	free(cmd);
 	free(errors);
@@ -212,11 +212,11 @@ show_job_errors(FileView *view, menu_data_t *m, bg_job_t *job)
 /* Menu-specific shortcut handler.  Returns code that specifies both taken
  * actions and what should be done next. */
 static KHandlerResponse
-errs_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
+errs_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"h") == 0)
 	{
-		reenter_menu_mode(&jobs_m);
+		menu_reenter_mode(&jobs_m);
 		return KHR_REFRESH_WINDOW;
 	}
 	return KHR_UNHANDLED;

@@ -70,6 +70,7 @@ char *HI_GROUPS[] = {
 	[SUGGEST_BOX_COLOR]  = "SuggestBox",
 	[MENU_COLOR]         = "Menu",    //add by sim1
 	[MISMATCH_COLOR]     = "CmpMismatch",
+	[AUX_WIN_COLOR]      = "AuxWin",
 };
 ARRAY_GUARD(HI_GROUPS, MAXNUM_COLOR);
 
@@ -96,6 +97,7 @@ const char *HI_GROUPS_DESCR[] = {
 	[SUGGEST_BOX_COLOR]  = "suggestion box",
 	[MENU_COLOR]         = "menu",  //add by sim1
 	[MISMATCH_COLOR]     = "mismatched diff entries",
+	[AUX_WIN_COLOR]      = "auxiliary part of window",
 };
 ARRAY_GUARD(HI_GROUPS_DESCR, ARRAY_LEN(HI_GROUPS));
 
@@ -394,6 +396,7 @@ static const col_attr_t default_cs[] = {
 	[SUGGEST_BOX_COLOR]  = { -1,            -1,          A_BOLD                  },
 	[MENU_COLOR]         = { COLOR_WHITE,   COLOR_BLACK, 0                       },  //add by sim1
 	[MISMATCH_COLOR]     = { COLOR_WHITE,   COLOR_RED,   A_BOLD                  },
+	[AUX_WIN_COLOR]      = { -1,            -1,          -1                      },
 };
 ARRAY_GUARD(default_cs, MAXNUM_COLOR);
 

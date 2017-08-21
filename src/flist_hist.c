@@ -29,10 +29,13 @@
 #include "filelist.h"
 #include "flist_pos.h"
 
-static void navigate_to_history_pos(FileView *view, int pos);
+static void navigate_to_history_pos(view_t *view, int pos);
+static int find_in_hist(const view_t *view, const view_t *source, int *pos,
+		int *rel_pos);
+static history_t *find_hist_entry(const view_t *view, const char dir[]);
 
 void
-flist_hist_go_back(FileView *view)
+flist_hist_go_back(view_t *view)
 {
 	/* When in custom view, we don't want to skip top history item. */
 	int pos = flist_custom_active(view)
@@ -57,7 +60,7 @@ flist_hist_go_back(FileView *view)
 }
 
 void
-flist_hist_go_forward(FileView *view)
+flist_hist_go_forward(view_t *view)
 {
 	int pos = view->history_pos + 1;
 
@@ -81,7 +84,7 @@ flist_hist_go_forward(FileView *view)
 /* Changes current directory of the view to one of previously visited
  * locations. */
 static void
-navigate_to_history_pos(FileView *view, int pos)
+navigate_to_history_pos(view_t *view, int pos)
 {
 	curr_stats.drop_new_dir_hist = 1;
 	if(change_directory(view, view->history[pos].dir) < 0)
@@ -98,8 +101,7 @@ navigate_to_history_pos(FileView *view, int pos)
 }
 
 void
-flist_hist_save(FileView *view, const char path[], const char file[],
-		int rel_pos)
+flist_hist_save(view_t *view, const char path[], const char file[], int rel_pos)
 {
 	int x;
 
@@ -164,7 +166,7 @@ flist_hist_save(FileView *view, const char path[], const char file[],
 }
 
 int
-flist_hist_contains(FileView *view, const char path[])
+flist_hist_contains(view_t *view, const char path[])
 {
 	int i;
 
@@ -188,7 +190,7 @@ flist_hist_contains(FileView *view, const char path[])
 }
 
 void
-flist_hist_clear(FileView *view)
+flist_hist_clear(view_t *view)
 {
 	int i;
 	for(i = 0; i <= view->history_pos && i < view->history_num; ++i)
@@ -198,46 +200,14 @@ flist_hist_clear(FileView *view)
 }
 
 void
-flist_hist_lookup(FileView *view, const FileView *source)
+flist_hist_lookup(view_t *view, const view_t *source)
 {
 	int pos = 0;
 	int rel_pos = -1;
 
 	if(cfg.history_len > 0 && source->history_num > 0 && curr_stats.ch_pos)
 	{
-		int x;
-		int found = 0;
-		x = source->history_pos;
-		if(stroscmp(source->history[x].dir, view->curr_dir) == 0 &&
-				source->history[x].file[0] == '\0')
-			x--;
-		for(; x >= 0; x--)
-		{
-			if(source->history[x].dir[0] == '\0')
-				break;
-			if(stroscmp(source->history[x].dir, view->curr_dir) == 0)
-			{
-				found = 1;
-				break;
-			}
-		}
-		if(found)
-		{
-			pos = find_file_pos_in_list(view, source->history[x].file);
-			rel_pos = source->history[x].rel_pos;
-		}
-		else if(path_starts_with(view->last_dir, view->curr_dir) &&
-				stroscmp(view->last_dir, view->curr_dir) != 0 &&
-				strchr(view->last_dir + strlen(view->curr_dir) + 1, '/') == NULL)
-		{
-			/* This handles positioning of cursor on directory we just left by doing
-			 * `cd ..` or equivalent. */
-
-			const char *const dir_name = view->last_dir + strlen(view->curr_dir) + 1U;
-			pos = find_file_pos_in_list(view, dir_name);
-			rel_pos = -1;
-		}
-		else
+		if(!find_in_hist(view, source, &pos, &rel_pos))
 		{
 			view->list_pos = 0;
 			view->curr_line = 0;
@@ -269,6 +239,112 @@ flist_hist_lookup(FileView *view, const FileView *source)
 		}
 	}
 	(void)consider_scroll_offset(view);
+}
+
+int
+flist_hist_find(const view_t *view, entries_t entries, const char dir[],
+		int *top)
+{
+	int pos;
+
+	const history_t *const hist_entry = find_hist_entry(view, dir);
+	if(hist_entry == NULL)
+	{
+		*top = 0;
+		return 0;
+	}
+
+	for(pos = 0; pos < entries.nentries; ++pos)
+	{
+		if(stroscmp(entries.entries[pos].name, hist_entry->file) == 0)
+		{
+			break;
+		}
+	}
+	if(pos >= entries.nentries)
+	{
+		pos = 0;
+	}
+
+	*top = pos - MIN(entries.nentries, hist_entry->rel_pos);
+	if(*top < 0)
+	{
+		*top = 0;
+	}
+
+	return pos;
+}
+
+/* Searches for current directory of the view in the history of source.  Returns
+ * non-zero if something was found, otherwise zero is returned.  On success,
+ * *pos and *rel_pos are set, but might be negative if they aren't valid when
+ * applied to existing list of files. */
+static int
+find_in_hist(const view_t *view, const view_t *source, int *pos, int *rel_pos)
+{
+	const history_t *const hist_entry = find_hist_entry(source, view->curr_dir);
+	if(hist_entry != NULL)
+	{
+		*pos = find_file_pos_in_list(view, hist_entry->file);
+		*rel_pos = hist_entry->rel_pos;
+		return 1;
+	}
+
+	if(path_starts_with(view->last_dir, view->curr_dir) &&
+			stroscmp(view->last_dir, view->curr_dir) != 0 &&
+			strchr(view->last_dir + strlen(view->curr_dir) + 1, '/') == NULL)
+	{
+		/* This handles positioning of cursor on directory we just left by doing
+		 * `cd ..` or equivalent. */
+
+		const char *const dir_name = view->last_dir + strlen(view->curr_dir) + 1U;
+		*pos = find_file_pos_in_list(view, dir_name);
+		*rel_pos = -1;
+		return 1;
+	}
+
+	return 0;
+}
+
+void
+flist_hist_update(view_t *view, const char dir[], const char file[],
+		int rel_pos)
+{
+	history_t *const hist_entry = find_hist_entry(view, dir);
+	if(hist_entry != NULL)
+	{
+		(void)replace_string(&hist_entry->file, file);
+		hist_entry->rel_pos = rel_pos;
+	}
+}
+
+/* Finds entry in view history by directory path.  Returns pointer to the entry
+ * or NULL. */
+static history_t *
+find_hist_entry(const view_t *view, const char dir[])
+{
+	history_t *const history = view->history;
+	int i = view->history_pos;
+
+	if(cfg.history_len <= 0)
+	{
+		return NULL;
+	}
+
+	if(stroscmp(history[i].dir, dir) == 0 && history[i].file[0] == '\0')
+	{
+		--i;
+	}
+
+	for(; i >= 0 && history[i].dir[0] != '\0'; --i)
+	{
+		if(stroscmp(history[i].dir, dir) == 0)
+		{
+			return &history[i];
+		}
+	}
+
+	return NULL;
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

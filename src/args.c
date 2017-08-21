@@ -26,13 +26,14 @@
 #include "compat/fs_limits.h"
 #include "compat/getopt.h"
 #include "compat/reallocarray.h"
-#include "int/vim.h"
 #include "modes/dialogs/msg_dialog.h"
 #include "utils/fs.h"
 #include "utils/path.h"
 #include "utils/str.h"
 #include "utils/string_array.h"
+#include "int/vim.h"
 #include "ipc.h"
+#include "status.h"
 #include "version.h"
 
 static void list_servers(void);
@@ -306,9 +307,8 @@ parse_path(const char dir[], const char path[], char buf[])
 #endif
 	else
 	{
-		char new_path[PATH_MAX];
-		snprintf(new_path, sizeof(new_path), "%s%s%s", dir,
-				ends_with_slash(dir) ? "" : "/", path);
+		char new_path[PATH_MAX + 1];
+		build_path(new_path, sizeof(new_path), dir, path);
 		canonicalize_path(new_path, buf, PATH_MAX);
 	}
 	if(!is_root_dir(buf))

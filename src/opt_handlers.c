@@ -90,6 +90,8 @@ static void init_timefmt(optval_t *val);
 static void init_trashdir(optval_t *val);
 static void init_dotfiles(optval_t *val);
 static void init_lsview(optval_t *val);
+static void init_milleroptions(optval_t *val);
+static void init_millerview(optval_t *val);
 static void init_shortmess(optval_t *val);
 static void init_sizefmt(optval_t *val);
 static void init_iooptions(optval_t *val);
@@ -102,7 +104,7 @@ static void init_tuioptions(optval_t *val);
 static void init_wordchars(optval_t *val);
 static void load_options_defaults(void);
 static void add_options(void);
-static void load_sort_option_inner(FileView *view, char sort_keys[]);
+static void load_sort_option_inner(view_t *view, char sort_keys[]);
 static void aproposprg_handler(OPT_OP op, optval_t val);
 static void autochpos_handler(OPT_OP op, optval_t val);
 static void caseoptions_handler(OPT_OP op, optval_t val);
@@ -139,7 +141,7 @@ static void laststatus_handler(OPT_OP op, optval_t val);
 static void lines_handler(OPT_OP op, optval_t val);
 static void locateprg_handler(OPT_OP op, optval_t val);
 static void mintimeoutlen_handler(OPT_OP op, optval_t val);
-static void scroll_line_down(FileView *view);
+static void scroll_line_down(view_t *view);
 static void rulerformat_handler(OPT_OP op, optval_t val);
 static void runexec_handler(OPT_OP op, optval_t val);
 static void scrollbind_handler(OPT_OP op, optval_t val);
@@ -157,33 +159,39 @@ static void dotfiles_global(OPT_OP op, optval_t val);
 static void dotfiles_local(OPT_OP op, optval_t val);
 static void lsview_global(OPT_OP op, optval_t val);
 static void lsview_local(OPT_OP op, optval_t val);
+static void milleroptions_global(OPT_OP op, optval_t val);
+static void milleroptions_local(OPT_OP op, optval_t val);
+static void set_milleroptions(int ratios[3], optval_t val, OPT_SCOPE scope);
+static void fill_milleroptions(optval_t *val, int ratios[3]);
+static void millerview_global(OPT_OP op, optval_t val);
+static void millerview_local(OPT_OP op, optval_t val);
 static void number_global(OPT_OP op, optval_t val);
 static void number_local(OPT_OP op, optval_t val);
 static void numberwidth_global(OPT_OP op, optval_t val);
 static void numberwidth_local(OPT_OP op, optval_t val);
-static void set_numberwidth(FileView *view, int *num_width, int width);
+static void set_numberwidth(view_t *view, int *num_width, int width);
 static void relativenumber_global(OPT_OP op, optval_t val);
 static void relativenumber_local(OPT_OP op, optval_t val);
-static void update_num_type(FileView *view, NumberingType *num_type,
+static void update_num_type(view_t *view, NumberingType *num_type,
 		NumberingType type, int enable);
 static void sort_global(OPT_OP op, optval_t val);
 static void sort_local(OPT_OP op, optval_t val);
-static void set_sort(FileView *view, char sort_keys[], char order[]);
+static void set_sort(view_t *view, char sort_keys[], char order[]);
 static void sortgroups_global(OPT_OP op, optval_t val);
 static void sortgroups_local(OPT_OP op, optval_t val);
-static void set_sortgroups(FileView *view, char **opt, char value[]);
-static void sorting_changed(FileView *view, int defer_slow);
+static void set_sortgroups(view_t *view, char **opt, char value[]);
+static void sorting_changed(view_t *view, int defer_slow);
 static void sortorder_global(OPT_OP op, optval_t val);
 static void sortorder_local(OPT_OP op, optval_t val);
-static void set_sortorder(FileView *view, int ascending, char sort_keys[]);
+static void set_sortorder(view_t *view, int ascending, char sort_keys[]);
 static void viewcolumns_global(OPT_OP op, optval_t val);
 static void viewcolumns_local(OPT_OP op, optval_t val);
-static void set_viewcolumns(FileView *view, const char view_columns[]);
-static void set_view_columns_option(FileView *view, const char value[],
+static void set_viewcolumns(view_t *view, const char view_columns[]);
+static void set_view_columns_option(view_t *view, const char value[],
 		int update_ui);
 static void add_column(columns_t *columns, column_info_t column_info);
 static int map_name(const char name[], void *arg);
-static void resort_view(FileView * view);
+static void resort_view(view_t * view);
 static void statusline_handler(OPT_OP op, optval_t val);
 static void suggestoptions_handler(OPT_OP op, optval_t val);
 static int read_int(const char line[], int *i);
@@ -321,6 +329,13 @@ static const char *dirsize_enum[][2] = {
 /* Possible keys of 'fillchars' option. */
 static const char *fillchars_enum[][2] = {
 	{ "vborder:", "filler of vertical borders" },
+};
+
+/* Possible keys of 'milleroptions' option. */
+static const char *milleroptions_enum[][2] = {
+	{ "lsize:", "proportion of space given to the left column" },
+	{ "csize:", "proportion of space given to the center column" },
+	{ "rsize:", "proportion of space given to the right column" },
 };
 
 /* Possible keys of 'sizefmt' option. */
@@ -749,6 +764,15 @@ options[] = {
 	  OPT_BOOL, 0, NULL, &lsview_global, &lsview_local,
 	  { .init = &init_lsview },
 	},
+	{ "milleroptions", "", "settings for miller view",
+	  OPT_STRLIST, ARRAY_LEN(milleroptions_enum), milleroptions_enum,
+		&milleroptions_global, &milleroptions_local,
+	  { .init = &init_milleroptions },
+	},
+	{ "millerview", "", "display cascading lists",
+	  OPT_BOOL, 0, NULL, &millerview_global, &millerview_local,
+	  { .init = &init_millerview },
+	},
 	{ "number", "nu", "display line numbers",
 	  OPT_BOOL, 0, NULL, &number_global, &number_local,
 	  { .init = &init_number },
@@ -826,7 +850,7 @@ uni_handler(const char name[], optval_t val, OPT_SCOPE scope)
 	{
 		if(strcmp(options[i].name, name) == 0)
 		{
-			FileView *const tmp_view = curr_view;
+			view_t *const tmp_view = curr_view;
 			curr_view = other_view;
 
 			/* Make sure option value remains valid even if updated in the handler.
@@ -991,10 +1015,25 @@ init_dotfiles(optval_t *val)
 	val->bool_val = !curr_view->hide_dot_g;
 }
 
+/* Initializes 'lsview' option from global value. */
 static void
 init_lsview(optval_t *val)
 {
 	val->bool_val = curr_view->ls_view_g;
+}
+
+/* Initializes 'milleroptions' option from global value. */
+static void
+init_milleroptions(optval_t *val)
+{
+	fill_milleroptions(val, curr_view->miller_ratios_g);
+}
+
+/* Initializes 'millerview' option from global value. */
+static void
+init_millerview(optval_t *val)
+{
+	val->bool_val = curr_view->miller_view_g;
 }
 
 /* Initializes 'shortmess' from current configuration state. */
@@ -1165,7 +1204,7 @@ add_options(void)
 }
 
 void
-reset_local_options(FileView *view)
+reset_local_options(view_t *view)
 {
 	optval_t val;
 
@@ -1179,6 +1218,15 @@ reset_local_options(FileView *view)
 	fview_set_lsview(view, view->ls_view_g);
 	val.int_val = view->ls_view_g;
 	set_option("lsview", val, OPT_LOCAL);
+
+	memcpy(view->miller_ratios, view->miller_ratios_g,
+			sizeof(view->miller_ratios));
+	fill_milleroptions(&val, view->miller_ratios_g);
+	set_option("milleroptions", val, OPT_LOCAL);
+
+	fview_set_millerview(view, view->miller_view_g);
+	val.int_val = view->miller_view_g;
+	set_option("millerview", val, OPT_LOCAL);
 
 	view->num_type = view->num_type_g;
 	val.bool_val = view->num_type_g & NT_SEQ;
@@ -1201,7 +1249,7 @@ reset_local_options(FileView *view)
 }
 
 void
-load_view_options(FileView *view)
+load_view_options(view_t *view)
 {
 	optval_t val;
 
@@ -1227,6 +1275,16 @@ load_view_options(FileView *view)
 	val.bool_val = view->ls_view_g;
 	set_option("lsview", val, OPT_GLOBAL);
 
+	fill_milleroptions(&val, view->miller_ratios);
+	set_option("milleroptions", val, OPT_LOCAL);
+	fill_milleroptions(&val, view->miller_ratios_g);
+	set_option("milleroptions", val, OPT_GLOBAL);
+
+	val.bool_val = view->miller_view;
+	set_option("millerview", val, OPT_LOCAL);
+	val.bool_val = view->miller_view_g;
+	set_option("millerview", val, OPT_GLOBAL);
+
 	val.bool_val = view->num_type & NT_SEQ;
 	set_option("number", val, OPT_LOCAL);
 	val.bool_val = view->num_type_g & NT_SEQ;
@@ -1244,7 +1302,7 @@ load_view_options(FileView *view)
 }
 
 void
-clone_local_options(const FileView *from, FileView *to, int defer_slow)
+clone_local_options(const view_t *from, view_t *to, int defer_slow)
 {
 	const char *sort;
 
@@ -1272,10 +1330,17 @@ clone_local_options(const FileView *from, FileView *to, int defer_slow)
 
 	to->ls_view_g = from->ls_view_g;
 	fview_set_lsview(to, from->ls_view);
+
+	memcpy(to->miller_ratios_g, from->miller_ratios_g,
+			sizeof(to->miller_ratios_g));
+	memcpy(to->miller_ratios, from->miller_ratios, sizeof(to->miller_ratios));
+
+	to->miller_view_g = from->miller_view_g;
+	fview_set_millerview(to, from->miller_view);
 }
 
 void
-load_sort_option(FileView *view)
+load_sort_option(view_t *view)
 {
 	load_sort_option_inner(view, view->sort);
 	load_sort_option_inner(view, view->sort_g);
@@ -1292,7 +1357,7 @@ load_sort_option(FileView *view)
 
 /* Loads sorting related options ("sort" and "sortorder"). */
 static void
-load_sort_option_inner(FileView *view, char sort_keys[])
+load_sort_option_inner(view_t *view, char sort_keys[])
 {
 	/* This approximate maximum length also includes "+" or "-" sign and a
 	 * comma (",") between items. */
@@ -1519,7 +1584,7 @@ str_to_classify(const char str[], char type_decs[FT_COUNT][2][9])
 	saveptr = NULL;
 	for(token = str_copy; (token = split_and_get_dc(token, &saveptr));)
 	{
-		FileType type;
+		FileType type = FT_UNK;
 		const char *expr = NULL;
 		const char *suffix = pick_out_decoration(token, &type, &expr);
 
@@ -1991,16 +2056,16 @@ mintimeoutlen_handler(OPT_OP op, optval_t val)
 }
 
 static void
-scroll_line_down(FileView *view)
+scroll_line_down(view_t *view)
 {
-	view->window_rows--;
-	if(view->list_pos == view->top_line + view->window_rows + 1)
+	--view->window_rows;
+	if(view->list_pos == view->top_line + view->window_rows)
 	{
-		view->top_line++;
-		view->curr_line--;
+		++view->top_line;
+		--view->curr_line;
 		draw_dir_list(view);
 	}
-	wresize(view->win, view->window_rows + 1, view->window_width + 1);
+	wresize(view->win, view->window_rows, view->window_cols);
 }
 
 static void
@@ -2209,6 +2274,117 @@ lsview_local(OPT_OP op, optval_t val)
 	fview_set_lsview(curr_view, val.bool_val);
 }
 
+/* Handles update of miller columns settings as a global option. */
+static void
+milleroptions_global(OPT_OP op, optval_t val)
+{
+	set_milleroptions(curr_view->miller_ratios_g, val, OPT_GLOBAL);
+}
+
+/* Handles update of miller columns settings as a local option. */
+static void
+milleroptions_local(OPT_OP op, optval_t val)
+{
+	set_milleroptions(curr_view->miller_ratios, val, OPT_LOCAL);
+}
+
+/* Handles update of miller columns settings. */
+static void
+set_milleroptions(int ratios[3], optval_t val, OPT_SCOPE scope)
+{
+	char *new_val = strdup(val.str_val);
+	char *part = new_val, *state = NULL;
+
+	int lsize = 0, csize = 1, rsize = 0;
+
+	while((part = split_and_get(part, ',', &state)) != NULL)
+	{
+		if(starts_with_lit(part, "lsize:"))
+		{
+			const char *const num = after_first(part, ':');
+			if(!read_int(num, &lsize))
+			{
+				vle_tb_append_linef(vle_err, "Failed to parse \"lsize\" value: %s",
+						num);
+				break;
+			}
+		}
+		else if(starts_with_lit(part, "csize:"))
+		{
+			const char *const num = after_first(part, ':');
+			if(!read_int(num, &csize))
+			{
+				vle_tb_append_linef(vle_err, "Failed to parse \"csize\" value: %s",
+						num);
+				break;
+			}
+			if(csize < 1)
+			{
+				vle_tb_append_linef(vle_err, "\"csize\" can't be less than 1, got: %s",
+						num);
+				break;
+			}
+		}
+		else if(starts_with_lit(part, "rsize:"))
+		{
+			const char *const num = after_first(part, ':');
+			if(!read_int(num, &rsize))
+			{
+				vle_tb_append_linef(vle_err, "Failed to parse \"rsize\" value: %s",
+						num);
+				break;
+			}
+		}
+		else
+		{
+			break_at(part, ':');
+			vle_tb_append_linef(vle_err, "Unknown key for 'milleroptions' option: %s",
+					part);
+			break;
+		}
+	}
+	free(new_val);
+
+	if(part == NULL)
+	{
+		ratios[0] = MAX(0, MIN(100, lsize));
+		ratios[1] = MAX(0, MIN(100, csize));
+		ratios[2] = MAX(0, MIN(100, rsize));
+
+		if(ratios == curr_view->miller_ratios)
+		{
+			ui_view_schedule_redraw(curr_view);
+		}
+	}
+
+	fill_milleroptions(&val, ratios);
+	set_option("milleroptions", val, scope);
+}
+
+/* Loads value of milleroptions as a string. */
+static void
+fill_milleroptions(optval_t *val, int ratios[3])
+{
+	static char buf[64];
+	snprintf(buf, sizeof(buf), "lsize:%d,csize:%d,rsize:%d", ratios[0], ratios[1],
+			ratios[2]);
+	val->str_val = buf;
+}
+
+/* Handles switch that controls cascading lists view in global option. */
+static void
+millerview_global(OPT_OP op, optval_t val)
+{
+	curr_view->miller_view_g = val.bool_val;
+}
+
+/* Handles switch that controls cascading lists view in local option. */
+static void
+millerview_local(OPT_OP op, optval_t val)
+{
+	fview_set_millerview(curr_view, val.bool_val);
+}
+
 /* Handles file numbers displaying toggle in global option. */
 static void
 number_global(OPT_OP op, optval_t val)
@@ -2239,7 +2415,7 @@ numberwidth_local(OPT_OP op, optval_t val)
 
 /* Sets number width for the view. */
 static void
-set_numberwidth(FileView *view, int *num_width, int width)
+set_numberwidth(view_t *view, int *num_width, int width)
 {
 	*num_width = width;
 
@@ -2266,7 +2442,7 @@ relativenumber_local(OPT_OP op, optval_t val)
 /* Handles toggling of boolean number related option and updates current view if
  * needed. */
 static void
-update_num_type(FileView *view, NumberingType *num_type, NumberingType type,
+update_num_type(view_t *view, NumberingType *num_type, NumberingType type,
 		int enable)
 {
 	const NumberingType old_num_type = *num_type;
@@ -2305,7 +2481,7 @@ sort_local(OPT_OP op, optval_t val)
 
 /* Sets sorting value for the view. */
 static void
-set_sort(FileView *view, char sort_keys[], char order[])
+set_sort(view_t *view, char sort_keys[], char order[])
 {
 	char *part = order, *state = NULL;
 	int key_count = 0;
@@ -2384,7 +2560,7 @@ sortgroups_local(OPT_OP op, optval_t val)
 /* Sets sort_groups fields (*opt) of the view to the value handling malformed
  * values correctly. */
 static void
-set_sortgroups(FileView *view, char **opt, char value[])
+set_sortgroups(view_t *view, char **opt, char value[])
 {
 	OPT_SCOPE scope = (opt == &view->sort_groups) ? OPT_LOCAL : OPT_GLOBAL;
 	int failure = 0;
@@ -2434,7 +2610,7 @@ set_sortgroups(FileView *view, char **opt, char value[])
 
 /* Reacts on changes of view sorting. */
 static void
-sorting_changed(FileView *view, int defer_slow)
+sorting_changed(view_t *view, int defer_slow)
 {
 	/* Reset search results, which might be outdated after resorting. */
 	view->matches = 0;
@@ -2463,7 +2639,7 @@ sortorder_local(OPT_OP op, optval_t val)
 
 /* Updates sorting order for the view. */
 static void
-set_sortorder(FileView *view, int ascending, char sort_keys[])
+set_sortorder(view_t *view, int ascending, char sort_keys[])
 {
 	if((ascending ? +1 : -1)*sort_keys[0] < 0)
 	{
@@ -2493,14 +2669,14 @@ viewcolumns_local(OPT_OP op, optval_t val)
 
 /* Setups view columns for the view. */
 static void
-set_viewcolumns(FileView *view, const char view_columns[])
+set_viewcolumns(view_t *view, const char view_columns[])
 {
 	const int update_columns_ui = ui_view_displays_columns(view);
 	set_view_columns_option(view, view_columns, update_columns_ui);
 }
 
 void
-load_dot_filter_option(const FileView *view)
+load_dot_filter_option(const view_t *view)
 {
 	const optval_t val = { .bool_val = !view->hide_dot };
 	set_option("dotfiles", val, OPT_GLOBAL);
@@ -2508,7 +2684,7 @@ load_dot_filter_option(const FileView *view)
 }
 
 void
-load_view_columns_option(FileView *view, const char value[])
+load_view_columns_option(view_t *view, const char value[])
 {
 	set_view_columns_option(view, value, 1);
 }
@@ -2517,7 +2693,7 @@ load_view_columns_option(FileView *view, const char value[])
  * Doesn't change actual value of the option, which is important for setting
  * sorting order via sort dialog. */
 static void
-set_view_columns_option(FileView *view, const char value[], int update_ui)
+set_view_columns_option(view_t *view, const char value[], int update_ui)
 {
 	const char *new_value = (value[0] == '\0') ? DEFAULT_VIEW_COLUMNS : value;
 	columns_t *columns = update_ui ? view->columns : NULL;
@@ -2578,7 +2754,7 @@ map_name(const char name[], void *arg)
 	/* Handle secondary key (designated by {}). */
 	if(*name == '\0')
 	{
-		const FileView *const view = arg;
+		const view_t *const view = arg;
 		const char *const sort = ui_view_sort_list_get(view, view->sort);
 		return (int)get_secondary_key((SortingKey)abs(sort[0]));
 	}
@@ -2599,7 +2775,7 @@ load_geometry(void)
 }
 
 static void
-resort_view(FileView * view)
+resort_view(view_t * view)
 {
 	resort_dir_list(1, view);
 	ui_view_schedule_redraw(curr_view);

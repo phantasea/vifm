@@ -15,8 +15,8 @@
 
 #include "utils.h"
 
-static void init_view(FileView *view);
-static void free_view(FileView *view);
+static void init_view(view_t *view);
+static void free_view(view_t *view);
 
 SETUP()
 {
@@ -49,7 +49,7 @@ TEARDOWN()
 }
 
 static void
-init_view(FileView *view)
+init_view(view_t *view)
 {
 	char *error;
 
@@ -63,13 +63,13 @@ init_view(FileView *view)
 	view->custom.entry_count = 0;
 	view->custom.entries = NULL;
 
-	view->window_rows = 1;
+	view->window_rows = 2;
 	view->sort[0] = SK_NONE;
 	ui_view_sort_list_ensure_well_formed(view, view->sort);
 }
 
 static void
-free_view(FileView *view)
+free_view(view_t *view)
 {
 	int i;
 

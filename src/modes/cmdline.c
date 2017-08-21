@@ -189,7 +189,7 @@ static void cmd_ctrl_xc(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xf(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ctrl_xxc(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xxf(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
-static void paste_short_path(FileView *view);
+static void paste_short_path(view_t *view);
 static void cmd_ctrl_xd(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xxd(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xe(key_info_t key_info, keys_info_t *keys_info);
@@ -197,7 +197,7 @@ static void cmd_ctrl_xxe(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xm(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xr(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xxr(key_info_t key_info, keys_info_t *keys_info);
-static void paste_short_path_root(FileView *view);
+static void paste_short_path_root(view_t *view);
 static void cmd_ctrl_xt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xxt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xequals(key_info_t key_info, keys_info_t *keys_info);
@@ -457,7 +457,7 @@ input_line_changed(void)
 	}
 	else if(prev_mode == MENU_MODE)
 	{
-		menu_redraw();
+		menu_full_redraw();
 	}
 
 	curs_set(1);
@@ -476,7 +476,7 @@ handle_empty_input(void)
 		}
 		else
 		{
-			(void)search_menu_list("", sub_mode_ptr, 0);
+			(void)menus_search("", sub_mode_ptr, 0);
 		}
 	}
 
@@ -514,8 +514,8 @@ handle_nonempty_input(void)
 			break;
 		case CLS_MENU_FSEARCH:
 		case CLS_MENU_BSEARCH:
-			result = search_menu_list(mbinput, sub_mode_ptr, 0);
-			update_state(result, menu_get_matches(sub_mode_ptr));
+			result = menus_search(mbinput, sub_mode_ptr, 0);
+			update_state(result, menus_search_matched(sub_mode_ptr));
 			break;
 		case CLS_FILTER:
 			set_local_filter(mbinput);
@@ -667,7 +667,7 @@ redraw_cmdline(void)
 {
 	if(prev_mode == MENU_MODE)
 	{
-		menu_redraw();
+		menu_full_redraw();
 	}
 	else
 	{
@@ -759,7 +759,7 @@ save_view_port(void)
 	}
 	else
 	{
-		save_menu_pos();
+		menu_save_pos();
 	}
 }
 
@@ -769,7 +769,7 @@ set_view_port(void)
 {
 	if(prev_mode == MENU_MODE)
 	{
-		load_menu_pos();
+		menu_restore_pos();
 		return;
 	}
 
@@ -813,7 +813,7 @@ leave_cmdline_mode(void)
 		if(prev_mode == MENU_MODE)
 		{
 			wresize(menu_win, getmaxy(stdscr) - 1, getmaxx(stdscr));
-			update_menu();
+			menu_partial_redraw();
 		}
 	}
 
@@ -1340,7 +1340,7 @@ cmd_return(key_info_t key_info, keys_info_t *keys_info)
 			case CLS_MENU_FSEARCH:
 			case CLS_MENU_BSEARCH:
 				curr_stats.need_update = UT_FULL;
-				curr_stats.save_msg = search_menu_list(pattern, sub_mode_ptr, 1);
+				curr_stats.save_msg = menus_search(pattern, sub_mode_ptr, 1);
 				break;
 
 			default:
@@ -1352,7 +1352,7 @@ cmd_return(key_info_t key_info, keys_info_t *keys_info)
 	{
 		if(prev_mode == MENU_MODE)
 		{
-			menu_print_search_msg(sub_mode_ptr);
+			menus_search_print_msg(sub_mode_ptr);
 			curr_stats.save_msg = 1;
 		}
 		else
@@ -1774,7 +1774,7 @@ cmd_ctrl_xxf(key_info_t key_info, keys_info_t *keys_info)
 /* Pastes short path of the current entry of the view into current cursor
  * position. */
 static void
-paste_short_path(FileView *view)
+paste_short_path(view_t *view)
 {
 	if(flist_custom_active(view))
 	{
@@ -1847,7 +1847,7 @@ cmd_ctrl_xxr(key_info_t key_info, keys_info_t *keys_info)
 /* Pastes short root of the current entry of the view into current cursor
  * position. */
 static void
-paste_short_path_root(FileView *view)
+paste_short_path_root(view_t *view)
 {
 	char short_path[PATH_MAX];
 	get_short_path_of(view, get_current_entry(view), 0, 0, sizeof(short_path),
@@ -2489,8 +2489,7 @@ update_cmdline_size(void)
 	else
 	{
 		wresize(menu_win, getmaxy(stdscr) - required_height, getmaxx(stdscr));
-		update_menu();
-		wrefresh(menu_win);
+		menu_partial_redraw();
 	}
 }
 
@@ -2670,7 +2669,7 @@ stop_regular_completion(void)
 	{
 		if(sub_mode == CLS_MENU_COMMAND)
 		{
-			menu_redraw();
+			menu_full_redraw();
 		}
 		else
 		{

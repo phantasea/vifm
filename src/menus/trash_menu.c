@@ -34,19 +34,19 @@
 #include "../undo.h"
 #include "menus.h"
 
-static KHandlerResponse trash_khandler(FileView *view, menu_data_t *m,
+static KHandlerResponse trash_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 static KHandlerResponse restore_current(menu_data_t *m);
 static KHandlerResponse delete_current(menu_data_t *m);
 static int ui_cancellation_hook(void *arg);
 
 int
-show_trash_menu(FileView *view)
+show_trash_menu(view_t *view)
 {
 	int i;
 
 	static menu_data_t m;
-	init_menu_data(&m, view, strdup("Original paths of files in trash"),
+	menus_init_data(&m, view, strdup("Original paths of files in trash"),
 			strdup("No files in trash"));
 	m.key_handler = &trash_khandler;
 
@@ -61,13 +61,13 @@ show_trash_menu(FileView *view)
 		}
 	}
 
-	return display_menu(m.state, view);
+	return menus_enter(m.state, view);
 }
 
 /* Menu-specific shortcut handler.  Returns code that specifies both taken
  * actions and what should be done next. */
 static KHandlerResponse
-trash_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
+trash_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"r") == 0)
 	{
@@ -103,7 +103,7 @@ restore_current(menu_data_t *m)
 		return KHR_UNHANDLED;
 	}
 
-	remove_current_item(m->state);
+	menus_remove_current(m->state);
 	return KHR_REFRESH_WINDOW;
 }
 
@@ -136,7 +136,7 @@ delete_current(menu_data_t *m)
 	}
 
 	ioe_errlst_free(&args.result.errors);
-	remove_current_item(m->state);
+	menus_remove_current(m->state);
 	return KHR_REFRESH_WINDOW;
 }
 

@@ -31,16 +31,16 @@
 #include "../filelist.h"
 #include "menus.h"
 
-static int execute_dirhistory_cb(FileView *view, menu_data_t *m);
-TSTATIC strlist_t list_dir_history(FileView *view, int *pos);
+static int execute_dirhistory_cb(view_t *view, menu_data_t *m);
+TSTATIC strlist_t list_dir_history(view_t *view, int *pos);
 
 int
-show_history_menu(FileView *view)
+show_history_menu(view_t *view)
 {
 	strlist_t list;
 
 	static menu_data_t m;
-	init_menu_data(&m, view, strdup("Directory History"),
+	menus_init_data(&m, view, strdup("Directory History"),
 			strdup("History disabled or empty"));
 
 	m.execute_handler = &execute_dirhistory_cb;
@@ -49,13 +49,13 @@ show_history_menu(FileView *view)
 	m.items = list.items;
 	m.len = list.nitems;
 
-	return display_menu(m.state, view);
+	return menus_enter(m.state, view);
 }
 
 /* Lists directory history of the view.  Puts current position into *pos.
  * Returns the list. */
 TSTATIC strlist_t
-list_dir_history(FileView *view, int *pos)
+list_dir_history(view_t *view, int *pos)
 {
 	int i;
 	int need_cleanup = 0;
@@ -143,9 +143,9 @@ list_dir_history(FileView *view, int *pos)
 /* Callback that is called when menu item is selected.  Should return non-zero
  * to stay in menu mode. */
 static int
-execute_dirhistory_cb(FileView *view, menu_data_t *m)
+execute_dirhistory_cb(view_t *view, menu_data_t *m)
 {
-	goto_selected_directory(view, m->items[m->pos]);
+	menus_goto_dir(view, m->items[m->pos]);
 	return 0;
 }
 

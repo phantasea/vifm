@@ -70,7 +70,7 @@ static int compare_targets(const dir_entry_t *f, const dir_entry_t *s);
 static int compare_rating(const dir_entry_t *f, const dir_entry_t *s);  //add by sim1
 
 /* View which is being sorted. */
-static FileView* view;
+static view_t* view;
 /* Picked sort array of the view. */
 static const char *view_sort;
 /* Picked sort groups setting of the view. */
@@ -85,7 +85,7 @@ static SortingKey sort_type;
 static void *sort_data;
 
 void
-sort_view(FileView *v)
+sort_view(view_t *v)
 {
 	dir_entry_t *unsorted_list;
 
@@ -100,7 +100,7 @@ sort_view(FileView *v)
 	view_sort_groups = v->sort_groups;
 	custom_view = flist_custom_active(v);
 
-	if(!custom_view || v->custom.type != CV_TREE)
+	if(!custom_view || !cv_tree(v->custom.type))
 	{
 		/* Tree sorting works fine for flat list, but requires a bit more
 		 * resources, so skip it. */
@@ -169,7 +169,7 @@ sort_tree_slice(dir_entry_t *entries, const dir_entry_t *children,
 }
 
 void
-sort_entries(FileView *v, entries_t entries)
+sort_entries(view_t *v, entries_t entries)
 {
 	if(v->sort_g[0] > SK_LAST)
 	{

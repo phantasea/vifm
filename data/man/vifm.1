@@ -1,4 +1,4 @@
-.TH VIFM 1 "June 24, 2017" "vifm 0.9"
+.TH VIFM 1 "August 13, 2017" "vifm 0.9"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -693,6 +693,18 @@ go to previous directory entry or do nothing.
 .TP
 .BI ]d
 go to next directory entry or do nothing.
+.TP
+.BI [r
+same as :siblprev.
+.TP
+.BI ]r
+same as :siblnext.
+.TP
+.BI [R
+same as :siblprev!.
+.TP
+.BI ]R
+same as :siblnext!.
 .TP
 .BI [s
 go to previous selected entry or do nothing.
@@ -1577,8 +1589,8 @@ equals
  ofboth | ofone | groupids | grouppaths | skipempty]..."
 compare files in one or two views according the arguments.  The default
 is "bycontents listall ofboth grouppaths".  See "Compare views" section below
-for details.  Tree structure is incompatible with ls-like view, so value of
-\'lsview' option is ignored.
+for details.  Tree structure is incompatible with alternative representations,
+so values of 'lsview' and 'millerview' options are ignored.
 .TP
 .BI "                                         :copen"
 .TP
@@ -1960,6 +1972,7 @@ Available style values (some of them can be combined):
 Available group-name values:
  \- Win \- color of all windows (views, dialogs, menus) and default color for \
 their content (e.g. regular files in views)
+ \- AuxWin \- color of auxiliary areas of windows
  \- Border \- color of vertical parts of the border
  \- TopLineSel \- top line color of the current pane
  \- TopLine \- top line color of the other pane
@@ -2117,17 +2130,18 @@ transparency:
   CmdLine
     ErrorMsg
   Win
-    File name specific highlights
-      Directory
-      Link
-      BrokenLink
-      Socket
-      Device
-      Fifo
-      Executable
-        Selected
-          CurrLine
-          OtherLine
+    AuxWin
+      File name specific highlights
+        Directory
+        Link
+        BrokenLink
+        Socket
+        Device
+        Fifo
+        Executable
+          Selected
+            CurrLine
+            OtherLine
   TopLine
     TopLineSel
 
@@ -2508,10 +2522,10 @@ environment it uses $SHELL if it's defined, otherwise 'shell' value is used.
 .TP
 .BI "                                         :siblnext"
 .TP
-.BI :siblnext[!]
+.BI :[count]siblnext[!]
 
-change directory to next sibling directory of current path using value of
-global sort option of current pane.  "!" enables wrapping.
+change directory to [count]th next sibling directory after current path using
+value of global sort option of current pane.  "!" enables wrapping.
 
 For example, say, you're at /boot and root listing starts like this:
 
@@ -2525,7 +2539,7 @@ Issuing :siblnext will navigate to /dev.
 .TP
 .BI "                                         :siblprev"
 .TP
-.BI :siblprev[!]
+.BI :[count]siblprev[!]
 same as :siblnext, but in the opposite direction.
 .TP
 .BI "                                         :sort"
@@ -2646,8 +2660,10 @@ same as :trashes, but also displays size of each trash directory.
 turn pane into tree view with current directory as a root.  The tree view is
 implemented on top of a custom view, but is automatically kept in sync with
 file system state and considers all the filters.  Thus the structure corresponds
-to what one would see on visiting the directories manually.  Tree structure is
-incompatible with ls-like view, so value of 'lsview' option is ignored.
+to what one would see on visiting the directories manually.  As a special case
+for trees built out of custom view file-system tracking isn't performed.  Tree
+structure is incompatible with alternative representations, so values of
+\'lsview' and 'millerview' options are ignored.
 .TP
 .BI "                                         :undolist"
 .TP
@@ -3714,6 +3730,55 @@ the value of this option.
 Optional %u or %U macro could be used (if both specified %U is chosen) to force
 redirection to custom or unsorted custom view respectively.
 .TP
+.BI 'lsview'
+type: boolean
+.br
+default: false
+.br
+scope: local
+.br
+When this option is set, directory view will be displayed in multiple columns
+with file names similar to output of `ls \-x` command.  See "ls-like view"
+section below for format description.  This option has no effect if 'millerview'
+is on.
+
+.TP
+.BI 'milleroptions'
+type: string list
+.br
+default: "lsize:1,csize:1,rsize:1"
+.br
+scope: local
+.br
+
+Configures miller view.
+
+  item          default  used for
+  lsize:num     0        left column
+  csize:num     1        center column (can't be disabled)
+  rsize:num     0        right column
+
+*size specifies ratios of columns.  Each ratio is in the range from
+0 to 100 and values are adjusted to fit the limits.  Zero disables a
+column, but central (main) column can't be disabled.
+
+Example of two-column mode which is useful in combination with :view command:
+.EX
+
+  set milleroptions=lsize:1,csize:2
+.EE
+
+.TP
+.BI 'millerview'
+type: boolean
+.br
+default: false
+.br
+scope: local
+.br
+When this option is set, directory view will be displayed in multiple
+cascading columns.  Ignores 'lsview'.
+.TP
 .BI 'mintimeoutlen'
 type: integer
 .br
@@ -3724,17 +3789,6 @@ input polls, which affects various asynchronous operations (detecting changes
 made by external applications, monitoring background jobs, redrawing UI).  There
 are no strict guarantees, however the higher this value is, the less is CPU load
 in idle mode.
-.TP
-.BI 'lsview'
-type: boolean
-.br
-default: false
-.br
-scope: local
-.br
-When this option is set, directory view will be displayed in multiple columns
-with file names similar to output of `ls \-x` command.  See "ls-like view"
-section below for format description.
 .TP
 .BI "'number' 'nu'"
 type: boolean
@@ -5630,8 +5684,8 @@ Border, TopLineSel, TopLine, CmdLine, ErrorMsg, StatusLine, JobLine, \
 SuggestBox and WildMenu are always determined by the primary color scheme;
 .IP \- 2
 CurrLine, Selected, Directory, Link, BrokenLink, Socket, Device, Executable, \
-Fifo and Win are determined by primary color scheme and a set of local \
-color schemes, which can be empty.
+Fifo, CmpMismatch, Win and AuxWin are determined by primary color scheme and a \
+set of local color schemes, which can be empty.
 .RE
 
 There might be a set of local color schemes because they are structured

@@ -39,19 +39,19 @@
 /* Minimal length of command name column. */
 #define CMDNAME_COLUMN_MIN_WIDTH 10
 
-static int execute_commands_cb(FileView *view, menu_data_t *m);
-static KHandlerResponse commands_khandler(FileView *view, menu_data_t *m,
+static int execute_commands_cb(view_t *view, menu_data_t *m);
+static KHandlerResponse commands_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 
 int
-show_commands_menu(FileView *view)
+show_commands_menu(view_t *view)
 {
 	char **list;
 	int i;
 	size_t cmdname_width = CMDNAME_COLUMN_MIN_WIDTH;
 
 	static menu_data_t m;
-	init_menu_data(&m, view, strdup("Command ------ Action"),
+	menus_init_data(&m, view, strdup("Command ------ Action"),
 			strdup("No commands set"));
 	m.execute_handler = &execute_commands_cb;
 	m.key_handler = &commands_khandler;
@@ -81,13 +81,13 @@ show_commands_menu(FileView *view)
 
 	free_string_array(list, m.len*2);
 
-	return display_menu(m.state, view);
+	return menus_enter(m.state, view);
 }
 
 /* Callback that is called when menu item is selected.  Should return non-zero
  * to stay in menu mode. */
 static int
-execute_commands_cb(FileView *view, menu_data_t *m)
+execute_commands_cb(view_t *view, menu_data_t *m)
 {
 	break_at(m->items[m->pos], ' ');
 	exec_command(m->items[m->pos], view, CIT_COMMAND);
@@ -97,7 +97,7 @@ execute_commands_cb(FileView *view, menu_data_t *m)
 /* Menu-specific shortcut handler.  Returns code that specifies both taken
  * actions and what should be done next. */
 static KHandlerResponse
-commands_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
+commands_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"dd") == 0)
 	{
@@ -106,9 +106,9 @@ commands_khandler(FileView *view, menu_data_t *m, const wchar_t keys[])
 
 		break_at(m->items[m->pos], ' ');
 		snprintf(cmd_buf, sizeof(cmd_buf), "delcommand %s", m->items[m->pos]);
-		execute_cmdline_command(cmd_buf);
+		menu_run_command(cmd_buf);
 
-		remove_current_item(m->state);
+		menus_remove_current(m->state);
 		return KHR_REFRESH_WINDOW;
 	}
 	else if(wcscmp(keys, L"c") == 0)

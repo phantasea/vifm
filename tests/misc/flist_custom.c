@@ -34,7 +34,7 @@
 
 static void column_line_print(const void *data, int column_id, const char buf[],
 		size_t offset, AlignType align, const char full_column[]);
-static void setup_custom_view(FileView *view, int very);
+static void setup_custom_view(view_t *view, int very);
 static int filenames_can_include_newline(void);
 
 static char cwd[PATH_MAX + 1];
@@ -448,6 +448,7 @@ TEST(custom_view_does_not_reset_local_state)
 		assert_int_equal(very ? SK_NONE : -SK_BY_TARGET, lwin.sort[0]);
 		assert_false(filter_is_empty(&lwin.local_filter.filter));
 
+		cdt.entry = &lwin.dir_entry[0];
 		cdt.line_hi_group = 1;
 		columns_format_line(lwin.columns, &cdt, MAX_WIDTH);
 
@@ -512,6 +513,34 @@ TEST(files_with_newline_in_names, IF(filenames_can_include_newline))
 	if(lwin.list_rows == 1)
 	{
 		assert_string_equal("a\nb", lwin.dir_entry[0].name);
+	}
+}
+
+TEST(current_directory_can_be_added_via_dot)
+{
+	assert_success(chdir(SANDBOX_PATH));
+	assert_non_null(get_cwd(lwin.curr_dir, sizeof(lwin.curr_dir)));
+
+#ifndef _WIN32
+	replace_string(&cfg.shell, "/bin/sh");
+#else
+	replace_string(&cfg.shell, "cmd");
+#endif
+	stats_update_shell_type(cfg.shell);
+
+	assert_success(output_to_custom_flist(&lwin, "echo ../misc", 0, 0));
+
+	stats_update_shell_type("/bin/sh");
+	update_string(&cfg.shell, NULL);
+
+	assert_true(flist_custom_active(&lwin));
+	assert_int_equal(1, lwin.list_rows);
+	if(lwin.list_rows > 0)
+	{
+		char full_path[PATH_MAX + 1];
+		get_full_path_of(&lwin.dir_entry[0], sizeof(full_path), full_path);
+
+		assert_string_equal(flist_get_dir(&lwin), full_path);
 	}
 }
 
@@ -786,7 +815,7 @@ column_line_print(const void *data, int column_id, const char buf[],
 }
 
 static void
-setup_custom_view(FileView *view, int very)
+setup_custom_view(view_t *view, int very)
 {
 	assert_false(flist_custom_active(view));
 	snprintf(view->curr_dir, sizeof(view->curr_dir), "%s/..", test_data);

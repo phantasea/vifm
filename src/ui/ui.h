@@ -148,11 +148,12 @@ NumberingType;
 /* Variants of custom view. */
 typedef enum
 {
-	CV_REGULAR, /* Sorted list of files. */
-	CV_VERY,    /* No initial sorting of file list is enforced. */
-	CV_TREE,    /* Files of a file system sub-tree. */
-	CV_COMPARE, /* Directory comparison pane. */
-	CV_DIFF,    /* One of two directory comparison panes. */
+	CV_REGULAR,     /* Sorted list of files. */
+	CV_VERY,        /* No initial sorting of file list is enforced. */
+	CV_TREE,        /* Files of a file system sub-tree. */
+	CV_CUSTOM_TREE, /* Selected files of a file system sub-tree. */
+	CV_COMPARE,     /* Directory comparison pane. */
+	CV_DIFF,        /* One of two directory comparison panes. */
 }
 CVType;
 
@@ -183,8 +184,10 @@ typedef struct
 }
 history_t;
 
+/* Enable forward declaration of dir_entry_t. */
+typedef struct dir_entry_t dir_entry_t;
 /* Description of a single directory entry. */
-typedef struct dir_entry_t
+struct dir_entry_t
 {
 	char *name;       /* File name. */
 	char *origin;     /* Location where this file comes from.  Points to
@@ -229,8 +232,7 @@ typedef struct dir_entry_t
 	unsigned int marked : 1;       /* Whether file should be processed. */
 	unsigned int temporary : 1;    /* Whether this is temporary node. */
 	unsigned int dir_link : 1;     /* Whether this is symlink to a directory. */
-}
-dir_entry_t;
+};
 
 /* List of entries bundled with its size. */
 typedef struct
@@ -240,7 +242,84 @@ typedef struct
 }
 entries_t;
 
+/* Data related to custom filling. */
+struct cv_data_t
+{
+	/* Type of the custom view. */
+	CVType type;
+
+	/* Additional data about CV_DIFF type. */
+	CompareType diff_cmp_type; /* Type of comparison. */
+	int diff_path_group;       /* Whether entries are grouped by paths. */
+
+	/* This is temporary storage for custom list entries used during its
+	 * construction. */
+	dir_entry_t *entries; /* File entries. */
+	int entry_count;      /* Number of file entries. */
+
+	/* Title of the custom view being constructed.  Discarded if finishing
+	 * fails. */
+	char *next_title;
+
+	/* Directory we were in before custom view activation. */
+	char *orig_dir;
+	/* Title for the custom view. */
+	char *title;
+
+	/* Previous sorting value, before unsorted custom view was loaded. */
+	char sort[SK_COUNT];
+
+	/* List of paths that should be ignored (including all nested paths).  Used
+	 * by tree-view. */
+	struct trie_t *excluded_paths;
+
+	/* Names of files in custom view while it's being composed.  Used for
+	 * duplicate elimination during construction of custom list. */
+	struct trie_t *paths_cache;
+};
+
+/* Various parameters related to local filter. */
+struct local_filter_t
+{
+	/* Original list of custom entries saved because otherwise we lose it. */
+	dir_entry_t *entries; /* File entries. */
+	int entry_count;      /* Number of file entries. */
+
+	/* Local filename filter. */
+	filter_t filter;
+	/* Whether interactive filtering in progress. */
+	int in_progress;
+	/* Removed value of local filename filter.  Stored for restore operation. */
+	char *prev;
+	/* Temporary storage for local filename filter, when its overwritten. */
+	char *saved;
+
+	/* Unfiltered file entries. */
+	dir_entry_t *unfiltered;
+	/* Number of unfiltered entries. */
+	size_t unfiltered_count;
+	/* Number of entries filtered in other ways. */
+	size_t prefiltered_count;
+
+	/* List of previous cursor positions in the unfiltered array. */
+	int *poshist;
+	/* Number of elements in the poshist field. */
+	size_t poshist_len;
+};
+
+/* Cached file list coupled with a watcher. */
 typedef struct
+{
+	fswatch_t *watch;  /* Watcher for the path. */
+	char *dir;         /* Path to watched directory. */
+	entries_t entries; /* Cached list of entries. */
+}
+cached_entries_t;
+
+/* Enable forward declaration of view_t. */
+typedef struct view_t view_t;
+/* State of a pane. */
+struct view_t
 {
 	WINDOW *win;
 	WINDOW *title;
@@ -249,41 +328,18 @@ typedef struct
 	char curr_dir[PATH_MAX];
 
 	/* Data related to custom filling. */
-	struct
-	{
-		/* Type of the custom view. */
-		CVType type;
+	struct cv_data_t custom;
 
-		/* Additional data about CV_DIFF type. */
-		CompareType diff_cmp_type; /* Type of comparison. */
-		int diff_path_group;       /* Whether entries are grouped by paths. */
+	/* Various parameters related to local filter. */
+	struct local_filter_t local_filter;
 
-		/* This is temporary storage for custom list entries used during its
-		 * construction. */
-		dir_entry_t *entries; /* File entries. */
-		int entry_count;      /* Number of file entries. */
-
-		/* Title of the custom view being constructed.  Discarded if finishing
-		 * fails. */
-		char *next_title;
-
-		/* Directory we were in before custom view activation. */
-		char *orig_dir;
-		/* Title for the custom view. */
-		char *title;
-
-		/* Previous sorting value, before unsorted custom view was loaded. */
-		char sort[SK_COUNT];
-
-		/* List of paths that should be ignored (including all nested paths).  Used
-		 * by tree-view. */
-		struct trie_t *excluded_paths;
-
-		/* Names of files in custom view while it's being composed.  Used for
-		 * duplicate elimination during construction of custom list. */
-		struct trie_t *paths_cache;
-	}
-	custom;
+	/* Non-zero if miller columns view is enabled. */
+	int miller_view, miller_view_g;
+	/* Proportions of columns. */
+	int miller_ratios[3], miller_ratios_g[3];
+	/* Caches of file lists for miller mode. */
+	cached_entries_t left_column;
+	cached_entries_t right_column;
 
 	/* Monitor that checks for directory changes. */
 	fswatch_t *watch;
@@ -303,8 +359,8 @@ typedef struct
 	int top_line; /* # of the list position that is the top line in window */
 	int list_pos; /* actual position in the file list */
 	int list_rows; /* size of the file list */
-	int window_rows; /* number of rows shown in window */
-	unsigned int window_width;
+	int window_rows; /* Number of rows in the window. */
+	int window_cols; /* Number of columns in the window. */
 	int filtered;  /* number of files filtered out and not shown in list */
 	int selected_files; /* Number of currently selected files. */
 	int local_cs; /* Whether directory-specific color scheme is in use. */
@@ -332,36 +388,6 @@ typedef struct
 	 * possible.  Not NULL. */
 	char *prev_auto_filter;
 
-	/* Various parameters related to local filter. */
-	struct
-	{
-		/* Original list of custom entries saved because otherwise we lose it. */
-		dir_entry_t *entries; /* File entries. */
-		int entry_count;      /* Number of file entries. */
-
-		/* Local filename filter. */
-		filter_t filter;
-		/* Whether interactive filtering in progress. */
-		int in_progress;
-		/* Removed value of local filename filter.  Stored for restore operation. */
-		char *prev;
-		/* Temporary storage for local filename filter, when its overwritten. */
-		char *saved;
-
-		/* Unfiltered file entries. */
-		dir_entry_t *unfiltered;
-		/* Number of unfiltered entries. */
-		size_t unfiltered_count;
-		/* Number of entries filtered in other ways. */
-		size_t prefiltered_count;
-
-		/* List of previous cursor positions in the unfiltered array. */
-		int *poshist;
-		/* Number of elements in the poshist field. */
-		size_t poshist_len;
-	}
-	local_filter;
-
 	/* List of sorting keys. */
 	char sort[SK_COUNT], sort_g[SK_COUNT];
 	/* Sorting groups (comma-separated list of regular expressions). */
@@ -381,13 +407,13 @@ typedef struct
 	/* Format string that specifies view columns. */
 	char *view_columns, *view_columns_g;
 
-	/* ls-like view related fields */
-	int ls_view, ls_view_g; /* Non-zero if ls-like view is enabled. */
+	/* ls-like view related fields. */
+	int ls_view, ls_view_g;    /* Non-zero if ls-like view is enabled. */
 	size_t max_filename_width; /* Maximum filename width (length in character
 	                            * positions on the screen) among all entries of
 	                            * the file list.  Zero if not calculated. */
-	size_t column_count; /* number of columns in the view, used for list view */
-	size_t window_cells; /* max number of files that can be displayed */
+	size_t column_count; /* Number of columns in the view, used for list view. */
+	size_t window_cells; /* Max number of files that can be displayed. */
 
 	/* Whether and how line numbers are displayed. */
 	NumberingType num_type, num_type_g;
@@ -410,13 +436,12 @@ typedef struct
 	uint64_t last_reload; /* Time of last [full] reload. */
 
 	int on_slow_fs; /* Whether current directory has access penalties. */
-}
-FileView;
+};
 
-FileView lwin;
-FileView rwin;
-FileView *other_view;
-FileView *curr_view;
+extern view_t lwin;
+extern view_t rwin;
+view_t *other_view;
+view_t *curr_view;
 
 WINDOW *status_bar;
 WINDOW *stat_win;
@@ -434,7 +459,7 @@ WINDOW *mborder;
 WINDOW *rborder;
 
 /* Updates the ruler with information from the view (possibly lazily). */
-void ui_ruler_update(FileView *view, int lazy_redraw);
+void ui_ruler_update(view_t *view, int lazy_redraw);
 
 /* Sets text to be displayed on the ruler.  Real window update is postponed for
  * efficiency reasons. */
@@ -457,6 +482,10 @@ int cv_unsorted(CVType type);
 /* Checks whether custom view of specified type is a compare or diff view.
  * Returns non-zero if so, otherwise zero is returned. */
 int cv_compare(CVType type);
+
+/* Checks whether custom view of specified type is a tree view.  Returns
+ * non-zero if so, otherwise zero is returned. */
+int cv_tree(CVType type);
 
 /* Redraws whole screen with possible reloading of file lists (depends on
  * argument). */
@@ -501,22 +530,25 @@ void wprinta(WINDOW *win, const char str[], int line_attrs);
  * on success, and non-zero otherwise. */
 int resize_for_menu_like(void);
 
+/* Performs updates of layout for manu like modes. */
+void ui_setup_for_menu_like(void);
+
 /* Performs real pane redraw in the TUI and maybe some related operations. */
-void refresh_view_win(FileView *view);
+void refresh_view_win(view_t *view);
 
 /* Layouts the view in correct corner with correct relative position
  * (horizontally/vertically, left-top/right-bottom). */
-void move_window(FileView *view, int horizontally, int first);
+void move_window(view_t *view, int horizontally, int first);
 
 /* Swaps current and other views. */
 void switch_panes(void);
 
 /* Setups view to the the curr_view.  Saving previous state in supplied
  * buffers.  Use ui_view_unpick() to revert the effect. */
-void ui_view_pick(FileView *view, FileView **old_curr, FileView **old_other);
+void ui_view_pick(view_t *view, view_t **old_curr, view_t **old_other);
 
 /* Restores what has been done by ui_view_pick(). */
-void ui_view_unpick(FileView *view, FileView *old_curr, FileView *old_other);
+void ui_view_unpick(view_t *view, view_t *old_curr, view_t *old_other);
 
 /* Switches to other pane, ignoring state of the preview and entering view mode
  * in case the other pane has explore mode active. */
@@ -533,7 +565,7 @@ void only(void);
 void move_splitter(int by, int fact);
 
 /* Sets size of the view to specified value. */
-void ui_view_resize(FileView *view, int to);
+void ui_view_resize(view_t *view, int to);
 
 /* File name formatter which takes 'classify' option into account and applies
  * type dependent name decorations. */
@@ -552,13 +584,13 @@ void checked_wmove(WINDOW *win, int y, int x);
 void ui_display_too_small_term_msg(void);
 
 /* Notifies TUI module about updated window of the view. */
-void ui_view_win_changed(FileView *view);
+void ui_view_win_changed(view_t *view);
 
 /* Resets selection of the view and reloads it preserving cursor position. */
-void ui_view_reset_selection_and_reload(FileView *view);
+void ui_view_reset_selection_and_reload(view_t *view);
 
 /* Resets search highlighting of the view and schedules reload. */
-void ui_view_reset_search_highlight(FileView *view);
+void ui_view_reset_search_highlight(view_t *view);
 
 /* Reloads visible lists of files preserving current position of cursor. */
 void ui_views_reload_visible_filelists(void);
@@ -570,7 +602,7 @@ void ui_views_reload_filelists(void);
 void ui_views_update_titles(void);
 
 /* Updates title of the view. */
-void ui_view_title_update(FileView *view);
+void ui_view_title_update(view_t *view);
 
 /* Looks for the given key in sort option.  Returns non-zero when found,
  * otherwise zero is returned. */
@@ -578,27 +610,27 @@ int ui_view_sort_list_contains(const char sort[SK_COUNT], char key);
 
 /* Ensures that list of sorting keys is sensible (i.e. contains either "name" or
  * "iname" for views, except for unsorted custom view). */
-void ui_view_sort_list_ensure_well_formed(FileView *view, char sort_keys[]);
+void ui_view_sort_list_ensure_well_formed(view_t *view, char sort_keys[]);
 
 /* Picks sort array for the view taking custom view into account.  sort should
  * point to sorting array preferred by default.  Returns pointer to the
  * array. */
-char * ui_view_sort_list_get(const FileView *view, const char sort[]);
+char * ui_view_sort_list_get(const view_t *view, const char sort[]);
 
 /* Checks whether file numbers should be displayed for the view.  Returns
  * non-zero if so, otherwise zero is returned. */
-int ui_view_displays_numbers(const FileView *const view);
+int ui_view_displays_numbers(const view_t *view);
 
 /* Checks whether view is visible on the screen.  Returns non-zero if so,
  * otherwise zero is returned. */
-int ui_view_is_visible(const FileView *const view);
+int ui_view_is_visible(const view_t *view);
 
 /* Clears directory history of the view. */
-void ui_view_clear_history(FileView *const view);
+void ui_view_clear_history(view_t *view);
 
 /* Checks whether view displays column view.  Returns non-zero if so, otherwise
  * zero is returned. */
-int ui_view_displays_columns(const FileView *const view);
+int ui_view_displays_columns(const view_t *view);
 
 /* Gets real type of file view entry.  Returns type of entry, resolving symbolic
  * link if needed. */
@@ -606,58 +638,66 @@ FileType ui_view_entry_target_type(const dir_entry_t *entry);
 
 /* Gets width of part of the view that is available for file list.  Returns the
  * width. */
-int ui_view_available_width(const FileView *const view);
+int ui_view_available_width(const view_t *view);
+
+/* Retrieves width reserved for something to the left of file list.  Returns the
+ * width. */
+int ui_view_left_reserved(const view_t *view);
+
+/* Retrieves width reserved for something to the right of file list.  Returns
+ * the width. */
+int ui_view_right_reserved(const view_t *view);
 
 /* Retrieves column number at which quickview content should be displayed.
  * Returns the number. */
-int ui_qv_left(const FileView *view);
+int ui_qv_left(const view_t *view);
 
 /* Retrieves line number at which quickview content should be displayed.
  * Returns the number. */
-int ui_qv_top(const FileView *view);
+int ui_qv_top(const view_t *view);
 
 /* Retrieves height of quickview area.  Returns the height. */
-int ui_qv_height(const FileView *view);
+int ui_qv_height(const view_t *view);
 
 /* Retrieves width of quickview area.  Returns the width. */
-int ui_qv_width(const FileView *view);
+int ui_qv_width(const view_t *view);
 
 /* Gets color scheme that corresponds to the view.  Returns pointer to the color
  * scheme. */
-const col_scheme_t * ui_view_get_cs(const FileView *view);
+const col_scheme_t * ui_view_get_cs(const view_t *view);
 
 /* Erases view window by filling it with the background color. */
-void ui_view_erase(FileView *view);
+void ui_view_erase(view_t *view);
 
 /* Same as erase, but ensures that view is updated in all its size on the
  * screen (e.g. to clear anything put there by other programs as well). */
-void ui_view_wipe(FileView *view);
+void ui_view_wipe(view_t *view);
 
 /* Checks whether custom view type of specified view is unsorted.  It doesn't
  * need the view to be custom, checks just the type.  Returns non-zero if so,
  * otherwise zero is returned. */
-int ui_view_unsorted(const FileView *view);
+int ui_view_unsorted(const view_t *view);
 
 /* View update scheduling. */
 
 /* Schedules redraw of the view for the future.  Doesn't perform any actual
  * update. */
-void ui_view_schedule_redraw(FileView *view);
+void ui_view_schedule_redraw(view_t *view);
 
 /* Schedules reload of the view for the future.  Doesn't perform any actual
  * work. */
-void ui_view_schedule_reload(FileView *view);
+void ui_view_schedule_reload(view_t *view);
 
 /* Schedules full reload of the view for the future.  Doesn't perform any actual
  * work. */
-void ui_view_schedule_full_reload(FileView *view);
+void ui_view_schedule_full_reload(view_t *view);
 
 /* Clears previously scheduled redraw request of the view, if any. */
-void ui_view_redrawn(FileView *view);
+void ui_view_redrawn(view_t *view);
 
 /* Checks for scheduled update and marks it as fulfilled.  Returns kind of
  * scheduled event. */
-UiUpdateEvent ui_view_query_scheduled_event(FileView *view);
+UiUpdateEvent ui_view_query_scheduled_event(view_t *view);
 
 #endif /* VIFM__UI__UI_H__ */
 

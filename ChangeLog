@@ -6,6 +6,16 @@
 	Added retry/ignore/abort prompt for file copying and directory/file/symlink
 	creation when 'syscalls' is on.  Thanks to einhander.
 
+	Added AuxWin highlight group for highlighting auxiliary parts of windows.
+
+	Added 'millerview' option that enables cascading columns interface for the
+	view.  Thanks to sudo-nice.
+
+	Added 'milleroptions' option that configures miller view.
+
+	Added [r/]r/[R/]R normal mode shortcuts that map to :siblprev and :siblnext
+	with and without wrapping correspondingly.  Thanks to filterfalse.
+
 	Changed :filter command to accept pattern (//, ////, {} or {{}}).  Thanks
 	to rbong.
 
@@ -17,12 +27,34 @@
 	Better detection of write errors on file copying.  The error was reported,
 	but it wasn't treated as a hard error specific case related to caching.
 
-	Make :siblnext and :siblprev commands respect dot and name filters.
+	Made :siblnext and :siblprev commands respect dot and name filters.
 
-	Disable spell checking of vifm files in Vim except for comments.
+	Disabled spell checking of vifm files in Vim except for comments.
+
+	H/M/L keys in ls-like view now account for columns.
+
+	Made :siblnext and :siblprev accept [count] range.  Thanks to filterfalse.
+
+	Made :tree pick up list of files from custom view.  Thanks to filterfalse.
 
 	Fixed positioning cursor in directory :history when inside custom view.
 	Thanks to filterfalse.
+
+	Fixed compilation of modes/view.c when build is configured with
+	`--disable-extended-keys`.  Thanks to Bearcat M. Şándor (a.k.a.
+	bearcatsandor).
+
+	Fixed crashes discovered via fuzzing, most of which require rather
+	unusual kind of input.
+
+	Fixed running commands with arguments on Windows when 'shell' isn't
+	cmd.exe.
+
+	Fixed ".." not being preserved in path loaded into custom view.  Thanks to
+	filterfalse.
+
+	Fixed directory size in statusline.  Patch by Dmitry Frank (a.k.a.
+	dimonomid).
 
 0.9-beta to 0.9
 

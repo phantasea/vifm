@@ -26,6 +26,7 @@
 #
 # make DEBUG=1 ...        -- builds debug version
 # make DEBUG=gdb ...      -- builds debug version and loads suite into gdb
+# make DEBUG=rr ...       -- builds debug version and loads suite into rr
 # make DEBUG=valgrind ... -- builds debug version and run it under valgrind (see
 #                            valgrind-report file after a run)
 #
@@ -173,6 +174,9 @@ ifdef DEBUG
     ifeq ($(DEBUG),gdb)
         TEST_RUN_PREFIX := gdb -q --args
     endif
+    ifeq ($(DEBUG),rr)
+        TEST_RUN_PREFIX := rr record
+    endif
     ifeq ($(DEBUG),valgrind)
         TEST_RUN_PREFIX := valgrind --track-origins=yes --leak-check=full \
                            --log-file=valgrind-report --error-exitcode=5 \
@@ -271,8 +275,16 @@ $(BUILD)$1/filelist: $1/. | $(BUILD)$1
 		echo -n '$$($1.src)' > $$@; \
 	fi
 
-$(BUILD)$1 $(SANDBOX_PATH)/$1:
+$(BUILD)$1:
 	$(AT)mkdir -p $$@
+
+ifeq ($(SANDBOX_PATH),sandbox)
+$(SANDBOX_PATH)/$1:
+	$(AT)mkdir -p $(B)$$@
+else
+$(SANDBOX_PATH)/$1:
+	$(AT)mkdir -p $$@
+endif
 
 $1: $$($1.bin)
 ifeq ($B,)

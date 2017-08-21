@@ -115,7 +115,7 @@ static void cmd_ctrl_ww(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wx(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wz(key_info_t key_info, keys_info_t *keys_info);
 static int is_left_or_top(void);
-static FileView * pick_view(void);
+static view_t * pick_view(void);
 static void cmd_ctrl_x(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_y(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_shift_tab(key_info_t key_info, keys_info_t *keys_info);
@@ -207,7 +207,7 @@ static void cmd_q_equals(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_t(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_u(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_yy(key_info_t key_info, keys_info_t *keys_info);
-static int calc_pick_files_end_pos(const FileView *view, int count);
+static int calc_pick_files_end_pos(const view_t *view, int count);
 static void cmd_y_selector(key_info_t key_info, keys_info_t *keys_info);
 static void yank(key_info_t key_info, keys_info_t *keys_info);
 static void free_list_of_file_indexes(keys_info_t *keys_info);
@@ -231,6 +231,10 @@ static void cmd_lb_c(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_rb_c(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_lb_d(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_rb_d(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_lb_r(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_rb_r(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_lb_R(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_rb_R(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_lb_s(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_rb_s(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_lb_z(key_info_t key_info, keys_info_t *keys_info);
@@ -238,7 +242,7 @@ static void cmd_rb_z(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_left_curly_bracket(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_right_curly_bracket(key_info_t key_info,
 		keys_info_t *keys_info);
-static void pick_files(FileView *view, int end, keys_info_t *keys_info);
+static void pick_files(view_t *view, int end, keys_info_t *keys_info);
 static void selector_S(key_info_t key_info, keys_info_t *keys_info);
 static void selector_a(key_info_t key_info, keys_info_t *keys_info);
 static void selector_s(key_info_t key_info, keys_info_t *keys_info);
@@ -414,6 +418,10 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_RB WK_c,       {{&cmd_rb_c}, .descr = "go to next mismatch"}},
 	{WK_LB WK_d,       {{&cmd_lb_d}, .descr = "go to previous dir"}},
 	{WK_RB WK_d,       {{&cmd_rb_d}, .descr = "go to next dir"}},
+	{WK_LB WK_r,       {{&cmd_lb_r}, .descr = "navigate to previous sibling dir"}},
+	{WK_RB WK_r,       {{&cmd_rb_r}, .descr = "navigate to next sibling dir"}},
+	{WK_LB WK_R,       {{&cmd_lb_R}, .descr = "navigate to previous sibling dir (wrap)"}},
+	{WK_RB WK_R,       {{&cmd_rb_R}, .descr = "navigate to next sibling dir (wrap)"}},
 	{WK_LB WK_s,       {{&cmd_lb_s}, .descr = "go to previous selected entry"}},
 	{WK_RB WK_s,       {{&cmd_rb_s}, .descr = "go to next selected entry"}},
 	{WK_LB WK_z,       {{&cmd_lb_z}, .descr = "go to first sibling"}},
@@ -438,7 +446,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{{K(KEY_END)},               {{&cmd_G},       .descr = "go to the last item"}},
 	{{K(KEY_BTAB)},              {{&cmd_shift_tab}, .descr = "switch to view pane"}},
 #else
-	{WK_ESC L"[Z",            {{&cmd_shift_tab}, .descr = "switch to view pane"}},
+	{WK_ESC L"[Z",               {{&cmd_shift_tab}, .descr = "switch to view pane"}},
 #endif /* ENABLE_EXTENDED_KEYS */
 };
 
@@ -617,8 +625,8 @@ cmd_ctrl_f(key_info_t key_info, keys_info_t *keys_info)
 static void
 page_scroll(int base, int direction)
 {
-	/* Two lines gap. */
-	int offset = (curr_view->window_rows - 1)*curr_view->column_count;
+	enum { GAP_SIZE = 2 };
+	int offset = (curr_view->window_rows - GAP_SIZE)*curr_view->column_count;
 	curr_view->list_pos = base + direction*offset;
 	scroll_by_files(curr_view, direction*offset);
 	redraw_current_view();
@@ -975,7 +983,7 @@ is_left_or_top(void)
 }
 
 /* Picks view to operate on for Ctrl-W set of shortcuts.  Returns the view. */
-static FileView *
+static view_t *
 pick_view(void)
 {
 	if(vle_mode_is(VIEW_MODE))
@@ -1523,7 +1531,7 @@ cmd_cp(key_info_t key_info, keys_info_t *keys_info)
 }
 
 void
-normal_cmd_cp(FileView *view, key_info_t key_info)
+normal_cmd_cp(view_t *view, key_info_t key_info)
 {
 #ifndef _WIN32
 	char mode[32];
@@ -1999,7 +2007,7 @@ cmd_yy(key_info_t key_info, keys_info_t *keys_info)
 /* Calculates end position for pick_files(...) function using cursor position
  * and count of a command.  Considers possible integer overflow. */
 static int
-calc_pick_files_end_pos(const FileView *view, int count)
+calc_pick_files_end_pos(const view_t *view, int count)
 {
 	/* Way of comparing values makes difference!  This way it will work even when
 	 * count equals to INT_MAX.  Don't change it! */
@@ -2209,6 +2217,38 @@ cmd_rb_d(key_info_t key_info, keys_info_t *keys_info)
 	pick_or_move(keys_info, flist_next_dir(curr_view));
 }
 
+/* Navigates to previous sibling directory. */
+static void
+cmd_lb_r(key_info_t key_info, keys_info_t *keys_info)
+{
+	curr_stats.save_msg = (go_to_sibling_dir(curr_view,
+				-def_count(key_info.count), 0) != 0);
+}
+
+/* Navigate to next sibling directory. */
+static void
+cmd_rb_r(key_info_t key_info, keys_info_t *keys_info)
+{
+	curr_stats.save_msg = (go_to_sibling_dir(curr_view,
+				def_count(key_info.count), 0) != 0);
+}
+
+/* Navigates to previous sibling directory with wrapping. */
+static void
+cmd_lb_R(key_info_t key_info, keys_info_t *keys_info)
+{
+	curr_stats.save_msg = (go_to_sibling_dir(curr_view,
+				-def_count(key_info.count), 1) != 0);
+}
+
+/* Navigate to next sibling directory with wrapping. */
+static void
+cmd_rb_R(key_info_t key_info, keys_info_t *keys_info)
+{
+	curr_stats.save_msg = (go_to_sibling_dir(curr_view,
+				def_count(key_info.count), 1) != 0);
+}
+
 /* Go to or pick files until and including previous selected entry or do
  * nothing. */
 static void
@@ -2280,7 +2320,7 @@ normal_cmd_zz(key_info_t key_info, keys_info_t *keys_info)
 }
 
 static void
-pick_files(FileView *view, int end, keys_info_t *keys_info)
+pick_files(view_t *view, int end, keys_info_t *keys_info)
 {
 	int delta, i, x;
 
@@ -2391,7 +2431,7 @@ selector_s(key_info_t key_info, keys_info_t *keys_info)
 }
 
 int
-find_npattern(FileView *view, const char pattern[], int backward,
+find_npattern(view_t *view, const char pattern[], int backward,
 		int print_errors)
 {
 	const int nrepeats = search_repeat - 1;
