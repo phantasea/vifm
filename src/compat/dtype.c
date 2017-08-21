@@ -1,6 +1,5 @@
 /* vifm
- * Copyright (C) 2001 Ken Steen.
- * Copyright (C) 2011 xaizek.
+ * Copyright (C) 2016 xaizek.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,24 +16,48 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef VIFM__MENUS__DIRHISTORY_MENU_H__
-#define VIFM__MENUS__DIRHISTORY_MENU_H__
+#include "dtype.h"
+#include <dirent.h> /* dirent */
 
-#include "../ui/ui.h"
-#include "../utils/test_helpers.h"
+#if !defined(HAVE_STRUCT_DIRENT_D_TYPE) || !HAVE_STRUCT_DIRENT_D_TYPE
 
-/* Returns non-zero if status bar message should be saved. */
-int show_history_menu(FileView *view);
+#include "os.h"
 
-#ifdef TEST
-#include "../utils/string_array.h"
+unsigned char
+get_dirent_type(const struct dirent *dentry, const char path[])
+{
+	struct stat st;
+
+	if(os_lstat(path, &st) != 0 || st.st_ino == 0)
+	{
+		return DT_UNKNOWN;
+	}
+
+	switch(st.st_mode & S_IFMT)
+	{
+		case S_IFBLK:  return DT_BLK;
+		case S_IFCHR:  return DT_CHR;
+		case S_IFDIR:  return DT_DIR;
+		case S_IFIFO:  return DT_FIFO;
+		case S_IFREG:  return DT_REG;
+#ifndef _WIN32
+		case S_IFLNK:  return DT_LNK;
+		case S_IFSOCK: return DT_SOCK;
 #endif
 
-TSTATIC_DEFS(
-	strlist_t list_dir_history(FileView *view, int *pos);
-)
+		default: return DT_UNKNOWN;
+	}
+}
 
-#endif /* VIFM__MENUS__DIRHISTORY_MENU_H__ */
+#else
+
+unsigned char
+get_dirent_type(const struct dirent *dentry, const char path[])
+{
+	return dentry->d_type;
+}
+
+#endif
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
-/* vim: set cinoptions+=t0 filetype=c : */
+/* vim: set cinoptions+=t0 : */

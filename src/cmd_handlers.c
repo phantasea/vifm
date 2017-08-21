@@ -2165,7 +2165,7 @@ update_filter(FileView *view, const cmd_info_t *cmd_info)
 	{
 		if(cmd_info->emark)
 		{
-			toggle_filter_inversion(view);
+			filters_invert(view);
 			return 0;
 		}
 
@@ -2860,7 +2860,7 @@ invert_state(char state_type)
 {
 	if(state_type == 'f')
 	{
-		toggle_filter_inversion(curr_view);
+		filters_invert(curr_view);
 	}
 	else if(state_type == 's')
 	{

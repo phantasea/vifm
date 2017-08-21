@@ -40,8 +40,6 @@ static void reset_filter(filter_t *filter);
 static int is_newly_filtered(FileView *view, const dir_entry_t *entry,
 		void *arg);
 static void replace_matcher(matcher_t **matcher, const char expr[]);
-static int file_is_filtered(FileView *view, const char filename[], int is_dir,
-		int apply_local_filter);
 static int get_unfiltered_pos(const FileView *const view, int pos);
 static int load_unfiltered_list(FileView *const view);
 static int list_is_incomplete(FileView *const view);
@@ -90,7 +88,7 @@ reset_filter(filter_t *filter)
 }
 
 void
-set_dot_files_visible(FileView *view, int visible)
+dot_filter_set(FileView *view, int visible)
 {
 	view->hide_dot_g = view->hide_dot = !visible;
 	ui_view_schedule_reload(view);
@@ -111,7 +109,7 @@ set_dot_files_visible(FileView *view, int visible)
 }
 
 void
-toggle_dot_files(FileView *view)
+dot_filter_toggle(FileView *view)
 {
 	view->hide_dot_g = view->hide_dot = !view->hide_dot;
 	ui_view_schedule_reload(view);
@@ -129,6 +127,66 @@ toggle_dot_files(FileView *view)
 			load_dot_filter_option(other);
 		}
 	}
+}
+
+void
+name_filters_add_selection(FileView *view)
+{
+	dir_entry_t *entry = NULL;
+	int filtered = 0;
+	filter_t filter;
+
+	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);
+
+	/* Traverse items and update/create filter values. */
+	while (iter(view, &entry))
+	{
+		const char *name = entry->name;
+		char name_with_slash[NAME_MAX + 1 + 1];
+
+		if(fentry_is_dir(entry))
+		{
+			append_slash(entry->name, name_with_slash, sizeof(name_with_slash));
+			name = name_with_slash;
+		}
+
+		(void)filter_append(&view->auto_filter, name);
+		(void)filter_append(&filter, name);
+	}
+
+	/* Even current file might be unavailable for filtering.  In this case, just do nothing. */
+	if (filter_is_empty(&filter))
+	{
+		filter_dispose(&filter);
+		return;
+	}
+
+	if (view->custom.type == CV_DIFF)
+	{
+		(void)filter_in_compare(view, &filter, &is_newly_filtered);
+		ui_view_schedule_redraw(view);
+		filter_dispose(&filter);
+		return;
+	}
+
+	/* Update entry lists to remove entries that must be filtered out now.  No view reload is needed. */
+	filtered = zap_entries(view, view->dir_entry, &view->list_rows, &is_newly_filtered, &filter, 0, 1);
+	if (flist_custom_active(view))
+	{
+		(void)zap_entries(view, view->local_filter.entries,
+				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);
+	}
+	else
+	{
+		view->filtered += filtered;
+	}
+
+	filter_dispose(&filter);
+
+	flist_ensure_pos_is_valid(view);
+	ui_view_schedule_redraw(view);
+
+	return;
 }
 
 //mod by sim1
@@ -220,8 +278,7 @@ is_newly_filtered(FileView *view, const dir_entry_t *entry, void *arg)
 {
 	filter_t *const filter = arg;
 
-	/* FIXME: some very long file names won't be matched against some
-	 * regexps. */
+	/* FIXME: some very long file names won't be matched against some regexps. */
 	char name_with_slash[NAME_MAX + 1 + 1];
 	const char *filename = entry->name;
 
@@ -235,9 +292,9 @@ is_newly_filtered(FileView *view, const dir_entry_t *entry, void *arg)
 }
 
 void
-remove_filename_filter(FileView *view)
+name_filters_remove(FileView *view)
 {
-	if(filename_filter_is_empty(view))
+	if(name_filters_empty(view))
 	{
 		return;
 	}
@@ -247,21 +304,21 @@ remove_filename_filter(FileView *view)
 	(void)replace_string(&view->prev_auto_filter, view->auto_filter.raw);
 	view->prev_invert = view->invert;
 
-	filename_filter_clear(view);
+	name_filters_drop(view);
 	view->invert = cfg.filter_inverted_by_default ? 1 : 0;
 
 	ui_view_schedule_full_reload(view);
 }
 
 int
-filename_filter_is_empty(FileView *view)
+name_filters_empty(FileView *view)
 {
 	return matcher_is_empty(view->manual_filter)
 	    && filter_is_empty(&view->auto_filter);
 }
 
 void
-filename_filter_clear(FileView *view)
+name_filters_drop(FileView *view)
 {
 	filter_clear(&view->auto_filter);
 	replace_matcher(&view->manual_filter, "");
@@ -269,7 +326,7 @@ filename_filter_clear(FileView *view)
 }
 
 void
-restore_filename_filter(FileView *view)
+name_filters_restore(FileView *view)
 {
 	if(view->prev_manual_filter[0] == '\0' && view->prev_auto_filter[0] == '\0')
 	{
@@ -296,7 +353,7 @@ replace_matcher(matcher_t **matcher, const char expr[])
 }
 
 void
-toggle_filter_inversion(FileView *view)
+filters_invert(FileView *view)
 {
 	view->invert = !view->invert;
 	load_dir_list(view, 1);
@@ -304,23 +361,8 @@ toggle_filter_inversion(FileView *view)
 }
 
 int
-filters_file_is_visible(FileView *view, const char filename[], int is_dir)
-{
-	return file_is_filtered(view, filename, is_dir, 1);
-}
-
-int
-filters_file_is_filtered(FileView *view, const char filename[], int is_dir)
-{
-	return file_is_filtered(view, filename, is_dir, 0);
-}
-
-/* Checks whether file/directory passes filename filters of the view.  Returns
- * non-zero if given filename passes filter and should be visible, otherwise
- * zero is returned, in which case the file should be hidden. */
-static int
-file_is_filtered(FileView *view, const char filename[], int is_dir,
-		int apply_local_filter)
+filters_file_is_visible(FileView *view, const char dir[], const char name[],
+		int is_dir, int apply_local_filter)
 {
 	/* FIXME: some very long file names won't be matched against some regexps. */
 	char name_with_slash[NAME_MAX + 1 + 1];
@@ -328,17 +370,17 @@ file_is_filtered(FileView *view, const char filename[], int is_dir,
 
 	if(is_dir)
 	{
-		append_slash(filename, name_with_slash, sizeof(name_with_slash));
-		filename = name_with_slash;
+		append_slash(name, name_with_slash, sizeof(name_with_slash));
+		name = name_with_slash;
 	}
 
-	if(filter_matches(&view->auto_filter, filename) > 0)
+	if(filter_matches(&view->auto_filter, name) > 0)
 	{
 		return 0;
 	}
 
 	if(apply_local_filter &&
-			filter_matches(&view->local_filter.filter, filename) == 0)
+			filter_matches(&view->local_filter.filter, name) == 0)
 	{
 		return 0;
 	}
@@ -350,15 +392,15 @@ file_is_filtered(FileView *view, const char filename[], int is_dir,
 
 	if(matcher_is_full_path(view->manual_filter))
 	{
-		const size_t nchars = copy_str(path, sizeof(path) - 1, view->curr_dir);
+		const size_t nchars = copy_str(path, sizeof(path) - 1, dir);
 		path[nchars - 1U] = '/';
-		copy_str(path + nchars, sizeof(path) - nchars, filename);
-		filename = path;
+		copy_str(path + nchars, sizeof(path) - nchars, name);
+		name = path;
 	}
 
-	return matcher_matches(view->manual_filter, filename)
-		   ? !view->invert
-		   : view->invert;
+	return matcher_matches(view->manual_filter, name)
+	     ? !view->invert
+	     : view->invert;
 }
 
 void
@@ -368,7 +410,7 @@ filters_dir_updated(FileView *view)
 }
 
 void
-filter_temporary_nodes(FileView *view, dir_entry_t *list)
+filters_drop_temporaries(FileView *view, dir_entry_t entries[])
 {
 	/* This is basically a simplified version of update_filtering_lists().  Not
 	 * sure if it's worth merging them. */
@@ -381,8 +423,8 @@ filter_temporary_nodes(FileView *view, dir_entry_t *list)
 		dir_entry_t *new_entry;
 		dir_entry_t *const entry = &view->dir_entry[i];
 
-		/* tag links to position of nodes passed through filter in list of
-		 * visible files.  Removed nodes have -1. */
+		/* The tag field links to position of nodes passed through filter in the
+		 * list of visible files.  Removed nodes have -1. */
 		entry->tag = -1;
 
 		if(entry->temporary)
@@ -391,7 +433,7 @@ filter_temporary_nodes(FileView *view, dir_entry_t *list)
 			continue;
 		}
 
-		new_entry = add_dir_entry(&list, &list_size, entry);
+		new_entry = add_dir_entry(&entries, &list_size, entry);
 		if(new_entry != NULL)
 		{
 			entry->tag = list_size - 1U;
@@ -402,7 +444,7 @@ filter_temporary_nodes(FileView *view, dir_entry_t *list)
 	}
 
 	dynarray_free(view->dir_entry);
-	view->dir_entry = list;
+	view->dir_entry = entries;
 	view->list_rows = list_size;
 }
 
@@ -551,7 +593,7 @@ store_local_filter_position(FileView *const view, int pos)
 static int
 update_filtering_lists(FileView *view, int add, int clear)
 {
-	/* filter_temporary_nodes() is similar function. */
+	/* filters_drop_temporaries() is a similar function. */
 
 	size_t i;
 	size_t list_size = 0U;
@@ -875,8 +917,7 @@ local_filter_restore(FileView *view)
 int
 local_filter_matches(FileView *view, const dir_entry_t *entry)
 {
-	/* FIXME: some very long file names won't be matched against some
-	 * regexps. */
+	/* FIXME: some very long file names won't be matched against some regexps. */
 	char name_with_slash[NAME_MAX + 1 + 1];
 	const char *filename = entry->name;
 	if(fentry_is_dir(entry))

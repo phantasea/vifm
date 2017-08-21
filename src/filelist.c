@@ -90,11 +90,11 @@ static int fill_dir_entry_by_path(dir_entry_t *entry, const char path[]);
 #ifndef _WIN32
 static int fill_dir_entry(dir_entry_t *entry, const char path[],
 		const struct dirent *d);
-static int data_is_dir_entry(const struct dirent *d);
+static int data_is_dir_entry(const struct dirent *d, const char path[]);
 #else
 static int fill_dir_entry(dir_entry_t *entry, const char path[],
 		const WIN32_FIND_DATAW *ffd);
-static int data_is_dir_entry(const WIN32_FIND_DATAW *ffd);
+static int data_is_dir_entry(const WIN32_FIND_DATAW *ffd, const char path[]);
 #endif
 static int flist_custom_finish_internal(FileView *view, CVType type, int reload,
 		const char dir[], int allow_empty);
@@ -158,7 +158,7 @@ static int make_tree(FileView *view, const char path[], int reload,
 		trie_t *excluded_paths);
 static int add_files_recursively(FileView *view, const char path[],
 		trie_t *excluded_paths, int parent_pos, int no_direct_parent);
-static int file_is_visible(FileView *view, const char filename[], int is_dir,
+static int file_is_visible(FileView *view, const char name[], int is_dir,
 		const void *data, int apply_local_filter);
 static int add_directory_leaf(FileView *view, const char path[],
 		int parent_pos);
@@ -797,7 +797,7 @@ fill_dir_entry(dir_entry_t *entry, const char path[], const struct dirent *d)
 	entry->type = get_type_from_mode(s.st_mode);
 	if(entry->type == FT_UNK)
 	{
-		entry->type = (d == NULL) ? FT_UNK : type_from_dir_entry(d);
+		entry->type = (d == NULL) ? FT_UNK : type_from_dir_entry(d, path);
 	}
 	if(entry->type == FT_UNK)
 	{
@@ -835,9 +835,9 @@ fill_dir_entry(dir_entry_t *entry, const char path[], const struct dirent *d)
 /* Checks whether file is a directory.  Returns non-zero if so, otherwise zero
  * is returned. */
 static int
-data_is_dir_entry(const struct dirent *d)
+data_is_dir_entry(const struct dirent *d, const char path[])
 {
-	return is_dirent_targets_dir(d);
+	return is_dirent_targets_dir(path, d);
 }
 
 #else
@@ -909,7 +909,7 @@ fill_dir_entry(dir_entry_t *entry, const char path[],
 /* Checks whether file is a directory.  Returns non-zero if so, otherwise zero
  * is returned. */
 static int
-data_is_dir_entry(const WIN32_FIND_DATAW *ffd)
+data_is_dir_entry(const WIN32_FIND_DATAW *ffd, const char path[])
 {
 	return (ffd->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
@@ -2304,7 +2304,7 @@ rescue_from_empty_filelist(FileView *view)
 	/* It is possible to set the file name filter so that no files are showing
 	 * in the / directory.  All other directories will always show at least the
 	 * ../ file.  This resets the filter and reloads the directory. */
-	if(filename_filter_is_empty(view))
+	if(name_filters_empty(view))
 	{
 		return 0;
 	}
@@ -2313,7 +2313,7 @@ rescue_from_empty_filelist(FileView *view)
 			"The %s\"%s\" pattern did not match any files. It was reset.",
 			view->invert ? "" : "inverted ", matcher_get_expr(view->manual_filter));
 
-	filename_filter_clear(view);
+	name_filters_drop(view);
 
 	load_dir_list(view, 1);
 	if(view->list_rows < 1)
@@ -2871,19 +2871,39 @@ list_sibling_dirs(FileView *view)
 
 	for(i = 0; i < len; ++i)
 	{
-		char *const full_path = format_str("%s/%s", path, list[i]);
-		dir_entry_t *entry = entry_list_add(view, &parent_dirs.entries,
-				&parent_dirs.nentries, full_path);
-		free(full_path);
+		char *full_path;
+		dir_entry_t *entry;
 
-		if(!fentry_is_dir(entry))
+		if(view->hide_dot && list[i][0] == '.')
+		{
+			continue;
+		}
+
+		full_path = format_str("%s/%s", path, list[i]);
+		entry = entry_list_add(view, &parent_dirs.entries, &parent_dirs.nentries,
+				full_path);
+
+		if(!fentry_is_dir(entry) ||
+				!filters_file_is_visible(view, path, list[i], 1, 0))
 		{
 			fentry_free(view, entry);
 			--parent_dirs.nentries;
 		}
+
+		free(full_path);
 	}
 	free(path);
 	free_string_array(list, len);
+
+	if(entry_from_path(view, parent_dirs.entries, parent_dirs.nentries,
+				flist_get_dir(view)) == NULL)
+	{
+		/* If we couldn't find our current directory in the list (because it got
+		 * filtered-out), add it to be able to determine where it would go if it
+		 * were visible. */
+		entry_list_add(view, &parent_dirs.entries, &parent_dirs.nentries,
+				flist_get_dir(view));
+	}
 
 	return parent_dirs;
 }
@@ -3614,22 +3634,24 @@ add_files_recursively(FileView *view, const char path[], trie_t *excluded_paths,
  * is used when data is NULL, otherwise data_is_dir_entry() called (this is an
  * optimization).  Returns non-zero if so, otherwise zero is returned. */
 static int
-file_is_visible(FileView *view, const char filename[], int is_dir,
+file_is_visible(FileView *view, const char name[], int is_dir,
 		const void *data, int apply_local_filter)
 {
-	if(view->hide_dot && filename[0] == '.')
+	if(view->hide_dot && name[0] == '.')
 	{
 		return 0;
 	}
 
 	if(data != NULL)
 	{
-		is_dir = data_is_dir_entry(data);
+		char full_path[PATH_MAX + 1];
+		snprintf(full_path, sizeof(full_path), "%s/%s", flist_get_dir(view), name);
+
+		is_dir = data_is_dir_entry(data, full_path);
 	}
 
-	return apply_local_filter
-	     ? filters_file_is_visible(view, filename, is_dir)
-	     : filters_file_is_filtered(view, filename, is_dir);
+	return filters_file_is_visible(view, flist_get_dir(view), name, is_dir,
+			apply_local_filter);
 }
 
 /* Adds ".." directory leaf of an empty directory to the tree which is being

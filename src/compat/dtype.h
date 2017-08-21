@@ -1,6 +1,5 @@
 /* vifm
- * Copyright (C) 2001 Ken Steen.
- * Copyright (C) 2011 xaizek.
+ * Copyright (C) 2016 xaizek.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,24 +16,35 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef VIFM__MENUS__DIRHISTORY_MENU_H__
-#define VIFM__MENUS__DIRHISTORY_MENU_H__
+#ifndef VIFM__COMPAT__DTYPE_H__
+#define VIFM__COMPAT__DTYPE_H__
 
-#include "../ui/ui.h"
-#include "../utils/test_helpers.h"
+#if !defined(HAVE_STRUCT_DIRENT_D_TYPE) || !HAVE_STRUCT_DIRENT_D_TYPE
 
-/* Returns non-zero if status bar message should be saved. */
-int show_history_menu(FileView *view);
+/* Declaration of entry types that match those defined by POSIX. */
+enum
+{
+	DT_BLK,
+	DT_CHR,
+	DT_DIR,
+	DT_FIFO,
+	DT_REG,
+#ifndef _WIN32
+	DT_LNK,
+	DT_SOCK,
+#endif
+	DT_UNKNOWN
+};
 
-#ifdef TEST
-#include "../utils/string_array.h"
 #endif
 
-TSTATIC_DEFS(
-	strlist_t list_dir_history(FileView *view, int *pos);
-)
+struct dirent;
 
-#endif /* VIFM__MENUS__DIRHISTORY_MENU_H__ */
+/* Retrieves entry type.  Either directly from dirent or by running lstat() on
+ * the path.  Returns the type. */
+unsigned char get_dirent_type(const struct dirent *dentry, const char path[]);
+
+#endif // VIFM__COMPAT__DTYPE_H__
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
-/* vim: set cinoptions+=t0 filetype=c : */
+/* vim: set cinoptions+=t0 : */

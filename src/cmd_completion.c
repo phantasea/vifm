@@ -42,6 +42,7 @@
                        strrchr() */
 
 #include "cfg/config.h"
+#include "compat/dtype.h"
 #include "compat/fs_limits.h"
 #include "compat/os.h"
 #include "engine/abbrevs.h"
@@ -92,8 +93,8 @@ static void complete_from_string_list(const char str[], const char *items[][2],
 static void complete_command_name(const char beginning[]);
 static void filename_completion_in_dir(const char *path, const char *str,
 		CompletionType type);
-static void filename_completion_internal(DIR *dir, const char filename[],
-		CompletionType type);
+static void filename_completion_internal(DIR *dir, const char dir_path[],
+		const char filename[], CompletionType type);
 static int is_dirent_targets_exec(const struct dirent *d);
 #ifdef _WIN32
 static void complete_with_shared(const char *server, const char *file);
@@ -859,7 +860,7 @@ static void
 filename_completion_in_dir(const char *path, const char *str,
 		CompletionType type)
 {
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 1];
 	if(is_root_dir(str))
 	{
 		snprintf(buf, sizeof(buf), "%s", str);
@@ -967,7 +968,7 @@ filename_completion(const char str[], CompletionType type,
 	}
 	else
 	{
-		filename_completion_internal(dir, filename, type);
+		filename_completion_internal(dir, dirname, filename, type);
 		(void)vifm_chdir(flist_get_dir(curr_view));
 	}
 
@@ -982,29 +983,35 @@ filename_completion(const char str[], CompletionType type,
 	restore_cwd(cwd);
 }
 
+/* The file completion core of filename_completion(). */
 static void
-filename_completion_internal(DIR *dir, const char filename[],
-		CompletionType type)
+filename_completion_internal(DIR *dir, const char dir_path[],
+		const char filename[], CompletionType type)
 {
+	/* It's OK to use relative paths here, because filename_completion()
+	 * guarantees that we are in correct directory. */
 	struct dirent *d;
 
 	size_t filename_len = strlen(filename);
 	while((d = os_readdir(dir)) != NULL)
 	{
+		int is_dir;
+
 		if(filename[0] == '\0' && d->d_name[0] == '.')
 			continue;
 		if(!file_matches(d->d_name, filename, filename_len))
 			continue;
 
-		if(type == CT_DIRONLY && !is_dirent_targets_dir(d))
+		is_dir = is_dirent_targets_dir(d->d_name, d);
+
+		if(type == CT_DIRONLY && !is_dir)
 			continue;
 		else if(type == CT_EXECONLY && !is_dirent_targets_exec(d))
 			continue;
-		else if(type == CT_DIREXEC && !is_dirent_targets_dir(d) &&
-				!is_dirent_targets_exec(d))
+		else if(type == CT_DIREXEC && !is_dir && !is_dirent_targets_exec(d))
 			continue;
 
-		if(is_dirent_targets_dir(d) && type != CT_ALL_WOS)
+		if(is_dir && type != CT_ALL_WOS)
 		{
 			vle_compl_put_path_match(format_str("%s/", d->d_name));
 		}
@@ -1026,10 +1033,13 @@ filename_completion_internal(DIR *dir, const char filename[],
 static int
 is_dirent_targets_exec(const struct dirent *d)
 {
+	/* It's OK to use relative paths here, because filename_completion()
+	 * guarantees that we are in correct directory. */
 #ifndef _WIN32
-	if(d->d_type == DT_DIR)
+	const unsigned char type = get_dirent_type(d, d->d_name);
+	if(type == DT_DIR)
 		return 0;
-	if(d->d_type == DT_LNK && get_symlink_type(d->d_name) != SLT_UNKNOWN)
+	if(type == DT_LNK && get_symlink_type(d->d_name) != SLT_UNKNOWN)
 		return 0;
 	return os_access(d->d_name, X_OK) == 0;
 #else
@@ -1040,7 +1050,7 @@ is_dirent_targets_exec(const struct dirent *d)
 #ifndef _WIN32
 
 void
-complete_user_name(const char *str)
+complete_user_name(const char str[])
 {
 	struct passwd *pw;
 	size_t len;
