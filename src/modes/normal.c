@@ -867,22 +867,45 @@ cmd_ctrl_ws(key_info_t key_info, keys_info_t *keys_info)
 }
 
 //add by sim1 -------------------
+static void
+set_millerview(mv)
+{
+	curr_view->miller_view_g = mv;
+	other_view->miller_view_g = mv;
+
+	fview_set_millerview(curr_view, mv);
+	fview_set_millerview(other_view, mv);
+
+	return;
+}
+
 /* toggle split and only mode. */
 static void
 cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 {
+	static int mv = 0;
+	static int init = 0;
+	if (init == 0)
+	{
+		mv = curr_view->miller_view_g;
+		init = 1;
+	}
+
 	if (curr_stats.number_of_windows != 1)
 	{
+		set_millerview(mv);
 		only();
 		return;
 	}
 
 	if (cfg.prefer_vsplit)
 	{
+		set_millerview(FALSE);
 		split_view(VSPLIT);
 	}
 	else
 	{
+		set_millerview(mv);
 		split_view(HSPLIT);
 	}
 
