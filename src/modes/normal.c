@@ -868,7 +868,7 @@ cmd_ctrl_ws(key_info_t key_info, keys_info_t *keys_info)
 
 //add by sim1 -------------------
 static void
-set_millerview(mv)
+set_millerview(int mv)
 {
 	curr_view->miller_view_g = mv;
 	other_view->miller_view_g = mv;
