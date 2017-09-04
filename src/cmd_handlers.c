@@ -184,6 +184,7 @@ static int finish_cmd(const cmd_info_t *cmd_info);
 static int grep_cmd(const cmd_info_t *cmd_info);
 static int help_cmd(const cmd_info_t *cmd_info);
 static int highlight_cmd(const cmd_info_t *cmd_info);
+static int highlight_clear(const cmd_info_t *cmd_info);
 static int highlight_file(const cmd_info_t *cmd_info);
 static void display_file_highlights(const matchers_t *matchers);
 static int highlight_group(const cmd_info_t *cmd_info);
@@ -192,7 +193,7 @@ static const char * get_group_str(int group, const col_attr_t *col);
 static const char * get_file_hi_str(const matchers_t *matchers,
 		const col_attr_t *col);
 static const char * get_hi_str(const char title[], const col_attr_t *col);
-static int parse_and_apply_highlight(const cmd_info_t *cmd_info,
+static int parse_file_highlight(const cmd_info_t *cmd_info,
 		col_attr_t *color);
 static int try_parse_color_name_value(const char str[], int fg,
 		col_attr_t *color);
@@ -2381,7 +2382,36 @@ highlight_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	if(cmd_info->argc == 1 && strcasecmp(cmd_info->argv[0], "clear") == 0)
+	if(strcasecmp(cmd_info->argv[0], "clear") == 0)
+	{
+		return highlight_clear(cmd_info);
+	}
+
+	if(matchers_is_expr(cmd_info->argv[0]))
+	{
+		return highlight_file(cmd_info);
+	}
+
+	return highlight_group(cmd_info);
+}
+
+/* Handles clear form of :highlight command.  Returns value to be returned by
+ * command handler. */
+static int
+highlight_clear(const cmd_info_t *cmd_info)
+{
+	if(cmd_info->argc == 2)
+	{
+		if(!cs_del_file_hi(cmd_info->argv[1]))
+		{
+			status_bar_errorf("No such group: %s", cmd_info->argv[1]);
+			return 1;
+		}
+
+		return 0;
+	}
+
+	if(cmd_info->argc == 1)
 	{
 		cs_reset(curr_stats.cs);
 		fview_view_cs_reset(&lwin);
@@ -2393,12 +2423,7 @@ highlight_cmd(const cmd_info_t *cmd_info)
 		return 0;
 	}
 
-	if(matchers_is_expr(cmd_info->argv[0]))
-	{
-		return highlight_file(cmd_info);
-	}
-
-	return highlight_group(cmd_info);
+	return CMDS_ERR_TRAILING_CHARS;
 }
 
 /* Handles highlight-file form of :highlight command.  Returns value to be
@@ -2429,8 +2454,8 @@ highlight_file(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	result = parse_and_apply_highlight(cmd_info, &color);
-	result += cs_add_file_hi(matchers, &color);
+	result = parse_file_highlight(cmd_info, &color);
+	cs_add_file_hi(matchers, &color);
 
 	/* Redraw is enough to update filename specific highlights. */
 	curr_stats.need_update = UT_REDRAW;
@@ -2448,8 +2473,7 @@ display_file_highlights(const matchers_t *matchers)
 
 	for(i = 0; i < cs->file_hi_count; ++i)
 	{
-		const file_hi_t *const file_hi = &cs->file_hi[i];
-		if(matchers_includes(file_hi->matchers, matchers))
+		if(matchers_includes(cs->file_hi[i].matchers, matchers))
 		{
 			break;
 		}
@@ -2490,7 +2514,7 @@ highlight_group(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	result = parse_and_apply_highlight(cmd_info, color);
+	result = parse_file_highlight(cmd_info, color);
 
 	curr_stats.cs->pair[group_id] = colmgr_get_pair(color->fg, color->bg);
 
@@ -2579,7 +2603,7 @@ get_hi_str(const char title[], const col_attr_t *col)
 /* Parses arguments of :highlight command.  Returns non-zero in case something
  * was output to the status bar, otherwise zero is returned. */
 static int
-parse_and_apply_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
+parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 {
 	int i;
 
