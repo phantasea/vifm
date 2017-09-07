@@ -528,7 +528,7 @@ fops_incdec(view_t *view, int k)
 
 	if(nrenames > 0)
 	{
-		ui_view_schedule_full_reload(view);
+		ui_view_schedule_reload(view);
 	}
 
 	if(err > 0)

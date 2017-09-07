@@ -662,7 +662,7 @@ static void
 reload_list(view_t *view)
 {
 	if(curr_stats.load_stage >= 3)
-		load_saving_pos(view, 1);
+		load_saving_pos(view);
 	else
 		load_dir_list(view, !(cfg.vifm_info&VIFMINFO_SAVEDIRS) || view->list_pos != 0);
 }
@@ -1408,7 +1408,7 @@ void
 ui_view_reset_selection_and_reload(view_t *view)
 {
 	flist_sel_stash(view);
-	load_saving_pos(view, 1);
+	load_saving_pos(view);
 }
 
 void
@@ -1426,7 +1426,7 @@ ui_views_reload_visible_filelists(void)
 {
 	if(curr_stats.view)
 	{
-		load_saving_pos(curr_view, 1);
+		load_saving_pos(curr_view);
 	}
 	else
 	{
@@ -1437,8 +1437,8 @@ ui_views_reload_visible_filelists(void)
 void
 ui_views_reload_filelists(void)
 {
-	load_saving_pos(curr_view, 1);
-	load_saving_pos(other_view, 1);
+	load_saving_pos(curr_view);
+	load_saving_pos(other_view);
 }
 
 void
@@ -1781,6 +1781,16 @@ ui_view_unsorted(const view_t *view)
 }
 
 void
+ui_shutdown(void)
+{
+	if(curr_stats.load_stage > 0 && !isendwin())
+	{
+		def_prog_mode();
+		endwin();
+	}
+}
+
+void
 ui_view_schedule_redraw(view_t *view)
 {
 	pthread_mutex_lock(view->timestamps_mutex);
@@ -1793,14 +1803,6 @@ ui_view_schedule_reload(view_t *view)
 {
 	pthread_mutex_lock(view->timestamps_mutex);
 	view->postponed_reload = get_updated_time(view->postponed_reload);
-	pthread_mutex_unlock(view->timestamps_mutex);
-}
-
-void
-ui_view_schedule_full_reload(view_t *view)
-{
-	pthread_mutex_lock(view->timestamps_mutex);
-	view->postponed_full_reload = get_updated_time(view->postponed_full_reload);
 	pthread_mutex_unlock(view->timestamps_mutex);
 }
 
@@ -1830,11 +1832,7 @@ ui_view_query_scheduled_event(view_t *view)
 
 	pthread_mutex_lock(view->timestamps_mutex);
 
-	if(view->postponed_full_reload != view->last_reload)
-	{
-		event = UUE_FULL_RELOAD;
-	}
-	else if(view->postponed_reload != view->last_reload)
+	if(view->postponed_reload != view->last_reload)
 	{
 		event = UUE_RELOAD;
 	}
@@ -1849,7 +1847,6 @@ ui_view_query_scheduled_event(view_t *view)
 
 	view->last_redraw = view->postponed_redraw;
 	view->last_reload = view->postponed_reload;
-	view->postponed_full_reload = view->postponed_reload;
 
 	pthread_mutex_unlock(view->timestamps_mutex);
 

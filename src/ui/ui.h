@@ -169,10 +169,9 @@ CompareType;
 /* Type of scheduled view update event. */
 typedef enum
 {
-	UUE_NONE,        /* No even scheduled at the time of request. */
-	UUE_REDRAW,      /* View redraw. */
-	UUE_RELOAD,      /* View reload with saving selection and cursor. */
-	UUE_FULL_RELOAD, /* Full view reload. */
+	UUE_NONE,   /* No even scheduled at the time of request. */
+	UUE_REDRAW, /* View redraw. */
+	UUE_RELOAD, /* View reload with saving selection and cursor. */
 }
 UiUpdateEvent;
 
@@ -430,8 +429,7 @@ struct view_t
 	 * critical. */
 
 	uint64_t postponed_redraw;         /* Time of last redraw request. */
-	uint64_t postponed_reload;         /* Time of last redraw request. */
-	uint64_t postponed_full_reload;    /* Time of last full redraw request. */
+	uint64_t postponed_reload;         /* Time of last reload request. */
 	pthread_mutex_t *timestamps_mutex; /* Protects access to above variables.
 	                                      This is a pointer, because mutexes
 	                                      shouldn't be copied*/
@@ -682,6 +680,10 @@ void ui_view_wipe(view_t *view);
  * otherwise zero is returned. */
 int ui_view_unsorted(const view_t *view);
 
+/* Shuts down UI making it possible to use terminal (either after vifm is closed
+ * or when terminal might be used by another application that vifm runs). */
+void ui_shutdown(void);
+
 /* View update scheduling. */
 
 /* Schedules redraw of the view for the future.  Doesn't perform any actual
@@ -691,10 +693,6 @@ void ui_view_schedule_redraw(view_t *view);
 /* Schedules reload of the view for the future.  Doesn't perform any actual
  * work. */
 void ui_view_schedule_reload(view_t *view);
-
-/* Schedules full reload of the view for the future.  Doesn't perform any actual
- * work. */
-void ui_view_schedule_full_reload(view_t *view);
 
 /* Clears previously scheduled redraw request of the view, if any. */
 void ui_view_redrawn(view_t *view);

@@ -48,6 +48,7 @@ static var_t layoutis_builtin(const call_info_t *call_info);
 static var_t paneisat_builtin(const call_info_t *call_info);
 static var_t system_builtin(const call_info_t *call_info);
 static var_t isactive_builtin(const call_info_t *call_info);  //add by sim1
+static var_t term_builtin(const call_info_t *call_info);
 
 static const function_t functions[] = {
 	/* Name          Description                 Argc  Handler  */
@@ -61,6 +62,7 @@ static const function_t functions[] = {
 	{ "paneisat",    "query pane location",        1, &paneisat_builtin },
 	{ "system",      "execute external command",   1, &system_builtin },
 	{ "isactive",    "check for specific feature", 1, &isactive_builtin },  //add by sim1
+	{ "term",        "run interactive command",    1, &term_builtin },
 };
 
 void
@@ -371,6 +373,16 @@ isactive_builtin(const call_info_t *call_info)
 	return var_from_bool(result);
 }
 //add by sim1 ------------------------
+
+/* Runs interactive command in shell and returns its output (joined standard
+ * output and standard error streams).  All trailing newline characters are
+ * stripped to allow easy appending to command output.  Returns the output. */
+static var_t
+term_builtin(const call_info_t *call_info)
+{
+	ui_shutdown();
+	return system_builtin(call_info);
+}
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */
