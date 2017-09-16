@@ -175,6 +175,8 @@ static void number_local(OPT_OP op, optval_t val);
 static void numberwidth_global(OPT_OP op, optval_t val);
 static void numberwidth_local(OPT_OP op, optval_t val);
 static void set_numberwidth(view_t *view, int *num_width, int width);
+static void previewprg_global(OPT_OP op, optval_t val);
+static void previewprg_local(OPT_OP op, optval_t val);
 static void relativenumber_global(OPT_OP op, optval_t val);
 static void relativenumber_local(OPT_OP op, optval_t val);
 static void update_num_type(view_t *view, NumberingType *num_type,
@@ -796,6 +798,10 @@ options[] = {
 	  OPT_INT, 0, NULL, &numberwidth_global, &numberwidth_local,
 	  { .init = &init_numberwidth },
 	},
+	{ "previewprg", "", "command to use to preview all files",
+	  OPT_STR, 0, NULL, &previewprg_global, &previewprg_local,
+	  { .ref.str_val = &empty },
+	},
 	{ "relativenumber", "rnu", "display relative line numbers",
 	  OPT_BOOL, 0, NULL, &relativenumber_global, &relativenumber_local,
 	  { .init = &init_relativenumber },
@@ -1169,7 +1175,7 @@ init_wordchars(optval_t *val)
 
 			if(r == l)
 			{
-				snprintf(range, sizeof(range), "%s", to_endpoint(l, left));
+				copy_str(range, sizeof(range), to_endpoint(l, left));
 			}
 			else
 			{
@@ -1272,6 +1278,10 @@ reset_local_options(view_t *view)
 	replace_string(&view->sort_groups, view->sort_groups_g);
 	val.str_val = view->sort_groups;
 	set_option("sortgroups", val, OPT_LOCAL);
+
+	replace_string(&view->preview_prg, view->preview_prg_g);
+	val.str_val = view->preview_prg;
+	set_option("previewprg", val, OPT_LOCAL);
 }
 
 void
@@ -1330,6 +1340,11 @@ load_view_options(view_t *view)
 	set_option("relativenumber", val, OPT_LOCAL);
 	val.bool_val = view->num_type_g & NT_REL;
 	set_option("relativenumber", val, OPT_GLOBAL);
+
+	val.str_val = view->preview_prg;
+	set_option("previewprg", val, OPT_LOCAL);
+	val.str_val = view->preview_prg_g;
+	set_option("previewprg", val, OPT_GLOBAL);
 }
 
 void
@@ -1370,6 +1385,9 @@ clone_local_options(const view_t *from, view_t *to, int defer_slow)
 
 	to->miller_view_g = from->miller_view_g;
 	fview_set_millerview(to, from->miller_view);
+
+	replace_string(&to->preview_prg, from->preview_prg);
+	replace_string(&to->preview_prg_g, from->preview_prg_g);
 }
 
 void
@@ -2352,7 +2370,7 @@ static void
 fill_lsoptions(optval_t *val, int transposed)
 {
 	static char buf[64];
-	snprintf(buf, sizeof(buf), "%s", transposed ? "transposed" : 0);
+	copy_str(buf, sizeof(buf), transposed ? "transposed" : "");
 	val->str_val = buf;
 }
 
@@ -2519,6 +2537,21 @@ set_numberwidth(view_t *view, int *num_width, int width)
 	{
 		redraw_view(view);
 	}
+}
+
+/* Handles change of global value of the 'previewprg' option. */
+static void
+previewprg_global(OPT_OP op, optval_t val)
+{
+	replace_string(&curr_view->preview_prg_g, val.str_val);
+}
+
+/* Handles change of local value of the 'previewprg' option. */
+static void
+previewprg_local(OPT_OP op, optval_t val)
+{
+	replace_string(&curr_view->preview_prg, val.str_val);
+	curr_stats.need_update = UT_REDRAW;
 }
 
 /* Handles relative file numbers displaying toggle in global option. */

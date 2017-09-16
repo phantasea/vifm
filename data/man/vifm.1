@@ -1,4 +1,4 @@
-.TH VIFM 1 "September 05, 2017" "vifm 0.9"
+.TH VIFM 1 "September 14, 2017" "vifm 0.9"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -3827,6 +3827,24 @@ scope: local
 .br
 Minimal number of characters for line number field.
 .TP
+.BI "'previewprg'"
+type: string
+.br
+default: ""
+.br
+scope: local
+.br
+
+External command to be used instead of preview programs configured via
+:fileviewer command.
+
+Example:
+
+.EX
+  " always show git log in preview of files inside some repository
+  au DirEnter '~/git\-repo/**/*' setl previewprg='git log \-\-color \-\- %c 2>&1'
+.EE
+.TP
 .BI "'relativenumber' 'rnu'"
 type: boolean
 .br
@@ -3857,34 +3875,34 @@ default: "%l/%S "
 Determines the content of the ruler.  Its minimal width is 13 characters and
 it's right aligned.  Following macros are supported:
 .br
- %= \- separation point between left and right aligned halves of the line
+ %=  \- separation point between left and right aligned halves of the line
 .br
- %l \- file number
+ %l  \- file number
 .br
- %L \- total number of files in view (including filtered out ones)
+ %L  \- total number of files in view (including filtered out ones)
 .br
- %\- \- number of filtered out files
+ %x  \- number of files excluded by filters
 .br
- %S \- number of displayed files
+ %0\- \- old name for %x macro
 .br
- %= \- separation point between left and right align items
+ %S  \- number of displayed files
 .br
- %% \- percent sign
+ %=  \- separation point between left and right align items
 .br
- %[ \- designates beginning of an optional block
+ %%  \- percent sign
 .br
- %] \- designates end of an optional block
+ %[  \- designates beginning of an optional block
+.br
+ %]  \- designates end of an optional block
 .br
 
 Percent sign can be followed by optional minimum field width.  Add '\-' before
-minimum field width if you want field to be right aligned.  Note ambiguity with
-number of filtered out files, which can be resolved with the help of width
-field ("%0-").
+minimum field width if you want field to be right aligned.
 
 Example:
 
 .EX
-  set rulerformat='%2l-%S%[ +%0-%]'
+  set rulerformat='%2l-%S%[ +%x%]'
 .EE
 .TP
 .BI 'runexec'
@@ -4777,8 +4795,20 @@ builtin variable
 .br
 v:var                 builtin variable
 
-Information exposed by vifm for use in scripting.  Only v:servername at the
-moment.
+Information exposed by vifm for use in scripting.
+
+.B "v:count"
+.br
+  count passed to : command, 0 by default.  Can be used in mappings to pass
+  count to a different command.
+.br
+.B "v:count1"
+.br
+  same as v:count, but 1 by default.
+.br
+.B "v:servername"
+.br
+  See below.
 
 function call
 .br

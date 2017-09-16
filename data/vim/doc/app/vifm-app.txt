@@ -1,4 +1,4 @@
-*vifm-app.txt*    For Vifm version 0.9  Last change: 2017 Sep 05
+*vifm-app.txt*    For Vifm version 0.9  Last change: 2017 Sep 14
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -3186,6 +3186,19 @@ scope: local
 
 Minimal number of characters for line number field.
 
+                                               *vifm-'previewprg'*
+previewprg
+type: string
+default: ""
+scope: local
+
+External command to be used instead of preview programs configured via
+|vifm-:fileviewer| command.
+
+Example: >
+    " always show git log in preview of files inside some repository
+    au DirEnter '~/git-repo/**/*' setl previewprg='git log --color -- %c 2>&1'
+<
                                                *vifm-'relativenumber'*
                                                *vifm-'rnu'*
 relativenumber rnu
@@ -3215,22 +3228,21 @@ default: "%l/%S "
 
 Determines the content of the ruler.  Its minimal width is 13 characters and
 it's right aligned.  Following macros are supported:
-    %= - separation point between left and right aligned halves of the line
-    %l - file number
-    %L - total number of files in view (including filtered out ones)
-    %- - number of filtered out files
-    %S - number of displayed files
-    %% - percent sign
-    %[ - designates beginning of an optional block
-    %] - designates end of an optional block
+    %=  - separation point between left and right aligned halves of the line
+    %l  - file number
+    %L  - total number of files in view (including filtered out ones)
+    %x  - number of files excluded by filters
+    %0- - old name for %x macro
+    %S  - number of displayed files
+    %%  - percent sign
+    %[  - designates beginning of an optional block
+    %]  - designates end of an optional block
 
 Percent sign can be followed by optional minimum field width.  Add '-' before
-minimum field width if you want field to be right aligned.  Note ambiguity with
-number of filtered out files, which can be resolved with the help of width
-field ("%0-").
+minimum field width if you want field to be right aligned.
 
 Example: >
- set rulerformat='%2l-%S%[ +%0-%]'
+ set rulerformat='%2l-%S%[ +%x%]'
 <
                                                *vifm-'runexec'*
 runexec
@@ -3965,8 +3977,18 @@ builtin variable                               *vifm-expr-variable*
 --------------------
 v:var                 builtin variable
 
-Information exposed by vifm for use in scripting.  Only |vifm-v:servername| at
-the moment.
+Information exposed by vifm for use in scripting.
+
+                                               *vifm-v:count*
+v:count                                        *vifm-count-variable*
+    count passed to : command.  Can be used in mappings to pass count
+    to a different command.
+
+                                               *vifm-v:count1*
+v:count1                                       *vifm-count1-variable*
+    same as v:count, but 1 by default.
+
+See also |vifm-v:servername|.
 
 function call                                  *vifm-expr-function*
 -------------

@@ -29,6 +29,16 @@
 	ability to run interactive applications without confusing vifm's
 	interactions with the terminal.  Thanks to Dmitry Frank (a.k.a. dimonomid).
 
+	Added 'previewprg' option, which can be used to override :fileviewer
+	commands either temporarily or permanently.  Thanks to svenn71.
+
+	Added v:count and v:count1 builtin variables.  They are assigned to count
+	passed to : command.
+
+	Added %x macro to 'rulerformat' (and thus to 'statusline') as new name for
+	%-, which conflicts with alignment specification and requires explicit
+	width specifier (%0-).  Thanks to Marcos Cruz.
+
 	Changed :filter command to accept pattern (//, ////, {} or {{}}).  Thanks
 	to rbong.
 
