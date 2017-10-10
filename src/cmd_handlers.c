@@ -4543,7 +4543,7 @@ extern void view_enter_mode(view_t *view, int explore);
 static int
 explore_cmd(const cmd_info_t *cmd_info)
 {
-	if(curr_stats.view)
+	if(curr_stats.preview.on)
 	{
 		status_bar_error("Another type of file viewing is activated");
 		curr_stats.save_msg = 1;
@@ -4557,7 +4557,7 @@ explore_cmd(const cmd_info_t *cmd_info)
 static int
 switch_cmd(const cmd_info_t *cmd_info)
 {
-	if(curr_stats.view)
+	if(curr_stats.preview.on)
 	{
 		view_enter_mode(other_view, 0);
 		return 0;

@@ -365,7 +365,7 @@ isactive_builtin(const call_info_t *call_info)
 	}
 	else if(strcmp(type, "preview") == 0)
 	{
-		result = curr_stats.view;
+		result = curr_stats.preview.on;
 	}
 
 	free(type);

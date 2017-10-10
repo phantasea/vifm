@@ -538,7 +538,7 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 		return;
 	}
 
-	if (!curr_stats.view && !qv_can_show())
+	if (!curr_stats.preview.on && !qv_can_show())
 	{
 		return;
 	}
@@ -709,7 +709,7 @@ static void
 cmd_ctrl_i(key_info_t key_info, keys_info_t *keys_info)
 {
 	//add by sim1 ----------
-	if (curr_stats.view && (curr_stats.number_of_windows != 1))
+	if (curr_stats.preview.on && (curr_stats.number_of_windows != 1))
 	{
 		cmd_shift_tab(key_info, keys_info);
 		return;
