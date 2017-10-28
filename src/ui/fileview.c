@@ -193,6 +193,7 @@ fview_init(void)
 		columns_add_column_desc(sort_to_func[i].key, sort_to_func[i].func);
 	}
 	columns_add_column_desc(SK_BY_ID, &format_id);
+	columns_add_column_desc(SK_BY_ROOT, &format_name);
 }
 
 void
@@ -323,6 +324,8 @@ draw_dir_list_only(view_t *view)
 	}
 
 	ui_view_win_changed(view);
+
+	ui_view_redrawn(view);
 }
 
 /* Draws a column to the left of the main part of the view. */
@@ -764,26 +767,10 @@ consider_scroll_bind(view_t *view)
 void
 redraw_view(view_t *view)
 {
-	if(curr_stats.need_update == UT_NONE && !curr_stats.restart_in_progress)
-	{
-		redraw_view_imm(view);
-	}
-}
-
-void
-redraw_view_imm(view_t *view)
-{
-	if(window_shows_dirlist(view))
+	if(curr_stats.need_update == UT_NONE && !curr_stats.restart_in_progress &&
+			window_shows_dirlist(view))
 	{
 		draw_dir_list(view);
-		if(view == curr_view)
-		{
-			fview_cursor_redraw(view);
-		}
-		else
-		{
-			put_inactive_mark(view);
-		}
 	}
 }
 
@@ -1061,7 +1048,9 @@ column_line_print(const void *data, int column_id, const char buf[],
 	const int numbers_visible = (offset == 0 && cdt->number_width > 0);
 	const int padding = (cfg.extra_padding != 0);
 
-	const int primary = (column_id == SK_BY_NAME || column_id == SK_BY_INAME);
+	const int primary = column_id == SK_BY_NAME
+	                 || column_id == SK_BY_INAME
+	                 || column_id == SK_BY_ROOT;
 	const int line_attrs = prepare_col_color(view, primary, cdt);
 
 	size_t extra_prefix = primary ? *cdt->prefix_len : 0U;
@@ -1322,6 +1311,8 @@ mix_in_file_name_hi(const view_t *view, dir_entry_t *entry, col_attr_t *col)
 TSTATIC void
 format_name(int id, const void *data, size_t buf_len, char buf[])
 {
+	const NameFormat fmt = (id == SK_BY_ROOT ? NF_ROOT : NF_FULL);
+
 	size_t len, i;
 	dir_entry_t *child, *parent;
 
@@ -1331,14 +1322,14 @@ format_name(int id, const void *data, size_t buf_len, char buf[])
 	if(!flist_custom_active(view))
 	{
 		/* Just file name. */
-		format_entry_name(cdt->entry, buf_len + 1, buf);
+		format_entry_name(cdt->entry, fmt, buf_len + 1, buf);
 		return;
 	}
 
 	if(!ui_view_displays_columns(view) || !cv_tree(view->custom.type))
 	{
 		/* File name possibly with path prefix. */
-		get_short_path_of(view, cdt->entry, 1, 0, buf_len + 1U, buf);
+		get_short_path_of(view, cdt->entry, fmt, 0, buf_len + 1U, buf);
 		return;
 	}
 
@@ -1372,7 +1363,7 @@ format_name(int id, const void *data, size_t buf_len, char buf[])
 		buf[len - 1U - i] = t;
 	}
 
-	get_short_path_of(view, cdt->entry, 1, 1, buf_len + 1U - len, buf + len);
+	get_short_path_of(view, cdt->entry, fmt, 1, buf_len + 1U - len, buf + len);
 	*cdt->prefix_len = len;
 }
 
@@ -1744,7 +1735,7 @@ get_filename_width(const view_t *view, int i)
 	{
 		char name[NAME_MAX + 1];
 		/* XXX: should this be formatted name?. */
-		get_short_path_of(view, entry, 0, 0, sizeof(name), name);
+		get_short_path_of(view, entry, NF_NONE, 0, sizeof(name), name);
 		name_len = utf8_strsw(name);
 	}
 	else
@@ -1815,7 +1806,7 @@ fview_position_updated(view_t *view)
 	draw_right_column(view);
 
 	refresh_view_win(view);
-	update_stat_window(view, 0);
+	ui_stat_update(view, 0);
 
 	if(view == curr_view)
 	{

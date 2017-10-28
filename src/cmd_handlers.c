@@ -889,7 +889,7 @@ emark_cmd(const cmd_info_t *cmd_info)
 			const char *const last_cmd = curr_stats.last_cmdline_command;
 			if(last_cmd == NULL)
 			{
-				status_bar_message("No previous command-line command");
+				ui_sb_msg("No previous command-line command");
 				return 1;
 			}
 			return exec_commands(last_cmd, curr_view, CIT_COMMAND) != 0;
@@ -966,7 +966,7 @@ apropos_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(last_args == NULL)
 	{
-		status_bar_error("Nothing to repeat");
+		ui_sb_err("Nothing to repeat");
 		return 1;
 	}
 
@@ -1011,7 +1011,7 @@ autocmd_cmd(const cmd_info_t *cmd_info)
 		static char *events[] = { "DirEnter" };
 		if(!is_in_string_array_case(events, ARRAY_LEN(events), event))
 		{
-			status_bar_errorf("No such event: %s", event);
+			ui_sb_errf("No such event: %s", event);
 			return 1;
 		}
 	}
@@ -1026,7 +1026,7 @@ autocmd_cmd(const cmd_info_t *cmd_info)
 	{
 		vle_textbuf *const msg = vle_tb_create();
 		vle_aucmd_list(event, patterns, &aucmd_list_cb, msg);
-		status_bar_message(vle_tb_get_data(msg));
+		ui_sb_msg(vle_tb_get_data(msg));
 		vle_tb_free(msg);
 		return 1;
 	}
@@ -1037,7 +1037,7 @@ autocmd_cmd(const cmd_info_t *cmd_info)
 
 	if(vle_aucmd_on_execute(event, patterns, action, &aucmd_action_handler) != 0)
 	{
-		status_bar_error("Failed to register autocommand");
+		ui_sb_err("Failed to register autocommand");
 		return 1;
 	}
 
@@ -1078,7 +1078,7 @@ bmark_cmd(const cmd_info_t *cmd_info)
 	const int err = (tags == NULL || bmarks_set(path, tags) != 0);
 	if(err && tags != NULL)
 	{
-		status_bar_error("Failed to add bookmark");
+		ui_sb_err("Failed to add bookmark");
 	}
 	free(path);
 	free(tags);
@@ -1121,7 +1121,7 @@ make_tags_list(const cmd_info_t *cmd_info)
 
 	if(cmd_info->emark && cmd_info->argc == 1)
 	{
-		status_bar_error("Too few arguments");
+		ui_sb_err("Too few arguments");
 		return NULL;
 	}
 
@@ -1129,7 +1129,7 @@ make_tags_list(const cmd_info_t *cmd_info)
 	{
 		if(strpbrk(cmd_info->argv[i], ", \t") != NULL)
 		{
-			status_bar_errorf("Tags can't include comma or whitespace: %s",
+			ui_sb_errf("Tags can't include comma or whitespace: %s",
 					cmd_info->argv[i]);
 			return NULL;
 		}
@@ -1209,7 +1209,7 @@ list_abbrevs(const char prefix[])
 	state = NULL;
 	if(!vle_abbr_iter(&lhs, &rhs, &no_remap, &state))
 	{
-		status_bar_message("No abbreviation found");
+		ui_sb_msg("No abbreviation found");
 		return 1;
 	}
 
@@ -1234,11 +1234,11 @@ list_abbrevs(const char prefix[])
 
 	if(seen_match)
 	{
-		status_bar_message(vle_tb_get_data(msg));
+		ui_sb_msg(vle_tb_get_data(msg));
 	}
 	else
 	{
-		status_bar_message("No abbreviation found");
+		ui_sb_msg("No abbreviation found");
 	}
 	vle_tb_free(msg);
 
@@ -1274,7 +1274,7 @@ add_cabbrev(const cmd_info_t *cmd_info, int no_remap)
 
 	if(result != 0)
 	{
-		status_bar_error("Failed to register abbreviation");
+		ui_sb_err("Failed to register abbreviation");
 	}
 
 	return result;
@@ -1380,7 +1380,7 @@ chmod_cmd(const cmd_info_t *cmd_info)
 	if((err = regcomp(&re, "^([ugoa]*([-+=]([rwxXst]*|[ugo]))+)|([0-7]{3,4})$",
 			REG_EXTENDED)) != 0)
 	{
-		status_bar_errorf("Regexp error: %s", get_regexp_error(err, &re));
+		ui_sb_errf("Regexp error: %s", get_regexp_error(err, &re));
 		regfree(&re);
 		return 1;
 	}
@@ -1396,7 +1396,7 @@ chmod_cmd(const cmd_info_t *cmd_info)
 
 	if(i < cmd_info->argc)
 	{
-		status_bar_errorf("Invalid argument: %s", cmd_info->argv[i]);
+		ui_sb_errf("Invalid argument: %s", cmd_info->argv[i]);
 		return 1;
 	}
 
@@ -1437,12 +1437,12 @@ chown_cmd(const cmd_info_t *cmd_info)
 
 	if(u && get_uid(user, &uid) != 0)
 	{
-		status_bar_errorf("Invalid user name: \"%s\"", user);
+		ui_sb_errf("Invalid user name: \"%s\"", user);
 		return 1;
 	}
 	if(g && get_gid(group, &gid) != 0)
 	{
-		status_bar_errorf("Invalid group name: \"%s\"", group);
+		ui_sb_errf("Invalid group name: \"%s\"", group);
 		return 1;
 	}
 
@@ -1461,7 +1461,7 @@ clone_cmd(const cmd_info_t *cmd_info)
 	{
 		if(cmd_info->argc > 0)
 		{
-			status_bar_error("No arguments are allowed if you use \"?\"");
+			ui_sb_err("No arguments are allowed if you use \"?\"");
 			return 1;
 		}
 		return fops_clone(curr_view, NULL, -1, 0, 1) != 0;
@@ -1488,7 +1488,7 @@ colorscheme_cmd(const cmd_info_t *cmd_info)
 {
 	if(cmd_info->qmark)
 	{
-		status_bar_message(cfg.cs.name);
+		ui_sb_msg(cfg.cs.name);
 		return 1;
 	}
 
@@ -1500,7 +1500,7 @@ colorscheme_cmd(const cmd_info_t *cmd_info)
 
 	if(!cs_exists(cmd_info->argv[0]))
 	{
-		status_bar_errorf("Cannot find colorscheme %s" , cmd_info->argv[0]);
+		ui_sb_errf("Cannot find colorscheme %s" , cmd_info->argv[0]);
 		return 1;
 	}
 
@@ -1512,8 +1512,8 @@ colorscheme_cmd(const cmd_info_t *cmd_info)
 		{
 			if(curr_stats.load_stage < 3)
 			{
-				status_bar_errorf("The path in :colorscheme command cannot be "
-						"relative in startup scripts (%s)", directory);
+				ui_sb_errf("The path in :colorscheme command cannot be relative in "
+						"startup scripts (%s)", directory);
 				free(directory);
 				return 1;
 			}
@@ -1529,7 +1529,7 @@ colorscheme_cmd(const cmd_info_t *cmd_info)
 
 		if(!is_dir(directory))
 		{
-			status_bar_errorf("%s isn't a directory", directory);
+			ui_sb_errf("%s isn't a directory", directory);
 			free(directory);
 			return 1;
 		}
@@ -1574,11 +1574,11 @@ command_cmd(const cmd_info_t *cmd_info)
 	desc = list_udf_content(cmd_info->argv[0]);
 	if(desc == NULL)
 	{
-		status_bar_message("No user-defined commands found");
+		ui_sb_msg("No user-defined commands found");
 		return 1;
 	}
 
-	status_bar_message(desc);
+	ui_sb_msg(desc);
 	free(desc);
 	return 1;
 }
@@ -1608,7 +1608,7 @@ cunabbrev_cmd(const cmd_info_t *cmd_info)
 	free(wargs);
 	if(result != 0)
 	{
-		status_bar_error("No such abbreviation");
+		ui_sb_err("No such abbreviation");
 	}
 	return 0;
 }
@@ -1660,7 +1660,7 @@ delmarks_cmd(const cmd_info_t *cmd_info)
 		}
 		else
 		{
-			status_bar_error("No arguments are allowed if you use \"!\"");
+			ui_sb_err("No arguments are allowed if you use \"!\"");
 			return 1;
 		}
 	}
@@ -1825,7 +1825,7 @@ parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
 		else if(strcmp(property, "skipempty") == 0)  *skip_empty = 1;
 		else
 		{
-			status_bar_errorf("Unknown comparison property: %s", property);
+			ui_sb_errf("Unknown comparison property: %s", property);
 			return 1;
 		}
 	}
@@ -1891,7 +1891,7 @@ static int
 echo_cmd(const cmd_info_t *cmd_info)
 {
 	char *const eval_result = try_eval_arglist(cmd_info);
-	status_bar_message(eval_result);
+	ui_sb_msg(eval_result);
 	free(eval_result);
 	return 1;
 }
@@ -1965,7 +1965,7 @@ else_cmd(const cmd_info_t *cmd_info)
 {
 	if(cmds_scoped_else() != 0)
 	{
-		status_bar_error("Misplaced :else");
+		ui_sb_err("Misplaced :else");
 		return CMDS_ERR_CUSTOM;
 	}
 	return 0;
@@ -1984,7 +1984,7 @@ elseif_cmd(const cmd_info_t *cmd_info)
 
 	if(cmds_scoped_elseif(x) != 0)
 	{
-		status_bar_error("Misplaced :elseif");
+		ui_sb_err("Misplaced :elseif");
 		return CMDS_ERR_CUSTOM;
 	}
 
@@ -2005,7 +2005,7 @@ endif_cmd(const cmd_info_t *cmd_info)
 {
 	if(cmds_scoped_endif() != 0)
 	{
-		status_bar_error(":endif without :if");
+		ui_sb_err(":endif without :if");
 		return CMDS_ERR_CUSTOM;
 	}
 	return 0;
@@ -2045,7 +2045,7 @@ try_eval_arglist(const cmd_info_t *cmd_info)
 	if(eval_result == NULL)
 	{
 		vle_tb_append_linef(vle_err, "%s: %s", "Invalid expression", error_pos);
-		status_bar_error(vle_tb_get_data(vle_err));
+		ui_sb_err(vle_tb_get_data(vle_err));
 	}
 
 	return eval_result;
@@ -2063,8 +2063,7 @@ file_cmd(const cmd_info_t *cmd_info)
 
 	if(run_with_filetype(curr_view, cmd_info->argv[0], cmd_info->bg) != 0)
 	{
-		status_bar_error(
-				"Can't find associated program with requested beginning");
+		ui_sb_err("Can't find associated program with requested beginning");
 		return 1;
 	}
 
@@ -2116,7 +2115,7 @@ add_assoc(const cmd_info_t *cmd_info, int viewer, int for_x)
 	matchers = matchers_list(cmd_info->argv[0], &nmatchers);
 	if(matchers == NULL)
 	{
-		status_bar_error("Not enough memory.");
+		ui_sb_err("Not enough memory.");
 		return 1;
 	}
 
@@ -2126,7 +2125,7 @@ add_assoc(const cmd_info_t *cmd_info, int viewer, int for_x)
 		matchers_t *const ms = matchers_alloc(matchers[i], 0, 1, "", &error);
 		if(ms == NULL)
 		{
-			status_bar_errorf("Wrong pattern (%s): %s", matchers[i], error);
+			ui_sb_errf("Wrong pattern (%s): %s", matchers[i], error);
 			free(error);
 			free_string_array(matchers, nmatchers);
 			return 1;
@@ -2198,8 +2197,7 @@ display_filters_info(const view_t *view)
 	char *const manualf = get_matcher_info("Name", view->manual_filter);
 	char *const autof = get_filter_info("Auto", &view->auto_filter);
 
-	status_bar_messagef("Filter -- Flags -- Value\n%s\n%s\n%s", localf, manualf,
-			autof);
+	ui_sb_msgf("Filter -- Flags -- Value\n%s\n%s\n%s", localf, manualf, autof);
 
 	free(localf);
 	free(manualf);
@@ -2262,7 +2260,7 @@ set_view_filter(view_t *view, const char filter[], const char fallback[],
 			0, fallback, &error);
 	if(matcher == NULL)
 	{
-		status_bar_errorf("Name filter not set: %s", error);
+		ui_sb_errf("Name filter not set: %s", error);
 		free(error);
 		return 1;
 	}
@@ -2293,7 +2291,7 @@ find_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(last_args == NULL)
 	{
-		status_bar_error("Nothing to repeat");
+		ui_sb_err("Nothing to repeat");
 		return 1;
 	}
 
@@ -2305,7 +2303,7 @@ finish_cmd(const cmd_info_t *cmd_info)
 {
 	if(curr_stats.sourcing_state != SOURCING_PROCESSING)
 	{
-		status_bar_error(":finish used outside of a sourced file");
+		ui_sb_err(":finish used outside of a sourced file");
 		return 1;
 	}
 
@@ -2327,7 +2325,7 @@ grep_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(last_args == NULL)
 	{
-		status_bar_error("Nothing to repeat");
+		ui_sb_err("Nothing to repeat");
 		return 1;
 	}
 
@@ -2354,7 +2352,7 @@ help_cmd(const cmd_info_t *cmd_info)
 	{
 		if(cmd_info->argc != 0)
 		{
-			status_bar_error("No arguments are allowed when 'vimhelp' option is off");
+			ui_sb_err("No arguments are allowed when 'vimhelp' option is off");
 			return 1;
 		}
 
@@ -2388,7 +2386,7 @@ highlight_cmd(const cmd_info_t *cmd_info)
 {
 	if(cmd_info->argc == 0)
 	{
-		status_bar_message(get_all_highlights());
+		ui_sb_msg(get_all_highlights());
 		return 1;
 	}
 
@@ -2414,7 +2412,7 @@ highlight_clear(const cmd_info_t *cmd_info)
 	{
 		if(!cs_del_file_hi(cmd_info->argv[1]))
 		{
-			status_bar_errorf("No such group: %s", cmd_info->argv[1]);
+			ui_sb_errf("No such group: %s", cmd_info->argv[1]);
 			return 1;
 		}
 
@@ -2452,7 +2450,7 @@ highlight_file(const cmd_info_t *cmd_info)
 	matchers = matchers_alloc(pattern, 0, 1, "", &error);
 	if(matchers == NULL)
 	{
-		status_bar_errorf("Pattern error: %s", error);
+		ui_sb_errf("Pattern error: %s", error);
 		free(error);
 		return CMDS_ERR_CUSTOM;
 	}
@@ -2491,13 +2489,11 @@ display_file_highlights(const matchers_t *matchers)
 
 	if(i >= cs->file_hi_count)
 	{
-		status_bar_errorf("Highlight group not found: %s",
-				matchers_get_expr(matchers));
+		ui_sb_errf("Highlight group not found: %s", matchers_get_expr(matchers));
 		return;
 	}
 
-	status_bar_message(get_file_hi_str(cs->file_hi[i].matchers,
-				&cs->file_hi[i].hi));
+	ui_sb_msg(get_file_hi_str(cs->file_hi[i].matchers, &cs->file_hi[i].hi));
 }
 
 /* Handles highlight-group form of :highlight command.  Returns value to be
@@ -2512,7 +2508,7 @@ highlight_group(const cmd_info_t *cmd_info)
 	group_id = string_array_pos_case(HI_GROUPS, MAXNUM_COLOR, cmd_info->argv[0]);
 	if(group_id < 0)
 	{
-		status_bar_errorf("Highlight group not found: %s", cmd_info->argv[0]);
+		ui_sb_errf("Highlight group not found: %s", cmd_info->argv[0]);
 		return 1;
 	}
 
@@ -2520,7 +2516,7 @@ highlight_group(const cmd_info_t *cmd_info)
 
 	if(cmd_info->argc == 1)
 	{
-		status_bar_message(get_group_str(group_id, color));
+		ui_sb_msg(get_group_str(group_id, color));
 		return 1;
 	}
 
@@ -2625,12 +2621,12 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 
 		if(equal == NULL)
 		{
-			status_bar_errorf("Missing equal sign in \"%s\"", arg);
+			ui_sb_errf("Missing equal sign in \"%s\"", arg);
 			return 1;
 		}
 		if(equal[1] == '\0')
 		{
-			status_bar_errorf("Missing argument: %s", arg);
+			ui_sb_errf("Missing argument: %s", arg);
 			return 1;
 		}
 
@@ -2655,7 +2651,7 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 			int attrs;
 			if((attrs = get_attrs(equal + 1)) == -1)
 			{
-				status_bar_errorf("Illegal argument: %s", equal + 1);
+				ui_sb_errf("Illegal argument: %s", equal + 1);
 				return 1;
 			}
 			color->attr = attrs;
@@ -2667,7 +2663,7 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 		}
 		else
 		{
-			status_bar_errorf("Illegal argument: %s", arg);
+			ui_sb_errf("Illegal argument: %s", arg);
 			return 1;
 		}
 	}
@@ -2685,7 +2681,7 @@ try_parse_color_name_value(const char str[], int fg, col_attr_t *color)
 
 	if(col_num < -1)
 	{
-		status_bar_errorf("Color name or number not recognized: %s", str);
+		ui_sb_errf("Color name or number not recognized: %s", str);
 		if(cs->state == CSS_LOADING)
 		{
 			cs->state = CSS_BROKEN;
@@ -2848,7 +2844,7 @@ eval_if_condition(const cmd_info_t *cmd_info)
 	{
 		vle_tb_append_linef(vle_err, "%s: %s", "Invalid expression",
 				cmd_info->args);
-		status_bar_error(vle_tb_get_data(vle_err));
+		ui_sb_err(vle_tb_get_data(vle_err));
 		return -1;
 	}
 
@@ -2887,16 +2883,15 @@ print_inversion_state(char state_type)
 {
 	if(state_type == 'f')
 	{
-		status_bar_messagef("Filter is %sinverted",
-				curr_view->invert ? "" : "not ");
+		ui_sb_msgf("Filter is %sinverted", curr_view->invert ? "" : "not ");
 	}
 	else if(state_type == 's')
 	{
-		status_bar_message("Selection does not have inversion state");
+		ui_sb_msg("Selection does not have inversion state");
 	}
 	else if(state_type == 'o')
 	{
-		status_bar_messagef("Primary key is sorted in %s order",
+		ui_sb_msgf("Primary key is sorted in %s order",
 				(curr_view->sort[0] > 0) ? "ascending" : "descending");
 	}
 	else
@@ -2943,12 +2938,12 @@ let_cmd(const cmd_info_t *cmd_info)
 	vle_tb_clear(vle_err);
 	if(let_variables(cmd_info->args) != 0)
 	{
-		status_bar_error(vle_tb_get_data(vle_err));
+		ui_sb_err(vle_tb_get_data(vle_err));
 		return 1;
 	}
 	else if(*vle_tb_get_data(vle_err) != '\0')
 	{
-		status_bar_message(vle_tb_get_data(vle_err));
+		ui_sb_msg(vle_tb_get_data(vle_err));
 	}
 	update_path_env(0);
 	return 0;
@@ -2964,7 +2959,7 @@ locate_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(last_args == NULL)
 	{
-		status_bar_error("Nothing to repeat");
+		ui_sb_err("Nothing to repeat");
 		return 1;
 	}
 	return show_locate_menu(curr_view, last_args) != 0;
@@ -2977,7 +2972,7 @@ ls_cmd(const cmd_info_t *cmd_info)
 	switch(curr_stats.term_multiplexer)
 	{
 		case TM_NONE:
-			status_bar_message("No terminal multiplexer is in use");
+			ui_sb_msg("No terminal multiplexer is in use");
 			return 1;
 		case TM_SCREEN:
 			(void)vifm_system("screen -X eval windowlist");
@@ -2995,7 +2990,7 @@ ls_cmd(const cmd_info_t *cmd_info)
 
 		default:
 			assert(0 && "Unknown active terminal multiplexer value");
-			status_bar_message("Unknown terminal multiplexer is in use");
+			ui_sb_msg("Unknown terminal multiplexer is in use");
 			return 1;
 	}
 }
@@ -3028,7 +3023,7 @@ mark_cmd(const cmd_info_t *cmd_info)
 	{
 		if(!is_mark_empty(mark))
 		{
-			status_bar_errorf("Mark isn't empty: %c", mark);
+			ui_sb_errf("Mark isn't empty: %c", mark);
 			return 1;
 		}
 	}
@@ -3046,7 +3041,7 @@ mark_cmd(const cmd_info_t *cmd_info)
 	if(!is_path_absolute(expanded_path))
 	{
 		free(expanded_path);
-		status_bar_error("Expected full path to the directory");
+		ui_sb_err("Expected full path to the directory");
 		return 1;
 	}
 
@@ -3140,7 +3135,7 @@ messages_cmd(const cmd_info_t *cmd_info)
 
 	curr_stats.save_msg_in_list = 0;
 	curr_stats.allow_sb_msg_truncation = 0;
-	status_bar_message(lines);
+	ui_sb_msg(lines);
 	curr_stats.allow_sb_msg_truncation = 1;
 	curr_stats.save_msg_in_list = 1;
 
@@ -3189,7 +3184,7 @@ cpmv_cmd(const cmd_info_t *cmd_info, int move)
 	{
 		if(cmd_info->argc > 0)
 		{
-			status_bar_error("No arguments are allowed if you use \"?\"");
+			ui_sb_err("No arguments are allowed if you use \"?\"");
 			return 1;
 		}
 
@@ -3304,7 +3299,7 @@ popd_cmd(const cmd_info_t *cmd_info)
 {
 	if(dir_stack_pop() != 0)
 	{
-		status_bar_message("Directory stack empty");
+		ui_sb_msg("Directory stack empty");
 		return 1;
 	}
 	return 0;
@@ -3317,7 +3312,7 @@ pushd_cmd(const cmd_info_t *cmd_info)
 	{
 		if(dir_stack_swap() != 0)
 		{
-			status_bar_error("No other directories");
+			ui_sb_err("No other directories");
 			return 1;
 		}
 		return 0;
@@ -3359,7 +3354,7 @@ put_cmd(const cmd_info_t *cmd_info)
 static int
 pwd_cmd(const cmd_info_t *cmd_info)
 {
-	status_bar_message(flist_get_dir(curr_view));
+	ui_sb_msg(flist_get_dir(curr_view));
 	return 1;
 }
 
@@ -3464,7 +3459,7 @@ link_cmd(const cmd_info_t *cmd_info, int absolute)
 	{
 		if(cmd_info->argc > 0)
 		{
-			status_bar_error("No arguments are allowed if you use \"?\"");
+			ui_sb_err("No arguments are allowed if you use \"?\"");
 			return 1;
 		}
 		return fops_cpmv(curr_view, NULL, -1, op, 0) != 0;
@@ -3484,18 +3479,18 @@ screen_cmd(const cmd_info_t *cmd_info)
 		{
 			if(curr_stats.term_multiplexer != TM_NONE)
 			{
-				status_bar_messagef("Integration with %s is active",
+				ui_sb_msgf("Integration with %s is active",
 						(curr_stats.term_multiplexer == TM_SCREEN) ? "GNU screen" : "tmux");
 			}
 			else
 			{
-				status_bar_message("Integration with terminal multiplexers is enabled "
-						"but inactive");
+				ui_sb_msg("Integration with terminal multiplexers is enabled but "
+						"inactive");
 			}
 		}
 		else
 		{
-			status_bar_message("Integration with terminal multiplexers is disabled");
+			ui_sb_msg("Integration with terminal multiplexers is disabled");
 		}
 		return 1;
 	}
@@ -3534,7 +3529,7 @@ select_cmd(const cmd_info_t *cmd_info)
 
 	if(cmd_info->begin != NOT_DEF)
 	{
-		status_bar_error("Either range or argument should be supplied.");
+		ui_sb_err("Either range or argument should be supplied.");
 		error = 1;
 	}
 	else if(cmd_info->args[0] == '!' && !char_is_one_of("/{", cmd_info->args[1]))
@@ -3618,17 +3613,17 @@ source_cmd(const cmd_info_t *cmd_info)
 	char *path = expand_tilde(cmd_info->argv[0]);
 	if(!path_exists(path, DEREF))
 	{
-		status_bar_errorf("File doesn't exist: %s", cmd_info->argv[0]);
+		ui_sb_errf("File doesn't exist: %s", cmd_info->argv[0]);
 		ret = 1;
 	}
 	if(os_access(path, R_OK) != 0)
 	{
-		status_bar_errorf("File isn't readable: %s", cmd_info->argv[0]);
+		ui_sb_errf("File isn't readable: %s", cmd_info->argv[0]);
 		ret = 1;
 	}
 	if(cfg_source_file(path) != 0)
 	{
-		status_bar_errorf("Error sourcing file: %s", cmd_info->argv[0]);
+		ui_sb_errf("Error sourcing file: %s", cmd_info->argv[0]);
 		ret = 1;
 	}
 	free(path);
@@ -3701,7 +3696,7 @@ substitute_cmd(const cmd_info_t *cmd_info)
 
 	if(is_null_or_empty(last_pattern))
 	{
-		status_bar_error("No previous pattern");
+		ui_sb_err("No previous pattern");
 		return 1;
 	}
 
@@ -3824,7 +3819,7 @@ parse_sync_properties(const cmd_info_t *cmd_info, int *location,
 		}
 		else
 		{
-			status_bar_errorf("Unknown selective sync property: %s", property);
+			ui_sb_errf("Unknown selective sync property: %s", property);
 			return 1;
 		}
 	}
@@ -3955,7 +3950,7 @@ tr_cmd(const cmd_info_t *cmd_info)
 
 	if(cmd_info->argv[0][0] == '\0' || cmd_info->argv[1][0] == '\0')
 	{
-		status_bar_error("Empty argument");
+		ui_sb_err("Empty argument");
 		return 1;
 	}
 
@@ -3964,7 +3959,7 @@ tr_cmd(const cmd_info_t *cmd_info)
 	strcpy(buf, cmd_info->argv[1]);
 	if(pl < sl)
 	{
-		status_bar_error("Second argument cannot be longer");
+		ui_sb_err("Second argument cannot be longer");
 		return 1;
 	}
 	else if(pl > sl)
@@ -4009,7 +4004,7 @@ unlet_cmd(const cmd_info_t *cmd_info)
 	vle_tb_clear(vle_err);
 	if(unlet_variables(cmd_info->args) != 0 && !cmd_info->emark)
 	{
-		status_bar_error(vle_tb_get_data(vle_err));
+		ui_sb_err(vle_tb_get_data(vle_err));
 		return 1;
 	}
 	return 0;
@@ -4028,12 +4023,12 @@ unmap_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(!vle_keys_user_exists(subst, NORMAL_MODE))
 	{
-		status_bar_error("No such mapping in normal mode");
+		ui_sb_err("No such mapping in normal mode");
 		result = -1;
 	}
 	else if(!vle_keys_user_exists(subst, VISUAL_MODE))
 	{
-		status_bar_error("No such mapping in visual mode");
+		ui_sb_err("No such mapping in visual mode");
 		result = -2;
 	}
 	else
@@ -4045,7 +4040,7 @@ unmap_cmd(const cmd_info_t *cmd_info)
 
 	if(result > 0)
 	{
-		status_bar_error("Error while unmapping keys");
+		ui_sb_err("Error while unmapping keys");
 	}
 	return result != 0;
 }
@@ -4066,7 +4061,7 @@ unselect_cmd(const cmd_info_t *cmd_info)
 
 	if(cmd_info->begin != NOT_DEF)
 	{
-		status_bar_error("Either range or argument should be supplied.");
+		ui_sb_err("Either range or argument should be supplied.");
 		error = 1;
 	}
 	else if(cmd_info->args[0] == '!' && !char_is_one_of("/{", cmd_info->args[1]))
@@ -4171,7 +4166,7 @@ do_split(const cmd_info_t *cmd_info, SPLIT orientation)
 {
 	if(cmd_info->emark && cmd_info->argc != 0)
 	{
-		status_bar_error("No arguments are allowed if you use \"!\"");
+		ui_sb_err("No arguments are allowed if you use \"!\"");
 		return 1;
 	}
 
@@ -4211,7 +4206,7 @@ do_unmap(const char keys[], int mode)
 
 	if(result != 0)
 	{
-		status_bar_error("No such mapping");
+		ui_sb_err("No such mapping");
 		return 1;
 	}
 	return 0;
@@ -4453,7 +4448,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 
 		if(commands_scope_finish() != 0)
 		{
-			status_bar_error("Unmatched if-else-endif");
+			ui_sb_err("Unmatched if-else-endif");
 			return 1;
 		}
 

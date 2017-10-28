@@ -243,6 +243,7 @@ static const char *sort_enum[] = {
 	[SK_BY_NITEMS]        = "nitems",
 	[SK_BY_GROUPS]        = "groups",
 	[SK_BY_TARGET]        = "target",
+	[SK_BY_ROOT]          = "root",
 #ifndef _WIN32
 	[SK_BY_GROUP_ID]      = "gid",
 	[SK_BY_GROUP_NAME]    = "gname",
@@ -254,8 +255,11 @@ static const char *sort_enum[] = {
 	[SK_BY_INODE]         = "inode",
 #endif
 	[SK_BY_RATING]        = "rating",  //add by sim1
+
+	[SK_NONE]             = "",
+	[SK_BY_ID]            = "",
 };
-ARRAY_GUARD(sort_enum, 1 + SK_COUNT);
+ARRAY_GUARD(sort_enum, SK_TOTAL);
 
 /* Possible values of 'caseoptions'. */
 static const char *caseoptions_vals[][2] = {
@@ -1482,11 +1486,11 @@ process_set_args(const char args[], int global, int local)
 	{
 		vle_tb_append_line(vle_err, "Invalid argument for :set command");
 		/* We just modified text buffer and can't use text_buffer variable. */
-		status_bar_error(vle_tb_get_data(vle_err));
+		ui_sb_err(vle_tb_get_data(vle_err));
 	}
 	else if(text_buffer[0] != '\0')
 	{
-		status_bar_message(text_buffer);
+		ui_sb_msg(text_buffer);
 	}
 
 	return error ? -1 : (text_buffer[0] != '\0');

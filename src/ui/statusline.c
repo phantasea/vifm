@@ -72,7 +72,7 @@ static int job_bar_changed;
 static pthread_spinlock_t job_bar_changed_lock;
 
 void
-update_stat_window(view_t *view, int lazy_redraw)
+ui_stat_update(view_t *view, int lazy_redraw)
 {
 	int x;
 	char *buf;
@@ -270,7 +270,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 						buf);
 				break;
 			case 't':
-				format_entry_name(curr, sizeof(buf), buf);
+				format_entry_name(curr, NF_FULL, sizeof(buf), buf);
 				break;
 			case 'T':
 				if(curr->type == FT_LINK)
@@ -291,7 +291,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				}
 				break;
 			case 'f':
-				get_short_path_of(view, curr, 1, 0, sizeof(buf), buf);
+				get_short_path_of(view, curr, NF_FULL, 0, sizeof(buf), buf);
 				break;
 			case 'A':
 #ifndef _WIN32

@@ -42,6 +42,9 @@
 	Added :histnext/:histprev commands, which are analogous to <c-i>/<c-o>.
 	Patch by Dmitry Frank (a.k.a. dimonomid).
 
+	Added {root} key to 'viewcolumns' option (complements {ext}).  Thanks to
+	Oleg Gordienko (a.k.a. gordio).
+
 	Changed :filter command to accept pattern (//, ////, {} or {{}}).  Thanks
 	to rbong.
 
@@ -127,6 +130,13 @@
 
 	Fixed a "race" with file system when we could load outdated file list and
 	thus miss some file system updates.
+
+	Fixed hardware cursor blinking in view for interactive queries.
+
+	Fixed handling Tab and Shift-Tab on search prompt as if they are command
+	prompts.
+
+	Fixed horrible flickering of multiline statusbar for interactive queries.
 
 0.9-beta to 0.9
 

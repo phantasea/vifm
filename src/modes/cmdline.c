@@ -460,6 +460,9 @@ input_line_changed(void)
 		menu_full_redraw();
 	}
 
+	/* Hardware cursor is moved on the screen only on refresh, so refresh status
+	 * bar to force cursor moving there before it becomes visible again. */
+	wrefresh(status_bar);
 	curs_set(1);
 }
 
@@ -590,7 +593,7 @@ enter_cmdline_mode(CmdLineSubmode cl_sub_mode, const char cmd[], void *ptr)
 {
 	wchar_t *wcmd;
 	const wchar_t *wprompt;
-	complete_cmd_func complete_func;
+	complete_cmd_func complete_func = NULL;
 
 	if(cl_sub_mode == CLS_FILTER && curr_view->custom.type == CV_DIFF)
 	{
@@ -612,6 +615,7 @@ enter_cmdline_mode(CmdLineSubmode cl_sub_mode, const char cmd[], void *ptr)
 	if(sub_mode == CLS_COMMAND || sub_mode == CLS_MENU_COMMAND)
 	{
 		wprompt = L":";
+		complete_func = &complete_cmd;
 	}
 	else if(sub_mode == CLS_FILTER)
 	{
@@ -631,7 +635,6 @@ enter_cmdline_mode(CmdLineSubmode cl_sub_mode, const char cmd[], void *ptr)
 		wprompt = L"E";
 	}
 
-	complete_func = (sub_mode == CLS_FILTER) ? NULL : complete_cmd;
 	prepare_cmdline_mode(wprompt, wcmd, complete_func);
 	free(wcmd);
 }
@@ -702,6 +705,8 @@ prepare_cmdline_mode(const wchar_t prompt[], const wchar_t cmd[],
 	line_width = getmaxx(stdscr);
 	prev_mode = vle_mode_get();
 	vle_mode_set(CMDLINE_MODE, VMT_SECONDARY);
+
+	ui_sb_lock();
 
 	input_stat.line = vifm_wcsdup(cmd);
 	input_stat.initial_line = vifm_wcsdup(input_stat.line);
@@ -829,6 +834,7 @@ leave_cmdline_mode(void)
 		curs_set(0);
 	}
 	curr_stats.save_msg = 0;
+	ui_sb_unlock();
 	ui_sb_clear();
 
 	if(vle_mode_is(CMDLINE_MODE))
@@ -958,7 +964,7 @@ extedit_prompt(const char input[], int cursor_col)
 	{
 		cfg_save_prompt_history(input);
 
-		status_bar_error("Error querying data from external source.");
+		ui_sb_err("Error querying data from external source.");
 		curr_stats.save_msg = 1;
 	}
 
@@ -1778,9 +1784,9 @@ paste_short_path(view_t *view)
 {
 	if(flist_custom_active(view))
 	{
-		char short_path[PATH_MAX];
-		get_short_path_of(view, get_current_entry(view), 0, 0, sizeof(short_path),
-				short_path);
+		char short_path[PATH_MAX + 1];
+		get_short_path_of(view, get_current_entry(view), NF_NONE, 0,
+				sizeof(short_path), short_path);
 		paste_str(short_path, 1);
 		return;
 	}
@@ -1849,9 +1855,9 @@ cmd_ctrl_xxr(key_info_t key_info, keys_info_t *keys_info)
 static void
 paste_short_path_root(view_t *view)
 {
-	char short_path[PATH_MAX];
-	get_short_path_of(view, get_current_entry(view), 0, 0, sizeof(short_path),
-			short_path);
+	char short_path[PATH_MAX + 1];
+	get_short_path_of(view, get_current_entry(view), NF_NONE, 0,
+			sizeof(short_path), short_path);
 	paste_name_part(short_path, 1);
 }
 

@@ -103,6 +103,7 @@ static char * expand_ruler_macros(view_t *view, const char format[]);
 static void switch_panes_content(void);
 static void update_origins(view_t *view, const char *old_main_origin);
 static void set_splitter(int pos);
+static void refresh_bottom_lines(void);
 static char * path_identity(const char path[]);
 static char * format_view_title(const view_t *view, path_func pf);
 static void print_view_title(const view_t *view, int active_view, char title[]);
@@ -548,9 +549,9 @@ update_screen(UpdateType update_kind)
 		redraw_msg_dialog(0);
 	}
 
-	update_stat_window(curr_view, 0);
+	ui_stat_update(curr_view, 0);
 
-	if(!is_status_bar_multiline())
+	if(!ui_sb_multiline())
 	{
 		if(curr_view->selected_files)
 		{
@@ -573,7 +574,7 @@ update_screen(UpdateType update_kind)
 
 	if(curr_stats.save_msg == 0)
 	{
-		status_bar_message("");
+		ui_sb_msg("");
 	}
 
 	if(vle_mode_is(VIEW_MODE) ||
@@ -1037,28 +1038,27 @@ update_statusbar_layout(void)
 	int ruler_width;
 	int fields_pos;
 
-	if(!are_statusbar_widgets_visible())
-	{
-		/* We might be in command-line mode in which case we shouldn't change the
-		 * layout in any way. */
-		return;
-	}
-
 	getmaxyx(stdscr, screen_y, screen_x);
 
 	ruler_width = get_ruler_width(curr_view);
 	fields_pos = screen_x - (INPUT_WIN_WIDTH + ruler_width);
 
-	wresize(status_bar, 1, fields_pos);
-	mvwin(status_bar, screen_y - 1, 0);
-
 	wresize(ruler_win, 1, ruler_width);
 	mvwin(ruler_win, screen_y - 1, fields_pos + INPUT_WIN_WIDTH);
-	wnoutrefresh(ruler_win);
 
 	wresize(input_win, 1, INPUT_WIN_WIDTH);
 	mvwin(input_win, screen_y - 1, fields_pos);
-	wnoutrefresh(input_win);
+
+	/* We might be in command-line mode in which case we shouldn't change visible
+	 * parts of the layout. */
+	if(are_statusbar_widgets_visible())
+	{
+		wresize(status_bar, 1, fields_pos);
+		mvwin(status_bar, screen_y - 1, 0);
+
+		wnoutrefresh(ruler_win);
+		wnoutrefresh(input_win);
+	}
 }
 
 /* Checks whether ruler and input bar are visible.  Returns non-zero if so, zero
@@ -1066,7 +1066,7 @@ update_statusbar_layout(void)
 static int
 are_statusbar_widgets_visible(void)
 {
-	return !vle_mode_is(CMDLINE_MODE) && !is_status_bar_multiline();
+	return !ui_sb_multiline() && !ui_sb_locked();
 }
 
 /* Gets "recommended" width for the ruler.  Returns the width. */
@@ -1108,13 +1108,7 @@ refresh_view_win(view_t *view)
 	}
 
 	wrefresh(view->win);
-	/* Use getmaxy(...) instead of multiline_status_bar to handle command line
-	 * mode, which doesn't use this module to show multiline messages. */
-	if(cfg.display_statusline && getmaxy(status_bar) > 1)
-	{
-		touchwin(stat_win);
-		wrefresh(stat_win);
-	}
+	refresh_bottom_lines();
 }
 
 void
@@ -1313,13 +1307,32 @@ set_splitter(int pos)
 }
 
 void
-format_entry_name(const dir_entry_t *entry, size_t buf_len, char buf[])
+format_entry_name(const dir_entry_t *entry, NameFormat fmt, size_t buf_len,
+		char buf[])
 {
 	const char *prefix, *suffix;
+	char tmp_buf[strlen(entry->name) + 1];
+	const char *name = entry->name;
+
+	if(fmt == NF_NONE)
+	{
+		copy_str(buf, buf_len, entry->name);
+		return;
+	}
+
+	if(fmt == NF_ROOT)
+	{
+		int root_len;
+		const char *ext_pos;
+
+		copy_str(tmp_buf, sizeof(tmp_buf), entry->name);
+		split_ext(tmp_buf, &root_len, &ext_pos);
+		name = tmp_buf;
+	}
+
 	ui_get_decors(entry, &prefix, &suffix);
 	snprintf(buf, buf_len, "%s%s%s", prefix,
-			(is_root_dir(entry->name) && suffix[0] == '/') ? "" : entry->name,
-			suffix);
+			(is_root_dir(entry->name) && suffix[0] == '/') ? "" : name, suffix);
 }
 
 void
@@ -1402,6 +1415,23 @@ void
 ui_view_win_changed(view_t *view)
 {
 	wnoutrefresh(view->win);
+	refresh_bottom_lines();
+}
+
+/* Makes sure that statusline and statusbar are drawn over view window after
+ * view refresh. */
+static void
+refresh_bottom_lines(void)
+{
+	/* Use getmaxy(...) instead of multiline_status_bar to handle command line
+	 * mode, which doesn't use this module to show multiline messages. */
+	if(cfg.display_statusline && getmaxy(status_bar) > 1)
+	{
+		touchwin(stat_win);
+		wnoutrefresh(stat_win);
+		touchwin(status_bar);
+		wnoutrefresh(status_bar);
+	}
 }
 
 void
@@ -1823,6 +1853,14 @@ get_updated_time(uint64_t prev)
 	}
 
 	return new;
+}
+
+void
+ui_view_redrawn(view_t *view)
+{
+	pthread_mutex_lock(view->timestamps_mutex);
+	view->last_redraw = view->postponed_redraw;
+	pthread_mutex_unlock(view->timestamps_mutex);
 }
 
 UiUpdateEvent

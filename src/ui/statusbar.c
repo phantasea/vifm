@@ -26,7 +26,6 @@
 #include <string.h> /* strchr() strcmp() strcpy() strdup() strncpy() */
 
 #include "../cfg/config.h"
-#include "../engine/mode.h"
 #include "../modes/modes.h"
 #include "../modes/more.h"
 #include "../utils/macros.h"
@@ -38,16 +37,19 @@
 #include "ui.h"
 
 static void vstatus_bar_messagef(int error, const char format[], va_list ap);
-static void status_bar_message_i(const char message[], int error);
+static void status_bar_message(const char message[], int error);
 static void truncate_with_ellipsis(const char msg[], size_t width,
 		char buffer[]);
 
 /* Message displayed on multi-line or too long status bar message. */
 static const char PRESS_ENTER_MSG[] = "Press ENTER or type command to continue";
 
-/* Last message that was printed on the statusbar. */
+/* Last message that was printed on the status bar. */
 static char *last_message;
+/* Whether status bar takes up more than single line on a screen. */
 static int multiline_status_bar;
+/* Whether status bar is currently in a locked state. */
+static int is_locked;
 
 void
 ui_sb_clear(void)
@@ -98,9 +100,9 @@ ui_sb_quick_msgf(const char format[], ...)
 void
 ui_sb_quick_msg_clear(void)
 {
-	if(curr_stats.save_msg || is_status_bar_multiline())
+	if(curr_stats.save_msg || ui_sb_multiline())
 	{
-		status_bar_message(NULL);
+		ui_sb_msg(NULL);
 	}
 	else
 	{
@@ -109,13 +111,13 @@ ui_sb_quick_msg_clear(void)
 }
 
 void
-status_bar_message(const char message[])
+ui_sb_msg(const char message[])
 {
-	status_bar_message_i(message, 0);
+	status_bar_message(message, 0);
 }
 
 void
-status_bar_messagef(const char format[], ...)
+ui_sb_msgf(const char format[], ...)
 {
 	va_list ap;
 
@@ -127,13 +129,13 @@ status_bar_messagef(const char format[], ...)
 }
 
 void
-status_bar_error(const char message[])
+ui_sb_err(const char message[])
 {
-	status_bar_message_i(message, 1);
+	status_bar_message(message, 1);
 }
 
 void
-status_bar_errorf(const char message[], ...)
+ui_sb_errf(const char message[], ...)
 {
 	va_list ap;
 
@@ -150,13 +152,13 @@ vstatus_bar_messagef(int error, const char format[], va_list ap)
 	char buf[1024];
 
 	vsnprintf(buf, sizeof(buf), format, ap);
-	status_bar_message_i(buf, error);
+	status_bar_message(buf, error);
 }
 
 static void
-status_bar_message_i(const char msg[], int error)
+status_bar_message(const char msg[], int error)
 {
-	/* TODO: Refactor this function status_bar_message_i() */
+	/* TODO: Refactor this function status_bar_message() */
 
 	static int err;
 
@@ -189,7 +191,7 @@ status_bar_message_i(const char msg[], int error)
 		return;
 	}
 
-	if(msg == NULL || vle_mode_is(CMDLINE_MODE))
+	if(msg == NULL || is_locked)
 	{
 		return;
 	}
@@ -289,7 +291,7 @@ truncate_with_ellipsis(const char msg[], size_t width, char buffer[])
 }
 
 int
-is_status_bar_multiline(void)
+ui_sb_multiline(void)
 {
 	return multiline_status_bar;
 }
@@ -298,6 +300,26 @@ const char *
 ui_sb_last(void)
 {
 	return last_message;
+}
+
+void
+ui_sb_lock(void)
+{
+	assert(!is_locked && "Can't lock status bar that's already locked.");
+	is_locked = 1;
+}
+
+void
+ui_sb_unlock(void)
+{
+	assert(is_locked && "Can't unlock status bar that's not locked.");
+	is_locked = 0;
+}
+
+int
+ui_sb_locked(void)
+{
+	return is_locked;
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

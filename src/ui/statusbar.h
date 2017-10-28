@@ -19,13 +19,40 @@
 #ifndef VIFM__UI__STATUSBAR_H__
 #define VIFM__UI__STATUSBAR_H__
 
+/* Status bar managing. */
+
 #include "../utils/macros.h"
 #include "../utils/test_helpers.h"
 
-/* Managing status bar. */
+/* Status bar locking. */
 
-/* Clears the status bar. */
-void ui_sb_clear(void);
+/* Locks status bar from using status_bar window, so that it can safely be used
+ * for purposes other than printing messages. */
+void ui_sb_lock(void);
+
+/* Unlocks previously locked status bar. */
+void ui_sb_unlock(void);
+
+/* Checks whether status bar is currently locked.  Returns non-zero if so,
+ * otherwise zero is returned. */
+int ui_sb_locked(void);
+
+/* Informational and error messages. */
+
+/* Prints informational message on the status bar.  Repeats last message if
+ * message is NULL. */
+void ui_sb_msg(const char message[]);
+
+/* Prints informational message on the status bar specified as format string. */
+void ui_sb_msgf(const char format[], ...) _gnuc_printf(1, 2);
+
+/* Prints error message on the status bar. */
+void ui_sb_err(const char message[]);
+
+/* Prints error message on the status bar specified as format string. */
+void ui_sb_errf(const char message[], ...) _gnuc_printf(1, 2);
+
+/* Quick messages (which aren't stored in history). */
 
 /* Immediately (UI is updated) displays message on the status bar without
  * storing it in message history. */
@@ -34,19 +61,17 @@ void ui_sb_quick_msgf(const char format[], ...) _gnuc_printf(1, 2);
 /* Clears message displayed by ui_sb_quick_msgf(). */
 void ui_sb_quick_msg_clear(void);
 
-/* Repeats last message if message is NULL. */
-void status_bar_message(const char message[]);
+/* Miscellaneous functions. */
 
-void status_bar_messagef(const char format[], ...) _gnuc_printf(1, 2);
+/* Clears the status bar. */
+void ui_sb_clear(void);
 
-void status_bar_error(const char message[]);
+/* Checks whether status bar takes up multiple lines.  Returns non-zero if so,
+ * otherwise zero is returned. */
+int ui_sb_multiline(void);
 
-void status_bar_errorf(const char message[], ...) _gnuc_printf(1, 2);
-
-int is_status_bar_multiline(void);
-
-/* Retrieves last message put on the status bar.  Use status_bar_message("") to
- * clear it. */
+/* Retrieves last message put on the status bar.  Use ui_sb_msg("") to clear
+ * it. */
 const char * ui_sb_last(void);
 
 #endif /* VIFM__UI__STATUSBAR_H__ */
