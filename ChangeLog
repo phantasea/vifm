@@ -89,6 +89,13 @@
 	Duplicate status bar error in dialog that reports sourcing error.  Will
 	need to get rid of errors on status bar later.
 
+	Instead of invalidating directory size previously calculated via ga/gA on
+	detecting changes in the directory recalculate its size and propagate
+	update through its parents.  Thanks to filterfalse.
+
+	Remove empty directories which are specified in 'trashdir' with %r and/or
+	%u automatically on :empty.  Thanks to Marcin Kurczewski (a.k.a. rr-).
+
 	Fixed positioning cursor in directory :history when inside custom view.
 	Thanks to filterfalse.
 
@@ -137,6 +144,14 @@
 	prompts.
 
 	Fixed horrible flickering of multiline statusbar for interactive queries.
+
+	Fixed :normal command resetting selection.  Thanks to filterfalse.
+
+	Fixed consuming 100% of CPU on certain pattern of running background
+	processes.  Thanks to petRUShka.
+
+	Fixed losing error message from a short-lived background processes when
+	long-lived one is present.
 
 0.9-beta to 0.9
 
