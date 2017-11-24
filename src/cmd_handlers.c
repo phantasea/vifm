@@ -4541,7 +4541,7 @@ explore_cmd(const cmd_info_t *cmd_info)
 {
 	if(curr_stats.preview.on)
 	{
-		status_bar_error("Another type of file viewing is activated");
+		ui_sb_err("Another type of file viewing is activated");
 		curr_stats.save_msg = 1;
 		return 1;
 	}
