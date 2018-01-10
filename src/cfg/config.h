@@ -24,9 +24,7 @@
 
 #include "../compat/fs_limits.h"
 #include "../ui/color_scheme.h"
-#include "../ui/ui.h"
 #include "../types.h"
-#include "hist.h"
 
 /* Name of help file in plain text format. */
 #define VIFM_HELP "vifm-help.txt"
@@ -69,7 +67,8 @@ typedef enum
 	SF_KEYS              = 1 << 5, /* Include keys suggestions in results. */
 	SF_MARKS             = 1 << 6, /* Include marks suggestions in results. */
 	SF_REGISTERS         = 1 << 7, /* Include registers suggestions in results. */
-	NUM_SUGGESTION_FLAGS =      8  /* Number of flags. */
+	SF_FOLDSUBKEYS       = 1 << 8, /* Fold multiple keys with common prefix. */
+	NUM_SUGGESTION_FLAGS =      9  /* Number of flags. */
 }
 SuggestionFlags;
 
@@ -140,15 +139,6 @@ typedef struct config_t
 	char *time_format;
 	/* This one should be set using cfg_set_fuse_home() function. */
 	char *fuse_home;
-
-	/* History of command-line commands. */
-	hist_t cmd_hist;
-	/* History of search patterns. */
-	hist_t search_hist;
-	/* History of prompt input. */
-	hist_t prompt_hist;
-	/* History of local filter patterns. */
-	hist_t filter_hist;
 
 	col_scheme_t cs;
 
@@ -232,6 +222,9 @@ typedef struct config_t
 	 * affected). */
 	int side_borders_visible;
 
+	/* Whether employing Unicode characters in the interface is allowed. */
+	int use_unicode_characters;
+
 	/* Whether statusline is visible. */
 	int display_statusline;
 
@@ -311,25 +304,6 @@ int cfg_set_fuse_home(const char new_value[]);
 
 /* Sets whether support of terminal multiplexers is enabled. */
 void cfg_set_use_term_multiplexer(int use_term_multiplexer);
-
-/* Frees memory previously allocated for specified history items. */
-void cfg_free_history_items(const history_t history[], size_t len);
-
-/* Saves command to command history. */
-void cfg_save_command_history(const char command[]);
-
-/* Saves pattern to search history. */
-void cfg_save_search_history(const char pattern[]);
-
-/* Saves input to prompt history. */
-void cfg_save_prompt_history(const char input[]);
-
-/* Saves input to local filter history. */
-void cfg_save_filter_history(const char pattern[]);
-
-/* Gets the most recently used search pattern.  Returns the pattern or empty
- * string if search history is empty. */
-const char * cfg_get_last_search_pattern(void);
 
 /* Sets shell invocation command. */
 void cfg_set_shell(const char shell[]);

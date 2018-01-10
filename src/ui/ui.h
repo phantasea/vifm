@@ -389,7 +389,8 @@ struct view_t
 	 * be applied for selected produced by a range. */
 	int user_selection;
 
-	int explore_mode; /* shows whether this view is used for file exploring */
+	int explore_mode;       /* Whether this view is used for file exploring. */
+	struct view_info_t *vi; /* State of explore view (NULL initially). */
 
 	/* Filter which is controlled by user. */
 	struct matcher_t *manual_filter;
@@ -646,9 +647,6 @@ int ui_view_displays_numbers(const view_t *view);
 /* Checks whether view is visible on the screen.  Returns non-zero if so,
  * otherwise zero is returned. */
 int ui_view_is_visible(const view_t *view);
-
-/* Clears directory history of the view. */
-void ui_view_clear_history(view_t *view);
 
 /* Checks whether view displays column view.  Returns non-zero if so, otherwise
  * zero is returned. */

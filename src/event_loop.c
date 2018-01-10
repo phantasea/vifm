@@ -415,7 +415,7 @@ process_scheduled_updates(void)
 		need_redraw += (process_scheduled_updates_of_view(other_view) != 0);
 	}
 
-	need_redraw += (fetch_redraw_scheduled() != 0);
+	need_redraw += (stats_redraw_fetch() != 0);
 
 	if(need_redraw)
 	{
@@ -547,7 +547,8 @@ display_suggestion_box(const wchar_t input[])
 
 	/* Fill completion list with suggestions of keys and marks. */
 	vle_compl_reset();
-	vle_keys_suggest(input, &process_suggestion, !(cfg.sug.flags & SF_KEYS));
+	vle_keys_suggest(input, &process_suggestion, !(cfg.sug.flags & SF_KEYS),
+				(cfg.sug.flags & SF_FOLDSUBKEYS));
 	/* Completion grouping removes duplicates.  Because user-defined keys are
 	 * reported first, this has an effect of leaving only them in the resulting
 	 * list, which is correct as they have higher priority. */

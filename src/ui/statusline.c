@@ -58,7 +58,6 @@ static void check_expanded_str(const char buf[], int skip, int *nexpansions);
 static pthread_spinlock_t * get_job_bar_changed_lock(void);
 static void init_job_bar_changed_lock(void);
 static int is_job_bar_visible(void);
-static void update_job_bar(void);
 static const char * format_job_bar(void);
 static char ** take_job_descr_snapshot(void);
 
@@ -566,11 +565,11 @@ ui_stat_job_bar_add(bg_op_t *bg_op)
 		return;
 	}
 
-	update_job_bar();
+	ui_stat_job_bar_redraw();
 
 	if(ui_stat_job_bar_height() != prev_height)
 	{
-		schedule_redraw();
+		stats_redraw_schedule();
 	}
 }
 
@@ -594,11 +593,11 @@ ui_stat_job_bar_remove(bg_op_t *bg_op)
 
 	if(ui_stat_job_bar_height() != 0)
 	{
-		update_job_bar();
+		ui_stat_job_bar_redraw();
 	}
 	else if(prev_height != 0)
 	{
-		schedule_redraw();
+		stats_redraw_schedule();
 	}
 }
 
@@ -610,12 +609,6 @@ ui_stat_job_bar_changed(bg_op_t *bg_op)
 	pthread_spin_lock(lock);
 	job_bar_changed = 1;
 	pthread_spin_unlock(lock);
-}
-
-void
-ui_stat_job_bar_redraw(void)
-{
-	update_job_bar();
 }
 
 void
@@ -633,7 +626,7 @@ ui_stat_job_bar_check_for_updates(void)
 
 	if(job_bar_changed_value || getmaxx(job_bar) != prev_width)
 	{
-		update_job_bar();
+		ui_stat_job_bar_redraw();
 	}
 
 	prev_width = getmaxx(job_bar);
@@ -668,9 +661,8 @@ is_job_bar_visible(void)
 	    && ui_stat_job_bar_height() != 0 && !is_in_menu_like_mode();
 }
 
-/* Fills job bar with up-to-date content. */
-static void
-update_job_bar(void)
+void
+ui_stat_job_bar_redraw(void)
 {
 	if(!is_job_bar_visible())
 	{
@@ -721,16 +713,19 @@ format_job_bar(void)
 		                   ? (max_width - width_used)
 		                   : (max_width/nbar_jobs);
 
-		const char *ellipsis = left_ellipsis(descrs[i], width - 2U - reserved);
+		char *const ellipsed = left_ellipsis(descrs[i], width - 2U - reserved,
+				curr_stats.ellipsis);
 
 		if(progress == -1)
 		{
-			snprintf(item_text, sizeof(item_text), "[%s]", ellipsis);
+			snprintf(item_text, sizeof(item_text), "[%s]", ellipsed);
 		}
 		else
 		{
-			snprintf(item_text, sizeof(item_text), "[%s %3d%%]", ellipsis, progress);
+			snprintf(item_text, sizeof(item_text), "[%s %3d%%]", ellipsed, progress);
 		}
+
+		free(ellipsed);
 
 		(void)sstrappend(bar_text, &text_width, sizeof(bar_text), item_text);
 
@@ -778,21 +773,18 @@ ui_stat_draw_popup_line(WINDOW *win, const char item[], const char descr[],
 
 	if(text_width >= win_width)
 	{
-		char *const line = strdup(item);
-		right_ellipsis(line, win_width);
-		wprint(win, line);
-		free(line);
+		char *const whole = right_ellipsis(item, win_width, curr_stats.ellipsis);
+		wprint(win, whole);
+		free(whole);
 		return;
 	}
 
-	left = strdup(item);
-	right_ellipsis(left, win_width - 3);
+	left = right_ellipsis(item, win_width - 3, curr_stats.ellipsis);
 
 	item_width = align_columns ? max_width : utf8_strsw(left);
 	width_left = win_width - 2 - MAX(item_width, utf8_strsw(left));
 
-	right = strdup(descr);
-	right_ellipsis(right, width_left);
+	right = right_ellipsis(descr, width_left, curr_stats.ellipsis);
 
 	line = format_str(fmt, (int)item_width, left, (int)width_left, right);
 	free(left);

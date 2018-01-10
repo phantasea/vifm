@@ -137,6 +137,7 @@ static int is_in_trie(trie_t *trie, view_t *view, dir_entry_t *entry,
 static void merge_entries(dir_entry_t *new, const dir_entry_t *prev);
 static int correct_pos(view_t *view, int pos, int dist, int closest);
 static int rescue_from_empty_filelist(view_t *view);
+static void add_parent_entry(view_t *view, dir_entry_t **entries, int *count);
 static void init_dir_entry(view_t *view, dir_entry_t *entry, const char name[]);
 static dir_entry_t * alloc_dir_entry(dir_entry_t **list, int list_size);
 static int tree_has_changed(const dir_entry_t *entries, size_t nchildren);
@@ -156,8 +157,9 @@ static int flist_load_tree_internal(view_t *view, const char path[],
 static int make_tree(view_t *view, const char path[], int reload,
 		trie_t *excluded_paths);
 static void tree_from_cv(view_t *view);
-static void complete_tree(const char name[], int valid, const void *parent_data,
+static int complete_tree(const char name[], int valid, const void *parent_data,
 		void *data, void *arg);
+static void reset_entry_list(view_t *view, dir_entry_t **entries, int *count);
 static void drop_tops(view_t *view, dir_entry_t *entries, int *nentries,
 		int extra);
 static int add_files_recursively(view_t *view, const char path[],
@@ -1321,7 +1323,11 @@ flist_custom_uncompress_tree(view_t *view)
 		fsdata_set(tree, full_path, &data, sizeof(data));
 	}
 
-	fsdata_traverse(tree, &complete_tree, view);
+	if(fsdata_traverse(tree, &complete_tree, view) != 0)
+	{
+		reset_entry_list(view, &view->dir_entry, &view->list_rows);
+		restore_parent = 0;
+	}
 
 	fsdata_free(tree);
 	dynarray_free(entries);
@@ -1532,6 +1538,8 @@ load_dir_list_internal(view_t *view, int reload, int draw_only)
 static int
 populate_dir_list_internal(view_t *view, int reload)
 {
+	char *saved_cwd;
+
 	view->filtered = 0;
 
 	/* List reload usually implies that something related to file list has
@@ -1561,10 +1569,12 @@ populate_dir_list_internal(view_t *view, int reload)
 		update_all_windows();
 	}
 
+	saved_cwd = save_cwd();
 	/* this is needed for lstat() below */
 	if(vifm_chdir(view->curr_dir) != 0 && !is_unc_root(view->curr_dir))
 	{
 		LOG_SERROR_MSG(errno, "Can't chdir() into \"%s\"", view->curr_dir);
+		restore_cwd(saved_cwd);
 		return 1;
 	}
 
@@ -1630,6 +1640,7 @@ populate_dir_list_internal(view_t *view, int reload)
 	{
 		if(rescue_from_empty_filelist(view))
 		{
+			restore_cwd(saved_cwd);
 			return 0;
 		}
 
@@ -1645,6 +1656,7 @@ populate_dir_list_internal(view_t *view, int reload)
 	 * changed while we were reading from it). */
 	update_dir_watcher(view);
 
+	restore_cwd(saved_cwd);
 	return 0;
 }
 
@@ -2355,8 +2367,14 @@ rescue_from_empty_filelist(view_t *view)
 void
 add_parent_dir(view_t *view)
 {
-	dir_entry_t *const dir_entry = alloc_dir_entry(&view->dir_entry,
-			view->list_rows);
+	add_parent_entry(view, &view->dir_entry, &view->list_rows);
+}
+
+/* Adds parent directory entry (..) to specified list of entries. */
+static void
+add_parent_entry(view_t *view, dir_entry_t **entries, int *count)
+{
+	dir_entry_t *const dir_entry = alloc_dir_entry(entries, *count);
 	if(dir_entry == NULL)
 	{
 		show_error_msg("Memory Error", "Unable to allocate enough memory");
@@ -2365,7 +2383,7 @@ add_parent_dir(view_t *view)
 
 	if(init_parent_entry(view, dir_entry, "..") == 0)
 	{
-		++view->list_rows;
+		++*count;
 	}
 }
 
@@ -3683,7 +3701,10 @@ tree_from_cv(view_t *view)
 		}
 	}
 
-	fsdata_traverse(tree, &complete_tree, view);
+	if(fsdata_traverse(tree, &complete_tree, view) != 0)
+	{
+		reset_entry_list(view, &view->custom.entries, &view->custom.entry_count);
+	}
 
 	fsdata_free(tree);
 	dynarray_free(entries);
@@ -3691,8 +3712,9 @@ tree_from_cv(view_t *view)
 	drop_tops(view, view->custom.entries, &view->custom.entry_count, 1);
 }
 
-/* fsdata_traverse() callback that flattens the tree into array of entries. */
-static void
+/* fsdata_traverse() callback that flattens the tree into array of entries.
+ * Should return non-zero to stop traverser. */
+static int
 complete_tree(const char name[], int valid, const void *parent_data, void *data,
 		void *arg)
 {
@@ -3707,12 +3729,19 @@ complete_tree(const char name[], int valid, const void *parent_data, void *data,
 	int *nentries = (in_place ? &view->list_rows : &view->custom.entry_count);
 
 	dir_entry_t *dir_entry = alloc_dir_entry(entries, *nentries);
+	if(dir_entry == NULL)
+	{
+		return 1;
+	}
+
 	++*nentries;
 
 	if(valid)
 	{
 		*dir_entry = **(dir_entry_t **)data;
 		dir_entry->child_count = 0;
+		(*(dir_entry_t **)data)->name = NULL;
+		(*(dir_entry_t **)data)->origin = NULL;
 	}
 	else
 	{
@@ -3766,6 +3795,16 @@ complete_tree(const char name[], int valid, const void *parent_data, void *data,
 		}
 		while(dir_entry->child_pos != 0);
 	}
+	return 0;
+}
+
+/* Replaces list of entries with a single parent directory entry.  Might leave
+ * the list empty on memory error. */
+static void
+reset_entry_list(view_t *view, dir_entry_t **entries, int *count)
+{
+	free_dir_entries(view, entries, count);
+	add_parent_entry(view, entries, count);
 }
 
 /* Traverses root children and drops fake root nodes and optionally extra tops
@@ -3784,8 +3823,8 @@ drop_tops(view_t *view, dir_entry_t *entries, int *nentries, int extra)
 			fentry_free(view, &entries[j++]);
 		}
 
+		memmove(&entries[i], &entries[j], sizeof(*entries)*(*nentries - j));
 		*nentries -= j - i;
-		memmove(&entries[i], &entries[j], sizeof(*entries)*(*nentries - i));
 		entries[i].child_pos = 0;
 	}
 }

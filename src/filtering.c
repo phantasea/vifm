@@ -780,7 +780,7 @@ local_filter_accept(view_t *view)
 
 	local_filter_finish(view);
 
-	cfg_save_filter_history(view->local_filter.filter.raw);
+	hists_filter_save(view->local_filter.filter.raw);
 
 	/* Some of previously selected files could be filtered out, update number of
 	 * selected files. */
@@ -797,7 +797,7 @@ local_filter_apply(view_t *view, const char filter[])
 	}
 
 	(void)filter_set(&view->local_filter.filter, filter);
-	cfg_save_filter_history(view->local_filter.filter.raw);
+	hists_filter_save(view->local_filter.filter.raw);
 
 	if(flist_custom_active(view) && view->custom.type != CV_TREE &&
 			view->local_filter.entry_count == 0)

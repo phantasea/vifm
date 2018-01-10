@@ -1172,11 +1172,6 @@ switch_panes_content(void)
 	WINDOW* tmp;
 	int t;
 
-	if(!vle_mode_is(VIEW_MODE))
-	{
-		view_switch_panes();
-	}
-
 	tmp = lwin.win;
 	lwin.win = rwin.win;
 	rwin.win = tmp;
@@ -1203,6 +1198,8 @@ switch_panes_content(void)
 
 	update_origins(&lwin, &rwin.curr_dir[0]);
 	update_origins(&rwin, &lwin.curr_dir[0]);
+
+	view_panes_swapped();
 
 	curr_stats.need_update = UT_REDRAW;
 }
@@ -1547,6 +1544,8 @@ format_view_title(const view_t *view, path_func pf)
 static void
 print_view_title(const view_t *view, int active_view, char title[])
 {
+	char *ellipsis;
+
 	const size_t title_width = getmaxx(view->title);
 	if(title_width == (size_t)-1)
 	{
@@ -1556,14 +1555,12 @@ print_view_title(const view_t *view, int active_view, char title[])
 	fixup_titles_attributes(view, active_view);
 	werase(view->title);
 
-	if(active_view)
-	{
-		wprint(view->title, left_ellipsis(title, title_width));
-	}
-	else
-	{
-		wprint(view->title, right_ellipsis(title, title_width));
-	}
+	ellipsis = active_view
+	         ? left_ellipsis(title, title_width, curr_stats.ellipsis)
+	         : right_ellipsis(title, title_width, curr_stats.ellipsis);
+
+	wprint(view->title, ellipsis);
+	free(ellipsis);
 }
 
 /* Updates attributes for view titles and top line. */
@@ -1660,14 +1657,6 @@ int
 ui_view_is_visible(const view_t *view)
 {
 	return curr_stats.number_of_windows == 2 || curr_view == view;
-}
-
-void
-ui_view_clear_history(view_t *view)
-{
-	cfg_free_history_items(view->history, view->history_num);
-	view->history_num = 0;
-	view->history_pos = 0;
 }
 
 int

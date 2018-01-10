@@ -321,6 +321,7 @@ draw_dir_list_only(view_t *view)
 	if(view == curr_view)
 	{
 		consider_scroll_bind(view);
+		position_hardware_cursor(view);
 	}
 
 	ui_view_win_changed(view);
@@ -1772,6 +1773,7 @@ fview_position_updated(view_t *view)
 		}
 		else
 		{
+			redraw_cell(view, old_top, old_curr, 0);
 			put_inactive_mark(view);
 		}
 		return;
