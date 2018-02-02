@@ -2416,6 +2416,12 @@ highlight_clear(const cmd_info_t *cmd_info)
 			return 1;
 		}
 
+		fview_view_cs_reset(&lwin);
+		fview_view_cs_reset(&rwin);
+
+		/* Redraw to update filename specific highlights. */
+		curr_stats.need_update = UT_REDRAW;
+
 		return 0;
 	}
 
