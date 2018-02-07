@@ -73,6 +73,7 @@
 #include "quickview.h"
 #include "statusbar.h"
 #include "statusline.h"
+#include "tabs.h"
 
 /* Type of path transformation function for format_view_title(). */
 typedef char * (*path_func)(const char[]);
@@ -101,13 +102,19 @@ static int are_statusbar_widgets_visible(void);
 static int get_ruler_width(view_t *view);
 static char * expand_ruler_macros(view_t *view, const char format[]);
 static void switch_panes_content(void);
-static void update_origins(view_t *view, const char *old_main_origin);
 static void set_splitter(int pos);
 static void refresh_bottom_lines(void);
 static char * path_identity(const char path[]);
+static int view_shows_tabline(const view_t *view);
+static int get_tabline_height(void);
+static void print_tab_title(WINDOW *win, view_t *view, col_attr_t base_col,
+		path_func pf);
+static void compute_avg_width(int *avg_width, int *spare_width, int max_width,
+		view_t *view, path_func pf);
+static char * make_tab_title(const tab_info_t *tab_info, path_func pf);
 static char * format_view_title(const view_t *view, path_func pf);
 static void print_view_title(const view_t *view, int active_view, char title[]);
-static void fixup_titles_attributes(const view_t *view, int active_view);
+static col_attr_t fixup_titles_attributes(const view_t *view, int active_view);
 static int is_in_miller_view(const view_t *view);
 static int is_forced_list_mode(const view_t *view);
 static uint64_t get_updated_time(uint64_t prev);
@@ -214,6 +221,7 @@ create_windows(void)
 	mborder = newwin(1, 1, 0, 0);
 
 	top_line = newwin(1, 1, 0, 0);
+	tab_line = newwin(1, 1, 0, 0);
 
 	rwin.title = newwin(1, 1, 0, 0);
 	rwin.win = newwin(1, 1, 0, 0);
@@ -236,6 +244,7 @@ create_windows(void)
 	leaveok(lwin.title, TRUE);
 	leaveok(mborder, TRUE);
 	leaveok(top_line, TRUE);
+	leaveok(tab_line, TRUE);
 	leaveok(rwin.title, TRUE);
 	leaveok(rborder, TRUE);
 	leaveok(stat_win, TRUE);
@@ -292,12 +301,17 @@ correct_size(view_t *view)
 static void
 only_layout(view_t *view, int screen_x)
 {
+	const int y = get_tabline_height();
 	//mod by sim1
 	wresize(view->title, 1, screen_x);
-	mvwin(view->title, 0, 0);
+	mvwin(view->title, y, 0);
+
+
+	wresize(tab_line, 1, screen_x);
+	mvwin(tab_line, 0, 0);
 
 	wresize(view->win, get_working_area_height(), screen_x);
-	mvwin(view->win, 1, 0);
+	mvwin(view->win, y, 0);
 }
 
 /* Updates TUI elements sizes and coordinates for vertical configuration of
@@ -306,6 +320,7 @@ static void
 vertical_layout(int screen_x)
 {
 	const int border_height = get_working_area_height();
+	const int y = get_tabline_height();
 
 	int splitter_pos;
 	int splitter_width;
@@ -326,24 +341,30 @@ vertical_layout(int screen_x)
 
 	//mod by sim1
 	wresize(lwin.title, 1, splitter_pos);
-	mvwin(lwin.title, 0, 0);
+	mvwin(lwin.title, y, 0);
 
 	wresize(lwin.win, border_height, splitter_pos);
-	mvwin(lwin.win, 1, 0);
+	mvwin(lwin.win, y + 1, 0);
 
 	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | cfg.cs.color[BORDER_COLOR].attr);
 	wresize(mborder, border_height, splitter_width);
-	mvwin(mborder, 1, splitter_pos);
+	mvwin(mborder, y + 1, splitter_pos);
+
+	mvwin(ltop_line1, y, 0);
+	mvwin(ltop_line2, y, 0);
+
+	wresize(tab_line, 1, screen_x);
+	mvwin(tab_line, 0, 0);
 
 	wresize(top_line, 1, splitter_width);
-	mvwin(top_line, 0, splitter_pos);
+	mvwin(top_line, y, splitter_pos);
 
 	//mod by sim1
 	wresize(rwin.title, 1, screen_x - (splitter_pos + splitter_width));
-	mvwin(rwin.title, 0, splitter_pos + splitter_width);
+	mvwin(rwin.title, y, splitter_pos + splitter_width);
 
 	wresize(rwin.win, border_height, screen_x - (splitter_pos + splitter_width));
-	mvwin(rwin.win, 1, splitter_pos + splitter_width);
+	mvwin(rwin.win, y + 1, splitter_pos + splitter_width);
 }
 
 /* Updates TUI elements sizes and coordinates for horizontal configuration of
@@ -351,6 +372,8 @@ vertical_layout(int screen_x)
 static void
 horizontal_layout(int screen_x, int screen_y)
 {
+	const int y = get_tabline_height();
+
 	int splitter_pos;
 
 	if(curr_stats.splitter_pos < 0)
@@ -366,24 +389,27 @@ horizontal_layout(int screen_x, int screen_y)
 
 	//mod by sim1
 	wresize(lwin.title, 1, screen_x);
-	mvwin(lwin.title, 0, 0);
+	mvwin(lwin.title, y, 0);
 
 	//mod by sim1
 	wresize(rwin.title, 1, screen_x);
 	mvwin(rwin.title, splitter_pos, 0);
 
-	wresize(lwin.win, splitter_pos - 1, screen_x);
-	mvwin(lwin.win, 1, 0);
+	wresize(lwin.win, splitter_pos - (y + 1), screen_x);
+	mvwin(lwin.win, y + 1, 0);
 
-	wresize(rwin.win, get_working_area_height() - splitter_pos, screen_x);
+	wresize(rwin.win, get_working_area_height() - splitter_pos + y, screen_x);
 	mvwin(rwin.win, splitter_pos + 1, 0);
 
 	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | cfg.cs.color[BORDER_COLOR].attr);
 	wresize(mborder, 1, screen_x);
 	mvwin(mborder, splitter_pos, 0);
 
+	wresize(tab_line, 1, screen_x);
+	mvwin(tab_line, 0, 0);
+
 	wresize(top_line, 1, 2 - screen_x%2);
-	mvwin(top_line, 0, screen_x/2 - 1 + screen_x%2);
+	mvwin(top_line, y, screen_x/2 - 1 + screen_x%2);
 }
 
 static void
@@ -461,7 +487,8 @@ get_working_area_height(void)
 	     - 1                                /* Top line. */
 	     - (cfg.display_statusline ? 1 : 0) /* Status line. */
 	     - ui_stat_job_bar_height()         /* Job bar. */
-	     - 1;                               /* Status bar line. */
+	     - 1                                /* Status bar line. */
+	     - get_tabline_height();            /* Tab line. */
 }
 
 /* Updates internal data structures to reflect actual terminal geometry. */
@@ -490,6 +517,19 @@ update_geometry(void)
 	}
 
 	load_geometry();
+}
+
+void
+ui_quit(int write_info, int force)
+{
+	if(tabs_quit_on_close())
+	{
+		vifm_try_leave(write_info, 0, force);
+	}
+	else
+	{
+		tabs_close();
+	}
 }
 
 int
@@ -735,6 +775,8 @@ touch_all_windows(void)
 
 	if(!in_menu)
 	{
+		update_window_lazy(tab_line);
+
 		if(curr_stats.number_of_windows == 1)
 		{
 			/* In one window view. */
@@ -905,6 +947,10 @@ update_attributes(void)
 	attr = cfg.cs.color[BORDER_COLOR].attr;
 	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | attr);
 	werase(mborder);
+
+	wbkgdset(top_line, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) | (cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
+	wattrset(tab_line, cfg.cs.color[TAB_LINE_COLOR].attr & ~A_REVERSE);
+	werase(tab_line);
 
 	wbkgdset(top_line, COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) | (cfg.cs.color[TOP_LINE_COLOR].attr & A_REVERSE));
 	wattrset(top_line, cfg.cs.color[TOP_LINE_COLOR].attr & ~A_REVERSE);
@@ -1123,6 +1169,7 @@ move_window(view_t *view, int horizontally, int first)
 		 * right/bottom). */
 		switch_panes_content();
 		go_to_other_pane();
+		tabs_switch_panes();
 	}
 }
 
@@ -1168,56 +1215,46 @@ ui_view_unpick(view_t *view, view_t *old_curr, view_t *old_other)
 static void
 switch_panes_content(void)
 {
-	view_t tmp_view;
-	WINDOW* tmp;
-	int t;
+	ui_swap_view_data(&lwin, &rwin);
 
-	tmp = lwin.win;
-	lwin.win = rwin.win;
-	rwin.win = tmp;
-
-	t = lwin.window_rows;
-	lwin.window_rows = rwin.window_rows;
-	rwin.window_rows = t;
-
-	t = lwin.window_cols;
-	lwin.window_cols = rwin.window_cols;
-	rwin.window_cols = t;
-
-	t = lwin.local_cs;
-	lwin.local_cs = rwin.local_cs;
-	rwin.local_cs = t;
-
-	tmp = lwin.title;
-	lwin.title = rwin.title;
-	rwin.title = tmp;
-
-	tmp_view = lwin;
-	lwin = rwin;
-	rwin = tmp_view;
-
-	update_origins(&lwin, &rwin.curr_dir[0]);
-	update_origins(&rwin, &lwin.curr_dir[0]);
+	flist_update_origins(&lwin, &rwin.curr_dir[0], &lwin.curr_dir[0]);
+	flist_update_origins(&rwin, &lwin.curr_dir[0], &rwin.curr_dir[0]);
 
 	view_panes_swapped();
 
 	curr_stats.need_update = UT_REDRAW;
 }
 
-/* Updates pointers to main (default) origins in file list entries. */
-static void
-update_origins(view_t *view, const char *old_main_origin)
+void
+ui_swap_view_data(view_t *left, view_t *right)
 {
-	char *const new_origin = &view->curr_dir[0];
-	int i;
-	for(i = 0; i < view->list_rows; ++i)
-	{
-		dir_entry_t *const entry = &view->dir_entry[i];
-		if(entry->origin == old_main_origin)
-		{
-			entry->origin = new_origin;
-		}
-	}
+	view_t tmp_view;
+	WINDOW *tmp;
+	int t;
+
+	tmp = left->win;
+	left->win = right->win;
+	right->win = tmp;
+
+	t = left->window_rows;
+	left->window_rows = right->window_rows;
+	right->window_rows = t;
+
+	t = left->window_cols;
+	left->window_cols = right->window_cols;
+	right->window_cols = t;
+
+	t = left->local_cs;
+	left->local_cs = right->local_cs;
+	right->local_cs = t;
+
+	tmp = left->title;
+	left->title = right->title;
+	right->title = tmp;
+
+	tmp_view = *left;
+	*left = *right;
+	*right = tmp_view;
 }
 
 void
@@ -1478,27 +1515,41 @@ ui_views_update_titles(void)
 void
 ui_view_title_update(view_t *view)
 {
-	char *title;
 	const int gen_view = vle_mode_is(VIEW_MODE) && !curr_view->explore_mode;
 	view_t *selected = gen_view ? other_view : curr_view;
+	path_func pf = cfg.shorten_title_paths ? &replace_home_part : &path_identity;
+	col_attr_t title_col;
 
-	if(curr_stats.load_stage < 2)
+	if(curr_stats.load_stage < 2 || !ui_view_is_visible(view))
 	{
 		return;
 	}
 
-	title = format_view_title(view, cfg.shorten_title_paths ? &replace_home_part : &path_identity);
-
 	if(view == selected && cfg.set_title)
 	{
-		term_title_update(title);
+		char *const term_title = format_view_title(view, pf);
+		term_title_update(term_title);
+		free(term_title);
 	}
 
-	print_view_title(view, view == selected, title);
+	title_col = fixup_titles_attributes(view, view == selected);
 
-	wnoutrefresh(view->title);
+	if(view_shows_tabline(view))
+	{
+		print_tab_title(view->title, view, title_col, pf);
+	}
+	else
+	{
+		char *const title = format_view_title(view, pf);
+		print_view_title(view, view == selected, title);
+		wnoutrefresh(view->title);
+		free(title);
+	}
 
-	free(title);
+	if(view == curr_view && get_tabline_height() > 0)
+	{
+		print_tab_title(tab_line, view, cfg.cs.color[TAB_LINE_COLOR], pf);
+	}
 }
 
 /* Identity path function.  Returns its argument. */
@@ -1506,6 +1557,171 @@ static char *
 path_identity(const char path[])
 {
 	return (char *)path;
+}
+
+/* Checks whether view displays list of pane tabs at the moment.  Returns
+ * non-zero if so, otherwise zero is returned. */
+static int
+view_shows_tabline(const view_t *view)
+{
+	return cfg.pane_tabs
+	    && !(curr_stats.preview.on && view == other_view)
+	    && cfg.show_tab_line != STL_NEVER
+	    && !(cfg.show_tab_line == STL_MULTIPLE && tabs_count(view) == 1);
+}
+
+/* Retrieves height of the tab line in lines.  Returns the height. */
+static int
+get_tabline_height(void)
+{
+	if(cfg.pane_tabs || cfg.show_tab_line == STL_NEVER)
+	{
+		return 0;
+	}
+
+	return (cfg.show_tab_line == STL_MULTIPLE && tabs_count(curr_view) == 1)
+	     ? 0
+	     : 1;
+}
+
+/* Prints title of the tab on specified curses window. */
+static void
+print_tab_title(WINDOW *win, view_t *view, col_attr_t base_col, path_func pf)
+{
+	int i;
+	tab_info_t tab_info;
+
+	const int max_width = getmaxx(win);
+	int width_used = 0;
+	int avg_width, spare_width;
+
+	wbkgdset(win, COLOR_PAIR(colmgr_get_pair(base_col.fg, base_col.bg)) |
+			(base_col.attr & A_REVERSE));
+	wattrset(win, base_col.attr & ~A_REVERSE);
+
+	werase(win);
+	checked_wmove(win, 0, 0);
+
+	compute_avg_width(&avg_width, &spare_width, max_width, view, pf);
+
+	for(i = 0; tabs_get(view, i, &tab_info); ++i)
+	{
+		char *title = make_tab_title(&tab_info, pf);
+		const int width_needed = utf8_strsw(title);
+		const int extra_width = snprintf(NULL, 0U, "[%d:]", i + 1);
+		int width = max_width;
+
+		col_attr_t col = base_col;
+		if(tab_info.view == view)
+		{
+			cs_mix_colors(&col, &cfg.cs.color[TAB_LINE_SEL_COLOR]);
+		}
+
+		if(tab_info.view != view)
+		{
+			width = tab_info.last ? (max_width - width_used)
+			                      : MIN(avg_width, extra_width + width_needed);
+		}
+
+		if(width < width_needed + extra_width)
+		{
+			char *ellipsed;
+
+			if(spare_width > 0)
+			{
+				width += 1;
+				--spare_width;
+			}
+
+			ellipsed = left_ellipsis(title, MAX(0, width - extra_width),
+					curr_stats.ellipsis);
+			free(title);
+			title = ellipsed;
+		}
+
+		wbkgdset(win, COLOR_PAIR(colmgr_get_pair(col.fg, col.bg)) |
+				(col.attr & A_REVERSE));
+		wattrset(win, col.attr & ~A_REVERSE);
+
+		if(width > extra_width)
+		{
+			wprintw(win, "[%d:%s]", i + 1, title);
+		}
+
+		/* Here result of `utf8_strsw(title)` might be different from one computed
+		 * above. */
+		width_used += extra_width + utf8_strsw(title);
+
+		free(title);
+	}
+
+	wnoutrefresh(win);
+}
+
+/* Computes average width of tab tips as well as number of spare character
+ * positions. */
+static void
+compute_avg_width(int *avg_width, int *spare_width, int max_width, view_t *view,
+		path_func pf)
+{
+	int left = max_width;
+	int widths[tabs_count(view)];
+	int i;
+	tab_info_t tab_info;
+
+	*avg_width = 0;
+	*spare_width = 0;
+
+	for(i = 0; tabs_get(view, i, &tab_info); ++i)
+	{
+		char *const title = make_tab_title(&tab_info, pf);
+		widths[i] = utf8_strsw(title) + snprintf(title, 0U, "[%d:]", i + 1);
+		free(title);
+
+		if(tab_info.view == view)
+		{
+			left = MAX(max_width - widths[i], 0);
+			*avg_width = left/(tabs_count(view) - 1);
+			*spare_width = left%(tabs_count(view) - 1);
+		}
+	}
+
+	int new_avg_width = *avg_width;
+	do
+	{
+		int well_used_width = 0;
+		int truncated_count = 0;
+		*avg_width = new_avg_width;
+		for(i = 0; tabs_get(view, i, &tab_info); ++i)
+		{
+			if(tab_info.view != view)
+			{
+				if(widths[i] <= *avg_width)
+				{
+					well_used_width += widths[i];
+				}
+				else
+				{
+					++truncated_count;
+				}
+			}
+		}
+		if(truncated_count == 0)
+		{
+			break;
+		}
+		new_avg_width = (left - well_used_width)/truncated_count;
+		*spare_width = (left - well_used_width)%truncated_count;
+	}
+	while(new_avg_width != *avg_width);
+}
+
+/* Gets title of the tab.  Returns newly allocated string. */
+static char *
+make_tab_title(const tab_info_t *tab_info, path_func pf)
+{
+	return (tab_info->name == NULL) ? format_view_title(tab_info->view, pf)
+	                                : strdup(tab_info->name);
 }
 
 /* Formats title for the view.  The pf function will be applied to full paths.
@@ -1552,7 +1768,6 @@ print_view_title(const view_t *view, int active_view, char title[])
 		return;
 	}
 
-	fixup_titles_attributes(view, active_view);
 	werase(view->title);
 
 	ellipsis = active_view
@@ -1563,13 +1778,15 @@ print_view_title(const view_t *view, int active_view, char title[])
 	free(ellipsis);
 }
 
-/* Updates attributes for view titles and top line. */
-static void
+/* Updates attributes for view titles and top line.  Returns base color used for
+ * the title. */
+static col_attr_t
 fixup_titles_attributes(const view_t *view, int active_view)
 {
+	col_attr_t col = cfg.cs.color[TOP_LINE_COLOR];
+
 	if(active_view)
 	{
-		col_attr_t col = cfg.cs.color[TOP_LINE_COLOR];
 		cs_mix_colors(&col, &cfg.cs.color[TOP_LINE_SEL_COLOR]);
 
 		wbkgdset(view->title, COLOR_PAIR(colmgr_get_pair(col.fg, col.bg)) | (col.attr & A_REVERSE));
@@ -1577,7 +1794,6 @@ fixup_titles_attributes(const view_t *view, int active_view)
 	}
 	else
 	{
-		col_attr_t col = cfg.cs.color[TOP_LINE_COLOR];
 		const int bg_attr = COLOR_PAIR(cfg.cs.pair[TOP_LINE_COLOR]) | (col.attr & A_REVERSE);
 
 		wbkgdset(view->title, bg_attr);
@@ -1586,6 +1802,8 @@ fixup_titles_attributes(const view_t *view, int active_view)
 		wattrset(top_line, col.attr & ~A_REVERSE);
 		werase(top_line);
 	}
+
+	return col;
 }
 
 int
