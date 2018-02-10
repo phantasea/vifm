@@ -203,7 +203,7 @@ refresh_window(WINDOW *win, int lazily)
 TSTATIC char *
 expand_status_line_macros(view_t *view, const char format[])
 {
-	return expand_view_macros(view, format, "rtTfaAugsEdD-xlLSz%[]{");  //mod by sim1
+	return expand_view_macros(view, format, "nrtTfaAugsEdD-xlLSz%[]{");  //mod by sim1
 }
 
 /* Expands possibly limited set of view macros.  Returns newly allocated string,
@@ -317,6 +317,12 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					char path[PATH_MAX] = {0};
 					get_full_path_at(view, view->list_pos, sizeof(path), path);
 					(void)get_rating_string(buf, sizeof(buf), path);
+				}
+				break;
+			case 'n':
+				{
+					int nitems = !fentry_is_dir(curr) ? 0 : (int)fentry_get_nitems(view, curr);
+					snprintf(buf, sizeof(buf), "%d", nitems);
 				}
 				break;
 			//add by sim1 ************************************************

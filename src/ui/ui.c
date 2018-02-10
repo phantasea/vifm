@@ -301,17 +301,17 @@ correct_size(view_t *view)
 static void
 only_layout(view_t *view, int screen_x)
 {
-	const int y = get_tabline_height();
 	//mod by sim1
+	const int y = get_tabline_height();
+
 	wresize(view->title, 1, screen_x);
 	mvwin(view->title, y, 0);
-
 
 	wresize(tab_line, 1, screen_x);
 	mvwin(tab_line, 0, 0);
 
 	wresize(view->win, get_working_area_height(), screen_x);
-	mvwin(view->win, y, 0);
+	mvwin(view->win, y + 1, 0);
 }
 
 /* Updates TUI elements sizes and coordinates for vertical configuration of
@@ -349,9 +349,6 @@ vertical_layout(int screen_x)
 	wbkgdset(mborder, COLOR_PAIR(cfg.cs.pair[BORDER_COLOR]) | cfg.cs.color[BORDER_COLOR].attr);
 	wresize(mborder, border_height, splitter_width);
 	mvwin(mborder, y + 1, splitter_pos);
-
-	mvwin(ltop_line1, y, 0);
-	mvwin(ltop_line2, y, 0);
 
 	wresize(tab_line, 1, screen_x);
 	mvwin(tab_line, 0, 0);
@@ -1142,7 +1139,7 @@ get_ruler_width(view_t *view)
 static char *
 expand_ruler_macros(view_t *view, const char format[])
 {
-	return expand_view_macros(view, format, "-xlLS%[]");
+	return expand_view_macros(view, format, "-nxlLS%[]");  //mod by sim1, add char n for nitems
 }
 
 void
@@ -1608,7 +1605,7 @@ print_tab_title(WINDOW *win, view_t *view, col_attr_t base_col, path_func pf)
 	{
 		char *title = make_tab_title(&tab_info, pf);
 		const int width_needed = utf8_strsw(title);
-		const int extra_width = snprintf(NULL, 0U, "[%d:]", i + 1);
+		const int extra_width = snprintf(NULL, 0U, "*[%d:]", i + 1);
 		int width = max_width;
 
 		col_attr_t col = base_col;
@@ -1638,6 +1635,16 @@ print_tab_title(WINDOW *win, view_t *view, col_attr_t base_col, path_func pf)
 			free(title);
 			title = ellipsed;
 		}
+
+		//add by sim1 +++++
+		wbkgdset(win, COLOR_PAIR(colmgr_get_pair(base_col.fg, base_col.bg)) | (base_col.attr & A_REVERSE));
+		wattrset(win, base_col.attr & ~A_REVERSE);
+
+		if (i != 0)
+		{
+			wprintw(win, "*");
+		}
+		//add by sim1 -----
 
 		wbkgdset(win, COLOR_PAIR(colmgr_get_pair(col.fg, col.bg)) |
 				(col.attr & A_REVERSE));
