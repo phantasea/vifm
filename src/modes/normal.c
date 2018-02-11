@@ -102,7 +102,6 @@ static void cmd_ctrl_wH(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wJ(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wK(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wL(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ctrl_wb(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wh(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wj(key_info_t key_info, keys_info_t *keys_info);
@@ -165,8 +164,7 @@ static void cmd_dd(key_info_t key_info, keys_info_t *keys_info);
 static void delete(key_info_t key_info, int use_trash);
 static void cmd_D_selector(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_d_selector(key_info_t key_info, keys_info_t *keys_info);
-static void call_delete(key_info_t key_info, keys_info_t *keys_info,
-		int use_trash);
+static void call_delete(key_info_t key_info, keys_info_t *keys_info, int use_trash);
 static void cmd_do(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_dp(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_e(key_info_t key_info, keys_info_t *keys_info);
@@ -243,18 +241,19 @@ static void cmd_rb_s(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_lb_z(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_rb_z(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_left_curly_bracket(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_right_curly_bracket(key_info_t key_info,
-		keys_info_t *keys_info);
+static void cmd_right_curly_bracket(key_info_t key_info, keys_info_t *keys_info);
 static void pick_files(view_t *view, int end, keys_info_t *keys_info);
 static void selector_S(key_info_t key_info, keys_info_t *keys_info);
 static void selector_a(key_info_t key_info, keys_info_t *keys_info);
 static void selector_s(key_info_t key_info, keys_info_t *keys_info);
 
-//add by sim1
+//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
-//add by sim1 --- END
+//add by sim1 -------------------------------------------------------
 
 static int last_fast_search_char;
 static int last_fast_search_backward = -1;
@@ -270,6 +269,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_e,           {{&cmd_ctrl_e}, .descr = "scroll one line down"}},
 	{WK_C_f,           {{&cmd_ctrl_f}, .descr = "scroll page down"}},
 	{WK_C_g,           {{&cmd_ctrl_g}, .descr = "display file info"}},
+	{WK_C_h,           {{&cmd_ctrl_h}, .descr = "jump to last tab"}},  //add by sim1
 	{WK_C_i,           {{&cmd_ctrl_i}, .descr = "switch pane/history forward"}},
 	{WK_C_l,           {{&cmd_ctrl_l}, .descr = "redraw"}},
 	{WK_C_m,           {{&cmd_return}, .descr = "open current item(s)"}},
@@ -501,7 +501,7 @@ static keys_add_info_t selectors[] = {
 #endif /* ENABLE_EXTENDED_KEYS */
 };
 
-//Add by sim1 **************************************************
+//Add by sim1 +++++++++++++++++++++++++++++++++++++++
 static void
 cmd_star(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -551,7 +551,7 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 	qv_toggle();
 	return;
 }
-//Add by sim1 **************************************************
+//Add by sim1 ------------------------------------
 
 void
 init_normal_mode(void)
@@ -713,13 +713,13 @@ cmd_emark_selector(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_i(key_info_t key_info, keys_info_t *keys_info)
 {
-	//add by sim1 ----------
+	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++
 	if (curr_stats.preview.on && (curr_stats.number_of_windows != 1))
 	{
 		cmd_shift_tab(key_info, keys_info);
 		return;
 	}
-	//add by sim1 ----------
+	//add by sim1 ---------------------------------------------------
 
 	if(cfg.tab_switches_pane)
 	{
@@ -864,7 +864,7 @@ cmd_ctrl_ws(key_info_t key_info, keys_info_t *keys_info)
 	split_view(HSPLIT);
 }
 
-//add by sim1 -------------------
+//add by sim1 +++++++++++++++++++++++++
 static void
 set_millerview(int mv)
 {
@@ -909,7 +909,7 @@ cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 
 	return;
 }
-//add by sim1 -------------------
+//add by sim1 +++++++++++++++++++++++++
 
 /* Go to top-left window. */
 static void
@@ -1244,6 +1244,22 @@ cmd_gT(key_info_t key_info, keys_info_t *keys_info)
 	tabs_previous(def_count(key_info.count));
 }
 
+//add by sim1 +++++++++++++++++++++++++++++++++++++++++
+/* Switch to the last tab */
+static void
+cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(key_info.count == NO_COUNT_GIVEN)
+	{
+		tabs_goto(-1);
+	}
+	else
+	{
+		tabs_goto(key_info.count - 1);
+	}
+}
+//add by sim1 -----------------------------------------
+
 /* Handles gU<selector>, gUgU and gUU normal mode commands, which convert file
  * name symbols to uppercase. */
 static void
@@ -1368,14 +1384,14 @@ cmd_ZQ(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
 {
-	//add by sim1 *****************************
+	//add by sim1 +++++++++++++++++++++++++++++
 	if (flist_custom_active(curr_view) 
 			&& (CV_TREE == curr_view->custom.type))
 	{
 		cmd_h(key_info, keys_info);
 		return;
 	}
-	//add by sim1 *****************************
+	//add by sim1 -----------------------------
 
 	ui_quit(1, 0);
 }
@@ -2153,15 +2169,15 @@ cmd_za(key_info_t key_info, keys_info_t *keys_info)
 	dot_filter_toggle(curr_view);
 }
 
-//add by sim1 ************
+//add by sim1 +++++++++++++++++++++++++++++++++++++
 static void
 cmd_zA(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_nondotfiles(curr_view);
 }
-//add by sim1 ************
+//add by sim1 -------------------------------------
 
-//mod by sim1 ************
+//mod by sim1 +++++++++++++++++++++++++++++++++++++
 static void
 cmd_zD(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -2179,7 +2195,7 @@ cmd_zx(key_info_t key_info, keys_info_t *keys_info)
 {
 	flist_custom_exclude(curr_view, key_info.count == 1);
 }
-//mod by sim1 ************
+//mod by sim1 -------------------------------------
 
 /* Redraw with file in bottom of list. */
 void
