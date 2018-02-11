@@ -50,6 +50,7 @@ typedef struct
 	pane_tab_t *tabs;        /* List of tabs. */
 	DA_INSTANCE_FIELD(tabs); /* Declarations to enable use of DA_* on tabs. */
 	int current;             /* Index of the current tab. */
+	int last;                /* Index of the last tab */ //add by sim1
 }
 pane_tabs_t;
 
@@ -91,6 +92,8 @@ static global_tab_t *gtabs;
 static DA_INSTANCE(gtabs);
 /* Index of current global tab. */
 static int current_tab;
+/* Index of last global tab */
+static int last_tab;  //add by sim1
 
 void
 tabs_init(void)
@@ -274,16 +277,29 @@ tabs_goto_pane(int idx)
 		return;
 	}
 
-	if(idx < 0 || idx >= (int)DA_SIZE(ptabs->tabs))
+	//mod by sim1 +++++++++++++++++++++++++++++++++++
+	//if(idx < 0 || idx >= (int)DA_SIZE(ptabs->tabs))
+	if(idx < 0)
+	{
+		idx = ptabs->last;
+	}
+
+	if(idx >= (int)DA_SIZE(ptabs->tabs))
 	{
 		return;
 	}
+	//mod by sim1 -----------------------------------
 
 	ptabs->tabs[ptabs->current].view = *curr_view;
 	assign_preview(&ptabs->tabs[ptabs->current].preview, &curr_stats.preview);
 	*curr_view = ptabs->tabs[idx].view;
 	assign_preview(&curr_stats.preview, &ptabs->tabs[idx].preview);
-	ptabs->current = idx;
+
+	//mod by sim1 ++++++++++++++++++++++++++++++++++
+	int temp  = ptabs->current;
+	ptabs->current = (idx >= 0 ? idx : ptabs->last);
+	ptabs->last = temp;
+	//mod by sim1 ----------------------------------
 
 	ui_view_schedule_redraw(curr_view);
 
@@ -301,10 +317,18 @@ tabs_goto_global(int idx)
 		return;
 	}
 
-	if(idx < 0 || idx >= (int)DA_SIZE(gtabs))
+	//mod by sim1 +++++++++++++++++++++++++++++
+	//if(idx < 0 || idx >= (int)DA_SIZE(gtabs))
+	if(idx < 0)
+	{
+		idx = last_tab;
+	}
+
+	if(idx >= (int)DA_SIZE(gtabs))
 	{
 		return;
 	}
+	//mod by sim1 -----------------------------
 
 	gtabs[current_tab].left.tabs[gtabs[current_tab].left.current].view = lwin;
 	gtabs[current_tab].right.tabs[gtabs[current_tab].right.current].view = rwin;
@@ -322,7 +346,11 @@ tabs_goto_global(int idx)
 	curr_stats.splitter_pos = gtabs[idx].splitter_pos;
 	assign_preview(&curr_stats.preview, &gtabs[idx].preview);
 
-	current_tab = idx;
+	//mod by sim1 ++++++++++++++++++++++++++++
+	int temp = current_tab;
+	current_tab = (idx >= 0 ? idx : last_tab);
+	last_tab = temp;
+	//mod by sim1 ----------------------------
 
 	ui_view_schedule_redraw(&lwin);
 	ui_view_schedule_redraw(&rwin);
