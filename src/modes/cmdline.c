@@ -2542,6 +2542,7 @@ line_completion(line_stats_t *stat)
 			{
 				case CLL_OUT_OF_ARG:
 				case CLL_NO_QUOTING:
+				case CLL_R_QUOTING:
 					vle_compl_set_add_path_hook(&escaped_arg_hook);
 					compl_func_arg = CPP_PERCENT_UNESCAPE;
 					break;
@@ -2554,10 +2555,6 @@ line_completion(line_stats_t *stat)
 				case CLL_D_QUOTING:
 					vle_compl_set_add_path_hook(&dquoted_arg_hook);
 					compl_func_arg = CPP_DQUOTES_UNESCAPE;
-					break;
-
-				case CLL_R_QUOTING:
-					assert(0 && "Unexpected completion inside regexp argument.");
 					break;
 			}
 		}
