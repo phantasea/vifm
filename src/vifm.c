@@ -239,8 +239,7 @@ vifm_main(int argc, char *argv[])
 	}
 	/* Export chosen server name to parsing unit. */
 	{
-		var_val_t value = { .string = (char *)ipc_get_name(curr_stats.ipc) };
-		var_t var = var_new(VTYPE_STRING, value);
+		var_t var = var_from_str(ipc_get_name(curr_stats.ipc));
 		setvar("v:servername", var);
 		var_free(var);
 	}
@@ -494,7 +493,7 @@ check_path_for_file(view_t *view, const char path[], int handle)
 	}
 
 	load_dir_list(view, !(cfg.vifm_info&VIFMINFO_SAVEDIRS));
-	if(ensure_file_is_selected(view, after_last(path, '/')))
+	if(fpos_ensure_selected(view, after_last(path, '/')))
 	{
 		if(handle)
 		{
@@ -528,7 +527,7 @@ eval_received_expression(const char expr[])
 		return NULL;
 	}
 
-	result_str = var_to_string(result);
+	result_str = var_to_str(result);
 	var_free(result);
 	return result_str;
 }

@@ -12,7 +12,7 @@ static int called;
 
 SETUP_ONCE()
 {
-	static const function_t function_a = { "a", "descr", 0, &dummy };
+	static const function_t function_a = { "a", "descr", {0,0}, &dummy };
 
 	assert_success(function_register(&function_a));
 }
@@ -30,9 +30,8 @@ TEARDOWN()
 static var_t
 dummy(const call_info_t *call_info)
 {
-	static const var_val_t var_val = { .string = "" };
 	called = 1;
-	return var_new(VTYPE_STRING, var_val);
+	return var_from_str("");
 }
 
 TEST(or_is_lazy)

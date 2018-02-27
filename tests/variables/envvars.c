@@ -13,7 +13,7 @@ static var_t dummy(const call_info_t *call_info);
 
 SETUP_ONCE()
 {
-	static const function_t function_a = { "a", "descr", 1, &dummy };
+	static const function_t function_a = { "a", "descr", {1,1}, &dummy };
 	assert_success(function_register(&function_a));
 }
 
@@ -25,8 +25,7 @@ SETUP()
 static var_t
 dummy(const call_info_t *call_info)
 {
-	static const var_val_t var_val = { .string = "" };
-	return var_new(VTYPE_STRING, var_val);
+	return var_from_str("");
 }
 
 TEST(env_variable_creation_success)

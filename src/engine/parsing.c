@@ -137,6 +137,7 @@ static expr_t parse_or_expr(const char **in);
 static expr_t parse_and_expr(const char **in);
 static expr_t parse_comp_expr(const char **in);
 static int is_comparison_operator(TOKENS_TYPE type);
+static expr_t parse_factor(const char **in);
 static expr_t parse_concat_expr(const char **in);
 static expr_t parse_term(const char **in);
 static expr_t parse_signed_number(const char **in);
@@ -326,7 +327,7 @@ eval_or_op(int nops, expr_t ops[], var_t *result)
 
 	/* Conversion to integer so that strings are converted into numbers instead of
 	 * checked to be empty. */
-	val = var_to_integer(ops[0].value);
+	val = var_to_int(ops[0].value);
 
 	for(i = 1; i < nops && !val; ++i)
 	{
@@ -334,7 +335,7 @@ eval_or_op(int nops, expr_t ops[], var_t *result)
 		{
 			return 1;
 		}
-		val |= var_to_integer(ops[i].value);
+		val |= var_to_int(ops[i].value);
 	}
 
 	*result = var_from_bool(val);
@@ -368,7 +369,7 @@ eval_and_op(int nops, expr_t ops[], var_t *result)
 
 	/* Conversion to integer so that strings are converted into numbers instead of
 	 * checked to be empty. */
-	val = var_to_integer(ops[0].value);
+	val = var_to_int(ops[0].value);
 
 	for(i = 1; i < nops && val; ++i)
 	{
@@ -376,7 +377,7 @@ eval_and_op(int nops, expr_t ops[], var_t *result)
 		{
 			return 1;
 		}
-		val &= var_to_integer(ops[i].value);
+		val &= var_to_int(ops[i].value);
 	}
 
 	*result = var_from_bool(val);
@@ -435,17 +436,22 @@ eval_call_op(const char name[], int nops, expr_t ops[], var_t *result)
 	else if(strcmp(name, "!") == 0)
 	{
 		assert(nops == 1 && "Must be single argument.");
-		*result = var_from_bool(!var_to_integer(ops[0].value));
+		*result = var_from_bool(!var_to_int(ops[0].value));
 	}
 	else if(strcmp(name, "-") == 0 || strcmp(name, "+") == 0)
 	{
-		assert(nops == 1 && "Must be single argument.");
-		var_val_t val = { .integer = var_to_integer(ops[0].value) };
-		if(name[0] == '-')
+		if(nops == 1)
 		{
-			val.integer = -val.integer;
+			const int val = var_to_int(ops[0].value);
+			*result = var_from_int(name[0] == '-' ? -val : val);
 		}
-		*result = var_new(VTYPE_INT, val);
+		else
+		{
+			assert(nops == 2 && "Must be two arguments.");
+			const int a = var_to_int(ops[0].value);
+			const int b = var_to_int(ops[1].value);
+			*result = var_from_int(name[0] == '-' ? a - b : a + b);
+		}
 	}
 	else
 	{
@@ -496,8 +502,8 @@ compare_variables(TOKENS_TYPE operation, var_t lhs, var_t rhs)
 	}
 	else
 	{
-		const int lhs_int = var_to_integer(lhs);
-		const int rhs_int = var_to_integer(rhs);
+		const int lhs_int = var_to_int(lhs);
+		const int rhs_int = var_to_int(rhs);
 		switch(operation)
 		{
 			case EQ: return lhs_int == rhs_int;
@@ -519,8 +525,7 @@ compare_variables(TOKENS_TYPE operation, var_t lhs, var_t rhs)
 static var_t
 eval_concat(int nops, expr_t ops[])
 {
-	var_t result = var_error();
-	char res[CMD_LINE_LENGTH_MAX];
+	char res[CMD_LINE_LENGTH_MAX + 1];
 	size_t res_len = 0U;
 	int i;
 
@@ -535,7 +540,7 @@ eval_concat(int nops, expr_t ops[])
 
 	for(i = 0; i < nops; ++i)
 	{
-		char *const str_val = var_to_string(ops[i].value);
+		char *const str_val = var_to_str(ops[i].value);
 		if(str_val == NULL)
 		{
 			last_error = PE_INTERNAL;
@@ -547,13 +552,7 @@ eval_concat(int nops, expr_t ops[])
 		free(str_val);
 	}
 
-	if(last_error == PE_NO_ERROR)
-	{
-		const var_val_t var_val = { .string = res };
-		result = var_new(VTYPE_STRING, var_val);
-	}
-
-	return result;
+	return (last_error == PE_NO_ERROR ? var_from_str(res) : var_error());
 }
 
 /* Appends operand to an expression.  Returns zero on success, otherwise
@@ -669,7 +668,7 @@ parse_and_expr(const char **in)
 	return result;
 }
 
-/* comp_expr ::= concat_expr | concat_expr op concat_expr
+/* comp_expr ::= factor | factor op factor
  * op ::= '==' | '!=' | '<' | '<=' | '>' | '>=' */
 static expr_t
 parse_comp_expr(const char **in)
@@ -678,7 +677,7 @@ parse_comp_expr(const char **in)
 	expr_t rhs;
 	expr_t result = { .op_type = OP_CALL };
 
-	lhs = parse_concat_expr(in);
+	lhs = parse_factor(in);
 	if(last_error != PE_NO_ERROR || !is_comparison_operator(last_token.type))
 	{
 		return lhs;
@@ -694,7 +693,7 @@ parse_comp_expr(const char **in)
 	}
 
 	get_next(in);
-	rhs = parse_concat_expr(in);
+	rhs = parse_factor(in);
 	if(add_expr_op(&result, &rhs) != 0)
 	{
 		free_expr(&result);
@@ -719,6 +718,55 @@ is_comparison_operator(TOKENS_TYPE type)
 	return type == EQ || type == NE
 	    || type == LT || type == LE
 	    || type == GE || type == GT;
+}
+
+/* factor ::= concat_expr { op concat_expr }
+ * op ::= '+' | '-' */
+static expr_t
+parse_factor(const char **in)
+{
+	expr_t result = parse_concat_expr(in);
+
+	while(last_error == PE_NO_ERROR &&
+			(last_token.type == PLUS || last_token.type == MINUS))
+	{
+		expr_t intermediate = { .op_type = OP_CALL };
+		expr_t next;
+
+		intermediate.func = strdup(last_token.str);
+		if(add_expr_op(&intermediate, &result) != 0 || intermediate.func == NULL)
+		{
+			last_error = PE_INTERNAL;
+			free_expr(&intermediate);
+			return null_expr;
+		}
+
+		get_next(in);
+		next = parse_concat_expr(in);
+		if(last_error != PE_NO_ERROR)
+		{
+			free_expr(&next);
+			free_expr(&intermediate);
+			return null_expr;
+		}
+
+		if(add_expr_op(&intermediate, &next) != 0)
+		{
+			last_error = PE_INTERNAL;
+			free_expr(&intermediate);
+			return null_expr;
+		}
+
+		result = intermediate;
+	}
+
+	if(last_error == PE_INTERNAL)
+	{
+		free_expr(&result);
+		return null_expr;
+	}
+
+	return result;
 }
 
 /* concat_expr ::= term { '.' term } */
@@ -865,8 +913,6 @@ parse_signed_number(const char **in)
 static var_t
 parse_number(const char **in)
 {
-	var_val_t var_val = { };
-
 	char buffer[CMD_LINE_LENGTH_MAX];
 	size_t len = 0U;
 	buffer[0] = '\0';
@@ -882,15 +928,14 @@ parse_number(const char **in)
 	}
 	while(last_token.type == DIGIT);
 
-	var_val.integer = str_to_int(buffer);
-	return var_new(VTYPE_INT, var_val);
+	return var_from_int(str_to_int(buffer));
 }
 
 /* sqstr ::= ''' sqchar { sqchar } ''' */
 static var_t
 parse_singly_quoted_string(const char **in)
 {
-	char buffer[CMD_LINE_LENGTH_MAX];
+	char buffer[CMD_LINE_LENGTH_MAX + 1];
 	sbuffer sbuf = { .data = buffer, .size = sizeof(buffer) };
 	buffer[0] = '\0';
 	while(parse_singly_quoted_char(in, &sbuf));
@@ -902,9 +947,8 @@ parse_singly_quoted_string(const char **in)
 
 	if(last_token.type == SQ)
 	{
-		const var_val_t var_val = { .string = buffer };
 		get_next(in);
-		return var_new(VTYPE_STRING, var_val);
+		return var_from_str(buffer);
 	}
 
 	last_error = PE_MISSING_QUOTE;
@@ -956,9 +1000,8 @@ parse_doubly_quoted_string(const char **in)
 
 	if(last_token.type == DQ)
 	{
-		const var_val_t var_val = { .string = buffer };
 		get_next(in);
-		return var_new(VTYPE_STRING, var_val);
+		return var_from_str(buffer);
 	}
 
 	last_error = (last_token.type == END)
@@ -1028,9 +1071,7 @@ parse_doubly_quoted_char(const char **in, sbuffer *sbuf)
 static var_t
 eval_envvar(const char **in)
 {
-	var_val_t var_val;
-
-	char name[VAR_NAME_LENGTH_MAX];
+	char name[VAR_NAME_LENGTH_MAX + 1];
 	if(!parse_sequence(in, ENV_VAR_NAME_FIRST_CHAR, ENV_VAR_NAME_CHARS,
 		sizeof(name), name))
 	{
@@ -1038,8 +1079,7 @@ eval_envvar(const char **in)
 		return var_false();
 	}
 
-	var_val.const_string = getenv_fu(name);
-	return var_new(VTYPE_STRING, var_val);
+	return var_from_str(getenv_fu(name));
 }
 
 /* builtinvar ::= 'v:' varname */
@@ -1047,7 +1087,7 @@ static var_t
 eval_builtinvar(const char **in)
 {
 	var_t var_value;
-	char name[VAR_NAME_LENGTH_MAX];
+	char name[VAR_NAME_LENGTH_MAX + 1];
 	strcpy(name, "v:");
 
 	if(last_token.c != 'v' || **in != ':')
@@ -1083,7 +1123,6 @@ eval_opt(const char **in)
 {
 	OPT_SCOPE scope = OPT_ANY;
 	const opt_t *option;
-	var_val_t var_val;
 
 	char name[OPTION_NAME_MAX + 1];
 
@@ -1113,21 +1152,17 @@ eval_opt(const char **in)
 		case OPT_STR:
 		case OPT_STRLIST:
 		case OPT_CHARSET:
-			var_val.string = option->val.str_val;
-			return var_new(VTYPE_STRING, var_val);
+			return var_from_str(option->val.str_val);
 
 		case OPT_BOOL:
-			var_val.integer = option->val.bool_val;
-			return var_new(VTYPE_INT, var_val);
+			return var_from_bool(option->val.bool_val);
 
 		case OPT_INT:
-			var_val.integer = option->val.int_val;
-			return var_new(VTYPE_INT, var_val);
+			return var_from_int(option->val.int_val);
 
 		case OPT_ENUM:
 		case OPT_SET:
-			var_val.const_string = get_value(option);
-			return var_new(VTYPE_STRING, var_val);
+			return var_from_str(get_value(option));
 
 		default:
 			assert(0 && "Unexpected option type");

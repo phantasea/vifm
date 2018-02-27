@@ -268,6 +268,7 @@ static void sync_location(const char path[], int cv, int sync_cursor_pos,
 static void sync_local_opts(int defer_slow);
 static void sync_filters(void);
 static int tabclose_cmd(const cmd_info_t *cmd_info);
+static int tabmove_cmd(const cmd_info_t *cmd_info);
 static int tabname_cmd(const cmd_info_t *cmd_info);
 static int tabnew_cmd(const cmd_info_t *cmd_info);
 static int touch_cmd(const cmd_info_t *cmd_info);
@@ -774,6 +775,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "close current tab unless it's the only one",
 	  .flags = HAS_COMMENT,
 	  .handler = &tabclose_cmd,    .min_args = 0,   .max_args = 0, },
+	{ .name = "tabmove",           .abbr = "tabm",  .id = -1,
+	  .descr = "position current tab after another tab",
+	  .flags = HAS_COMMENT,
+	  .handler = &tabmove_cmd,     .min_args = 0,   .max_args = 1, },
 	{ .name = "tabname",           .abbr = NULL,    .id = -1,
 	  .descr = "set name of current tab",
 	  .flags = HAS_COMMENT,
@@ -903,7 +908,7 @@ const size_t cmds_list_size = ARRAY_LEN(cmds_list);
 static int
 goto_cmd(const cmd_info_t *cmd_info)
 {
-	flist_set_pos(curr_view, cmd_info->end);
+	fpos_set_pos(curr_view, cmd_info->end);
 	return 0;
 }
 
@@ -2933,7 +2938,7 @@ eval_if_condition(const cmd_info_t *cmd_info)
 		return -1;
 	}
 
-	result = var_to_boolean(condition);
+	result = var_to_bool(condition);
 	var_free(condition);
 	return result;
 }
@@ -4017,6 +4022,26 @@ static int
 tabclose_cmd(const cmd_info_t *cmd_info)
 {
 	tabs_close();
+	return 0;
+}
+
+/* Moves current tab to a different position. */
+static int
+tabmove_cmd(const cmd_info_t *cmd_info)
+{
+	int where_to;
+
+	if(cmd_info->argc == 0 || strcmp(cmd_info->argv[0], "$") == 0)
+	{
+		where_to = tabs_count(curr_view);
+	}
+	else if(!read_int(cmd_info->argv[0], &where_to))
+	{
+		return CMDS_ERR_INVALID_ARG;
+	}
+
+	tabs_move(curr_view, where_to);
+	ui_views_update_titles();
 	return 0;
 }
 

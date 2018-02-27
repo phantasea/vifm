@@ -26,8 +26,10 @@
 #include <string.h> /* strcmp() strdup() strpbrk() */
 
 #include "engine/functions.h"
+#include "engine/text_buffer.h"
 #include "engine/var.h"
 #include "ui/cancellation.h"
+#include "ui/tabs.h"
 #include "ui/ui.h"
 #include "utils/macros.h"
 #include "utils/path.h"
@@ -48,21 +50,23 @@ static var_t layoutis_builtin(const call_info_t *call_info);
 static var_t paneisat_builtin(const call_info_t *call_info);
 static var_t system_builtin(const call_info_t *call_info);
 static var_t isactive_builtin(const call_info_t *call_info);  //add by sim1
+static var_t tabpagenr_builtin(const call_info_t *call_info);
 static var_t term_builtin(const call_info_t *call_info);
 
 static const function_t functions[] = {
-	/* Name          Description                 Argc  Handler  */
-	{ "chooseopt",   "query choose options",       1, &chooseopt_builtin },
-	{ "executable",  "check for executable file",  1, &executable_builtin },
-	{ "expand",      "expand macros in a string",  1, &expand_builtin },
-	{ "filetype",    "retrieve type of a file",    1, &filetype_builtin },
-	{ "getpanetype", "retrieve type of file list", 0, &getpanetype_builtin},
-	{ "has",         "check for specific ability", 1, &has_builtin },
-	{ "layoutis",    "query current layout",       1, &layoutis_builtin },
-	{ "paneisat",    "query pane location",        1, &paneisat_builtin },
-	{ "system",      "execute external command",   1, &system_builtin },
-	{ "isactive",    "check for specific feature", 1, &isactive_builtin },  //add by sim1
-	{ "term",        "run interactive command",    1, &term_builtin },
+	/* Name          Description                    Args   Handler  */
+	{ "isactive",    "check for specific feature", {1,1}, &isactive_builtin },  //add by sim1
+	{ "chooseopt",   "query choose options",       {1,1}, &chooseopt_builtin },
+	{ "executable",  "check for executable file",  {1,1}, &executable_builtin },
+	{ "expand",      "expand macros in a string",  {1,1}, &expand_builtin },
+	{ "filetype",    "retrieve type of a file",    {1,1}, &filetype_builtin },
+	{ "getpanetype", "retrieve type of file list", {0,0}, &getpanetype_builtin},
+	{ "has",         "check for specific ability", {1,1}, &has_builtin },
+	{ "layoutis",    "query current layout",       {1,1}, &layoutis_builtin },
+	{ "paneisat",    "query pane location",        {1,1}, &paneisat_builtin },
+	{ "system",      "execute external command",   {1,1}, &system_builtin },
+	{ "tabpagenr",   "number of current/last tab", {0,1}, &tabpagenr_builtin },
+	{ "term",        "run interactive command",    {1,1}, &term_builtin },
 };
 
 void
@@ -82,34 +86,29 @@ init_builtin_functions(void)
 static var_t
 chooseopt_builtin(const call_info_t *call_info)
 {
-	var_val_t var_val = { .string = NULL };
+	const char *result = NULL;
 	char *type;
 
-	type = var_to_string(call_info->argv[0]);
+	type = var_to_str(call_info->argv[0]);
 	if(strcmp(type, "files") == 0)
 	{
-		var_val.string = curr_stats.chosen_files_out;
+		result = curr_stats.chosen_files_out;
 	}
 	else if(strcmp(type, "dir") == 0)
 	{
-		var_val.string = curr_stats.chosen_dir_out;
+		result = curr_stats.chosen_dir_out;
 	}
 	else if(strcmp(type, "cmd") == 0)
 	{
-		var_val.string = curr_stats.on_choose;
+		result = curr_stats.on_choose;
 	}
 	else if(strcmp(type, "delimiter") == 0)
 	{
-		var_val.string = curr_stats.output_delimiter;
+		result = curr_stats.output_delimiter;
 	}
 	free(type);
 
-	if(var_val.string == NULL)
-	{
-		var_val.string = "";
-	}
-
-	return var_new(VTYPE_STRING, var_val);
+	return var_from_str(result == NULL ? "" : result);
 }
 
 /* Checks whether executable exists at absolute path or in directories listed in
@@ -121,7 +120,7 @@ executable_builtin(const call_info_t *call_info)
 	int exists;
 	char *str_val;
 
-	str_val = var_to_string(call_info->argv[0]);
+	str_val = var_to_str(call_info->argv[0]);
 
 	if(strpbrk(str_val, PATH_SEPARATORS) != NULL)
 	{
@@ -142,18 +141,18 @@ static var_t
 expand_builtin(const call_info_t *call_info)
 {
 	var_t result;
-	var_val_t var_val;
+	char *result_str;
 	char *str_val;
 	char *env_expanded_str_val;
 
-	str_val = var_to_string(call_info->argv[0]);
+	str_val = var_to_str(call_info->argv[0]);
 	env_expanded_str_val = expand_envvars(str_val, 0);
-	var_val.string = expand_macros(env_expanded_str_val, NULL, NULL, 0);
+	result_str = expand_macros(env_expanded_str_val, NULL, NULL, 0);
 	free(env_expanded_str_val);
 	free(str_val);
 
-	result = var_new(VTYPE_STRING, var_val);
-	free(var_val.string);
+	result = var_from_str(result_str);
+	free(result_str);
 
 	return result;
 }
@@ -162,17 +161,17 @@ expand_builtin(const call_info_t *call_info)
 static var_t
 filetype_builtin(const call_info_t *call_info)
 {
-	char *str_val = var_to_string(call_info->argv[0]);
+	char *str_val = var_to_str(call_info->argv[0]);
 	const int fnum = get_fnum(str_val);
-	var_val_t var_val = { .string = "" };
+	const char *result_str = "";
 	free(str_val);
 
 	if(fnum >= 0)
 	{
 		const FileType type = curr_view->dir_entry[fnum].type;
-		var_val.const_string = get_type_str(type);
+		result_str = get_type_str(type);
 	}
-	return var_new(VTYPE_STRING, var_val);
+	return var_from_str(result_str);
 }
 
 /* Returns file type from position or -1 if the position has wrong value. */
@@ -190,27 +189,28 @@ get_fnum(const char position[])
 static var_t
 getpanetype_builtin(const call_info_t *call_info)
 {
-	view_t *const view = curr_view;
-	var_val_t var_val = { .string = "UNKNOWN" };
-
-	if(flist_custom_active(view))
+	if(!flist_custom_active(curr_view))
 	{
-		switch(view->custom.type)
-		{
-			case CV_REGULAR: var_val.string = "custom";      break;
-			case CV_VERY:    var_val.string = "very-custom"; break;
-			case CV_CUSTOM_TREE:
-			case CV_TREE:    var_val.string = "tree";        break;
-			case CV_DIFF:
-			case CV_COMPARE: var_val.string = "compare";     break;
-		}
-	}
-	else
-	{
-		var_val.string = "regular";
+		return var_from_str("regular");
 	}
 
-	return var_new(VTYPE_STRING, var_val);
+	switch(curr_view->custom.type)
+	{
+		case CV_REGULAR:
+			return var_from_str("custom");
+
+		case CV_VERY:
+			return var_from_str("very-custom");
+
+		case CV_CUSTOM_TREE:
+		case CV_TREE:
+			return var_from_str("tree");
+
+		case CV_DIFF:
+		case CV_COMPARE:
+			return var_from_str("compare");
+	}
+	return var_from_str("UNKNOWN");
 }
 
 /* Checks current layout configuration.  Returns boolean value that reflects
@@ -221,7 +221,7 @@ layoutis_builtin(const call_info_t *call_info)
 	char *type;
 	int result;
 
-	type = var_to_string(call_info->argv[0]);
+	type = var_to_str(call_info->argv[0]);
 	if(strcmp(type, "only") == 0)
 	{
 		result = (curr_stats.number_of_windows == 1);
@@ -254,7 +254,7 @@ has_builtin(const call_info_t *call_info)
 {
 	var_t result;
 
-	char *const str_val = var_to_string(call_info->argv[0]);
+	char *const str_val = var_to_str(call_info->argv[0]);
 
 	if(strcmp(str_val, "unix") == 0)
 	{
@@ -286,7 +286,7 @@ paneisat_builtin(const call_info_t *call_info)
 	const int vsplit = (curr_stats.split == VSPLIT);
 	const int first = (curr_view == &lwin);
 
-	loc = var_to_string(call_info->argv[0]);
+	loc = var_to_str(call_info->argv[0]);
 	if(strcmp(loc, "top") == 0)
 	{
 		result = (only || vsplit || first);
@@ -322,33 +322,31 @@ system_builtin(const call_info_t *call_info)
 	char *cmd;
 	FILE *cmd_stream;
 	size_t cmd_out_len;
-	var_val_t var_val;
+	char *result_str;
 
-	cmd = var_to_string(call_info->argv[0]);
+	cmd = var_to_str(call_info->argv[0]);
 	cmd_stream = read_cmd_output(cmd);
 	free(cmd);
 
 	ui_cancellation_enable();
-	var_val.string = read_nonseekable_stream(cmd_stream, &cmd_out_len, NULL,
-			NULL);
+	result_str = read_nonseekable_stream(cmd_stream, &cmd_out_len, NULL, NULL);
 	ui_cancellation_disable();
 	fclose(cmd_stream);
 
-	if(var_val.string == NULL)
+	if(result_str == NULL)
 	{
-		var_val.string = "";
-		return var_new(VTYPE_STRING, var_val);
+		return var_from_str("");
 	}
 
 	/* Remove trailing new line characters. */
-	while(cmd_out_len != 0U && var_val.string[cmd_out_len - 1] == '\n')
+	while(cmd_out_len != 0U && result_str[cmd_out_len - 1] == '\n')
 	{
-		var_val.string[cmd_out_len - 1] = '\0';
+		result_str[cmd_out_len - 1] = '\0';
 		--cmd_out_len;
 	}
 
-	result = var_new(VTYPE_STRING, var_val);
-	free(var_val.string);
+	result = var_from_str(result_str);
+	free(result_str);
 	return result;
 }
 
@@ -373,6 +371,31 @@ isactive_builtin(const call_info_t *call_info)
 	return var_from_bool(result);
 }
 //add by sim1 ------------------------
+
+/* Retrieves number of current or last tab page.  Returns integer value with the
+ * number base one. */
+static var_t
+tabpagenr_builtin(const call_info_t *call_info)
+{
+	int first = 1;
+
+	if(call_info->argc != 0)
+	{
+		char *const type = var_to_str(call_info->argv[0]);
+		if(strcmp(type, "$") != 0)
+		{
+			vle_tb_append_linef(vle_err, "Invalid argument (expected \"$\"): %s",
+					type);
+			free(type);
+			return var_error();
+		}
+		free(type);
+		first = 0;
+	}
+
+	return var_from_int(first ? tabs_current(curr_view) + 1
+	                          : tabs_count(curr_view));
+}
 
 /* Runs interactive command in shell and returns its output (joined standard
  * output and standard error streams).  All trailing newline characters are
