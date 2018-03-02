@@ -355,7 +355,7 @@ static var_t
 isactive_builtin(const call_info_t *call_info)
 {
 	int result = 0;
-	char *type = var_to_string(call_info->argv[0]);
+	char *type = var_to_str(call_info->argv[0]);
 
 	if(strcmp(type, "explore") == 0)
 	{
