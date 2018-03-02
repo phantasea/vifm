@@ -281,6 +281,10 @@ tabs_goto_pane(int idx)
 	if(idx < 0)
 	{
 		idx = ptabs->last;
+		if (idx == ptabs->current)
+		{
+			return;
+		}
 	}
 	//add by sim1 -----------------------------------
 
@@ -302,6 +306,9 @@ tabs_goto_pane(int idx)
 	load_view_options(curr_view);
 
 	(void)vifm_chdir(flist_get_dir(curr_view));
+
+	//add by sim1 for test
+	//ui_sb_msgf("tabs_goto_pane: curr=%d, last=%d, tabs=%d", ptabs->current, ptabs->last, (int)DA_SIZE(ptabs->tabs));
 }
 
 /* Switches to global tab specified by its index if the index is valid. */
@@ -402,6 +409,9 @@ tabs_close(void)
 			free_pane_tab(ptab);
 			DA_REMOVE(ptabs->tabs, ptab);
 		}
+
+		//add by sim1 for test
+		//ui_sb_msgf("tabs_close: curr=%d, last=%d, tabs=%d", ptabs->current, ptabs->last, (int)DA_SIZE(ptabs->tabs));
 	}
 	else
 	{
