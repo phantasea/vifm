@@ -165,10 +165,10 @@ static void select_up_one(view_t *view, int start_pos);
 static void select_down_one(view_t *view, int start_pos);
 static void apply_selection(int pos);
 static void revert_selection(int pos);
-static void update(void);
 static int find_update(view_t *view, int backward);
 static void goto_pos_force_update(int pos);
 static void goto_pos(int pos);
+static void update_ui(void);
 static int move_pos(int pos);
 
 static view_t *view;
@@ -587,7 +587,7 @@ cmd_O(key_info_t key_info, keys_info_t *keys_info)
 	int t = start_pos;
 	start_pos = view->list_pos;
 	view->list_pos = t;
-	update();
+	update_ui();
 }
 
 static void
@@ -858,7 +858,7 @@ restore_previous_selection(void)
 		view->list_pos = t;
 	}
 
-	update();
+	update_ui();
 }
 
 /* Performs correct selection of item under the cursor. */
@@ -1082,7 +1082,7 @@ change_amend_type(AmendType new_amend_type)
 	select_first_one();
 	move_pos(cursor_pos);
 
-	update();
+	update_ui();
 }
 
 //Add by sim1 **************************************************
@@ -1463,16 +1463,6 @@ revert_selection(int pos)
 	}
 }
 
-/* Updates elements of the screen after visual-mode specific elements were
- * changed. */
-static void
-update(void)
-{
-	fpos_set_pos(view, view->list_pos);
-	redraw_view(view);
-	ui_ruler_update(view, 1);
-}
-
 void
 update_visual_mode(void)
 {
@@ -1485,7 +1475,7 @@ update_visual_mode(void)
 	view->list_pos = start_pos;
 	goto_pos(pos);
 
-	update();
+	update_ui();
 }
 
 int
@@ -1532,7 +1522,7 @@ static void
 goto_pos_force_update(int pos)
 {
 	(void)move_pos(pos);
-	update();
+	update_ui();
 }
 
 /* Moves cursor from its current position to specified pos selecting or
@@ -1542,8 +1532,18 @@ goto_pos(int pos)
 {
 	if(move_pos(pos))
 	{
-		update();
+		update_ui();
 	}
+}
+
+/* Updates elements of the screen after visual-mode specific elements were
+ * changed. */
+static void
+update_ui(void)
+{
+	fpos_set_pos(view, view->list_pos);
+	redraw_view(view);
+	ui_ruler_update(view, 1);
 }
 
 /* Moves cursor from its current position to specified pos selecting or
