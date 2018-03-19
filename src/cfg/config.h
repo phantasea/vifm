@@ -110,6 +110,38 @@ enum
 	CVO_LOCALFILTER = 4, /* Reset local filter on entering/leaving [v]cv. */
 };
 
+/* Which elements of runtime state should be stored in vifminfo. */
+enum
+{
+	VINFO_OPTIONS   = 1 << 0,  /* 'options'. */
+	VINFO_FILETYPES = 1 << 1,  /* File associations and viewers. */
+	VINFO_COMMANDS  = 1 << 2,  /* User-defined :commands. */
+	VINFO_MARKS     = 1 << 3,  /* Vim-like marks. */
+	VINFO_BOOKMARKS = 1 << 4,  /* Named bookmarks. */
+	VINFO_TUI       = 1 << 5,  /* TUI state. */
+	VINFO_STATE     = 1 << 6,  /* State of filters and multiplexer support. */
+	VINFO_CS        = 1 << 7,  /* Active color scheme. */
+	VINFO_REGISTERS = 1 << 8,  /* Contents of registers. */
+	VINFO_CHISTORY  = 1 << 9,  /* Command-line history. */
+	VINFO_DHISTORY  = 1 << 10, /* Directory history. */
+	VINFO_DIRSTACK  = 1 << 11, /* Directory stack. */
+	VINFO_FHISTORY  = 1 << 12, /* Filter history. */
+	VINFO_PHISTORY  = 1 << 13, /* Prompt history. */
+	VINFO_SHISTORY  = 1 << 14, /* Search history. */
+	VINFO_SAVEDIRS  = 1 << 15, /* Restore last used directories on startup. */
+	NUM_VINFO       = 16,      /* Number of VINFO_* constants. */
+};
+
+/* When cursor position should be adjusted according to directory history. */
+typedef enum
+{
+	CHPOS_STARTUP = 1 << 0, /* On loading views during startup. */
+	CHPOS_DIRMARK = 1 << 1, /* On navigating to a mark targeting directory. */
+	CHPOS_ENTER   = 1 << 2, /* On entering a directory by picking it. */
+	NUM_CHPOS     = 3       /* Number of CHPOS_* constants. */
+}
+ChposWhen;
+
 /* File decoration description. */
 typedef struct
 {
@@ -179,7 +211,6 @@ typedef struct config_t
 	int smart_case;
 	int hl_search;
 	int vifm_info;
-	int auto_ch_pos;
 	char *shell;
 	int scroll_off;
 	int gdefault;
@@ -283,6 +314,10 @@ typedef struct config_t
 	/* Settings related to tabs. */
 	int pane_tabs;     /* Whether tabs are local to panes. */
 	int show_tab_line; /* When tab line should be displayed. */
+
+	/* Control over automatic cursor positioning. */
+	int auto_ch_pos; /* Weird option that drops positions from histories. */
+	int ch_pos_on;   /* List of cases when historical cursor position is used. */
 }
 config_t;
 
@@ -334,6 +369,10 @@ int cfg_parent_dir_is_visible(int in_root);
  * according to current configuration.  Returns non-zero if so, otherwise zero
  * is returned. */
 int cfg_confirm_delete(int to_trash);
+
+/* Checks whether cursor should be automatically positioned in specified case.
+ * Returns non-zero if so, otherwise zero is returned. */
+int cfg_ch_pos_on(ChposWhen when);
 
 #endif /* VIFM__CFG__CONFIG_H__ */
 

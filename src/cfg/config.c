@@ -133,8 +133,7 @@ cfg_init(void)
 	cfg.ignore_case = 0;
 	cfg.smart_case = 0;
 	cfg.hl_search = 1;
-	cfg.vifm_info = VIFMINFO_MARKS | VIFMINFO_BOOKMARKS;
-	cfg.auto_ch_pos = 1;
+	cfg.vifm_info = VINFO_MARKS | VINFO_BOOKMARKS;
 	cfg.scroll_off = 0;
 	cfg.gdefault = 0;
 	cfg.scroll_bind = 0;
@@ -219,6 +218,9 @@ cfg_init(void)
 
 	cfg.pane_tabs = 0;
 	cfg.show_tab_line = STL_MULTIPLE;
+
+	cfg.auto_ch_pos = 1;
+	cfg.ch_pos_on = CHPOS_STARTUP | CHPOS_DIRMARK | CHPOS_ENTER;
 }
 
 void
@@ -925,6 +927,12 @@ cfg_confirm_delete(int to_trash)
 	return to_trash
 	     ? (cfg.confirm & CONFIRM_DELETE)
 	     : (cfg.confirm & CONFIRM_PERM_DELETE);
+}
+
+int
+cfg_ch_pos_on(ChposWhen when)
+{
+	return cfg.auto_ch_pos && (cfg.ch_pos_on & when);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
