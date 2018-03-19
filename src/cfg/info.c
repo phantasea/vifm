@@ -913,7 +913,7 @@ update_info_file(const char filename[], int merge)
 		}
 
 		//add by sim1
-		if(cfg.vifm_info & VIFMINFO_RATINGS)
+		if(cfg.vifm_info & VINFO_RATINGS)
 		{
 			write_rating_info(fp);
 		}
