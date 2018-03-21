@@ -270,7 +270,7 @@ try_userprofile_envvar_for_home(void)
 #ifndef _WIN32
 	return 0;
 #else
-	char home[PATH_MAX];
+	char home[PATH_MAX + 1];
 	const char *userprofile = env_get("USERPROFILE");
 	if(userprofile == NULL || !is_dir(userprofile))
 		return 0;
@@ -291,7 +291,7 @@ try_homepath_envvar_for_home(void)
 #ifndef _WIN32
 	return 0;
 #else
-	char home[PATH_MAX];
+	char home[PATH_MAX + 1];
 	const char *homedrive = env_get("HOMEDRIVE");
 	const char *homepath = env_get("HOMEPATH");
 	if(homedrive == NULL || !is_dir(homedrive))
@@ -342,7 +342,7 @@ try_exe_directory_for_conf(void)
 {
 	LOG_FUNC_ENTER;
 
-	char exe_dir[PATH_MAX];
+	char exe_dir[PATH_MAX + 1];
 
 	if(get_exe_dir(exe_dir, sizeof(exe_dir)) != 0)
 	{
@@ -365,7 +365,7 @@ try_home_envvar_for_conf(int force)
 {
 	LOG_FUNC_ENTER;
 
-	char vifm[PATH_MAX];
+	char vifm[PATH_MAX + 1];
 
 	const char *home = env_get(HOME_EV);
 	if(home == NULL || !is_dir(home))
@@ -393,7 +393,7 @@ try_appdata_for_conf(void)
 #ifndef _WIN32
 	return 0;
 #else
-	char vifm[PATH_MAX];
+	char vifm[PATH_MAX + 1];
 	const char *appdata = env_get("APPDATA");
 	if(appdata == NULL || !is_dir(appdata))
 		return 0;
@@ -482,8 +482,8 @@ try_exe_directory_for_vifmrc(void)
 {
 	LOG_FUNC_ENTER;
 
-	char exe_dir[PATH_MAX];
-	char vifmrc[PATH_MAX];
+	char exe_dir[PATH_MAX + 1];
+	char vifmrc[PATH_MAX + 1];
 
 	if(get_exe_dir(exe_dir, sizeof(exe_dir)) != 0)
 	{
@@ -507,7 +507,7 @@ try_vifm_vifmrc_for_vifmrc(void)
 {
 	LOG_FUNC_ENTER;
 
-	char vifmrc[PATH_MAX];
+	char vifmrc[PATH_MAX + 1];
 	const char *vifm = env_get(VIFM_EV);
 	if(vifm == NULL || !is_dir(vifm))
 		return 0;
@@ -615,7 +615,7 @@ static void
 create_scripts_dir(void)
 {
 	char scripts[PATH_MAX + 16];
-	char readme[PATH_MAX];
+	char readme[PATH_MAX + 1];
 	FILE *fp;
 
 	snprintf(scripts, sizeof(scripts), "%s/" SCRIPTS_DIR, cfg.config_dir);
@@ -873,7 +873,7 @@ cfg_resize_histories(int new_size)
 int
 cfg_set_fuse_home(const char new_value[])
 {
-	char canonicalized[PATH_MAX];
+	char canonicalized[PATH_MAX + 1];
 #ifdef _WIN32
 	char with_forward_slashes[strlen(new_value) + 1];
 	strcpy(with_forward_slashes, new_value);
