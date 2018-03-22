@@ -131,6 +131,7 @@ static int ui_cancellation_hook(void *arg);
 static int run_operation_command(ops_t *ops, char cmd[], int cancellable);
 #endif
 static int bg_cancellation_hook(void *arg);
+extern void copy_rating_info(const char src[], const char dst[], int op);
 
 /* List of functions that implement operations. */
 static op_func op_funcs[] = {
