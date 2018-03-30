@@ -301,6 +301,7 @@ tabs_goto_pane(int idx)
 	ptabs->last = ptabs->current;  //add by sim1
 	ptabs->current = idx;
 
+	stats_set_quickview(curr_stats.preview.on);
 	ui_view_schedule_redraw(curr_view);
 
 	load_view_options(curr_view);
@@ -351,6 +352,7 @@ tabs_goto_global(int idx)
 	last_tab = current_tab;  //add by sim1
 	current_tab = idx;
 
+	stats_set_quickview(curr_stats.preview.on);
 	ui_view_schedule_redraw(&lwin);
 	ui_view_schedule_redraw(&rwin);
 
