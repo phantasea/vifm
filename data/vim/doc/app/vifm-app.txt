@@ -1,4 +1,4 @@
-*vifm-app.txt*    For Vifm version 0.9.1  Last change: 2018 Mar 31
+*vifm-app.txt*    For Vifm version 0.9.1  Last change: 2018 Apr 18
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -3599,6 +3599,16 @@ values are available:
  - marks           - include marks;
  - registers[:num] - include registers, at most num files (5 by default).
 
+                                               *vifm-'syncregs'*
+syncregs
+type: string
+default:
+
+Specifies identifier of group of instances that share registers between each
+other.  When several instances of vifm have this option set to identical
+value, they automatically synchronize contents of their registers on
+operations which use them.
+
                                                *vifm-'syscalls'*
 syscalls
 type: boolean
@@ -3871,6 +3881,8 @@ sequences that can be used in place of them.  They are:
 <del> <delete>
     Delete key.  <del> and <delete> mean different codes, but <delete> is
     more common.
+<insert>
+    Insert key.
 <c-a>,<c-b>,...,<c-z>,<c-[>,<c-\>,<c-]>,<c-^>,<c-_>
     Control + some key (see key conflict description below).
 <a-a>,<a-b>,...,<a-z>
