@@ -1530,7 +1530,7 @@ format_time(int id, const void *data, size_t buf_len, char buf[])
 		//strftime(buf + 1, buf_len, cfg.time_format, tm_ptr);
 		char tmp[40] = {0};
 		strftime(tmp, sizeof(tmp), cfg.time_format, tm_ptr);
-		snprintf(buf, buf_len + 1, " |");
+		snprintf(buf, buf_len + 1, " | ");
 		strcat(buf, tmp);
 		//mod by sim1 ***************************************
 	}
