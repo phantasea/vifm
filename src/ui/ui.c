@@ -135,7 +135,7 @@ ui_ruler_update(view_t *view, int lazy_redraw)
 	update_statusbar_layout();
 
 	expanded = expand_ruler_macros(view, cfg.ruler_format);
-	expanded = break_in_two(expanded, getmaxx(ruler_win));
+	expanded = break_in_two(expanded, getmaxx(ruler_win), "%=");
 
 	ui_ruler_set(expanded);
 	if(!lazy_redraw)
@@ -1038,13 +1038,16 @@ resize_for_menu_like(void)
 void
 ui_setup_for_menu_like(void)
 {
-	scrollok(menu_win, FALSE);
-	curs_set(0);
-	werase(menu_win);
-	werase(status_bar);
-	werase(ruler_win);
-	wrefresh(status_bar);
-	wrefresh(ruler_win);
+	if(curr_stats.load_stage > 0)
+	{
+		scrollok(menu_win, FALSE);
+		curs_set(0);
+		werase(menu_win);
+		werase(status_bar);
+		werase(ruler_win);
+		wrefresh(status_bar);
+		wrefresh(ruler_win);
+	}
 }
 
 /* Query terminal size from the "device" and pass it to curses library. */

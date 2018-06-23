@@ -1526,7 +1526,8 @@ format_time(int id, const void *data, size_t buf_len, char buf[])
 	if(tm_ptr != NULL)
 	{
 		//mod by sim1 ***************************************
-		//strftime(buf, buf_len + 1, cfg.time_format, tm_ptr);
+		//buf[0] = ' ';
+		//strftime(buf + 1, buf_len, cfg.time_format, tm_ptr);
 		char tmp[40] = {0};
 		strftime(tmp, sizeof(tmp), cfg.time_format, tm_ptr);
 		snprintf(buf, buf_len + 1, " |");

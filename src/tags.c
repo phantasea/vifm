@@ -1,4 +1,5 @@
 const char *tags[] = {
+	"%=%1",
 	"vifm-!!",
 	"vifm-$",
 	"vifm-$HOME",
@@ -565,6 +566,7 @@ const char *tags[] = {
 	"vifm-expr->=",
 	"vifm-expr-env",
 	"vifm-expr-function",
+	"vifm-expr-nesting",
 	"vifm-expr-number",
 	"vifm-expr-option",
 	"vifm-expr-quote",

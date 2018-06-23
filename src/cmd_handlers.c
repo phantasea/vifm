@@ -981,9 +981,9 @@ emark_cmd(const cmd_info_t *cmd_info)
 
 	snprintf(buf, sizeof(buf), "in %s: !%s",
 			replace_home_part(flist_get_dir(curr_view)), cmd_info->raw_args);
-	cmd_group_begin(buf);
-	add_operation(OP_USR, strdup(com), NULL, "", "");
-	cmd_group_end();
+	un_group_open(buf);
+	un_group_add_op(OP_USR, strdup(com), NULL, "", "");
+	un_group_close();
 
 	return save_msg;
 }
@@ -2840,6 +2840,13 @@ parse_color_name_value(const char str[], int fg, int *attr)
 static int
 get_attrs(const char *text)
 {
+#ifdef HAVE_A_ITALIC_DECL
+	const int italic_attr = A_ITALIC;
+#else
+	/* If A_ITALIC is missing (it's an extension), use A_REVERSE instead. */
+	const int italic_attr = A_REVERSE;
+#endif
+
 	int result = 0;
 	while(*text != '\0')
 	{
@@ -2857,6 +2864,8 @@ get_attrs(const char *text)
 			result |= A_REVERSE;
 		else if(strcasecmp(buf, "standout") == 0)
 			result |= A_STANDOUT;
+		else if(strcasecmp(buf, "italic") == 0)
+			result |= italic_attr;
 		else if(strcasecmp(buf, "none") == 0)
 			result = 0;
 		else
@@ -4685,9 +4694,9 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 
 	if(external)
 	{
-		cmd_group_continue();
-		add_operation(OP_USR, strdup(expanded_com), NULL, "", "");
-		cmd_group_end();
+		un_group_reopen_last();
+		un_group_add_op(OP_USR, strdup(expanded_com), NULL, "", "");
+		un_group_close();
 	}
 
 	free(expanded_com);

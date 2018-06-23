@@ -56,6 +56,16 @@
 
 	Added <insert> angle bracket notation.  Thanks to j-xella.
 
+	Added r key to :undolist menu, which resets position in the undo list to
+	group under the cursor.  Thanks to mini-turtle.
+
+	Added grouping via parentheses to expressions.  Thanks to Konst
+	Mayer (a.k.a. cdlscpmv).
+
+	Added User1..User9 highlight groups and corresponding %[0-9]* 'statusline'
+	macro, which makes it possible to colorize parts of status line
+	differently.  Thanks to GeorgeHJ.
+
 	:quit, :wq, :exit, :xit, ZZ and ZQ now try to close current tab before
 	closing the application.
 
@@ -81,12 +91,22 @@
 	Similar to %u/%U and menus allow <file>[:[<line>:[<col>:]] <description>]
 	format.  Thanks to j-xella.
 
-	Support italics in quickview/view mode when curses implementation provides
-	corresponding extension.  PDCurses doesn't implement it on Windows.
-	Fallback is to use "reversed" attribute.  Thanks to GeorgeHJ.
+	Support italics in quickview/view mode and in :highlight when curses
+	implementation provides corresponding extension.  PDCurses doesn't implement
+	it on Windows.  Fallback is to use "reversed" attribute.  Thanks to
+	GeorgeHJ.
 
 	Escape "=" at the beginning of paths (has special meaning in zsh).  Thanks
 	to agguser.
+
+	More accurate error message on handling non directories passed to :cd.
+
+	Slightly better formatting in :undolist menu.
+
+	Report missing closing quote for ""-strings in expressions.
+
+	Make :echo and :execute report parsing errors in more detail than just
+	"invalid expression".
 
 	Fixed preview command not being run with correct working directory on
 	startup (e.g., when preview was on in vifminfo).
@@ -158,6 +178,12 @@
 
 	Fixed cursor marker in inactive window not being highlighted according to
 	CmpMismatch highlight group in :compare mode.
+
+	Fixed missing quote in an expression error message not displaying the
+	broken string.
+
+	Fixed syntax highlighting of strings in double quotes and comments in :let
+	statements.
 
 0.9.1-beta to 0.9.1
 

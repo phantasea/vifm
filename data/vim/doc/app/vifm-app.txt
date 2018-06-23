@@ -1,4 +1,4 @@
-*vifm-app.txt*    For Vifm version 0.9.1  Last change: 2018 Apr 18
+*vifm-app.txt*    For Vifm version 0.9.1  Last change: 2018 Jun 22
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -1695,6 +1695,7 @@ Available style values (some of them can be combined):
  - underline
  - reverse or inverse
  - standout
+ - italic (on unsupported systems becomes reverse)
  - none
 
 Available group-name values:
@@ -1723,6 +1724,7 @@ Available group-name values:
  - Executable - color of executable files
  - Fifo - color of fifo pipes
  - CmpMismatch - color of mismatched files in side-by-side comparison by paths
+ - User1..User9 - 9 colors which can be used via %* |vifm-'statusline'| macro
 
 Available colors:
  - -1 or default or none - transparent
@@ -1856,6 +1858,7 @@ transparency:
   SuggestBox
   StatusLine
     WildMenu
+    User1..User9
   Border
   CmdLine
     ErrorMsg
@@ -3559,6 +3562,9 @@ are supported:
     %a - amount of free space available at current partition
     %z - short tips/tricks/hints that chosen randomly after one minute period
     `%{<expr>}` - evaluate arbitrary vifm expression `<expr>`, e.g. `&sort`
+    %* - resets or applies one of User1..User9 highlight groups; reset happens
+         when width field is 0 or not specified, one of groups gets picked
+         when width field is in the range from 1 to 9
     all |vifm-'rulerformat'| macros
 Percent sign can be followed by optional minimum field width.  Add '-' before
 minimum field width if you want field to be right aligned.
@@ -3576,8 +3582,13 @@ is on):
     P - reparse point (e.g. symbolic link)
     Z - sparse file
 
-Example: >
+Example without colors: >
  set statusline="  %t%= %A %10u:%-7g %15s %20d %{&sort} "
+
+Example with colors: >
+ highlight User1 ctermbg=yellow
+ highlight User2 ctermbg=blue ctermfg=white cterm=bold
+ set statusline="%1* %-26t %2*%=%1* %A %2* %7u:%-7g %1* %-5s %2* %d "
 <
                                                *vifm-'suggestoptions'*
 suggestoptions
@@ -3639,7 +3650,7 @@ Number of spaces that a Tab in the file counts for.
                                                *vifm-'timefmt'*
 timefmt
 type: string
-default: " %m/%d %H:%M"
+default: "%m/%d %H:%M"
 
 Format of time in file list.  See man date or man strftime for details.
 
@@ -3966,6 +3977,7 @@ Expression syntax summary, from least to most significant:
            $VAR                    environment variable
            v:var                   builtin variable
            function(expr1, ...)    function call
+           (expr1)                 nested expression
 
 ".." indicates that the operations in this level can be concatenated.
 
@@ -4162,6 +4174,13 @@ Examples: >
   "'" . filetype('.') . "'"
   filetype('.') == 'reg'
 <
+expression nesting                             *vifm-expr-nesting*
+------------------
+(expr1)               nested expression
+
+Groups any other expression of arbitrary complexity enforcing order in which
+operators are applied.
+
 --------------------------------------------------------------------------------
 *vifm-functions*
 
@@ -4558,6 +4577,10 @@ because their parent shell doesn't have any windows.
 
 e key displays errors of selected job if any were collected.  They are
 displayed in a new menu, but you can get back to jobs menu by pressing h.
+
+Undolist menu~
+
+r - reset undo position to group under the cursor.
 
 --------------------------------------------------------------------------------
 *vifm-custom-views*
