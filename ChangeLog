@@ -73,6 +73,10 @@
 	Added <c-@> angle bracket notation making it possible to map Ctrl-Space
 	key.  Thanks to anonymous at Vifm Q2A site.
 
+	Added second optional parameter to filetype() builtin function that is
+	treated as a boolean and specifies whether symbolic links should be
+	resolved.
+
 	:quit, :wq, :exit, :xit, ZZ and ZQ now try to close current tab before
 	closing the application.
 
@@ -123,6 +127,11 @@
 
 	Correct terminal state before asking user to press return after execution
 	of an external command.  Thanks to Jose Riha (a.k.a. jose1711).
+
+	Do not reset selection before executing a :command from :commands menu.
+	Thanks to Jose Riha (a.k.a. jose1711).
+
+	Allow passing numerical positions to filetype() function.
 
 	Fixed preview command not being run with correct working directory on
 	startup (e.g., when preview was on in vifminfo).
@@ -223,6 +232,14 @@
 	Fixed parsing state not being properly reinitialized, which could cause
 	unstable parsing outcome for lists of expressions.  Thanks to Jose
 	Riha (a.k.a. jose1711).
+
+	Fixed error messages from put operation being postponed until the next put
+	operation.  Got broken in 0.9.
+
+	Fixed memory leak on d/D normal mode keys if deletion wasn't confirmed.
+
+	Fixed confirmation not being requested on :delete.  Thanks to anonymous at
+	Vifm Q2A site.
 
 0.9.1-beta to 0.9.1
 
