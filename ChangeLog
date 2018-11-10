@@ -7,6 +7,9 @@
 	Return "broken" from filetype({fnum}, 1) for inaccessible link target.
 	Thanks to filterfalse.
 
+	Avoid unnecessary reloading file list after pressing "=" to enter local
+	filter.
+
 	Fixed crash on pasting elements of paths that contain broken UTF-8
 	sequences into command-line using Ctrl-X + key.  Thanks to Jose
 	Riha (a.k.a. jose1711).
@@ -19,6 +22,8 @@
 
 	Fixed crash on previewing contents of directory without execute right in
 	miller view.  Thanks to filterfalse.
+
+	Fixed statusline highlighting being broken by wide characters.
 
 0.9.1 to 0.10-beta (2018-10-28)
 
