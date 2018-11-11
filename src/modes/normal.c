@@ -1571,6 +1571,15 @@ cmd_av(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_cW(key_info_t key_info, keys_info_t *keys_info)
 {
+	//add by sim1 +++++++++++++++++++++++++++++++++++++
+	if(curr_view->selected_files > 1)
+	{
+		check_marking(curr_view, 0, NULL);
+		fops_rename(curr_view, NULL, 0, 0);
+		return;
+	}
+	//add by sim1 -------------------------------------
+
 	fops_rename_current(curr_view, 1);
 }
 
