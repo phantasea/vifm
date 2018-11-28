@@ -3,6 +3,10 @@
 	Added example of using xsel to sample vifmrc file.  Thanks to
 	chelovechishko.
 
+	Added fileroot view column, which displays full name of directories and
+	symbolic links to directories and only root of name for everything else.
+	Thanks to chelovechishko.
+
 	Resolve symbolic links for mime-type matchers.  Thanks to Vigi.
 
 	Try to preserve symbolic links in current path when starting vifm by
@@ -26,6 +30,9 @@
 
 	Fixed some resources (like output pipe for --choose-files and
 	--choose-dir) being inherited by child processes.  Thanks to Vigi.
+
+	Fixed CWD of the process not always matching current view right after
+	startup.  Patch by Daniel Mueller.
 
 0.10-beta to 0.10 (2018-11-11)
 
