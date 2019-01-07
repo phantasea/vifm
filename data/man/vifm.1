@@ -1,4 +1,4 @@
-.TH VIFM 1 "December 15, 2018" "vifm 0.10"
+.TH VIFM 1 "December 30, 2018" "vifm 0.10"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -1578,7 +1578,12 @@ scripts loaded at startup (until vifm is completely loaded).
 .TP
 .BI ":colo[rscheme] color_scheme_name color_scheme_name..."
 loads the first color scheme in the order given that exists and is supported
-by the terminal.  If none matches, current one remains unchanged.
+by the terminal.  If none matches, current one remains unchanged.  For example:
+.EX
+
+  " use a separate color scheme for panes which are inside FUSE mounts
+  execute 'colorscheme in-fuse' &fusehome
+.EE
 .TP
 .BI "                                         :comclear"
 .TP
@@ -1985,7 +1990,7 @@ same as :grep above, but user defines all grep arguments, which are not escaped.
 Searches among selected files if any.
 .TP
 .BI :[range]gr[ep][!]
-repeats last :grep command.  "!" of this command inverts "!" in repeated
+repeat last :grep command.  "!" of this command inverts "!" in repeated
 command.
 .TP
 .BI "                                         :help"
@@ -1998,6 +2003,11 @@ is the same as using ':h argument' in vim.  Use vifm\-<something> to get help
 on vifm (tab completion works).  This form of the command doesn't work when
 \(aqvimhelp\(aq option is off.
 .TP
+.BI "                                         :hideui"
+.TP
+.BI :hideui
+hide interface to show previous commands' output.
+.TP
 .BI "                                         :highlight"
 .TP
 .BI :hi[ghlight]
@@ -2008,7 +2018,7 @@ reset all highlighting to builtin defaults and removed all filename-specific
 rules.
 .TP
 .BI ":hi[ghlight] clear ( {pat1,pat2,...} | /regexp/ )"
-removes specified rule.
+remove specified rule.
 .TP
 .BI ":hi[ghlight] ( group\-name | {pat1,pat2,...} | /regexp/ )"
 display information on given highlight group or file name pattern of color
