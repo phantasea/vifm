@@ -406,10 +406,7 @@ vertical_layout(int screen_x)
 	wresize(lwin.win, border_height, splitter_pos);
 	mvwin(lwin.win, y + 1, 0);
 
-	cchar_t mborder_bg;
-	setcchar(&mborder_bg, L" ", cfg.cs.color[BORDER_COLOR].attr,
-			cfg.cs.pair[BORDER_COLOR], NULL);
-	wbkgrndset(mborder, &mborder_bg);
+	ui_set_bg(mborder, &cfg.cs.color[BORDER_COLOR], cfg.cs.pair[BORDER_COLOR]);
 	wresize(mborder, border_height, splitter_width);
 	mvwin(mborder, y + 1, splitter_pos);
 
@@ -461,10 +458,7 @@ horizontal_layout(int screen_x, int screen_y)
 	wresize(rwin.win, get_working_area_height() - splitter_pos + y, screen_x);
 	mvwin(rwin.win, splitter_pos + 1, 0);
 
-	cchar_t mborder_bg;
-	setcchar(&mborder_bg, L" ", cfg.cs.color[BORDER_COLOR].attr,
-			cfg.cs.pair[BORDER_COLOR], NULL);
-	wbkgrndset(mborder, &mborder_bg);
+	ui_set_bg(mborder, &cfg.cs.color[BORDER_COLOR], cfg.cs.pair[BORDER_COLOR]);
 	wresize(mborder, 1, screen_x);
 	mvwin(mborder, splitter_pos, 0);
 
@@ -1007,49 +1001,34 @@ update_attributes(void)
 	if(curr_stats.load_stage < 2)
 		return;
 
-	cchar_t border_bg;
-	setcchar(&border_bg, L" ", cfg.cs.color[BORDER_COLOR].attr,
-			cfg.cs.pair[BORDER_COLOR], NULL);
-
+	ui_set_bg(mborder, &cfg.cs.color[BORDER_COLOR], cfg.cs.pair[BORDER_COLOR]);
 	werase(mborder);
 
-	cchar_t top_line_bg;
-	setcchar(&top_line_bg, L" ", cfg.cs.color[TOP_LINE_COLOR].attr,
-			cfg.cs.pair[TOP_LINE_COLOR], NULL);
-
-	wbkgrndset(top_line, &top_line_bg);
+	ui_set_bg(top_line, &cfg.cs.color[TOP_LINE_COLOR],
+			cfg.cs.pair[TOP_LINE_COLOR]);
 	werase(top_line);
 
-	cchar_t tab_line_bg;
-	setcchar(&tab_line_bg, L" ", cfg.cs.color[TAB_LINE_COLOR].attr,
-			cfg.cs.pair[TAB_LINE_COLOR], NULL);
-	wbkgrndset(tab_line, &tab_line_bg);
+	ui_set_bg(tab_line, &cfg.cs.color[TAB_LINE_COLOR],
+			cfg.cs.pair[TAB_LINE_COLOR]);
 	werase(tab_line);
 
-	cchar_t status_line_bg;
-	setcchar(&status_line_bg, L" ", cfg.cs.color[STATUS_LINE_COLOR].attr,
-			cfg.cs.pair[STATUS_LINE_COLOR], NULL);
-	wbkgrndset(stat_win, &status_line_bg);
+	ui_set_bg(stat_win, &cfg.cs.color[STATUS_LINE_COLOR],
+			cfg.cs.pair[STATUS_LINE_COLOR]);
 
-	cchar_t job_bar_bg;
-	setcchar(&job_bar_bg, L" ", cfg.cs.color[JOB_LINE_COLOR].attr,
-			cfg.cs.pair[JOB_LINE_COLOR], NULL);
-	wbkgrndset(job_bar, &job_bar_bg);
+	ui_set_bg(job_bar, &cfg.cs.color[JOB_LINE_COLOR],
+			cfg.cs.pair[JOB_LINE_COLOR]);
 
-	cchar_t win_bg;
-	setcchar(&win_bg, L" ", cfg.cs.color[WIN_COLOR].attr, cfg.cs.pair[WIN_COLOR],
-			NULL);
-	wbkgrndset(menu_win, &win_bg);
-	wbkgrndset(sort_win, &win_bg);
-	wbkgrndset(change_win, &win_bg);
-	wbkgrndset(error_win, &win_bg);
+	ui_set_bg(menu_win, &cfg.cs.color[WIN_COLOR], cfg.cs.pair[WIN_COLOR]);
+	ui_set_bg(sort_win, &cfg.cs.color[WIN_COLOR], cfg.cs.pair[WIN_COLOR]);
+	ui_set_bg(change_win, &cfg.cs.color[WIN_COLOR], cfg.cs.pair[WIN_COLOR]);
+	ui_set_bg(error_win, &cfg.cs.color[WIN_COLOR], cfg.cs.pair[WIN_COLOR]);
 
-	cchar_t cmd_line_bg;
-	setcchar(&cmd_line_bg, L" ", cfg.cs.color[CMD_LINE_COLOR].attr,
-			cfg.cs.pair[CMD_LINE_COLOR], NULL);
-	wbkgrndset(status_bar, &cmd_line_bg);
-	wbkgrndset(ruler_win, &cmd_line_bg);
-	wbkgrndset(input_win, &cmd_line_bg);
+	ui_set_bg(status_bar, &cfg.cs.color[CMD_LINE_COLOR],
+			cfg.cs.pair[CMD_LINE_COLOR]);
+	ui_set_bg(ruler_win, &cfg.cs.color[CMD_LINE_COLOR],
+			cfg.cs.pair[CMD_LINE_COLOR]);
+	ui_set_bg(input_win, &cfg.cs.color[CMD_LINE_COLOR],
+			cfg.cs.pair[CMD_LINE_COLOR]);
 }
 
 void
@@ -1088,7 +1067,8 @@ wprinta(WINDOW *win, const char str[], const cchar_t *line_attrs,
 	wchar_t wch[getcchar(line_attrs, NULL, &attrs, &color_pair, NULL)];
 	getcchar(line_attrs, wch, &attrs, &color_pair, NULL);
 
-	(void)wattr_set(win, attrs ^ attrs_xors, color_pair, NULL);
+	col_attr_t col = { .attr = attrs ^ attrs_xors };
+	ui_set_attr(win, &col, color_pair);
 	wprint(win, str);
 	wnoutrefresh(win);
 }
@@ -1753,6 +1733,7 @@ print_tab_title(WINDOW *win, view_t *view, col_attr_t base_col, path_func pf)
 
 		//add by sim1 +++++
 		(void)wattr_set(win,base_col.attr, colmgr_get_pair(base_col.fg, base_col.bg), NULL);
+		ui_set_attr(win, &base_col, -1);
 
 		if (i != 0)
 		{
@@ -1760,7 +1741,7 @@ print_tab_title(WINDOW *win, view_t *view, col_attr_t base_col, path_func pf)
 		}
 		//add by sim1 -----
 
-		(void)wattr_set(win, col.attr, colmgr_get_pair(col.fg, col.bg), NULL);
+		ui_set_attr(win, &col, -1);
 
 		if(width > extra_width)
 		{
@@ -1914,17 +1895,12 @@ fixup_titles_attributes(const view_t *view, int active_view)
 	{
 		cs_mix_colors(&col, &cfg.cs.color[TOP_LINE_SEL_COLOR]);
 
-		cchar_t bg;
-		setcchar(&bg, L" ", col.attr, colmgr_get_pair(col.fg, col.bg), NULL);
-		wbkgrndset(view->title, &bg);
+		ui_set_bg(view->title, &col, -1);
 	}
 	else
 	{
-		cchar_t bg;
-		setcchar(&bg, L" ", col.attr, cfg.cs.pair[TOP_LINE_COLOR], NULL);
-
-		wbkgrndset(view->title, &bg);
-		wbkgrndset(top_line, &bg);
+		ui_set_bg(view->title, &col, cfg.cs.pair[TOP_LINE_COLOR]);
+		ui_set_bg(top_line, &col, cfg.cs.pair[TOP_LINE_COLOR]);
 		werase(top_line);
 	}
 
@@ -2091,9 +2067,7 @@ void
 ui_view_erase(view_t *view)
 {
 	const col_scheme_t *cs = ui_view_get_cs(view);
-	cchar_t bg;
-	setcchar(&bg, L" ", cs->color[WIN_COLOR].attr, cs->pair[WIN_COLOR], NULL);
-	wbkgrndset(view->win, &bg);
+	ui_set_bg(view->win, &cs->color[WIN_COLOR], cs->pair[WIN_COLOR]);
 	werase(view->win);
 }
 
@@ -2111,7 +2085,8 @@ ui_view_wipe(view_t *view)
 	/* User doesn't need to see fake filling so draw it with the color of
 	 * background. */
 	(void)pair_content(PAIR_NUMBER(getbkgd(view->win)), &fg, &bg);
-	(void)wattr_set(view->win, 0, colmgr_get_pair(bg, bg), NULL);
+	col_attr_t col = { .fg = fg, .bg = bg };
+	ui_set_attr(view->win, &col, -1);
 
 	memset(line_filler, '\t', sizeof(line_filler) - 1U);
 	for(i = 0; i < height; ++i)
@@ -2161,6 +2136,43 @@ ui_pause(void)
 
 	/* Redraw UI to account for all things including graphical preview. */
 	curr_stats.need_update = UT_REDRAW;
+}
+
+void
+ui_set_bg(WINDOW *win, const col_attr_t *col, int pair)
+{
+	if(curr_stats.load_stage < 1)
+	{
+		return;
+	}
+
+	if(pair < 0)
+	{
+		pair = colmgr_get_pair(col->fg, col->bg);
+	}
+
+	cchar_t bg;
+	setcchar(&bg, L" ", col->attr, pair, NULL);
+	wbkgrndset(win, &bg);
+}
+
+void
+ui_set_attr(WINDOW *win, const col_attr_t *col, int pair)
+{
+	if(curr_stats.load_stage < 1)
+	{
+		return;
+	}
+
+	if(pair < 0)
+	{
+		pair = colmgr_get_pair(col->fg, col->bg);
+	}
+
+	/* Compiler complains about unused result of comma operator, because
+	 * wattr_set() is a macro and it uses comma to evaluate multiple expresions.
+	 * So cast result to void.*/
+	(void)wattr_set(win, col->attr, pair, NULL);
 }
 
 void
