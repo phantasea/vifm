@@ -4526,7 +4526,9 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	}
 
 	const char *args = cmd_info->args;
-	const int flags = (no_remap ? KEYS_FLAG_NOREMAP : KEYS_FLAG_NONE)
+	//mod by sim1
+	//const int flags = (no_remap ? KEYS_FLAG_NOREMAP : KEYS_FLAG_NONE)
+	int flags = (no_remap ? KEYS_FLAG_NOREMAP : KEYS_FLAG_NONE)
 	                | parse_map_args(&args);
 
 	raw_rhs = vle_cmds_past_arg(args);
@@ -4537,6 +4539,12 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	rhs = vle_cmds_at_arg(raw_rhs + 1);
 	keys = substitute_specs(args);
 	mapping = substitute_specs(rhs);
+	//add by sim1 +++++++++++++++
+	if (*mapping == ':')
+	{
+		flags |= KEYS_FLAG_SILENT;
+	}
+	//add by sim1 ---------------
 	if(keys != NULL && mapping != NULL)
 	{
 		error = vle_keys_user_add(keys, mapping, mode, flags);
