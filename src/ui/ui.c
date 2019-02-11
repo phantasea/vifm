@@ -1732,7 +1732,6 @@ print_tab_title(WINDOW *win, view_t *view, col_attr_t base_col, path_func pf)
 		}
 
 		//add by sim1 +++++
-		(void)wattr_set(win,base_col.attr, colmgr_get_pair(base_col.fg, base_col.bg), NULL);
 		ui_set_attr(win, &base_col, -1);
 
 		if (i != 0)
