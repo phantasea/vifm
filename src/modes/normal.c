@@ -1383,8 +1383,7 @@ static void
 cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
 {
 	//add by sim1 +++++++++++++++++++++++++++++
-	if (flist_custom_active(curr_view) 
-			&& (CV_TREE == curr_view->custom.type))
+	if (flist_custom_active(curr_view))
 	{
 		cmd_h(key_info, keys_info);
 		return;
