@@ -679,6 +679,8 @@ add_default_marks(void)
 	set_user_mark('z', cfg.config_dir, NO_MARK_FILE);
 }
 
+extern void set_millerview(int mv);  //add by sim1
+
 void
 cfg_load(void)
 {
@@ -697,6 +699,12 @@ cfg_load(void)
 	if(!is_null_or_empty(rc))
 	{
 		(void)cfg_source_file(rc);
+	}
+
+	//add by sim1: disabling millerview for VSPLIT
+	if (curr_stats.number_of_windows == 2 && curr_stats.split == VSPLIT)
+	{
+		set_millerview(FALSE);
 	}
 
 	curr_stats.global_local_settings = prev_global_local_settings;
