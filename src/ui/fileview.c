@@ -1130,7 +1130,7 @@ draw_line_number(const column_data_t *cdt, int column)
 
 	const int mixed = cdt->line_pos == cdt->current_pos
 	               && view->num_type == NT_MIX;
-	const char *const format = mixed ? "%-*d " : "%*d ";
+	const char *const format = mixed ? "%-*d " : "%*d ";  //sim1: no mod, just comment
 	const int num = (view->num_type & NT_REL) && !mixed
 	              ? abs(cdt->line_pos - cdt->current_pos)
 	              : cdt->line_pos + 1;
@@ -1240,6 +1240,8 @@ prepare_col_color(const view_t *view, int primary, const column_data_t *cdt)
 	{
 		cs_mix_colors(&col, &cs->color[AUX_WIN_COLOR]);
 	}
+
+	primary = 1;  //add by sim1 for taking whole line effect of highlight
 
 	/* File-specific highlight affects only primary field for non-current lines
 	 * and whole line for the current line. */
