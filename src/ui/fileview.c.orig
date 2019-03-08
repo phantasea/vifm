@@ -1539,13 +1539,21 @@ format_time(int id, const void *data, size_t buf_len, char buf[])
 
 	if(tm_ptr != NULL)
 	{
+<<<<<<< HEAD
 		//mod by sim1 ***************************************
-		//strftime(buf, buf_len + 1, cfg.time_format, tm_ptr);
+		//buf[0] = ' ';
+		//strftime(buf + 1, buf_len, cfg.time_format, tm_ptr);
 		char tmp[40] = {0};
 		strftime(tmp, sizeof(tmp), cfg.time_format, tm_ptr);
 		snprintf(buf, buf_len + 1, " | ");
 		strcat(buf, tmp);
 		//mod by sim1 ***************************************
+||||||| merged common ancestors
+		buf[0] = ' ';
+		strftime(buf + 1, buf_len, cfg.time_format, tm_ptr);
+=======
+		strftime(buf, buf_len + 1, cfg.time_format, tm_ptr);
+>>>>>>> 69edeff1f9d63ea49701fd642700ee2dd6228546
 	}
 	else
 	{

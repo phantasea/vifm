@@ -82,12 +82,27 @@
 /* Type of path transformation function for format_view_title(). */
 typedef char * (*path_func)(const char[]);
 
+<<<<<<< HEAD
+||||||| merged common ancestors
+static WINDOW *ltop_line1;
+static WINDOW *ltop_line2;
+static WINDOW *rtop_line1;
+static WINDOW *rtop_line2;
+
+=======
 /* Window configured to do not wait for input.  Never appears on the screen,
  * sometimes used for reading input. */
 static WINDOW *no_delay_window;
 /* Window configured to wait for input indefinitely.  Never appears on the
  * screen, sometimes used for reading input. */
 static WINDOW *inf_delay_window;
+
+static WINDOW *ltop_line1;
+static WINDOW *ltop_line2;
+static WINDOW *rtop_line1;
+static WINDOW *rtop_line2;
+
+>>>>>>> 69edeff1f9d63ea49701fd642700ee2dd6228546
 /* Mutexes for views, located out of view_t so that they are never moved nor
  * copied, which would yield undefined behaviour. */
 static pthread_mutex_t lwin_timestamps_mutex = PTHREAD_MUTEX_INITIALIZER;
