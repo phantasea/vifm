@@ -32,6 +32,7 @@
 
 #include <assert.h> /* assert() */
 #include <errno.h> /* errno */
+#include <limits.h> /* INT_MIN */
 #include <stddef.h> /* NULL size_t */
 #include <stdint.h> /* intptr_t uint64_t */
 #include <stdio.h> /* snprintf() */
@@ -1726,6 +1727,7 @@ populate_dir_list_internal(view_t *view, int reload)
 	 * the current line. */
 	if(!reload)
 	{
+		/* XXX: why cursor is positioned in code that loads the list? */
 		flist_hist_lookup(view, view);
 	}
 

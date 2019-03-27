@@ -68,6 +68,10 @@
 
 	Try to determine widths of printed character more accurately.
 
+	Reduce number of options available on file conflict when source and
+	destination are the same to avoid confusion (options that overwrite do
+	nothing in this case).  Thanks to aleksejrs.
+
 	Fixed `:tabnew ..` not working due to use of uninitialized data.
 
 	Fixed access to uninitialized memory on clearing view after graphical
@@ -137,6 +141,16 @@
 	Fixed losing files on failed move operation.  Source files were deleted
 	assuming they were copied successfully, even when errors regarding some of
 	them were ignored by the user.  Thanks to zsugabubus.
+
+	Fixed building incorrect relative paths on symlinking, when path being
+	operated on contain symlinks.  Resolve to real paths before computing
+	relative path.  Thanks to zsugabubus.
+
+	Fixed highlighting of the first file entry being used to fill empty part
+	of miller columns.  Thanks to Konst Mayer (a.k.a. cdlscpmv).
+
+	Fixed reading file list from standard input (`dir /b /s | vifm -`) on
+	Windows 10.  Thanks to dancread.
 
 0.10-beta to 0.10 (2018-11-11)
 
