@@ -4,7 +4,7 @@
 " Last Change: 2001 November 29
 
 " Maintainer: xaizek <xaizek@posteo.net>
-" Last Change: 2018 November 3
+" Last Change: 2019 May 26
 
 " vifm and vifm.vim can be found at https://vifm.info/
 
@@ -37,19 +37,26 @@ endtry
 
 let s:tab_drop_cmd = (s:has_drop ? 'tablast | tab drop' : 'tabedit')
 
-command! -bar -nargs=* -complete=dir EditVifm :call s:StartVifm('edit', <f-args>)
-command! -bar -nargs=* -complete=dir VsplitVifm :call s:StartVifm('vsplit', <f-args>)
-command! -bar -nargs=* -complete=dir SplitVifm :call s:StartVifm('split', <f-args>)
-command! -bar -nargs=* -complete=dir DiffVifm :call s:StartVifm('vert diffsplit', <f-args>)
-command! -bar -nargs=* -complete=dir TabVifm :call s:StartVifm(s:tab_drop_cmd, <f-args>)
+command! -bar -nargs=* -count -complete=dir Vifm
+			\ :call s:StartVifm('<mods>', <count>, 'edit', <f-args>)
+command! -bar -nargs=* -count -complete=dir EditVifm
+			\ :call s:StartVifm('<mods>', <count>, 'edit', <f-args>)
+command! -bar -nargs=* -count -complete=dir VsplitVifm
+			\ :call s:StartVifm('<mods>', <count>, 'vsplit', <f-args>)
+command! -bar -nargs=* -count -complete=dir SplitVifm
+			\ :call s:StartVifm('<mods>', <count>, 'split', <f-args>)
+command! -bar -nargs=* -count -complete=dir DiffVifm
+			\ :call s:StartVifm('<mods>', <count>, 'vert diffsplit', <f-args>)
+command! -bar -nargs=* -count -complete=dir TabVifm
+			\ :call s:StartVifm('<mods>', <count>, s:tab_drop_cmd, <f-args>)
 
-function! s:StartVifm(editcmd, ...)
+function! s:StartVifm(mods, count, editcmd, ...)
 	echohl WarningMsg | echo 'vifm executable wasn''t found' | echohl None
 endfunction
 
 call vifm#globals#Init()
 
-function! s:StartVifm(editcmd, ...)
+function! s:StartVifm(mods, count, editcmd, ...)
 	if a:0 > 2
 		echohl WarningMsg | echo 'Too many arguments' | echohl None
 		return
@@ -80,28 +87,69 @@ function! s:StartVifm(editcmd, ...)
 	call map(pickargs, 'shellescape(v:val, 1)')
 	let pickargsstr = join(pickargs, ' ')
 
-	if !has('nvim')
-		" Use embedded terminal if available.
-		if exists('*term_start') && g:vifm_embed_term
+	" Use embedded terminal if available.
+	if has('nvim') || exists('*term_start') && g:vifm_embed_term
+		let [cwdf, cwdjob] = s:StartCwdJob()
+
+		if cwdf != ''
+			let cwdargs = '-c "autocmd DirEnter * !pwd >> ' . shellescape(cwdf) . '"'
+		else
+			let cwdargs = ''
+		endif
+
+		let data = { 'listf' : listf, 'typef' : typef, 'editcmd' : a:editcmd,
+					\ 'cwdjob' : cwdjob }
+
+		if !has('nvim')
 			let env = { 'TERM' : has('gui_running') ? $TERM :
 			          \          &term =~ 256 ? 'xterm-256color' : &term }
 			let options = { 'term_name' : 'vifm: '.a:editcmd, 'curwin' : 1,
 			              \ 'exit_cb': 'VifmExitCb', 'env' : env }
+
 			function! VifmExitCb(job, code)
 				let data = b:data
 				buffer #
 				silent! bdelete! #
+				if has('job') && type(data.cwdjob) == v:t_job
+					call job_stop(data.cwdjob)
+				endif
 				call s:HandleRunResults(a:code, data.listf, data.typef, data.editcmd)
 			endfunction
-			enew
-			let buf = term_start(['/bin/sh', '-c',
-			                     \ g:vifm_exec.' '.g:vifm_exec_args.' '.ldir.' '.rdir
-			                     \.' '.pickargsstr], options)
-			let data = { 'listf' : listf, 'typef' : typef, 'editcmd' : a:editcmd }
-			call setbufvar(buf, 'data', data)
-			return
+		else
+			function! data.on_exit(id, code, event)
+				bdelete!
+				if self.cwdjob != 0
+					call jobstop(self.cwdjob)
+				endif
+				call s:HandleRunResults(a:code, self.listf, self.typef, self.editcmd)
+			endfunction
 		endif
 
+		if get(g:, 'vifm_embed_split', 0)
+			exec a:mods . ' ' . (a:count ? a:count : '') . 'new'
+		else
+			enew
+		endif
+
+		let termcmd = g:vifm_exec.' '.g:vifm_exec_args.' '.cwdargs.' '.ldir.' '
+					\ .rdir.' '.pickargsstr
+
+		if !has('nvim')
+			let buf = term_start(['/bin/sh', '-c', termcmd], options)
+
+			call setbufvar(buf, 'data', data)
+		else
+			call termopen(termcmd, data)
+
+			let oldbuf = bufname('%')
+			execute 'keepalt file' escape('vifm: '.a:editcmd, ' |')
+			execute bufnr(oldbuf).'bwipeout'
+			" Use execute to not break highlighting.
+			execute 'startinsert'
+		endif
+
+		return
+	else
 		" Gvim cannot handle ncurses so run vifm in a terminal.
 		if has('gui_running')
 			execute 'silent !' g:vifm_term g:vifm_exec g:vifm_exec_args ldir rdir
@@ -115,21 +163,45 @@ function! s:StartVifm(editcmd, ...)
 		redraw!
 
 		call s:HandleRunResults(v:shell_error, listf, typef, a:editcmd)
-	else
-		let callback = { 'listf' : listf, 'typef' : typef, 'editcmd' : a:editcmd }
-		function! callback.on_exit(id, code, event)
-			buffer #
-			silent! bdelete! #
-			call s:HandleRunResults(a:code, self.listf, self.typef, self.editcmd)
-		endfunction
-		enew
-		call termopen(g:vifm_exec . ' ' . g:vifm_exec_args . ' ' . ldir . ' ' . rdir
-		             \. ' ' . pickargsstr, callback)
-		let oldbuf = bufname('%')
-		execute 'keepalt file' escape('vifm: '.a:editcmd, ' |')
-		execute bufnr(oldbuf).'bwipeout'
-		startinsert
 	endif
+endfunction
+
+function! s:StartCwdJob()
+	if get(g:, 'vifm_embed_cwd', 0) && (has('job') || has('nvim'))
+		let cwdf = tempname()
+		silent! exec '!mkfifo '. cwdf
+
+		let cwdcmd = ['/bin/sh', '-c',
+					\ 'while true; do cat ' . shellescape(cwdf) . '; done']
+
+		if !has('nvim')
+			let cwdopts = { 'out_cb': 'VifmCwdCb' }
+
+			function! VifmCwdCb(channel, data)
+				call s:HandleCwdOut(a:data)
+			endfunction
+
+			let cwdjob = job_start(cwdcmd, cwdopts)
+		else
+			let cwdopts = {}
+
+			function! cwdopts.on_stdout(id, data, event)
+				if a:data[0] ==# ''
+					return
+				endif
+				call s:HandleCwdOut(a:data[0])
+			endfunction
+
+			let cwdjob = jobstart(cwdcmd, cwdopts)
+		endif
+
+		return [cwdf, cwdjob]
+	endif
+	return ['', 0]
+endfunction
+
+function! s:HandleCwdOut(data)
+	exec 'cd ' . fnameescape(a:data)
 endfunction
 
 function! s:HandleRunResults(exitcode, listf, typef, editcmd)
@@ -279,5 +351,22 @@ function! s:GetVifmHelpTopic()
 endfunction
 
 " }}}1
+
+if get(g:, 'vifm_replace_netrw')
+	function! s:HandleBufEnter(fname)
+		if a:fname !=# '' && isdirectory(a:fname)
+			bdelete!
+			let embed_split = get(g:, 'vifm_embed_split', 0)
+			let g:vifm_embed_split = 0
+			exec get(g:, 'vifm_replace_netrw_cmd', 'Vifm') . ' ' . a:fname
+			let g:vifm_embed_split = embed_split
+		endif
+	endfunction
+
+	let g:loaded_netrwPlugin = 'disable'
+	augroup neovimvifm
+		au BufEnter * silent call s:HandleBufEnter(expand('<amatch>'))
+	augroup END
+endif
 
 " vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab :
