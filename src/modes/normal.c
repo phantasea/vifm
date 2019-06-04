@@ -2123,7 +2123,7 @@ cmd_zM(key_info_t key_info, keys_info_t *keys_info)
 {
 	name_filters_restore(curr_view);
 	local_filter_restore(curr_view);
-	dot_filter_set(curr_view, 0);
+	//dot_filter_set(curr_view, 0);  //del by sim1
 }
 
 /* Remove filename filter. */
@@ -2139,7 +2139,7 @@ cmd_zR(key_info_t key_info, keys_info_t *keys_info)
 {
 	name_filters_remove(curr_view);
 	local_filter_remove(curr_view);
-	dot_filter_set(curr_view, 1);
+	//dot_filter_set(curr_view, 1);  //del by sim1
 }
 
 /* Toggle dot files visibility. */
