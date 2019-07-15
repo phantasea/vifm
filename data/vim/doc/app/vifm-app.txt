@@ -1,4 +1,4 @@
-*vifm-app.txt*    For Vifm version 0.10  Last change: 2019 Jul 6
+*vifm-app.txt*    For Vifm version 0.10.1-beta  Last change: 2019 Jul 15
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -3315,6 +3315,7 @@ mediaprg
 type: string
 default: path to bundled script that supports udevil, udisks and udisks2
          (using udisks2 requires python with dbus module installed)
+         OS X: path points to a python script that uses diskutil
 
 Specifies command to be used to manage media devices.  Used by |vifm-:media|
 command.
