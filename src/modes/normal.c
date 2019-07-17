@@ -253,6 +253,7 @@ static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_U(key_info_t key_info, keys_info_t *keys_info);
 //add by sim1 -------------------------------------------------------
 
 static int last_fast_search_char;
@@ -269,7 +270,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_e,           {{&cmd_ctrl_e}, .descr = "scroll one line down"}},
 	{WK_C_f,           {{&cmd_ctrl_f}, .descr = "scroll page down"}},
 	{WK_C_g,           {{&cmd_ctrl_g}, .descr = "display file info"}},
-	{WK_C_h,           {{&cmd_ctrl_h}, .descr = "jump to last tab"}},  //add by sim1
+	{WK_C_h,           {{&cmd_ctrl_h}, .descr = "jump to the last tab"}},  //add by sim1
 	{WK_C_i,           {{&cmd_ctrl_i}, .descr = "switch pane/history forward"}},
 	{WK_C_l,           {{&cmd_ctrl_l}, .descr = "redraw"}},
 	{WK_C_m,           {{&cmd_return}, .descr = "open current item(s)"}},
@@ -344,6 +345,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_M,             {{&cmd_M}, .descr = "go to middle of viewport"}},
 	{WK_N,             {{&cmd_N}, .descr = "go to previous search match"}},
 	{WK_P,             {{&cmd_P}, .descr = "put files by moving them"}},
+	{WK_U,             {{&cmd_U}, .descr = "undo tab close"}},
 	{WK_V,             {{&cmd_V}, .descr = "go to visual mode"}},
 	{WK_Y,             {{&cmd_yy}, .descr = "yank files"}},
 	{WK_Z WK_Q,        {{&cmd_ZQ}, .descr = "exit without saving state"}},
@@ -1247,6 +1249,20 @@ cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info)
 	else
 	{
 		tabs_goto(key_info.count - 1);
+	}
+}
+
+/* Undo the last tab close */
+static void
+cmd_U(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(key_info.count == NO_COUNT_GIVEN)
+	{
+		tabs_undo(1);
+	}
+	else
+	{
+		tabs_undo(key_info.count);
 	}
 }
 //add by sim1 -----------------------------------------

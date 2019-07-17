@@ -52,6 +52,7 @@ typedef struct
 	DA_INSTANCE_FIELD(tabs); /* Declarations to enable use of DA_* on tabs. */
 	int current;             /* Index of the current tab. */
 	int last;                /* Index of the last tab */ //add by sim1
+	char last_closed_tab_dir[PATH_MAX + 1];  //add by sim1
 }
 pane_tabs_t;
 
@@ -428,6 +429,7 @@ tabs_close(void)
 			{
 				--ptabs->current;
 			}
+			strcpy(ptabs->last_closed_tab_dir, ptab->view.curr_dir);   //add by sim1
 			free_pane_tab(ptab);
 			DA_REMOVE(ptabs->tabs, ptab);
 		}
@@ -451,6 +453,34 @@ tabs_close(void)
 		}
 	}
 }
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++
+void tabs_undo(int count)    //add by sim1
+{
+	if (count <= 0)
+	{
+		return;
+	}
+
+	pane_tabs_t *const ptabs = get_pane_tabs(curr_view);
+	if (ptabs->last_closed_tab_dir[0] == 0)
+	{
+		ui_sb_msg("There is no last closed tab to undo/reopen.");
+		curr_stats.save_msg = 1;
+		return;
+	}
+
+	if (0 != tabs_new(NULL, ptabs->last_closed_tab_dir))
+	{
+		ui_sb_err("Failed to undo the last closed tab!");
+		curr_stats.save_msg = 1;
+		return;
+	}
+
+	memset(ptabs->last_closed_tab_dir, 0, sizeof(ptabs->last_closed_tab_dir));
+	return;
+}
+//-------------------------------------------------
 
 /* Frees resources owned by a global tab. */
 static void

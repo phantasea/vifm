@@ -38,6 +38,8 @@ void tabs_init(void);
  * non-zero is returned. */
 int tabs_new(const char name[], const char path[]);
 
+void tabs_undo(int count);  //add by sim1
+
 /* Sets name of the current tab.  Name can be NULL. */
 void tabs_rename(struct view_t *view, const char name[]);
 
