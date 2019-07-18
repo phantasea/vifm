@@ -251,16 +251,16 @@ friendly_size_notation(uint64_t num, int str_size, char str[])
 		d = split_size_double(d, &fraction, &fraction_width);
 	}
 
-	//mod by sim1 -------
 	if(fraction == 0)
 	{
-		snprintf(str, str_size, "%.1f%s", d, units[u]);
+		snprintf(str, str_size, "%.0f%s%s", d, cfg.sizefmt.space ? " " : "",
+				units[u]);
 	}
 	else
 	{
-		snprintf(str, str_size, "%.0f.%0*" PRINTF_ULL "%s", d, fraction_width, fraction, units[u]);
+		snprintf(str, str_size, "%.0f.%0*" PRINTF_ULL "%s%s", d, fraction_width,
+				fraction, cfg.sizefmt.space ? " " : "", units[u]);
 	}
-	//mod by sim1 -------
 
 	return u > 0U;
 }
