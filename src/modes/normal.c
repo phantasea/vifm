@@ -1258,12 +1258,10 @@ cmd_U(key_info_t key_info, keys_info_t *keys_info)
 {
 	if(key_info.count == NO_COUNT_GIVEN)
 	{
-		tabs_undo(1);
+		key_info.count = 1;
 	}
-	else
-	{
-		tabs_undo(key_info.count);
-	}
+
+	tabs_undo(key_info.count);
 }
 //add by sim1 -----------------------------------------
 

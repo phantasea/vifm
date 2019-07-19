@@ -45,6 +45,14 @@ typedef struct
 }
 pane_tab_t;
 
+//add by sim1
+typedef struct
+{
+	char tab_dir[PATH_MAX + 1];
+	struct undo_tab_t *next_tab;
+}
+undo_tab_t;
+
 /* Collection of pane tabs. */
 typedef struct
 {
@@ -52,7 +60,8 @@ typedef struct
 	DA_INSTANCE_FIELD(tabs); /* Declarations to enable use of DA_* on tabs. */
 	int current;             /* Index of the current tab. */
 	int last;                /* Index of the last tab */ //add by sim1
-	char last_closed_tab_dir[PATH_MAX + 1];  //add by sim1
+	undo_tab_t *undo_tabs;   //add by sim1
+	int last_closed_tabs;    //add by sim1
 }
 pane_tabs_t;
 
@@ -429,7 +438,21 @@ tabs_close(void)
 			{
 				--ptabs->current;
 			}
-			strcpy(ptabs->last_closed_tab_dir, ptab->view.curr_dir);   //add by sim1
+			
+			//add by sim1 *************************************************
+			if (ptabs->last_closed_tabs < 3)
+			{
+				undo_tab_t *ptemp = (undo_tab_t *)malloc(sizeof(undo_tab_t));
+				if (NULL != ptemp)
+				{
+					strcpy(ptemp->tab_dir, ptab->view.curr_dir);
+					ptemp->next_tab = ptabs->undo_tabs;
+					ptabs->undo_tabs = ptemp;
+					ptabs->last_closed_tabs++;
+				}
+			}
+			//add by sim1 *************************************************
+
 			free_pane_tab(ptab);
 			DA_REMOVE(ptabs->tabs, ptab);
 		}
@@ -463,21 +486,43 @@ void tabs_undo(int count)    //add by sim1
 	}
 
 	pane_tabs_t *const ptabs = get_pane_tabs(curr_view);
-	if (ptabs->last_closed_tab_dir[0] == 0)
+	if (ptabs->last_closed_tabs == 0)
 	{
-		ui_sb_msg("There is no last closed tab to undo/reopen.");
-		curr_stats.save_msg = 1;
-		return;
+		return;  //the ptabs->undo_tabs is NULL at present
 	}
 
-	if (0 != tabs_new(NULL, ptabs->last_closed_tab_dir))
+	if (count > ptabs->last_closed_tabs)
 	{
-		ui_sb_err("Failed to undo the last closed tab!");
-		curr_stats.save_msg = 1;
-		return;
+		count = ptabs->last_closed_tabs;
 	}
 
-	memset(ptabs->last_closed_tab_dir, 0, sizeof(ptabs->last_closed_tab_dir));
+	for (int idx = 0; idx < count; idx++)
+	{
+		undo_tab_t *ptemp = ptabs->undo_tabs;
+		if ((ptemp == NULL) || (ptemp->tab_dir[0] == 0))
+		{
+			//ui_sb_msg("There is no last closed tab to undo/reopen.");
+			//curr_stats.save_msg = 1;
+			return;
+		}
+
+		if (0 != tabs_new(NULL, ptemp->tab_dir))
+		{
+			//ui_sb_err("Failed to undo the last closed tab!");
+			//curr_stats.save_msg = 1;
+			return;
+		}
+
+		memset(ptemp->tab_dir, 0, sizeof(ptemp->tab_dir));
+		ptabs->undo_tabs = ptemp->next_tab;
+		free(ptemp);
+
+		if (ptabs->last_closed_tabs > 0)
+		{
+			ptabs->last_closed_tabs--;
+		}
+	}
+
 	return;
 }
 //-------------------------------------------------
