@@ -440,7 +440,7 @@ tabs_close(void)
 			}
 			
 			//add by sim1 *************************************************
-			if (ptabs->last_closed_tabs < 3)
+			if (ptabs->last_closed_tabs < cfg.max_undo_tabs)
 			{
 				undo_tab_t *ptemp = (undo_tab_t *)malloc(sizeof(undo_tab_t));
 				if (NULL != ptemp)

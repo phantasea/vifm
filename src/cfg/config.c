@@ -215,6 +215,7 @@ cfg_init(void)
 
 	//add by sim1 ********
 	cfg.prefer_vsplit = 0;
+	cfg.max_undo_tabs = 0;
 	//add by sim1 ********
 
 	cfg.sizefmt.base = 1024;

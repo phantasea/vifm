@@ -1104,6 +1104,8 @@ write_options(FILE *fp)
 
 	//add by sim1 **************************************************
 	fprintf(fp, "=%sprefervsplit\n", cfg.prefer_vsplit ? "" : "no");
+	fprintf(fp, "=%maxundotabs\n", cfg.max_undo_tabs ? "" : "no");
+	fprintf(fp, "=maxundotabs=%d\n", cfg.max_undo_tabs);
 	//add by sim1 **************************************************
 
 	fprintf(fp, "=%svimhelp\n", cfg.use_vim_help ? "" : "no");

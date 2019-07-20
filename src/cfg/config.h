@@ -304,7 +304,8 @@ typedef struct config_t
 	int case_ignore;   /* Flag here means case should be either always ignored or
 	                      always respected. */
 	//add by sim1 **********************************
-	int  prefer_vsplit;  /* whether prefer vsplit */
+	int max_undo_tabs;  /* max number for undo tabs */
+	int prefer_vsplit;  /* whether prefer vsplit */
 	//add by sim1 **********************************
 
 	/* Settings of size formatting. */

@@ -235,6 +235,7 @@ static void wrap_handler(OPT_OP op, optval_t val);
 static void text_option_changed(void);
 static void wrapscan_handler(OPT_OP op, optval_t val);
 static void prefervsplit_handler(OPT_OP op, optval_t val);  //add by sim1
+static void maxundotabs_handler(OPT_OP op, optval_t val);  //add by sim1
 
 static const char *sort_enum[] = {
 	/* SK_* start with 1. */
@@ -701,6 +702,10 @@ options[] = {
 	  { .ref.int_val = &cfg.min_timeout_len },
 	},
 	//add by sim1 ---------------------------
+	{ "maxundotabs", "mut", "max number for undo closed tabs",
+	  OPT_INT, 0, NULL, &maxundotabs_handler, NULL,
+	  { .ref.int_val = &cfg.max_undo_tabs },
+	},
 	{ "prefervsplit", "pvs", "while splitting, prefer vertical split",
 	  OPT_BOOL, 0, NULL, &prefervsplit_handler, NULL,
 	  { .ref.bool_val = &cfg.prefer_vsplit },
@@ -3545,6 +3550,20 @@ static void
 prefervsplit_handler(OPT_OP op, optval_t val)
 {
 	cfg.prefer_vsplit = val.bool_val;
+}
+
+static void
+maxundotabs_handler(OPT_OP op, optval_t val)
+{
+	if ((val.int_val < 0) || (val.int_val > 8))
+	{
+		vle_tb_append_linef(vle_err, "maxundotabs=%d, but it must be [0, 8]", val.int_val);
+		error = 1;
+		cfg.max_undo_tabs = 0;
+		return;
+	}
+
+	cfg.max_undo_tabs = val.int_val;
 }
 //add by sim1 ***************************
 
