@@ -60,9 +60,11 @@ typedef struct
 	pane_tab_t *tabs;        /* List of tabs. */
 	DA_INSTANCE_FIELD(tabs); /* Declarations to enable use of DA_* on tabs. */
 	int current;             /* Index of the current tab. */
-	int last;                /* Index of the last tab */ //add by sim1
-	undo_tab_t *undo_tabs;   //add by sim1
-	int last_closed_tabs;    //add by sim1
+	//add by sim1 **************************************
+	int last;                /* Index of the last tab */
+	undo_tab_t *undo_tabs;
+	int last_closed_tabs;
+	//add by sim1 **************************************
 }
 pane_tabs_t;
 
@@ -479,9 +481,16 @@ tabs_close(void)
 	}
 }
 
+//add by sim1
 //+++++++++++++++++++++++++++++++++++++++++++++++++
-void tabs_undo(int count)    //add by sim1
+void tabs_undo(int count)
 {
+	//tab undo is only supported for pane tabs
+	if(!cfg.pane_tabs)
+	{
+		return;
+	}
+
 	if (count <= 0)
 	{
 		return;
