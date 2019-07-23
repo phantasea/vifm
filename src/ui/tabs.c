@@ -48,8 +48,8 @@ pane_tab_t;
 //add by sim1
 typedef struct
 {
-	char path[PATH_MAX + 1];
-	char name[PATH_MAX + 1];
+	char *name;
+	char  path[PATH_MAX + 1];
 	struct undo_tab_t *next_tab;
 }
 undo_tab_t;
@@ -448,8 +448,9 @@ tabs_close(void)
 				undo_tab_t *ptemp = (undo_tab_t *)malloc(sizeof(undo_tab_t));
 				if (NULL != ptemp)
 				{
-					strcpy(ptemp->name, ptab->name);
+					memset(ptemp, 0, sizeof(undo_tab_t));
 					strcpy(ptemp->path, ptab->view.curr_dir);
+					update_string(&ptemp->name, ptab->name);
 					ptemp->next_tab = ptabs->undo_tabs;
 					ptabs->undo_tabs = ptemp;
 					ptabs->last_closed_tabs++;
@@ -460,9 +461,6 @@ tabs_close(void)
 			free_pane_tab(ptab);
 			DA_REMOVE(ptabs->tabs, ptab);
 		}
-
-		//add by sim1 for test
-		//ui_sb_msgf("tabs_close: curr=%d, last=%d, tabs=%d", ptabs->current, ptabs->last, (int)DA_SIZE(ptabs->tabs));
 	}
 	else
 	{
@@ -502,6 +500,8 @@ void tabs_undo(int count)
 		return;  //the ptabs->undo_tabs is NULL at present
 	}
 
+	//ui_sb_msgf("count=%d, tabs=%d.", count, ptabs->last_closed_tabs);
+	//curr_stats.save_msg = 1;
 	if (count > ptabs->last_closed_tabs)
 	{
 		count = ptabs->last_closed_tabs;
@@ -512,21 +512,14 @@ void tabs_undo(int count)
 		undo_tab_t *ptemp = ptabs->undo_tabs;
 		if ((ptemp == NULL) || (ptemp->path[0] == 0))
 		{
-			//ui_sb_msg("There is no last closed tab to undo/reopen.");
-			//curr_stats.save_msg = 1;
 			return;
 		}
 
-		if (0 != tabs_new(NULL, ptemp->path))
+		if (0 != tabs_new(ptemp->name, ptemp->path))
 		{
-			//ui_sb_err("Failed to undo the last closed tab!");
-			//curr_stats.save_msg = 1;
 			return;
 		}
 
-		update_string(&ptabs->tabs[ptabs->current].name, ptemp->name);;
-
-		memset(ptemp->path, 0, sizeof(ptemp->path));
 		ptabs->undo_tabs = ptemp->next_tab;
 		free(ptemp);
 
