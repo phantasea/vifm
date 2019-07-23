@@ -443,17 +443,27 @@ tabs_close(void)
 			}
 			
 			//add by sim1 *************************************************
-			if (ptabs->last_closed_tabs < cfg.max_undo_tabs)
+			undo_tab_t *ptemp = (undo_tab_t *)malloc(sizeof(undo_tab_t));
+			if (NULL != ptemp)
 			{
-				undo_tab_t *ptemp = (undo_tab_t *)malloc(sizeof(undo_tab_t));
-				if (NULL != ptemp)
+				memset(ptemp, 0, sizeof(undo_tab_t));
+				strcpy(ptemp->path, ptab->view.curr_dir);
+				update_string(&ptemp->name, ptab->name);
+				ptemp->next_tab = ptabs->undo_tabs;
+				ptabs->undo_tabs = ptemp;
+				ptabs->last_closed_tabs++;
+				if (ptabs->last_closed_tabs > cfg.max_undo_tabs)
 				{
-					memset(ptemp, 0, sizeof(undo_tab_t));
-					strcpy(ptemp->path, ptab->view.curr_dir);
-					update_string(&ptemp->name, ptab->name);
-					ptemp->next_tab = ptabs->undo_tabs;
-					ptabs->undo_tabs = ptemp;
-					ptabs->last_closed_tabs++;
+					ptemp = ptabs->undo_tabs;
+					for (int idx = 0; idx < cfg.max_undo_tabs - 1; idx++)
+					{
+						ptemp = ptemp->next_tab;
+					}
+
+					free(ptemp->next_tab);
+					ptemp->next_tab = NULL;
+
+					ptabs->last_closed_tabs--;
 				}
 			}
 			//add by sim1 *************************************************
