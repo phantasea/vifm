@@ -253,7 +253,8 @@ friendly_size_notation(uint64_t num, int str_size, char str[])
 
 	if(fraction == 0)
 	{
-		snprintf(str, str_size, "%.0f%s%s", d, cfg.sizefmt.space ? " " : "",
+		//mod by sim1 for displaying xxx.0 of size
+		snprintf(str, str_size, "%.01f%s%s", d, cfg.sizefmt.space ? " " : "",
 				units[u]);
 	}
 	else
