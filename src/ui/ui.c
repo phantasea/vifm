@@ -1952,6 +1952,12 @@ static void
 print_view_title(const view_t *view, int active_view, char title[])
 {
 	char *ellipsis;
+	//add by sim1 *******************************
+	char hostname[HOST_NAME_MAX] = {0};
+	char username[LOGIN_NAME_MAX] = {0};
+	char buf[PATH_MAX + 1] = {0};
+	int  ret = 0;
+	//add by sim1 *******************************
 
 	const size_t title_width = getmaxx(view->title);
 	if(title_width == (size_t)-1)
@@ -1965,7 +1971,32 @@ print_view_title(const view_t *view, int active_view, char title[])
 	         ? left_ellipsis(title, title_width, curr_stats.ellipsis)
 	         : right_ellipsis(title, title_width, curr_stats.ellipsis);
 
-	wprint(view->title, ellipsis);
+	//mod by sim1 *******************************
+	ret = gethostname(hostname, HOST_NAME_MAX);
+	if (ret)
+	{
+		perror("gethostname");
+	}
+	else
+	{
+		ret = getlogin_r(username, LOGIN_NAME_MAX);
+		if (ret)
+		{
+			perror("getlogin_r");
+		}
+	}
+
+	if (!ret)
+	{
+		snprintf(buf, sizeof(buf), "%s@%s: %s", username, hostname, ellipsis);
+		wprint(view->title, buf);
+	}
+	else
+	{
+		wprint(view->title, ellipsis);
+	}
+	//mod by sim1 *******************************
+
 	free(ellipsis);
 }
 
