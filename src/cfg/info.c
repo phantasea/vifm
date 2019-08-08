@@ -1104,7 +1104,6 @@ write_options(FILE *fp)
 
 	//add by sim1 **************************************************
 	fprintf(fp, "=%sprefervsplit\n", cfg.prefer_vsplit ? "" : "no");
-	fprintf(fp, "=%maxundotabs\n", cfg.max_undo_tabs ? "" : "no");
 	fprintf(fp, "=maxundotabs=%d\n", cfg.max_undo_tabs);
 	//add by sim1 **************************************************
 
@@ -1691,6 +1690,7 @@ get_rating_stars(char path[])
 	return 0;
 }
 
+extern const char * local_getenv(const char envname[]);  //add by sim1
 int
 get_rating_string(char buf[], int buf_len, char path[])
 {
@@ -1703,9 +1703,17 @@ get_rating_string(char buf[], int buf_len, char path[])
 			stars = RATING_MAX_STARS;
 		}
 
+		const char *display = local_getenv("DISPLAY");
 		for (i = 0; i < stars; i++)
 		{
-			strcat(rating, "★"); //strcat(rating, "☆");
+			if (strlen(display) > 0)  //$DISPLAY==":0" in X
+			{
+				strcat(rating, "★");
+			}
+			else
+			{
+				strcat(rating, "");
+			}
 		}
 
 		snprintf(buf, buf_len, "%s", rating);
