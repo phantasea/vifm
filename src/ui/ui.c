@@ -1975,14 +1975,14 @@ print_view_title(const view_t *view, int active_view, char title[])
 	ret = gethostname(hostname, HOST_NAME_MAX);
 	if (ret)
 	{
-		perror("gethostname");
+		//perror("gethostname");
 	}
 	else
 	{
 		ret = getlogin_r(username, LOGIN_NAME_MAX);
 		if (ret)
 		{
-			perror("getlogin_r");
+			//perror("getlogin_r");
 		}
 	}
 
