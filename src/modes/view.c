@@ -1048,6 +1048,10 @@ load_view_data(view_info_t *vi, const char action[], const char file_to_view[],
 		case 4:
 			show_error_msg(action, "Nothing to explore");
 			return 1;
+		//add by sim1 for disabling to preview file which is too large
+		case 5:
+			show_error_msg(action, "File size is larger than previewmaxsize?");
+			return 1;
 
 		default:
 			assert(0 && "Unhandled error code.");
@@ -1089,6 +1093,14 @@ get_view_data(view_info_t *vi, const char file_to_view[])
 		}
 		else
 		{
+			//add by sim1 for disabling to preview file which is too large
+			extern int qv_file_is_too_large();  //defined in quickview.c
+			if (qv_file_is_too_large())
+			{
+				return 5;
+			}
+			//************************************************************
+
 			fp = os_fopen(file_to_view, "rb");
 		}
 

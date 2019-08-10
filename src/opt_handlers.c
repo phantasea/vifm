@@ -234,8 +234,9 @@ static int parse_endpoint(const char **str, int *endpoint);
 static void wrap_handler(OPT_OP op, optval_t val);
 static void text_option_changed(void);
 static void wrapscan_handler(OPT_OP op, optval_t val);
-static void prefervsplit_handler(OPT_OP op, optval_t val);  //add by sim1
-static void maxundotabs_handler(OPT_OP op, optval_t val);  //add by sim1
+static void prefervsplit_handler(OPT_OP op, optval_t val);    //add by sim1
+static void maxundotabs_handler(OPT_OP op, optval_t val);     //add by sim1
+static void previewmaxsize_handler(OPT_OP op, optval_t val);  //add by sim1
 
 static const char *sort_enum[] = {
 	/* SK_* start with 1. */
@@ -701,16 +702,20 @@ options[] = {
 	  OPT_INT, 0, NULL, &mintimeoutlen_handler, NULL,
 	  { .ref.int_val = &cfg.min_timeout_len },
 	},
-	//add by sim1 ---------------------------
-	{ "maxundotabs", "mut", "max number for undo closed tabs",
-	  OPT_INT, 0, NULL, &maxundotabs_handler, NULL,
-	  { .ref.int_val = &cfg.max_undo_tabs },
-	},
+	//add by sim1 ----------------------------------------------------
 	{ "prefervsplit", "pvs", "while splitting, prefer vertical split",
 	  OPT_BOOL, 0, NULL, &prefervsplit_handler, NULL,
 	  { .ref.bool_val = &cfg.prefer_vsplit },
 	},
-	//add by sim1 ---------------------------
+	{ "maxundotabs", "mut", "max number for undo closed tabs",
+	  OPT_INT, 0, NULL, &maxundotabs_handler, NULL,
+	  { .ref.int_val = &cfg.max_undo_tabs },
+	},
+	{ "previewmaxsize", "pms", "max file size(kB) for preview",
+	  OPT_INT, 0, NULL, &previewmaxsize_handler, NULL,
+	  { .ref.int_val = &cfg.preview_max_size },
+	},
+	//add by sim1 ----------------------------------------------------
 	{ "quickview", "", "whether quick view is active",
 	  OPT_BOOL, 0, NULL, &quickview_handler, NULL,
 	  { .init = &init_quickview },
@@ -3564,6 +3569,20 @@ maxundotabs_handler(OPT_OP op, optval_t val)
 	}
 
 	cfg.max_undo_tabs = val.int_val;
+}
+
+static void
+previewmaxsize_handler(OPT_OP op, optval_t val)
+{
+	if (val.int_val < 0)
+	{
+		vle_tb_append_linef(vle_err, "previewmaxsize=%d, but it must be non-negative", val.int_val);
+		error = 1;
+		cfg.preview_max_size = 0;
+		return;
+	}
+
+	cfg.preview_max_size = val.int_val;
 }
 //add by sim1 ***************************
 

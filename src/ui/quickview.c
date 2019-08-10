@@ -122,6 +122,25 @@ static void wipe_area(const preview_area_t *parea);
 /* Cached preview data for a single file entry. */
 static quickview_cache_t qv_cache;
 
+//add by sim1 for disabling to preview file which is too large
+int
+qv_file_is_too_large()
+{
+		const dir_entry_t *const curr = get_current_entry(curr_view);
+		if(fentry_is_fake(curr))
+		{
+			return 1;
+		}
+
+		if ((cfg.preview_max_size > 0) && (curr->size > cfg.preview_max_size*1000))
+		{
+			return 2;
+		}
+
+		return 0;
+}
+//************************************************************
+
 int
 qv_ensure_is_shown(void)
 {
@@ -327,6 +346,14 @@ view_file(const char path[], const preview_area_t *parea,
 	}
 	else if(is_null_or_empty(viewer))
 	{
+		//add by sim1 for disabling to preview file which is too large
+		if (qv_file_is_too_large())
+		{
+			write_message("File size is larger than previewmaxsize!", parea);
+			return;
+		}
+		//************************************************************
+
 		fp = os_fopen(path, "rb");
 		if(fp == NULL)
 		{
