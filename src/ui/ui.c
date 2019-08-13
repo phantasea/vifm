@@ -1973,17 +1973,9 @@ print_view_title(const view_t *view, int active_view, char title[])
 
 	//mod by sim1 *******************************
 	ret = gethostname(hostname, HOST_NAME_MAX);
-	if (ret)
-	{
-		//perror("gethostname");
-	}
-	else
+	if (!ret)
 	{
 		ret = getlogin_r(username, LOGIN_NAME_MAX);
-		if (ret)
-		{
-			//perror("getlogin_r");
-		}
 	}
 
 	if (!ret)
