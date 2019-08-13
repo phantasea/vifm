@@ -1688,7 +1688,7 @@ ui_views_update_titles(void)
 }
 
 //add by sim1 ***********************
-void print_top_mid_border(void)
+void print_top_mid_filler(void)
 {
 	werase(top_line);
 	wprint(top_line, cfg.top_mid_filler);
@@ -1729,7 +1729,10 @@ ui_view_title_update(view_t *view)
 		wnoutrefresh(view->title);
 		free(title);
 
-		print_top_mid_border();
+		if (middle_border_is_visible())
+		{
+			print_top_mid_filler();
+		}
 	}
 
 	if(view == curr_view && get_tabline_height() > 0)
