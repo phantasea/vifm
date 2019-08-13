@@ -1106,6 +1106,7 @@ write_options(FILE *fp)
 	fprintf(fp, "=%sprefervsplit\n", cfg.prefer_vsplit ? "" : "no");
 	fprintf(fp, "=maxundotabs=%d\n", cfg.max_undo_tabs);
 	fprintf(fp, "=previewmaxsize=%d\n", cfg.preview_max_size);
+	fprintf(fp, "=topmidfiller=%s\n", cfg.top_mid_filler);
 	//add by sim1 **************************************************
 
 	fprintf(fp, "=%svimhelp\n", cfg.use_vim_help ? "" : "no");

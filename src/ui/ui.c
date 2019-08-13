@@ -1691,7 +1691,7 @@ ui_views_update_titles(void)
 void print_top_mid_border(void)
 {
 	werase(top_line);
-	wprint(top_line, cfg.border_filler);
+	wprint(top_line, cfg.top_mid_filler);
 	wnoutrefresh(top_line);
 }
 //add by sim1 ***********************

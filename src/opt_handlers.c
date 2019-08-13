@@ -237,6 +237,7 @@ static void wrapscan_handler(OPT_OP op, optval_t val);
 static void prefervsplit_handler(OPT_OP op, optval_t val);    //add by sim1
 static void maxundotabs_handler(OPT_OP op, optval_t val);     //add by sim1
 static void previewmaxsize_handler(OPT_OP op, optval_t val);  //add by sim1
+static void topmidfiller_handler(OPT_OP op, optval_t val);    //add by sim1
 
 static const char *sort_enum[] = {
 	/* SK_* start with 1. */
@@ -714,6 +715,10 @@ options[] = {
 	{ "previewmaxsize", "pms", "max file size(kB) for preview",
 	  OPT_INT, 0, NULL, &previewmaxsize_handler, NULL,
 	  { .ref.int_val = &cfg.preview_max_size },
+	},
+	{ "topmidfiller", "tmf", "top middle border filler",
+	  OPT_STR, 0, NULL, &topmidfiller_handler, NULL,
+	  { .ref.str_val = &cfg.top_mid_filler },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "quickview", "", "whether quick view is active",
@@ -3583,6 +3588,21 @@ previewmaxsize_handler(OPT_OP op, optval_t val)
 	}
 
 	cfg.preview_max_size = val.int_val;
+}
+
+static void
+topmidfiller_handler(OPT_OP op, optval_t val)
+{
+	//widechar might be single char of up to length 3
+	if ((strlen(val.str_val) > 3) || (strlen(val.str_val) == 0))
+	{
+		vle_tb_append_linef(vle_err, "topmidfiller=\"%s\", but it must be one char/wchar", val.str_val);
+		error = 1;
+		(void)replace_string(&cfg.top_mid_filler, " ");
+		return;
+	}
+
+	(void)replace_string(&cfg.top_mid_filler, val.str_val);
 }
 //add by sim1 ***************************
 
