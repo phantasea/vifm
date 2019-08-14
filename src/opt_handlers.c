@@ -3593,10 +3593,10 @@ previewmaxsize_handler(OPT_OP op, optval_t val)
 static void
 topmidfiller_handler(OPT_OP op, optval_t val)
 {
-	//widechar might be single char of up to length 3
-	if ((strlen(val.str_val) > 3) || (strlen(val.str_val) == 0))
+	size_t wcslen = mbstowcs(NULL, val.str_val, 0);
+	if ((wcslen == (size_t) - 1) || (wcslen > 1) || (wcslen == 0))
 	{
-		vle_tb_append_linef(vle_err, "topmidfiller=\"%s\", but it must be one char/wchar", val.str_val);
+		vle_tb_append_linef(vle_err, "topmidfiller=\"%s\"(%zu), but it should be one char/wchar", val.str_val, wcslen);
 		error = 1;
 		(void)replace_string(&cfg.top_mid_filler, " ");
 		return;
