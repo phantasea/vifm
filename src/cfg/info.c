@@ -106,9 +106,15 @@ static int read_optional_number(FILE *f);
 static int read_number(const char line[], long *value);
 static size_t add_to_int_array(int **array, size_t len, int what);
 
-//add by sim1
-static void write_rating_info(FILE *const fp);
+//add by sim1 ********************************************************
 static rating_entry_t *rating_list = NULL;
+static void write_rating_info(FILE *const fp);
+static void str_rot_encypt(char *str);
+static void str_rot_decypt(char *str);
+static rating_entry_t * create_rating_info(int star_num, char path[]);
+static void update_rating_star(rating_entry_t *entry, int star_num);
+extern const char * local_getenv(const char envname[]);
+//add by sim1 ********************************************************
 
 /* Monitor to check for changes of vifminfo file. */
 static filemon_t vifminfo_mon;
@@ -365,9 +371,10 @@ read_info_file(int reread)
 		//add by sim1
 		else if(type == LINE_TYPE_STAR_RATING)
 		{
-			char *endp;
-			int star_num = strtol(line_val, &endp, 10);
-			update_rating_info(star_num, endp);
+			char *path;
+			int star_num = strtol(line_val, &path, 10);
+			str_rot_decypt(path);
+			update_rating_info(star_num, path);
 		}
 		//add by sim1 --- END
 	}
@@ -1530,6 +1537,38 @@ add_to_int_array(int **array, size_t len, int what)
 
 //add by sim1 ***************************************************
 static void
+str_rot_encypt(char *str)
+{
+	if (NULL == str)
+	{
+		return;
+	}
+
+	for (int idx=0; idx < strlen(str); idx++)
+	{
+		str[idx] = str[idx] + 13;
+	}
+
+	return;
+}
+
+static void
+str_rot_decypt(char *str)
+{
+	if (NULL == str)
+	{
+		return;
+	}
+
+	for (int idx=0; idx < strlen(str); idx++)
+	{
+		str[idx] = str[idx] - 13;
+	}
+
+	return;
+}
+
+static void
 write_rating_info(FILE *const fp)
 {
 	if (NULL == fp)
@@ -1548,6 +1587,7 @@ write_rating_info(FILE *const fp)
 		{
 			if (path_exists(entry->path, NODEREF))
 			{
+				str_rot_encypt(entry->path);
 				fprintf(fp, "*%d%s\n", entry->star, entry->path);
 			}
 		}
@@ -1565,7 +1605,7 @@ write_rating_info(FILE *const fp)
 	return;
 }
 
-rating_entry_t *
+static rating_entry_t *
 create_rating_info(int star_num, char path[])
 {
 	if (star_num <= 0)
@@ -1578,20 +1618,29 @@ create_rating_info(int star_num, char path[])
 		return NULL;
 	}
   
+	if (!path_exists(path, NODEREF))
+	{
+		return NULL;
+	}
+
 	rating_entry_t *entry = (rating_entry_t *)malloc(sizeof(rating_entry_t));
 	if (NULL == entry)
 	{
 		return NULL;
 	}
+	memset(entry, 0, sizeof(rating_entry_t));
 
 	entry->path = strdup(path);
-	entry->star = star_num;
-	entry->next = NULL;
+	update_rating_star(entry, star_num);
+
+	//add this new entry into rating list
+	entry->next = rating_list;
+	rating_list = entry;
 
 	return entry;
 }
 
-rating_entry_t *
+static rating_entry_t *
 search_rating_info(const char path[])
 {
 	if ((NULL == path) || (0 == strlen(path)))
@@ -1613,37 +1662,11 @@ search_rating_info(const char path[])
 	return NULL;
 }
 
-void
-update_rating_info(int star_num, char path[])
+static void
+update_rating_star(rating_entry_t *entry, int star_num)
 {
-	if (NULL == path)
-	{
-		return;
-	}
-
-	rating_entry_t *entry = search_rating_info(path);
 	if (NULL == entry)
 	{
-		if (star_num <= 0)
-		{
-			return;
-		}
-
-		entry = create_rating_info(star_num, path);
-		if (NULL == entry)
-		{
-			return;
-		}
-
-		entry->next = rating_list;
-		rating_list = entry;
-
-		return;
-	}
-
-	if (0 == star_num)
-	{
-		entry->star = 0;
 		return;
 	}
 
@@ -1657,6 +1680,25 @@ update_rating_info(int star_num, char path[])
 		entry->star = 0;
 	}
 
+	return;
+}
+
+void
+update_rating_info(int star_num, char path[])
+{
+	if (NULL == path)
+	{
+		return;
+	}
+
+	rating_entry_t *entry = search_rating_info(path);
+	if (NULL == entry)
+	{
+		(void)create_rating_info(star_num, path);
+		return;
+	}
+
+	update_rating_star(entry, star_num);
 	return;
 }
 
@@ -1692,7 +1734,6 @@ get_rating_stars(char path[])
 	return 0;
 }
 
-extern const char * local_getenv(const char envname[]);  //add by sim1
 int
 get_rating_string(char buf[], int buf_len, char path[])
 {
