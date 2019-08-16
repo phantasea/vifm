@@ -238,6 +238,7 @@ static void prefervsplit_handler(OPT_OP op, optval_t val);    //add by sim1
 static void maxundotabs_handler(OPT_OP op, optval_t val);     //add by sim1
 static void previewmaxsize_handler(OPT_OP op, optval_t val);  //add by sim1
 static void topmidfiller_handler(OPT_OP op, optval_t val);    //add by sim1
+static void maxratingstars_handler(OPT_OP op, optval_t val);  //add by sim1
 
 static const char *sort_enum[] = {
 	/* SK_* start with 1. */
@@ -719,6 +720,10 @@ options[] = {
 	{ "topmidfiller", "tmf", "top middle border filler",
 	  OPT_STR, 0, NULL, &topmidfiller_handler, NULL,
 	  { .ref.str_val = &cfg.top_mid_filler },
+	},
+	{ "maxratingstars", "mrs", "max rating stars supported",
+	  OPT_INT, 0, NULL, &maxratingstars_handler, NULL,
+	  { .ref.str_val = &cfg.max_rating_stars },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "quickview", "", "whether quick view is active",
@@ -3603,6 +3608,20 @@ topmidfiller_handler(OPT_OP op, optval_t val)
 	}
 
 	(void)replace_string(&cfg.top_mid_filler, val.str_val);
+}
+
+static void
+maxratingstars_handler(OPT_OP op, optval_t val)
+{
+	if ((val.int_val < 0) || (val.int_val > 9))
+	{
+		vle_tb_append_linef(vle_err, "maxratingstars=%d, but it must be [0, 9]", val.int_val);
+		error = 1;
+		cfg.max_rating_stars = 0;
+		return;
+	}
+
+	cfg.max_rating_stars = val.int_val;
 }
 //add by sim1 ***************************
 

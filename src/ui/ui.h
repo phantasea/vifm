@@ -129,9 +129,6 @@ enum
 	SK_TOTAL
 };
 
-//add by sim1
-#define RATING_MAX_STARS 7
-
 typedef struct rating_entry_t
 {
 	char  *path;                   /* full path */
@@ -141,7 +138,6 @@ typedef struct rating_entry_t
 
 int get_rating_stars(char path[]);
 int get_rating_string(char buf[], int len, char path[]);
-void update_rating_info(int star_num, char path[]);
 void update_rating_info_selected(int star_num);
 void copy_rating_info(const char src[], const char dst[], int op);
 //add by sim1 --- END

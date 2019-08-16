@@ -113,6 +113,7 @@ static void str_rot_encypt(char *str);
 static void str_rot_decypt(char *str);
 static rating_entry_t * create_rating_info(int star_num, char path[]);
 static void update_rating_star(rating_entry_t *entry, int star_num);
+static void update_rating_info(int star_num, char path[]);
 extern const char * local_getenv(const char envname[]);
 //add by sim1 ********************************************************
 
@@ -1114,6 +1115,7 @@ write_options(FILE *fp)
 	fprintf(fp, "=maxundotabs=%d\n", cfg.max_undo_tabs);
 	fprintf(fp, "=previewmaxsize=%d\n", cfg.preview_max_size);
 	fprintf(fp, "=topmidfiller=%s\n", cfg.top_mid_filler);
+	fprintf(fp, "=maxratingstars=%d\n", cfg.max_rating_stars);
 	//add by sim1 **************************************************
 
 	fprintf(fp, "=%svimhelp\n", cfg.use_vim_help ? "" : "no");
@@ -1671,9 +1673,9 @@ update_rating_star(rating_entry_t *entry, int star_num)
 	}
 
 	entry->star += star_num;
-	if (entry->star > RATING_MAX_STARS)
+	if (entry->star > cfg.max_rating_stars)
 	{
-		entry->star = RATING_MAX_STARS;
+		entry->star = cfg.max_rating_stars;
 	}
 	else if (entry->star < 0)
 	{
@@ -1683,9 +1685,14 @@ update_rating_star(rating_entry_t *entry, int star_num)
 	return;
 }
 
-void
+static void
 update_rating_info(int star_num, char path[])
 {
+	if (cfg.max_rating_stars == 0)
+	{
+		return;
+	}
+
 	if (NULL == path)
 	{
 		return;
@@ -1707,6 +1714,11 @@ update_rating_info_selected(int star_num)
 {
 	char path[PATH_MAX] = {0};
 	dir_entry_t *entry = NULL;
+
+	if (cfg.max_rating_stars == 0)
+	{
+		return;
+	}
 
 	while (iter_marked_entries(curr_view, &entry))
 	{
@@ -1738,12 +1750,12 @@ int
 get_rating_string(char buf[], int buf_len, char path[])
 {
 		int i, stars;
-		char rating[3*RATING_MAX_STARS + 1] = {0};
+		char rating[64] = {0};
 
     stars = get_rating_stars(path);
-		if (stars > RATING_MAX_STARS)
+		if (stars > cfg.max_rating_stars)
 		{
-			stars = RATING_MAX_STARS;
+			stars = cfg.max_rating_stars;
 		}
 
 		const char *display = local_getenv("DISPLAY");
