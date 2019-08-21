@@ -69,9 +69,13 @@ static var_t has_builtin(const call_info_t *call_info);
 static var_t layoutis_builtin(const call_info_t *call_info);
 static var_t paneisat_builtin(const call_info_t *call_info);
 static var_t system_builtin(const call_info_t *call_info);
-static var_t isactive_builtin(const call_info_t *call_info);  //add by sim1
-static var_t filesize_builtin(const call_info_t *call_info);  //add by sim1
-static var_t selfiles_builtin(const call_info_t *call_info);  //add by sim1
+//add by sim1 *************************************************
+static var_t isactive_builtin(const call_info_t *call_info);
+static var_t filesize_builtin(const call_info_t *call_info);
+static var_t selfiles_builtin(const call_info_t *call_info);
+static var_t isdotfile_builtin(const call_info_t *call_info);
+static var_t getvar_builtin(const call_info_t *call_info);
+//add by sim1 *************************************************
 static var_t tabpagenr_builtin(const call_info_t *call_info);
 static var_t term_builtin(const call_info_t *call_info);
 static var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);
@@ -79,19 +83,21 @@ static var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);
 /* Function descriptions. */
 static const function_t functions[] = {
 	/* Name          Description                    Args   Handler  */
-	{ "isactive",    "check for specific feature", {1,1}, &isactive_builtin },  //add by sim1
+	{ "isactive",    "check for specific feature", {1,1}, &isactive_builtin },   //add by sim1
 	{ "chooseopt",   "query choose options",       {1,1}, &chooseopt_builtin },
 	{ "executable",  "check for executable file",  {1,1}, &executable_builtin },
 	{ "expand",      "expand macros in a string",  {1,1}, &expand_builtin },
 	{ "extcached",   "caches result of a command", {3,3}, &extcached_builtin },
 	{ "filetype",    "retrieve type of a file",    {1,2}, &filetype_builtin },
-	{ "filesize",    "retrieve size of a file",    {1,1}, &filesize_builtin },  //add by sim1
+	{ "filesize",    "retrieve size of a file",    {1,1}, &filesize_builtin },   //add by sim1
 	{ "fnameescape", "escapes string for a :cmd",  {1,1}, &fnameescape_builtin },
 	{ "getpanetype", "retrieve type of file list", {0,0}, &getpanetype_builtin},
+	{ "getvar",      "get variable for test",      {0,0}, &getvar_builtin},      //add by sim1
 	{ "has",         "check for specific ability", {1,1}, &has_builtin },
+	{ "isdotfile",   "check if file a dot file",   {1,1}, &isdotfile_builtin },  //add by sim1
 	{ "layoutis",    "query current layout",       {1,1}, &layoutis_builtin },
 	{ "paneisat",    "query pane location",        {1,1}, &paneisat_builtin },
-	{ "selfiles",    "selected file number",       {0,0}, &selfiles_builtin },  //add by sim1
+	{ "selfiles",    "selected file number",       {0,0}, &selfiles_builtin },   //add by sim1
 	{ "system",      "execute external command",   {1,1}, &system_builtin },
 	{ "tabpagenr",   "number of current/last tab", {0,1}, &tabpagenr_builtin },
 	{ "term",        "run interactive command",    {1,1}, &term_builtin },
@@ -549,6 +555,26 @@ static var_t
 selfiles_builtin(const call_info_t *call_info)
 {
 	return var_from_int(curr_view->selected_files);
+}
+
+static var_t
+isdotfile_builtin(const call_info_t *call_info)
+{
+	const int fnum = get_fnum(call_info->argv[0]);
+	if(fnum < 0)
+	{
+		return var_from_bool(0);
+	}
+
+	char c = curr_view->dir_entry[fnum].name[0];
+
+	return var_from_bool(c=='.');
+}
+
+static var_t
+getvar_builtin(const call_info_t *call_info)
+{
+	return var_from_int(99);
 }
 //add by sim1 ------------------------
 
