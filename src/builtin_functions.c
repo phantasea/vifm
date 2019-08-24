@@ -75,6 +75,7 @@ static var_t filesize_builtin(const call_info_t *call_info);
 static var_t selfiles_builtin(const call_info_t *call_info);
 static var_t isdotfile_builtin(const call_info_t *call_info);
 static var_t getvar_builtin(const call_info_t *call_info);
+static var_t toggle_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
 static var_t tabpagenr_builtin(const call_info_t *call_info);
 static var_t term_builtin(const call_info_t *call_info);
@@ -100,6 +101,7 @@ static const function_t functions[] = {
 	{ "selfiles",    "selected file number",       {0,0}, &selfiles_builtin },   //add by sim1
 	{ "system",      "execute external command",   {1,1}, &system_builtin },
 	{ "tabpagenr",   "number of current/last tab", {0,1}, &tabpagenr_builtin },
+	{ "toggle",      "toggle function",            {1,1}, &toggle_builtin },     //add by sim1
 	{ "term",        "run interactive command",    {1,1}, &term_builtin },
 };
 
@@ -569,6 +571,19 @@ isdotfile_builtin(const call_info_t *call_info)
 	char c = curr_view->dir_entry[fnum].name[0];
 
 	return var_from_bool(c=='.');
+}
+
+static var_t
+toggle_builtin(const call_info_t *call_info)
+{
+	static int bold = 0;
+	if (!strcmp(var_to_str(call_info->argv[0]), "bold"))
+	{
+		bold = !bold;
+		return var_from_bool(bold);
+	}
+
+	return var_from_bool(0);
 }
 
 static var_t
