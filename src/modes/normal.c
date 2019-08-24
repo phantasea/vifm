@@ -254,6 +254,8 @@ static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_U(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zi(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zI(key_info_t key_info, keys_info_t *keys_info);
 //add by sim1 -------------------------------------------------------
 
 static int last_fast_search_char;
@@ -401,8 +403,9 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_u,             {{&cmd_u},            .descr = "undo file operation"}},
 	{WK_y WK_y,        {{&cmd_yy}, .nim = 1, .descr = "yank files"}},
 	{WK_y,             {{&cmd_y_selector}, FOLLOWED_BY_SELECTOR, .descr = "yank files"}},
-	//mod by sim1
-	{WK_v,             {{&cmd_v},  .descr = "go to view mode"}},
+	{WK_v,             {{&cmd_v},  .descr = "go to view mode"}},       //mod by sim1
+	{WK_z WK_i,        {{&cmd_zi}, .descr = "restore name filter"}},   //add by sim1
+	{WK_z WK_I,        {{&cmd_zI}, .descr = "restore local filter"}},  //add by sim1
 	{WK_z WK_A,        {{&cmd_zA}, .descr = "show only dot files"}},
 	{WK_z WK_D,        {{&cmd_zD}, .descr = "show only directorys"}},
 	{WK_z WK_M,        {{&cmd_zM}, .descr = "restore all filters"}},
@@ -2131,31 +2134,6 @@ free_list_of_file_indexes(keys_info_t *keys_info)
 	keys_info->count = 0;
 }
 
-/* Filter the files matching the filename filter. */
-static void
-cmd_zM(key_info_t key_info, keys_info_t *keys_info)
-{
-	name_filters_restore(curr_view);
-	local_filter_restore(curr_view);
-	//dot_filter_set(curr_view, 0);  //del by sim1
-}
-
-/* Remove filename filter. */
-static void
-cmd_zO(key_info_t key_info, keys_info_t *keys_info)
-{
-	name_filters_remove(curr_view);
-}
-
-/* Show all hidden files. */
-static void
-cmd_zR(key_info_t key_info, keys_info_t *keys_info)
-{
-	name_filters_remove(curr_view);
-	local_filter_remove(curr_view);
-	//dot_filter_set(curr_view, 1);  //del by sim1
-}
-
 /* Toggle dot files visibility. */
 static void
 cmd_za(key_info_t key_info, keys_info_t *keys_info)
@@ -2191,18 +2169,6 @@ cmd_zx(key_info_t key_info, keys_info_t *keys_info)
 }
 //mod by sim1 -------------------------------------
 
-/* Redraw with file in bottom of list. */
-void
-normal_cmd_zb(key_info_t key_info, keys_info_t *keys_info)
-{
-	if(can_scroll_up(curr_view))
-	{
-		const int bottom = fpos_get_bottom_pos(curr_view);
-		scroll_up(curr_view, bottom - curr_view->list_pos);
-		redraw_current_view();
-	}
-}
-
 /* Filter selected files. */
 static void
 cmd_zf(key_info_t key_info, keys_info_t *keys_info)
@@ -2210,18 +2176,51 @@ cmd_zf(key_info_t key_info, keys_info_t *keys_info)
 	name_filters_add_selection(curr_view);
 }
 
+//mod by sim1 -------------------------------------
 /* Hide dot files. */
 static void
 cmd_zm(key_info_t key_info, keys_info_t *keys_info)
 {
-	dot_filter_set(curr_view, 0);
+	//dot_filter_set(curr_view, 0);  //del by sim1
+	name_filters_restore(curr_view); //add by sim1
+}
+
+/* Filter the files matching the filename filter. */
+static void
+cmd_zM(key_info_t key_info, keys_info_t *keys_info)
+{
+	local_filter_restore(curr_view);
+	//dot_filter_set(curr_view, 0);  //del by sim1
+}
+
+/* Show all the dot files. */
+static void
+cmd_zi(key_info_t key_info, keys_info_t *keys_info)
+{
+	name_filters_restore(curr_view);
+}
+
+/* Show all the dot files. */
+static void
+cmd_zI(key_info_t key_info, keys_info_t *keys_info)
+{
+	local_filter_restore(curr_view);
 }
 
 /* Show all the dot files. */
 static void
 cmd_zo(key_info_t key_info, keys_info_t *keys_info)
 {
-	dot_filter_set(curr_view, 1);
+	//dot_filter_set(curr_view, 1);  //del by sim1
+	name_filters_remove(curr_view);  //add by sim1
+}
+
+/* Remove filename filter. */
+static void
+cmd_zO(key_info_t key_info, keys_info_t *keys_info)
+{
+	//name_filters_remove(curr_view);  //del by sim1
+	local_filter_remove(curr_view);    //add by sim1
 }
 
 /* Reset local filter. */
@@ -2230,6 +2229,16 @@ cmd_zr(key_info_t key_info, keys_info_t *keys_info)
 {
 	local_filter_remove(curr_view);
 }
+
+/* Show all hidden files. */
+static void
+cmd_zR(key_info_t key_info, keys_info_t *keys_info)
+{
+	name_filters_remove(curr_view);
+	local_filter_remove(curr_view);
+	//dot_filter_set(curr_view, 1);  //del by sim1
+}
+//mod by sim1 -------------------------------------
 
 /* Moves cursor to the beginning of the previous group of files defined by the
  * primary sorting key. */
@@ -2371,6 +2380,18 @@ static void
 cmd_right_curly_bracket(key_info_t key_info, keys_info_t *keys_info)
 {
 	pick_or_move(keys_info, fpos_find_dir_group(curr_view, 1));
+}
+
+/* Redraw with file in bottom of list. */
+void
+normal_cmd_zb(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(can_scroll_up(curr_view))
+	{
+		const int bottom = fpos_get_bottom_pos(curr_view);
+		scroll_up(curr_view, bottom - curr_view->list_pos);
+		redraw_current_view();
+	}
 }
 
 /* Redraw with file in top of list. */
