@@ -1268,7 +1268,7 @@ get_ruler_width(view_t *view)
 	view->list_pos = (view->list_rows == 0) ? 0 : (view->list_rows - 1);
 
 	expanded = expand_ruler_macros(view, cfg.ruler_format);
-	len = strlen(expanded);
+	len = strlen(expanded) + cfg.max_rating_stars;
 	free(expanded);
 
 	view->list_pos = list_pos;
@@ -1282,7 +1282,7 @@ get_ruler_width(view_t *view)
 static char *
 expand_ruler_macros(view_t *view, const char format[])
 {
-	return expand_view_macros(view, format, "-nxlLS%[]");  //mod by sim1, add char n for nitems
+	return expand_view_macros(view, format, "-rxlLS%[]");  //mod by sim1, add char r for rating stars
 }
 
 void
