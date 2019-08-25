@@ -217,7 +217,7 @@ cfg_init(void)
 	cfg.prefer_vsplit = 0;
 	cfg.max_undo_tabs = 0;
 	cfg.preview_max_size = 0;
-	cfg.max_rating_stars = 0;
+	cfg.max_rating_stars = 9;
 	cfg.top_mid_filler = strdup(" ");
 	//add by sim1 *******************
 
