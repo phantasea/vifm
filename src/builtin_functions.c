@@ -586,10 +586,11 @@ toggle_builtin(const call_info_t *call_info)
 	return var_from_bool(0);
 }
 
+int temptestforint = 0;
 static var_t
 getvar_builtin(const call_info_t *call_info)
 {
-	return var_from_int(99);
+	return var_from_int(temptestforint);
 }
 //add by sim1 ------------------------
 
