@@ -6256,8 +6256,6 @@ case "$host_os" in
         ;;
 esac
 
-CFLAGS="$CFLAGS -fsigned-char"
-
 TESTS_CFLAGS="$CFLAGS"
 
 
