@@ -1996,7 +1996,7 @@ print_view_title(const view_t *view, int active_view, char title[])
 
 	if (!ret)
 	{
-		snprintf(buf, sizeof(buf), "%s@%s: %s", username, hostname, ellipsis);
+		snprintf(buf, sizeof(buf), "%s@%s:%s", username, hostname, ellipsis);
 		wprint(view->title, buf);
 	}
 	else
