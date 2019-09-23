@@ -500,6 +500,10 @@ draw_msg(const char title[], const char msg[], const char ctrl_msg[],
 	            (int)MAX(wctrl_msg, determine_width(msg)) + 4)));
 	wresize(error_win, h, w);
 
+	//add by sim1 **********************************
+	const col_attr_t col = cfg.cs.color[DIALOG_COLOR];
+	ui_set_bg(error_win, &col, -1);
+	//add by sim1 **********************************
 	werase(error_win);
 
 	len = strlen(msg);
