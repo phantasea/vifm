@@ -580,7 +580,7 @@ draw_menu_frame(const menu_state_t *m)
 	char *const ellipsed = right_ellipsis(title, title_len, curr_stats.ellipsis);
 	free(title);
 
-	ui_set_attr(menu_win, &cfg.cs.color[WIN_COLOR], cfg.cs.pair[WIN_COLOR]);
+	ui_set_attr(menu_win, &cfg.cs.color[SUGGEST_BOX_COLOR], cfg.cs.pair[SUGGEST_BOX_COLOR]);  //mod by sim1
 
 	box(menu_win, 0, 0);
 	wattron(menu_win, A_BOLD);
