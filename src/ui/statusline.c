@@ -352,7 +352,8 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 						buf);
 				break;
 			case 't':
-				format_entry_name(curr, NF_FULL, sizeof(buf), buf);
+				//mod by sim1 for file name left ellipsis
+				format_entry_name(curr, NF_FULL | (1 << 3), sizeof(buf), buf);
 				break;
 			case 'T':
 				if(curr->type == FT_LINK)

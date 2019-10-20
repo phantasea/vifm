@@ -1500,6 +1500,13 @@ format_entry_name(const dir_entry_t *entry, NameFormat fmt, size_t buf_len,
 		name = tmp_buf;
 	}
 
+	//add by sim1 for file name left ellipsis
+	if ((fmt >> 3) == 1)
+	{
+		name = left_ellipsis(name, 60, curr_stats.ellipsis);
+	}
+	//add by sim1 ***************************
+
 	ui_get_decors(entry, &prefix, &suffix);
 	snprintf(buf, buf_len, "%s%s%s", prefix,
 			(is_root_dir(entry->name) && suffix[0] == '/') ? "" : name, suffix);
