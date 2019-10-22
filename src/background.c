@@ -844,6 +844,13 @@ bg_run_external(const char cmd[], int skip_errors, ShellRequester by)
 		/* Close write end of pipe. */
 		close(error_pipe[1]);
 
+		//add by sim1 *****************************
+		//if (strstr(command, "> /dev/null") != NULL)
+		//{
+		//	pid += 1;
+		//}
+		//add by sim1 *****************************
+
 		job = add_background_job(pid, command, (uintptr_t)error_pipe[0],
 				BJT_COMMAND);
 		if(job == NULL)
