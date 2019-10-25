@@ -829,7 +829,33 @@ bg_run_external(const char cmd[], int skip_errors, ShellRequester by)
 				perror("dup2 for stdout");
 				_Exit(EXIT_FAILURE);
 			}
+			//add by sim1 *****************************
+			if (strstr(command, "2>&1") != NULL)
+			{
+				if(dup2(nullfd, STDERR_FILENO) == -1)
+				{
+					perror("dup2 for stderr");
+					_Exit(EXIT_FAILURE);
+				}
+			}
+			//add by sim1 *****************************
 		}
+
+		//add by sim1 *****************************
+		char *pred = NULL;
+		if ((pred = strstr(command, "> /dev/null")) != NULL
+			|| (pred = strstr(command, ">/dev/null")) != NULL)
+		{
+			if ((pred > command) && (*(pred - 1) == ' '))
+			{
+				*(pred - 1) = '\0';
+			}
+			else
+			{
+				pred[0] = '\0';
+			}
+		}
+		//add by sim1 *****************************
 
 		setpgid(0, 0);
 
@@ -845,10 +871,7 @@ bg_run_external(const char cmd[], int skip_errors, ShellRequester by)
 		close(error_pipe[1]);
 
 		//add by sim1 *****************************
-		//if (strstr(command, "> /dev/null") != NULL)
-		//{
-		//	pid += 1;
-		//}
+		//show_error_msg("test prompt", command);
 		//add by sim1 *****************************
 
 		job = add_background_job(pid, command, (uintptr_t)error_pipe[0],
