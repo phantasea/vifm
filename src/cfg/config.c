@@ -219,6 +219,7 @@ cfg_init(void)
 	cfg.preview_max_size = 0;
 	cfg.max_rating_stars = 9;
 	cfg.file_name_disp_len = 64;
+	cfg.file_name_disp_all = 1;
 	cfg.top_mid_filler = strdup(" ");
 	//add by sim1 *******************
 

@@ -242,6 +242,7 @@ static void topmidfiller_handler(OPT_OP op, optval_t val);
 static void maxratingstars_handler(OPT_OP op, optval_t val);
 static void maxratingstars_handler(OPT_OP op, optval_t val);
 static void filenamedisplen_handler(OPT_OP op, optval_t val);
+static void filenamedispall_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 static const char *sort_enum[] = {
@@ -728,6 +729,10 @@ options[] = {
 	{ "filenamedisplen", "fndl", "filename length in statusbar",
 	  OPT_INT, 0, NULL, &filenamedisplen_handler, NULL,
 	  { .ref.int_val = &cfg.file_name_disp_len },
+	},
+	{ "filenamedispall", "fnda", "filename with prefix&suffix",
+	  OPT_BOOL, 0, NULL, &filenamedispall_handler, NULL,
+	  { .ref.bool_val = &cfg.file_name_disp_all },
 	},
 	{ "topmidfiller", "tmf", "top middle border filler",
 	  OPT_STR, 0, NULL, &topmidfiller_handler, NULL,
@@ -3644,6 +3649,12 @@ filenamedisplen_handler(OPT_OP op, optval_t val)
 	}
 
 	cfg.file_name_disp_len = val.int_val;
+}
+
+static void
+filenamedispall_handler(OPT_OP op, optval_t val)
+{
+	cfg.file_name_disp_all = val.bool_val;
 }
 //add by sim1 *******************************************************************************
 
