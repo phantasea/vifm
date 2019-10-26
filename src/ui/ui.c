@@ -1503,7 +1503,7 @@ format_entry_name(const dir_entry_t *entry, NameFormat fmt, size_t buf_len,
 	//add by sim1 for file name left ellipsis
 	if ((fmt >> 3) == 1)
 	{
-		name = left_ellipsis(name, 64, curr_stats.ellipsis);
+		name = left_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis);
 	}
 	//add by sim1 ***************************
 

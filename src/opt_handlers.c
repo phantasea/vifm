@@ -234,11 +234,15 @@ static int parse_endpoint(const char **str, int *endpoint);
 static void wrap_handler(OPT_OP op, optval_t val);
 static void text_option_changed(void);
 static void wrapscan_handler(OPT_OP op, optval_t val);
-static void prefervsplit_handler(OPT_OP op, optval_t val);    //add by sim1
-static void maxundotabs_handler(OPT_OP op, optval_t val);     //add by sim1
-static void previewmaxsize_handler(OPT_OP op, optval_t val);  //add by sim1
-static void topmidfiller_handler(OPT_OP op, optval_t val);    //add by sim1
-static void maxratingstars_handler(OPT_OP op, optval_t val);  //add by sim1
+//add by sim1 ***********************************************
+static void prefervsplit_handler(OPT_OP op, optval_t val);
+static void maxundotabs_handler(OPT_OP op, optval_t val);
+static void previewmaxsize_handler(OPT_OP op, optval_t val);
+static void topmidfiller_handler(OPT_OP op, optval_t val);
+static void maxratingstars_handler(OPT_OP op, optval_t val);
+static void maxratingstars_handler(OPT_OP op, optval_t val);
+static void filenamedisplen_handler(OPT_OP op, optval_t val);
+//add by sim1 ***********************************************
 
 static const char *sort_enum[] = {
 	/* SK_* start with 1. */
@@ -717,13 +721,17 @@ options[] = {
 	  OPT_INT, 0, NULL, &previewmaxsize_handler, NULL,
 	  { .ref.int_val = &cfg.preview_max_size },
 	},
+	{ "maxratingstars", "mrs", "max rating stars supported",
+	  OPT_INT, 0, NULL, &maxratingstars_handler, NULL,
+	  { .ref.int_val = &cfg.max_rating_stars },
+	},
+	{ "filenamedisplen", "fndl", "filename length in statusbar",
+	  OPT_INT, 0, NULL, &filenamedisplen_handler, NULL,
+	  { .ref.int_val = &cfg.file_name_disp_len },
+	},
 	{ "topmidfiller", "tmf", "top middle border filler",
 	  OPT_STR, 0, NULL, &topmidfiller_handler, NULL,
 	  { .ref.str_val = &cfg.top_mid_filler },
-	},
-	{ "maxratingstars", "mrs", "max rating stars supported",
-	  OPT_INT, 0, NULL, &maxratingstars_handler, NULL,
-	  { .ref.str_val = &cfg.max_rating_stars },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "quickview", "", "whether quick view is active",
@@ -3560,7 +3568,7 @@ wrapscan_handler(OPT_OP op, optval_t val)
 	cfg.wrap_scan = val.bool_val;
 }
 
-//add by sim1 ***************************
+//add by sim1 *******************************************************************************
 static void
 prefervsplit_handler(OPT_OP op, optval_t val)
 {
@@ -3623,7 +3631,21 @@ maxratingstars_handler(OPT_OP op, optval_t val)
 
 	cfg.max_rating_stars = val.int_val;
 }
-//add by sim1 ***************************
+
+static void
+filenamedisplen_handler(OPT_OP op, optval_t val)
+{
+	if (val.int_val <= 0)
+	{
+		vle_tb_append_linef(vle_err, "filenamedisplen=%d, but it must be positive", val.int_val);
+		error = 1;
+		cfg.file_name_disp_len = 64;
+		return;
+	}
+
+	cfg.file_name_disp_len = val.int_val;
+}
+//add by sim1 *******************************************************************************
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */

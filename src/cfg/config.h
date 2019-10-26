@@ -303,13 +303,14 @@ typedef struct config_t
 	int case_override; /* Flag set here means the fact of the override. */
 	int case_ignore;   /* Flag here means case should be either always ignored or
 	                      always respected. */
-	//add by sim1 ********************************************
-	int prefer_vsplit;     /* whether prefer vsplit */
-	int max_undo_tabs;     /* max number for undo tabs */
-	int preview_max_size;  /* max file size(kB) for preview */
-	int max_rating_stars;  /* max number for rating stars */
-	char *top_mid_filler;  /* top middle border filler */
-	//add by sim1 ********************************************
+	//add by sim1 **********************************************
+	int prefer_vsplit;       /* whether prefer vsplit */
+	int max_undo_tabs;       /* max number for undo tabs */
+	int preview_max_size;    /* max file size(kB) for preview */
+	int max_rating_stars;    /* max number for rating stars */
+	int file_name_disp_len;  /* file name length in statusbar */
+	char *top_mid_filler;    /* top middle border filler */
+	//add by sim1 **********************************************
 
 	/* Settings of size formatting. */
 	struct

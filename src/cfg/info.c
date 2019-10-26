@@ -1116,6 +1116,7 @@ write_options(FILE *fp)
 	fprintf(fp, "=previewmaxsize=%d\n", cfg.preview_max_size);
 	fprintf(fp, "=topmidfiller=%s\n", cfg.top_mid_filler);
 	fprintf(fp, "=maxratingstars=%d\n", cfg.max_rating_stars);
+	fprintf(fp, "=filenamedisplen=%d\n", cfg.file_name_disp_len);
 	//add by sim1 **************************************************
 
 	fprintf(fp, "=%svimhelp\n", cfg.use_vim_help ? "" : "no");
