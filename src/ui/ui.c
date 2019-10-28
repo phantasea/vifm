@@ -1268,7 +1268,7 @@ get_ruler_width(view_t *view)
 	view->list_pos = (view->list_rows == 0) ? 0 : (view->list_rows - 1);
 
 	expanded = expand_ruler_macros(view, cfg.ruler_format);
-	len = strlen(expanded) + cfg.max_rating_stars;
+	len = strlen(expanded) + cfg.max_rating_stars;  //mod by sim1
 	free(expanded);
 
 	view->list_pos = list_pos;
