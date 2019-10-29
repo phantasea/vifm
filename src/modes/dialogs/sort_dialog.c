@@ -25,6 +25,7 @@
 #include <stdlib.h> /* abs() */
 #include <string.h>
 
+#include "../../cfg/config.h"  //add by sim1
 #include "../../compat/curses.h"
 #include "../../engine/keys.h"
 #include "../../engine/mode.h"
@@ -220,6 +221,10 @@ redraw_sort_dialog(void)
 	wresize(sort_win, MIN(getmaxy(stdscr), SK_COUNT + 6), SORT_WIN_WIDTH);
 	mvwin(sort_win, MAX(0, y), x);
 
+	//add by sim1 **********************************
+	const col_attr_t color = cfg.cs.color[DIALOG_COLOR];
+	ui_set_bg(sort_win, &color, -1);
+	//add by sim1 **********************************
 	werase(sort_win);
 	box(sort_win, 0, 0);
 

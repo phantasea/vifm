@@ -126,6 +126,11 @@ redraw_change_dialog(void)
 
 	wresize(change_win, bottom + 3, 25);
 
+	//add by sim1 **********************************
+	const col_attr_t col = cfg.cs.color[DIALOG_COLOR];
+	ui_set_bg(change_win, &col, -1);
+	//add by sim1 **********************************
+
 	getmaxyx(change_win, y, x);
 	werase(change_win);
 	box(change_win, 0, 0);

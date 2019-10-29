@@ -31,6 +31,7 @@
 #include <stdio.h> /* snprintf() */
 #include <string.h> /* strncat() strlen() */
 
+#include "../../cfg/config.h"  //add by sim1
 #include "../../compat/curses.h"
 #include "../../compat/fs_limits.h"
 #include "../../engine/keys.h"
@@ -216,6 +217,10 @@ redraw_attr_dialog(void)
 	char *title;
 	int x, y;
 
+	//add by sim1 **********************************
+	const col_attr_t color = cfg.cs.color[DIALOG_COLOR];
+	ui_set_bg(change_win, &color, -1);
+	//add by sim1 **********************************
 	werase(change_win);
 	if(file_is_dir)
 		wresize(change_win, 22, 30);
