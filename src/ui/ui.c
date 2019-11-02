@@ -1708,6 +1708,7 @@ void print_top_mid_filler(void)
 		return;
 	}
 
+	ui_set_bg(top_line, &cfg.cs.color[TOP_MID_COLOR], cfg.cs.pair[TOP_MID_COLOR]);
 	werase(top_line);
 	wprint(top_line, cfg.top_mid_filler);
 	wnoutrefresh(top_line);

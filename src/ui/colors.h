@@ -55,6 +55,7 @@ enum
 	SUGGEST_BOX_COLOR,  /* Style of suggestion box. */
 	MENU_COLOR,         /* Menu highlight. */    //add by sim1
 	DIALOG_COLOR,       /* Dialog highlight. */  //add by sim1
+	TOP_MID_COLOR,      /* TopMid filler highlight. */  //add by sim1
 	MISMATCH_COLOR,     /* File entries that don't match each other in diff. */
 	AUX_WIN_COLOR,      /* Auxiliary part of window. */
 	TAB_LINE_COLOR,     /* Tab line. */
