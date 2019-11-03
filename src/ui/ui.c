@@ -765,6 +765,13 @@ clear_border(WINDOW *border)
 static int
 middle_border_is_visible(void)
 {
+	//add by sim1 ***************
+	if (getmaxx(stdscr) % 2 != 0)
+	{
+		return FALSE;
+	}
+	//add by sim1 ***************
+
 	return (curr_stats.number_of_windows == 2 && curr_stats.split == VSPLIT);
 }
 
