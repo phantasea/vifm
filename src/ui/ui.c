@@ -601,7 +601,6 @@ update_screen(UpdateType update_kind)
 		return;
 	}
 
-	curr_stats.need_update = UT_NONE;
 	qv_ui_updated();
 
 	update_views(update_kind == UT_FULL);
@@ -656,8 +655,6 @@ update_screen(UpdateType update_kind)
 
 	update_input_buf();
 	ui_stat_job_bar_redraw();
-
-	curr_stats.need_update = UT_NONE;
 }
 
 /* Resizes all windows according to current screen size and TUI
@@ -861,7 +858,7 @@ change_window(void)
 	}
 	else
 	{
-		curr_stats.need_update = UT_REDRAW;
+		stats_redraw_later();
 	}
 }
 
@@ -1369,7 +1366,7 @@ switch_panes_content(void)
 
 	view_panes_swapped();
 
-	curr_stats.need_update = UT_REDRAW;
+	stats_redraw_later();
 }
 
 void
@@ -1423,7 +1420,8 @@ split_view(SPLIT orientation)
 
 	curr_stats.split = orientation;
 	curr_stats.number_of_windows = 2;
-	curr_stats.need_update = UT_REDRAW;
+
+	stats_redraw_later();
 }
 
 void
@@ -2302,7 +2300,7 @@ ui_pause(void)
 			pressed == KEY_RESIZE);
 
 	/* Redraw UI to account for all things including graphical preview. */
-	curr_stats.need_update = UT_REDRAW;
+	stats_redraw_later();
 }
 
 void

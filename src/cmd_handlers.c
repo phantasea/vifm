@@ -2616,7 +2616,7 @@ highlight_clear(const cmd_info_t *cmd_info)
 		ui_invalidate_cs(curr_stats.cs);
 
 		/* Redraw to update filename specific highlights. */
-		curr_stats.need_update = UT_REDRAW;
+		stats_redraw_later();
 
 		return 0;
 	}
@@ -2628,7 +2628,7 @@ highlight_clear(const cmd_info_t *cmd_info)
 
 		/* Request full update instead of redraw to force recalculation of mixed
 		 * colors like cursor line, which otherwise are not updated. */
-		curr_stats.need_update = UT_FULL;
+		stats_refresh_later();
 		return 0;
 	}
 
@@ -2673,7 +2673,7 @@ highlight_file(const cmd_info_t *cmd_info)
 	cs_add_file_hi(matchers, &color);
 
 	/* Redraw is enough to update filename specific highlights. */
-	curr_stats.need_update = UT_REDRAW;
+	stats_redraw_later();
 
 	return result;
 }
@@ -2741,7 +2741,7 @@ highlight_group(const cmd_info_t *cmd_info)
 	/* Other highlight commands might have finished successfully, so update TUI.
 	 * Request full update instead of redraw to force recalculation of mixed
 	 * colors like cursor line, which otherwise are not updated. */
-	curr_stats.need_update = UT_FULL;
+	stats_refresh_later();
 
 	return result;
 }
@@ -4748,7 +4748,7 @@ winrun_cmd(const cmd_info_t *cmd_info)
 			break;
 	}
 
-	curr_stats.need_update = UT_FULL;
+	stats_refresh_later();
 
 	return result;
 }
