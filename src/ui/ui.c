@@ -883,16 +883,12 @@ update_all_windows(void)
 void
 touch_all_windows(void)
 {
-	int in_menu;
-
 	if(curr_stats.load_stage < 2)
 	{
 		return;
 	}
 
-	in_menu = is_in_menu_like_mode();
-
-	if(!in_menu)
+	if(!is_in_menu_like_mode())
 	{
 		update_window_lazy(tab_line);
 
