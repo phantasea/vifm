@@ -111,9 +111,7 @@ WINDOW *error_win;
 static WINDOW *top_line;
 static WINDOW *tab_line;
 
-static WINDOW *lborder;
 static WINDOW *mborder;
-static WINDOW *rborder;
 
 static int pair_in_use(short int pair);
 static void move_pair(short int from, short int to);
@@ -712,9 +710,6 @@ resize_all(void)
 
 	wresize(stdscr, screen_h, screen_w);
 	wresize(menu_win, screen_h - 1, screen_w);
-
-	int border_h = get_working_area_height();
-	int border_y = 1 + get_tabline_height();
 
 	if(curr_stats.number_of_windows == 1)
 	{
