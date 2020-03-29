@@ -149,7 +149,7 @@ am_vifm_OBJECTS = cfg/config.$(OBJEXT) cfg/info.$(OBJEXT) \
 	menus/grep_menu.$(OBJEXT) menus/history_menu.$(OBJEXT) \
 	menus/jobs_menu.$(OBJEXT) menus/locate_menu.$(OBJEXT) \
 	menus/trash_menu.$(OBJEXT) menus/trashes_menu.$(OBJEXT) \
-	menus/map_menu.$(OBJEXT) menus/marks_menu.$(OBJEXT) \
+	menus/map_menu.$(OBJEXT) menus/marks_menu.$(OBJEXT) menus/ratings_menu.$(OBJEXT) \
 	menus/media_menu.$(OBJEXT) menus/menus.$(OBJEXT) \
 	menus/registers_menu.$(OBJEXT) menus/undolist_menu.$(OBJEXT) \
 	menus/users_menu.$(OBJEXT) menus/vifm_menu.$(OBJEXT) \
@@ -711,6 +711,7 @@ vifm_SOURCES = \
 	menus/trashes_menu.c menus/trashes_menu.h \
 	menus/map_menu.c menus/map_menu.h \
 	menus/marks_menu.c menus/marks_menu.h \
+	menus/ratings_menu.c menus/ratings_menu.h \
 	menus/media_menu.c menus/media_menu.h \
 	menus/menus.c menus/menus.h \
 	menus/registers_menu.c menus/registers_menu.h \
@@ -1078,6 +1079,8 @@ menus/map_menu.$(OBJEXT): menus/$(am__dirstamp) \
 	menus/$(DEPDIR)/$(am__dirstamp)
 menus/marks_menu.$(OBJEXT): menus/$(am__dirstamp) \
 	menus/$(DEPDIR)/$(am__dirstamp)
+menus/ratings_menu.$(OBJEXT): menus/$(am__dirstamp) \
+	menus/$(DEPDIR)/$(am__dirstamp)
 menus/media_menu.$(OBJEXT): menus/$(am__dirstamp) \
 	menus/$(DEPDIR)/$(am__dirstamp)
 menus/menus.$(OBJEXT): menus/$(am__dirstamp) \
@@ -1397,6 +1400,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/marks_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/media_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/menus.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/ratings_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/registers_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/trash_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/trashes_menu.Po@am__quote@
