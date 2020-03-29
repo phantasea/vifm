@@ -1572,6 +1572,11 @@ str_rot_decypt(char *str)
 	return;
 }
 
+rating_entry_t * get_rating_list()
+{
+	return rating_list;
+}
+
 static void
 write_rating_info(FILE *const fp)
 {

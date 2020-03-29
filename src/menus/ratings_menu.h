@@ -17,35 +17,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef VIFM__MENUS__ALL_H__
-#define VIFM__MENUS__ALL_H__
+#ifndef VIFM__MENUS__RATINGS_MENU_H__
+#define VIFM__MENUS__RATINGS_MENU_H__
 
-#include "apropos_menu.h"
-#include "bmarks_menu.h"
-#include "cabbrevs_menu.h"
-#include "colorscheme_menu.h"
-#include "commands_menu.h"
-#include "dirhistory_menu.h"
-#include "dirstack_menu.h"
-#include "filetypes_menu.h"
-#include "find_menu.h"
-#include "grep_menu.h"
-#include "history_menu.h"
-#include "jobs_menu.h"
-#include "locate_menu.h"
-#include "map_menu.h"
-#include "marks_menu.h"
-#include "ratings_menu.h"  //add by sim1
-#include "media_menu.h"
-#include "registers_menu.h"
-#include "trash_menu.h"
-#include "trashes_menu.h"
-#include "undolist_menu.h"
-#include "users_menu.h"
-#include "vifm_menu.h"
-#include "volumes_menu.h"
+struct view_t;
 
-#endif /* VIFM__MENUS__ALL_H__ */
+int show_ratings_menu(struct view_t *view);
+
+#endif /* VIFM__MENUS__RATINGS_MENU_H__ */
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */

@@ -319,7 +319,8 @@ static int get_reg(const char arg[], int *reg);
 static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
 static int explore_cmd(const cmd_info_t *cmd_info);  //add by sim1
-static int switch_cmd(const cmd_info_t *cmd_info);  //add by sim1
+static int switch_cmd(const cmd_info_t *cmd_info);   //add by sim1
+static int ratings_cmd(const cmd_info_t *cmd_info);  //add by sim1
 
 const cmd_add_t cmds_list[] = {
 	{ .name = "",                  .abbr = NULL,    .id = COM_GOTO,
@@ -710,6 +711,12 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "unmap user keys in preview mode",
 	  .flags = HAS_RAW_ARGS,
 	  .handler = &qunmap_cmd,      .min_args = 1,   .max_args = 1, },
+	//add by sim1 ------------------------------------------
+	{ .name = "ratings",           .abbr = NULL,    .id = -1,
+	  .descr = "show star ratings info",
+	  .flags = 0,
+	  .handler = &ratings_cmd,     .min_args = 0,   .max_args = 0, },
+	//add by sim1 ------------------------------------------
 	{ .name = "redraw",            .abbr = "redr",  .id = -1,
 	  .descr = "force screen redraw",
 	  .flags = HAS_COMMENT,
@@ -3326,6 +3333,16 @@ marks_cmd(const cmd_info_t *cmd_info)
 	}
 	return show_marks_menu(curr_view, buf) != 0;
 }
+
+//add by sim1 *******************************************
+extern int show_ratings_menu(view_t *view);
+
+static int
+ratings_cmd(const cmd_info_t *cmd_info)
+{
+	return show_ratings_menu(curr_view) != 0;
+}
+//add by sim1 *******************************************
 
 #ifndef _WIN32
 
