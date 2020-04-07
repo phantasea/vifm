@@ -32,6 +32,7 @@
 #include "../modes/dialogs/msg_dialog.h"
 #include "../ui/fileview.h"
 #include "../ui/statusbar.h"
+#include "../ui/tabs.h"  //add by sim1
 #include "../ui/ui.h"
 #include "../utils/hist.h"
 #include "../utils/macros.h"
@@ -112,6 +113,8 @@ static void cmd_gA(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ga(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gg(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gl(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gU(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gu(key_info_t key_info, keys_info_t *keys_info);
 static void do_gu(int upper);
@@ -122,11 +125,9 @@ static void cmd_h(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_i(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_j(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_k(key_info_t key_info, keys_info_t *keys_info);
-static void go_to_prev(key_info_t key_info, keys_info_t *keys_info, int def,
-		int step);
+static void go_to_prev(key_info_t key_info, keys_info_t *keys_info, int def, int step);
 static void cmd_l(key_info_t key_info, keys_info_t *keys_info);
-static void go_to_next(key_info_t key_info, keys_info_t *keys_info, int def,
-		int step);
+static void go_to_next(key_info_t key_info, keys_info_t *keys_info, int def, int step);
 static void cmd_m(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_q_colon(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_q_slash(key_info_t key_info, keys_info_t *keys_info);
@@ -136,8 +137,6 @@ static void cmd_n(key_info_t key_info, keys_info_t *keys_info);
 static void search(key_info_t key_info, int backward, int interactive);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void change_amend_type(AmendType new_amend_type);
-static void cmd_star(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
-static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_y(key_info_t key_info, keys_info_t *keys_info);
 static void accept_and_leave(int save_msg);
 static void reject_and_leave(void);
@@ -158,8 +157,7 @@ static void cmd_rb_s(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_lb_z(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_rb_z(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_left_curly_bracket(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_right_curly_bracket(key_info_t key_info,
-		keys_info_t *keys_info);
+static void cmd_right_curly_bracket(key_info_t key_info, keys_info_t *keys_info);
 static void find_goto(int ch, int count, int backward);
 static void select_up_one(view_t *view, int start_pos);
 static void select_down_one(view_t *view, int start_pos);
@@ -170,6 +168,13 @@ static void goto_pos_force_update(int pos);
 static void goto_pos(int pos);
 static void update_ui(void);
 static int move_pos(int pos);
+
+//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ZZ(key_info_t key_info, keys_info_t *keys_info);
+//add by sim1 -------------------------------------------------------
 
 static view_t *view;
 static int start_pos;
@@ -189,6 +194,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_e,        {{&cmd_ctrl_e}, .descr = "scroll one line down"}},
 	{WK_C_f,        {{&cmd_ctrl_f}, .descr = "scroll page down"}},
 	{WK_C_g,        {{&cmd_ctrl_g}, .descr = "display file info"}},
+	{WK_C_h,        {{&cmd_ctrl_h}, .descr = "jump to the last tab"}},  //add by sim1
 	{WK_C_l,        {{&cmd_ctrl_l}, .descr = "redraw"}},
 	{WK_CR,         {{&cmd_return}, .descr = "leave preserving selection"}},
 	{WK_C_n,        {{&cmd_j},      .descr = "go to item below"}},
@@ -218,6 +224,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_M,          {{&cmd_M}, .descr = "go to middle of viewport"}},
 	{WK_N,          {{&cmd_N}, .descr = "go to previous search match"}},
 	{WK_O,          {{&cmd_O}, .descr = "switch active selection bound"}},
+	{WK_Z WK_Z,     {{&cmd_ZZ}, .descr = "exit the application"}},  //add by sim1
 	{WK_U,          {{&cmd_gU}, .descr = "convert to uppercase"}},
 	{WK_V,          {{&cmd_v},  .descr = "leave/switch to regular visual mode"}},
 	{WK_Y,          {{&cmd_y},  .descr = "yank files"}},
@@ -233,6 +240,8 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_g WK_j,     {{&cmd_j},  .descr = "go to item below"}},
 	{WK_g WK_k,     {{&cmd_k},  .descr = "go to item above"}},
 	{WK_g WK_l,     {{&cmd_gl}, .descr = "open selection"}},
+	{WK_g WK_t,     {{&cmd_gt}, .descr = "next or n-th tab"}},   //add by sim1
+	{WK_g WK_T,     {{&cmd_gT}, .descr = "n-th previous tab"}},  //add by sim1
 	{WK_g WK_U,     {{&cmd_gU}, .descr = "convert to uppercase"}},
 	{WK_g WK_u,     {{&cmd_gu}, .descr = "convert to lowercase"}},
 	{WK_g WK_v,     {{&cmd_gv}, .descr = "restore previous selection"}},
@@ -792,6 +801,55 @@ cmd_gl(key_info_t key_info, keys_info_t *keys_info)
 	flist_sel_stash(view);
 	redraw_view(view);
 }
+
+//add by sim1 +++++++++++++++++++++++++++++++++++++++++
+/* Switches either to the next tab or to tab specified by its number [count]. */
+static void
+cmd_gt(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(key_info.count == NO_COUNT_GIVEN)
+	{
+		tabs_next(1);
+	}
+	else
+	{
+		tabs_goto(key_info.count - 1);
+	}
+}
+
+/* Switches to [count]-th previous tab ([count] is 1 by default). */
+static void
+cmd_gT(key_info_t key_info, keys_info_t *keys_info)
+{
+	tabs_previous(def_count(key_info.count));
+}
+
+/* Switch to the last tab */
+static void
+cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(key_info.count == NO_COUNT_GIVEN)
+	{
+		tabs_goto(-1);
+	}
+	else
+	{
+		tabs_goto(key_info.count - 1);
+	}
+}
+
+/* Exits the application saving vifminfo file or closes a tab. */
+static void
+cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(amend_type == AT_NONE)
+	{
+		reject_and_leave();
+	}
+
+	ui_quit(1, 0);
+}
+//add by sim1 -----------------------------------------
 
 /* Changes letters in filenames to upper case. */
 static void
