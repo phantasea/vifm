@@ -113,8 +113,6 @@ static void cmd_gA(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ga(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gg(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gl(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gU(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gu(key_info_t key_info, keys_info_t *keys_info);
 static void do_gu(int upper);
@@ -170,6 +168,8 @@ static void update_ui(void);
 static int move_pos(int pos);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
