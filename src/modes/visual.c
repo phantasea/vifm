@@ -807,6 +807,8 @@ cmd_gl(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_gt(key_info_t key_info, keys_info_t *keys_info)
 {
+	reject_and_leave();
+
 	if(key_info.count == NO_COUNT_GIVEN)
 	{
 		tabs_next(1);
@@ -821,6 +823,8 @@ cmd_gt(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_gT(key_info_t key_info, keys_info_t *keys_info)
 {
+	reject_and_leave();
+
 	tabs_previous(def_count(key_info.count));
 }
 
@@ -828,6 +832,8 @@ cmd_gT(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info)
 {
+	reject_and_leave();
+
 	if(key_info.count == NO_COUNT_GIVEN)
 	{
 		tabs_goto(-1);
@@ -842,10 +848,7 @@ cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(amend_type == AT_NONE)
-	{
-		reject_and_leave();
-	}
+	reject_and_leave();
 
 	ui_quit(1, 0);
 }
