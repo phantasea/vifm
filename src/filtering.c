@@ -24,6 +24,7 @@
 
 #include "cfg/config.h"
 #include "compat/reallocarray.h"
+#include "ui/tabs.h"
 #include "ui/ui.h"
 #include "utils/dynarray.h"
 #include "utils/matcher.h"
@@ -95,14 +96,22 @@ dot_filter_set(view_t *view, int visible)
 	{
 		load_dot_filter_option(view);
 	}
+
 	if(curr_stats.global_local_settings)
 	{
-		view_t *other = (view == curr_view) ? other_view : curr_view;
-		other->hide_dot_g = other->hide_dot = !visible;
-		ui_view_schedule_reload(other);
-		if(other == curr_view)
+		int i;
+		tab_info_t tab_info;
+		for(i = 0; tabs_enum_all(i, &tab_info); ++i)
 		{
-			load_dot_filter_option(other);
+			if(tab_info.view != view)
+			{
+				tab_info.view->hide_dot_g = tab_info.view->hide_dot = !visible;
+				ui_view_schedule_reload(tab_info.view);
+				if(tab_info.view == curr_view)
+				{
+					load_dot_filter_option(tab_info.view);
+				}
+			}
 		}
 	}
 }
@@ -116,14 +125,23 @@ dot_filter_toggle(view_t *view)
 	{
 		load_dot_filter_option(view);
 	}
+
 	if(curr_stats.global_local_settings)
 	{
-		view_t *other = (view == curr_view) ? other_view : curr_view;
-		other->hide_dot_g = other->hide_dot = !other->hide_dot;
-		ui_view_schedule_reload(other);
-		if(other == curr_view)
+		int i;
+		tab_info_t tab_info;
+		for(i = 0; tabs_enum_all(i, &tab_info); ++i)
 		{
-			load_dot_filter_option(other);
+			if(tab_info.view != view)
+			{
+				tab_info.view->hide_dot = !tab_info.view->hide_dot;
+				tab_info.view->hide_dot_g = tab_info.view->hide_dot;
+				ui_view_schedule_reload(tab_info.view);
+				if(tab_info.view == curr_view)
+				{
+					load_dot_filter_option(tab_info.view);
+				}
+			}
 		}
 	}
 }
@@ -132,13 +150,13 @@ dot_filter_toggle(view_t *view)
 void
 filter_files(view_t *view, iter_view_entry iter)
 {
-	dir_entry_t *entry = NULL;
-	int filtered = 0;
 	filter_t filter;
-
 	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);
 
+	flist_set_marking(view, 0);
+
 	/* Traverse items and update/create filter values. */
+	dir_entry_t *entry = NULL;
 	while (iter(view, &entry))
 	{
 		const char *name = entry->name;
@@ -169,9 +187,11 @@ filter_files(view_t *view, iter_view_entry iter)
 		return;
 	}
 
-	/* Update entry lists to remove entries that must be filtered out now.  No view reload is needed. */
-	filtered = zap_entries(view, view->dir_entry, &view->list_rows, &is_newly_filtered, &filter, 0, 1);
-	if (flist_custom_active(view))
+	/* Update entry lists to remove entries that must be filtered out now.  No
+	 * view reload is needed. */
+	int filtered = zap_entries(view, view->dir_entry, &view->list_rows,
+			&is_newly_filtered, &filter, 0, 1);
+	if(flist_custom_active(view))
 	{
 		(void)zap_entries(view, view->local_filter.entries,
 				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);

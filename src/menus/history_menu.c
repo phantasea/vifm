@@ -96,7 +96,7 @@ show_history(view_t *view, HistoryType type, hist_t *hist, const char title[])
 
 	for(i = 0; i <= hist->pos; ++i)
 	{
-		m.len = add_to_string_array(&m.items, m.len, 1, hist->items[i]);
+		m.len = add_to_string_array(&m.items, m.len, hist->items[i]);
 	}
 
 	return menus_enter(m.state, view);
@@ -156,7 +156,7 @@ history_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 				return KHR_UNHANDLED;
 		}
 
-		menu_morph_into_cmdline(submode, m->items[m->pos], 0);
+		modmenu_morph_into_cline(submode, m->items[m->pos], 0);
 		return KHR_MORPHED_MENU;
 	}
 	return KHR_UNHANDLED;

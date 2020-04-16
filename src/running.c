@@ -40,7 +40,7 @@
 #include <stdio.h> /* snprintf() */
 #include <stdlib.h> /* EXIT_FAILURE EXIT_SUCCESS free() realloc() */
 #include <string.h> /* strcmp() strerror() strrchr() strcat() strstr() strlen()
-                       strchr() strdup() strncmp() */
+                       strchr() strdup() strncmp() strcspn() strspn() */
 
 #include "cfg/config.h"
 #include "cfg/info.h"
@@ -48,6 +48,7 @@
 #include "compat/os.h"
 #include "int/file_magic.h"
 #include "int/fuse.h"
+#include "int/path_env.h"
 #include "int/vim.h"
 #include "menus/users_menu.h"
 #include "modes/dialogs/msg_dialog.h"
@@ -86,7 +87,7 @@ FileHandleLink;
 
 static void handle_file(view_t *view, FileHandleExec exec,
 		FileHandleLink follow);
-static int is_runnable(const view_t *view, const char full_path[], int type,
+static int is_runnable(view_t *view, const char full_path[], int type,
 		int force_follow);
 static int is_executable(const char full_path[], const dir_entry_t *curr,
 		int dont_execute, int runnable);
@@ -116,7 +117,6 @@ static char * gen_term_multiplexer_cmd(const char cmd[], int pause,
 		ShellRequester by);
 static char * gen_term_multiplexer_title_arg(const char cmd[]);
 static char * gen_normal_cmd(const char cmd[], int pause);
-static char * gen_term_multiplexer_run_cmd(void);
 static void set_pwd_in_screen(const char path[]);
 static int try_run_with_filetype(view_t *view, const assoc_records_t assocs,
 		const char start[], int background);
@@ -124,6 +124,7 @@ static void output_to_statusbar(const char cmd[]);
 static int output_to_preview(const char cmd[]);
 static void output_to_nowhere(const char cmd[]);
 static void run_in_split(const view_t *view, const char cmd[]);
+TSTATIC int shorten_cmd(const char cmd[], int parts_to_leave);
 static void path_handler(const char line[], void *arg);
 static void line_handler(const char line[], void *arg);
 
@@ -163,9 +164,10 @@ static void
 handle_file(view_t *view, FileHandleExec exec, FileHandleLink follow)
 {
 	char full_path[PATH_MAX + 1];
-	int executable;
-	int runnable;
 	const dir_entry_t *const curr = get_current_entry(view);
+
+	int user_selection = !view->pending_marking;
+	flist_set_marking(view, 1);
 
 	if(fentry_is_fake(curr))
 	{
@@ -174,20 +176,25 @@ handle_file(view_t *view, FileHandleExec exec, FileHandleLink follow)
 
 	get_full_path_of(curr, sizeof(full_path), full_path);
 
-	if(is_dir(full_path) || is_unc_root(view->curr_dir))
+	int could_enter_entry = (curr->type != FT_LINK || follow == FHL_NO_FOLLOW);
+	int selected_entry = (curr->marked && (!user_selection || curr->selected));
+	if(!selected_entry && could_enter_entry)
 	{
-		if(!curr->selected && (curr->type != FT_LINK || follow == FHL_NO_FOLLOW))
+		int dir_like_entry = (is_dir(full_path) || is_unc_root(view->curr_dir));
+		if(dir_like_entry)
 		{
 			enter_dir(view);
 			return;
 		}
 	}
 
-	runnable = is_runnable(view, full_path, curr->type, follow == FHL_FOLLOW);
-	executable = is_executable(full_path, curr, exec == FHE_NO_RUN, runnable);
+	int runnable = is_runnable(view, full_path, curr->type, follow == FHL_FOLLOW);
+	int executable = is_executable(full_path, curr, exec == FHE_NO_RUN, runnable);
 
 	if(stats_file_choose_action_set() && (executable || runnable))
 	{
+		/* Reuse marking second time. */
+		view->pending_marking = 1;
 		/* The call below does not return. */
 		vifm_choose_files(view, 0, NULL);
 	}
@@ -200,33 +207,39 @@ handle_file(view_t *view, FileHandleExec exec, FileHandleLink follow)
 	{
 		run_selection(view, exec == FHE_NO_RUN);
 	}
-	else if(curr->type == FT_LINK)
+	else if(curr->type == FT_LINK || is_shortcut(curr->name))
 	{
 		follow_link(view, follow == FHL_FOLLOW);
 	}
 }
 
-/* Returns non-zero if file can be executed or it's link to a directory (it can
- * be entered), otherwise zero is returned. */
+/* Returns non-zero if file can be executed or it's a link to a directory (it
+ * can be entered), otherwise zero is returned. */
 static int
-is_runnable(const view_t *view, const char full_path[], int type,
-		int force_follow)
+is_runnable(view_t *view, const char full_path[], int type, int force_follow)
 {
-	int runnable = !cfg.follow_links && type == FT_LINK &&
-		get_symlink_type(full_path) != SLT_DIR;
-	if(runnable && force_follow)
+	int count = 0;
+	dir_entry_t *entry = NULL;
+	while(iter_marked_entries(view, &entry))
 	{
-		runnable = 0;
+		if(++count > 1)
+		{
+			return 1;
+		}
 	}
-	if(view->selected_files > 0)
+
+	if(!force_follow && !cfg.follow_links && type == FT_LINK &&
+			get_symlink_type(full_path) != SLT_DIR)
 	{
-		runnable = 1;
+		return 1;
 	}
-	if(!runnable)
+
+	if(type == FT_REG)
 	{
-		runnable = type == FT_REG || type == FT_EXEC || type == FT_DIR;
+		return (!force_follow || !is_shortcut(full_path));
 	}
-	return runnable;
+
+	return (type == FT_EXEC || type == FT_DIR);
 }
 
 /* Returns non-zero if file can be executed, otherwise zero is returned. */
@@ -333,15 +346,8 @@ static int
 selection_is_consistent(view_t *view)
 {
 	int files = 0, dirs = 0;
-	dir_entry_t *entry;
-
-	if(view->selected_files < 2)
-	{
-		return 1;
-	}
-
-	entry = NULL;
-	while(iter_selected_entries(view, &entry))
+	dir_entry_t *entry = NULL;
+	while(iter_marked_entries(view, &entry))
 	{
 		if(fentry_is_dir(entry))
 		{
@@ -386,11 +392,6 @@ run_selection(view_t *view, int dont_execute)
 		return;
 	}
 
-	if(!get_current_entry(view)->selected)
-	{
-		flist_sel_stash(view);
-	}
-
 	char *typed_fname = get_typed_entry_fpath(get_current_entry(view));
 	const char *common_prog_cmd = ft_get_program(typed_fname);
 	free(typed_fname);
@@ -398,10 +399,13 @@ run_selection(view_t *view, int dont_execute)
 	int can_multi_run = (is_multi_run_compat(view, common_prog_cmd) != 0);
 	int files_without_handler = (common_prog_cmd == NULL);
 	int identical_handlers = 1;
+	int nentries = 0;
 
 	dir_entry_t *entry = NULL;
-	while(iter_selected_entries(view, &entry))
+	while(iter_marked_entries(view, &entry))
 	{
+		++nentries;
+
 		if(!path_exists_at(entry->origin, entry->name, DEREF))
 		{
 			show_error_msgf("Broken Link", "Destination of \"%s\" link doesn't exist",
@@ -430,6 +434,8 @@ run_selection(view_t *view, int dont_execute)
 		}
 	}
 
+	can_multi_run &= (nentries > 1);
+
 	if(files_without_handler > 0)
 	{
 		run_with_defaults(view);
@@ -457,12 +463,12 @@ run_with_defaults(view_t *view)
 	if(get_current_entry(view)->type == FT_DIR)
 	{
 		enter_dir(view);
+		return;
 	}
-	else if(view->selected_files <= 1)
-	{
-		view_current_file(view);
-	}
-	else if(vim_edit_selection() != 0)
+
+	/* Reuse marking second time. */
+	view->pending_marking = 1;
+	if(vim_edit_marking() != 0)
 	{
 		show_error_msg("Running error", "Can't edit selection");
 	}
@@ -472,12 +478,10 @@ run_with_defaults(view_t *view)
 static void
 run_selection_separately(view_t *view, int dont_execute)
 {
-	dir_entry_t *entry;
-
 	const int pos = view->list_pos;
 
-	entry = NULL;
-	while(iter_selected_entries(view, &entry))
+	dir_entry_t *entry = NULL;
+	while(iter_marked_entries(view, &entry))
 	{
 		char *typed_fname;
 		const char *entry_prog_cmd;
@@ -501,8 +505,6 @@ is_multi_run_compat(view_t *view, const char prog_cmd[])
 {
 	size_t len;
 	if(prog_cmd == NULL)
-		return 0;
-	if(view->selected_files <= 1)
 		return 0;
 	if((len = strlen(prog_cmd)) == 0)
 		return 0;
@@ -689,18 +691,17 @@ follow_link(view_t *view, int follow_dirs)
 		file = get_last_path_component(linkto);
 	}
 
-	if(dir[0] != '\0')
+	if(dir[0] != '\0' && file != NULL)
+	{
+		navigate_to_file(view, dir, file, 1);
+	}
+	else if(dir[0] != '\0')
 	{
 		navigate_to(view, dir);
 	}
-
-	if(file != NULL)
+	else if(file != NULL)
 	{
-		const int pos = fpos_find_by_name(view, file);
-		if(pos >= 0)
-		{
-			fpos_set_pos(view, pos);
-		}
+		fpos_ensure_selected(view, file);
 	}
 
 	free(dir);
@@ -805,6 +806,18 @@ rn_shell(const char command[], ShellPause pause, int use_term_multiplexer,
 	
 	pause = PAUSE_NEVER;  //add by sim1
 
+	/* Shutdown UI at this point, where $PATH isn't cleared. */
+	ui_shutdown();
+
+	int shellout = (command == NULL);
+	if(shellout)
+	{
+		command = env_get_def("SHELL", cfg.shell);
+
+		/* Run shell with clean $PATH environment variable. */
+		load_clean_path_env();
+	}
+
 	if(pause == PAUSE_ALWAYS && command != NULL && ends_with(command, "&"))
 	{
 		pause = PAUSE_ON_ERROR;
@@ -815,7 +828,6 @@ rn_shell(const char command[], ShellPause pause, int use_term_multiplexer,
 	cmd = gen_shell_cmd(command, pause == PAUSE_ALWAYS, use_term_multiplexer,
 			&by);
 
-	ui_shutdown();
 	ec = vifm_system(cmd, by);
 	/* No WIFEXITED(ec) check here, since vifm_system(...) shouldn't return until
 	 * subprocess exited. */
@@ -853,6 +865,11 @@ rn_shell(const char command[], ShellPause pause, int use_term_multiplexer,
 	if(curr_stats.load_stage > 0)
 	{
 		curs_set(0);
+	}
+
+	if(shellout)
+	{
+		load_real_path_env();
 	}
 
 	return result;
@@ -918,37 +935,24 @@ cleanup_shellout_env(void)
 	free(cmd);
 }
 
-/* Composes shell command to run basing on parameters for execution.  NULL cmd
- * parameter opens shell.  Returns a newly allocated string, which should be
- * freed by the caller. */
+/* Composes shell command to run based on parameters for execution.  Returns a
+ * newly allocated string, which should be freed by the caller. */
 static char *
 gen_shell_cmd(const char cmd[], int pause, int use_term_multiplexer,
 		ShellRequester *by)
 {
-	char *shell_cmd = NULL;
+	char *shell_cmd;
 
-	if(cmd != NULL)
+	if(use_term_multiplexer && curr_stats.term_multiplexer != TM_NONE)
 	{
-		if(use_term_multiplexer && curr_stats.term_multiplexer != TM_NONE)
-		{
-			shell_cmd = gen_term_multiplexer_cmd(cmd, pause, *by);
-			/* User shell settings were taken into account in command for
-			 * multiplexer, don't use them to invoke the multiplexer itself. */
-			*by = SHELL_BY_APP;
-		}
-		else
-		{
-			shell_cmd = gen_normal_cmd(cmd, pause);
-		}
+		shell_cmd = gen_term_multiplexer_cmd(cmd, pause, *by);
+		/* User shell settings were taken into account in command for multiplexer,
+		 * don't use them to invoke the multiplexer itself. */
+		*by = SHELL_BY_APP;
 	}
-	else if(use_term_multiplexer)
+	else
 	{
-		shell_cmd = gen_term_multiplexer_run_cmd();
-	}
-
-	if(shell_cmd == NULL)
-	{
-		shell_cmd = strdup(cfg.shell);
+		shell_cmd = gen_normal_cmd(cmd, pause);
 	}
 
 	return shell_cmd;
@@ -1081,31 +1085,6 @@ gen_normal_cmd(const char cmd[], int pause)
 	{
 		return strdup(cmd);
 	}
-}
-
-/* Composes shell command to run active terminal multiplexer.  Returns a newly
- * allocated string, which should be freed by the caller. */
-static char *
-gen_term_multiplexer_run_cmd(void)
-{
-	char *shell_cmd = NULL;
-
-	if(curr_stats.term_multiplexer == TM_SCREEN)
-	{
-		set_pwd_in_screen(curr_view->curr_dir);
-
-		shell_cmd = strdup("screen");
-	}
-	else if(curr_stats.term_multiplexer == TM_TMUX)
-	{
-		shell_cmd = strdup("tmux new-window");
-	}
-	else
-	{
-		assert(0 && "Unexpected active terminal multiplexer value.");
-	}
-
-	return shell_cmd;
 }
 
 /* Changes $PWD in running GNU/screen session to the specified path.  Needed for
@@ -1290,7 +1269,7 @@ output_to_preview(const char cmd[])
 	{
 		return 1;
 	}
-	view_detached_make(other_view, cmd);
+	modview_detached_make(other_view, cmd);
 	return 0;
 }
 
@@ -1366,7 +1345,15 @@ rn_for_flist(view_t *view, const char cmd[], int very, int interactive)
 	char *title;
 	int error;
 
-	title = format_str("!%s", cmd);
+	int cut_point = shorten_cmd(cmd, 4);
+	if(cut_point > 0)
+	{
+		title = format_str("!%.*s%s", cut_point, cmd, curr_stats.ellipsis);
+	}
+	else
+	{
+		title = format_str("!%s", cmd);
+	}
 	flist_custom_start(view, title);
 	free(title);
 
@@ -1388,6 +1375,34 @@ rn_for_flist(view_t *view, const char cmd[], int very, int interactive)
 
 	flist_custom_end(view, very);
 	return 0;
+}
+
+/* Computes length of the prefix of the command-line that contains only
+ * parts_to_leave first "words" (escaping is accounted for, but not quoting).
+ * The parts_to_leave should be greater than zero.  Returns the length or zero
+ * if whole command fits. */
+TSTATIC int
+shorten_cmd(const char cmd[], int parts_to_leave)
+{
+	const char *ws = " \t";
+	const char *tail = cmd + strspn(cmd, ws);
+
+	while(parts_to_leave > 0 && *tail != '\0')
+	{
+		tail += strcspn(tail, ws);
+		while(tail != cmd && tail[-1] == '\\')
+		{
+			++tail;
+			tail += strcspn(tail, ws);
+		}
+
+		if(--parts_to_leave != 0)
+		{
+			tail += strspn(tail, ws);
+		}
+	}
+
+	return ((parts_to_leave > 0 || *tail == '\0') ? 0 : tail - cmd);
 }
 
 /* Implements process_cmd_output() callback that loads paths into custom
@@ -1426,7 +1441,7 @@ static void
 line_handler(const char line[], void *arg)
 {
 	strlist_t *const list = arg;
-	list->nitems = add_to_string_array(&list->items, list->nitems, 1, line);
+	list->nitems = add_to_string_array(&list->items, list->nitems, line);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

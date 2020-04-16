@@ -47,6 +47,7 @@
 #include "../io/iop.h"
 #include "../modes/dialogs/msg_dialog.h"
 #include "../ui/statusbar.h"
+#include "../ui/tabs.h"
 #include "../ui/ui.h"
 #include "../utils/env.h"
 #include "../utils/file_streams.h"
@@ -497,7 +498,7 @@ try_exe_directory_for_vifmrc(void)
 	LOG_FUNC_ENTER;
 
 	char exe_dir[PATH_MAX + 1];
-	char vifmrc[PATH_MAX + 1];
+	char vifmrc[PATH_MAX + 8];
 
 	if(get_exe_dir(exe_dir, sizeof(exe_dir)) != 0)
 	{
@@ -629,7 +630,7 @@ static void
 create_scripts_dir(void)
 {
 	char scripts[PATH_MAX + 16];
-	char readme[PATH_MAX + 1];
+	char readme[PATH_MAX + 32];
 	FILE *fp;
 
 	snprintf(scripts, sizeof(scripts), "%s/" SCRIPTS_DIR, cfg.config_dir);
@@ -880,15 +881,24 @@ cfg_resize_histories(int new_size)
 	const int old_size = MAX(cfg.history_len, 0);
 
 	hists_resize(new_size);
-	flist_hist_resize(&lwin, new_size);
-	flist_hist_resize(&rwin, new_size);
+
+	int i;
+	tab_info_t tab_info;
+	for(i = 0; tabs_enum_all(i, &tab_info); ++i)
+	{
+		flist_hist_resize(tab_info.view, new_size);
+	}
 
 	cfg.history_len = new_size;
 
 	if(old_size == 0 && new_size > 0)
 	{
-		flist_hist_save(&lwin, NULL, NULL, -1);
-		flist_hist_save(&rwin, NULL, NULL, -1);
+		int i;
+		tab_info_t tab_info;
+		for(i = 0; tabs_enum_all(i, &tab_info); ++i)
+		{
+			flist_hist_save(tab_info.view, NULL, NULL, -1);
+		}
 	}
 }
 

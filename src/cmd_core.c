@@ -371,20 +371,28 @@ commands_escape_for_insertion(const char cmd_line[], int pos, const char str[])
 static void
 post(int id)
 {
-	if(curr_view->selected_files > 0 && !keep_view_selection)
+	if(!keep_view_selection)
 	{
-		flist_sel_stash(curr_view);
+		flist_sel_stash_if_nonempty(curr_view);
 	}
+
+	/* Marking made by this unit is for a single command only and shouldn't be
+	 * processed outside of that command. */
+	curr_view->pending_marking = 0;
 }
 
 TSTATIC void
 cmds_select_range(int id, const cmd_info_t *cmd_info)
 {
-	if(flist_sel_range(curr_view, cmd_info->begin, cmd_info->end,
-				(id != COM_FIND && id != COM_GREP)))
+	if(curr_view->pending_marking)
 	{
-		curr_view->user_selection = 0;
+		/* It must come from parent :command, so keep it. */
+		return;
 	}
+
+	int mark_current = (id != COM_FIND && id != COM_GREP);
+	curr_view->pending_marking = flist_sel_range(curr_view, cmd_info->begin,
+			cmd_info->end, mark_current);
 }
 
 /* Command prefix remover for command parsing unit.  Returns < 0 to do nothing
@@ -791,7 +799,7 @@ break_cmdline(const char cmdline[], int for_menu)
 
 	if(*cmdline == '\0')
 	{
-		len = add_to_string_array(&cmds, len, 1, cmdline);
+		len = add_to_string_array(&cmds, len, cmdline);
 		goto finish;
 	}
 
@@ -862,7 +870,7 @@ break_cmdline(const char cmdline[], int for_menu)
 				processed = raw;
 			}
 
-			len = add_to_string_array(&cmds, len, 1, cmdline);
+			len = add_to_string_array(&cmds, len, cmdline);
 
 			if(args_kind == CAT_UNTIL_THE_END)
 			{
@@ -1078,15 +1086,15 @@ exec_command(const char cmd[], view_t *view, CmdInputType type)
 	{
 		case CIT_BSEARCH_PATTERN: backward = 1; /* Fall through. */
 		case CIT_FSEARCH_PATTERN:
-			return find_npattern(view, cmd, backward, 1);
+			return modnorm_find(view, cmd, backward, 1);
 
 		case CIT_VBSEARCH_PATTERN: backward = 1; /* Fall through. */
 		case CIT_VFSEARCH_PATTERN:
-			return find_vpattern(view, cmd, backward, 1);
+			return modvis_find(view, cmd, backward, 1);
 
 		case CIT_VWBSEARCH_PATTERN: backward = 1; /* Fall through. */
 		case CIT_VWFSEARCH_PATTERN:
-			return view_find_pattern(cmd, backward);
+			return modview_find(cmd, backward);
 
 		case CIT_MENU_COMMAND: menu = 1; /* Fall through. */
 		case CIT_COMMAND:
@@ -1120,15 +1128,15 @@ repeat_command(view_t *view, CmdInputType type)
 	{
 		case CIT_BSEARCH_PATTERN: backward = 1; /* Fall through. */
 		case CIT_FSEARCH_PATTERN:
-			return find_npattern(view, hists_search_last(), backward, 1);
+			return modnorm_find(view, hists_search_last(), backward, 1);
 
 		case CIT_VBSEARCH_PATTERN: backward = 1; /* Fall through. */
 		case CIT_VFSEARCH_PATTERN:
-			return find_vpattern(view, hists_search_last(), backward, 1);
+			return modvis_find(view, hists_search_last(), backward, 1);
 
 		case CIT_VWBSEARCH_PATTERN: backward = 1; /* Fall through. */
 		case CIT_VWFSEARCH_PATTERN:
-			return view_find_pattern(NULL, backward);
+			return modview_find(NULL, backward);
 
 		case CIT_COMMAND:
 			return execute_command(view, NULL, 0);

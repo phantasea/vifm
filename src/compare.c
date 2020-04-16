@@ -54,7 +54,7 @@
 #define BLOCK_SIZE (32*1024)
 
 /* Amount of data to hash for coarse comparison. */
-#define PREFIX_SIZE (256*1024)
+#define PREFIX_SIZE (4*1024)
 
 /* Entry in singly-bounded list of files that have matched fingerprints. */
 typedef struct compare_record_t
@@ -612,8 +612,7 @@ append_valid_nodes(const char name[], int valid, const void *parent_data,
 	{
 		char full_path[PATH_MAX + 1];
 		get_full_path_of(entry, sizeof(full_path), full_path);
-		list->nitems = add_to_string_array(&list->items, list->nitems, 1,
-				full_path);
+		list->nitems = add_to_string_array(&list->items, list->nitems, full_path);
 	}
 	return 0;
 }

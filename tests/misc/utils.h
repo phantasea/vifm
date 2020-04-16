@@ -54,7 +54,8 @@ void create_file(const char path[]);
 /* Creates executable file at the path. */
 void create_executable(const char path[]);
 
-/* Either puts base/sub or cwd/base/sub into the buf. */
+/* Either puts base/sub or cwd/base/sub into the buf.  If cwd is NULL, current
+ * working directory is used. */
 void make_abs_path(char buf[], size_t buf_len, const char base[],
 		const char sub[], const char cwd[]);
 
@@ -88,8 +89,22 @@ void setup_grid(struct view_t *view, int column_count, int list_rows, int init);
 void setup_transposed_grid(struct view_t *view, int column_count, int list_rows,
 		int init);
 
+/* Loads dummy list of files into a view.  It consists of a single fake
+ * entry. */
+void init_view_list(struct view_t *view);
+
 /* Waits termination of all background tasks. */
 void wait_for_bg(void);
+
+/* Verifies that file at specified path consists of specified list of lines. */
+void file_is(const char path[], const char *lines[], int nlines);
+
+/* Replaces value of an environment variable.  Pass returned value to
+ * unmock_env() to restore its state.  Returns its old value. */
+char * mock_env(const char env[], const char with[]);
+
+/* Restores value of an environment variable changed by mock_env(). */
+void unmock_env(const char env[], char old_value[]);
 
 #endif /* VIFM_TESTS__UTILS_H__ */
 

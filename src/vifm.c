@@ -66,6 +66,7 @@
 #include "utils/fs.h"
 #include "utils/log.h"
 #include "utils/macros.h"
+#include "utils/parson.h"
 #include "utils/path.h"
 #include "utils/str.h"
 #include "utils/string_array.h"
@@ -167,6 +168,15 @@ vifm_main(int argc, char *argv[])
 		return -1;
 	}
 
+	/* Default values for persistent tabs for case when location isn't stored in
+	 * vifminfo. */
+	copy_str(lwin.curr_dir, sizeof(lwin.curr_dir), dir);
+	copy_str(rwin.curr_dir, sizeof(rwin.curr_dir), dir);
+
+	/* Configure it once. */
+	json_set_escape_slashes(0);
+	json_set_check_strings(0);
+
 	args_parse(&vifm_args, argc, argv, dir);
 	args_process(&vifm_args, 1);
 
@@ -245,7 +255,7 @@ vifm_main(int argc, char *argv[])
 
 	bg_init();
 
-	fops_init(&enter_prompt_mode, &prompt_msg_custom);
+	fops_init(&modcline_prompt, &prompt_msg_custom);
 
 	set_view_path(&lwin, vifm_args.lwin_path);
 	set_view_path(&rwin, vifm_args.rwin_path);
@@ -286,7 +296,7 @@ vifm_main(int argc, char *argv[])
 	curr_stats.load_stage = 1;
 
 	/* Make v:count exist during processing configuration. */
-	set_count_vars(0);
+	modnorm_set_count_vars(0);
 
 	if(!vifm_args.no_configs)
 	{
@@ -327,12 +337,10 @@ vifm_main(int argc, char *argv[])
 	/* Trigger auto-commands for initial directories. */
 	if(!lwin_cv)
 	{
-		(void)vifm_chdir(flist_get_dir(&lwin));
 		vle_aucmd_execute("DirEnter", flist_get_dir(&lwin), &lwin);
 	}
 	if(!rwin_cv)
 	{
-		(void)vifm_chdir(flist_get_dir(&rwin));
 		vle_aucmd_execute("DirEnter", flist_get_dir(&rwin), &rwin);
 	}
 
@@ -390,11 +398,12 @@ parse_received_arguments(char *argv[])
 	args_parse(&args, count_strings(argv), argv, argv[0]);
 	args_process(&args, 0);
 
+	abort_menu_like_mode();
 	exec_startup_commands(&args);
-	args_free(&args);
 
 	if(NONE(vle_mode_is, NORMAL_MODE, VIEW_MODE))
 	{
+		args_free(&args);
 		return;
 	}
 
@@ -419,6 +428,8 @@ parse_received_arguments(char *argv[])
 		change_window();
 	}
 
+	args_free(&args);
+
 	/* XXX: why force clearing of the statusbar? */
 	ui_sb_clear();
 	curr_stats.save_msg = 0;
@@ -431,12 +442,12 @@ remote_cd(view_t *view, const char path[], int handle)
 
 	if(view->explore_mode)
 	{
-		view_leave_mode();
+		modview_leave();
 	}
 
 	if(view == other_view && vle_mode_is(VIEW_MODE))
 	{
-		view_leave_mode();
+		modview_leave();
 	}
 
 	if(curr_stats.preview.on && (handle || view == other_view))
@@ -589,18 +600,12 @@ vifm_restart(void)
 
 	cfg_load();
 
-	/* Reloading of tabs needs to happen after configuration is read so that new
-	 * values from lwin and rwin got propagated. */
-	tabs_reload();
-
 	exec_startup_commands(&vifm_args);
 
 	curr_stats.restart_in_progress = 0;
 
 	/* Trigger auto-commands for initial directories. */
-	(void)vifm_chdir(flist_get_dir(&lwin));
 	vle_aucmd_execute("DirEnter", flist_get_dir(&lwin), &lwin);
-	(void)vifm_chdir(flist_get_dir(&rwin));
 	vle_aucmd_execute("DirEnter", flist_get_dir(&rwin), &rwin);
 
 	update_screen(UT_REDRAW);
@@ -625,7 +630,7 @@ exec_startup_commands(const args_t *args)
 void
 vifm_try_leave(int write_info, int cquit, int force)
 {
-	if(!force && bg_has_active_jobs())
+	if(!force && bg_has_active_jobs(1))
 	{
 		if(!prompt_msg("Warning", "Some of backgrounded commands are still "
 					"working.  Quit?"))
@@ -655,20 +660,24 @@ vifm_try_leave(int write_info, int cquit, int force)
 }
 
 void _gnuc_noreturn
-vifm_choose_files(const view_t *view, int nfiles, char *files[])
+vifm_choose_files(view_t *view, int nfiles, char *files[])
 {
-	int exit_code;
-
 	/* As curses can do something with terminal on shutting down, disable it
 	 * before writing anything to the screen. */
 	ui_shutdown();
 
-	exit_code = EXIT_SUCCESS;
+	flist_set_marking(view, 1);
+
+	int exit_code = EXIT_SUCCESS;
+
 	if(vim_write_file_list(view, nfiles, files) != 0)
 	{
 		exit_code = EXIT_FAILURE;
 	}
-	/* XXX: this ignores nfiles+files. */
+
+	/* Reuse marking second time. */
+	view->pending_marking = 1;
+	/* XXX: this ignores nfiles and files, expand them as %a? */
 	if(vim_run_choose_cmd(view) != 0)
 	{
 		exit_code = EXIT_FAILURE;

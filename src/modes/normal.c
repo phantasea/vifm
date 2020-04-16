@@ -312,13 +312,13 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_w WK_x,      {{&cmd_ctrl_wx}, .descr = "exchange panes"}},
 	{WK_C_w WK_C_z,    {{&cmd_ctrl_wz}, .descr = "exit preview/view modes"}},
 	{WK_C_w WK_z,      {{&cmd_ctrl_wz}, .descr = "exit preview/view modes"}},
-	{WK_C_w WK_EQUALS, {{&normal_cmd_ctrl_wequal},   .nim = 1, .descr = "size panes equally"}},
-	{WK_C_w WK_LT,     {{&normal_cmd_ctrl_wless},    .nim = 1, .descr = "decrease pane size by one"}},
-	{WK_C_w WK_GT,     {{&normal_cmd_ctrl_wgreater}, .nim = 1, .descr = "increase pane size by one"}},
-	{WK_C_w WK_PLUS,   {{&normal_cmd_ctrl_wplus},    .nim = 1, .descr = "increase pane size by one"}},
-	{WK_C_w WK_MINUS,  {{&normal_cmd_ctrl_wminus},   .nim = 1, .descr = "decrease pane size by one"}},
-	{WK_C_w WK_BAR,    {{&normal_cmd_ctrl_wpipe},    .nim = 1, .descr = "maximize pane size"}},
-	{WK_C_w WK_USCORE, {{&normal_cmd_ctrl_wpipe},    .nim = 1, .descr = "maximize pane size"}},
+	{WK_C_w WK_EQUALS, {{&modnorm_ctrl_wequal},   .nim = 1, .descr = "size panes equally"}},
+	{WK_C_w WK_LT,     {{&modnorm_ctrl_wless},    .nim = 1, .descr = "decrease pane size by one"}},
+	{WK_C_w WK_GT,     {{&modnorm_ctrl_wgreater}, .nim = 1, .descr = "increase pane size by one"}},
+	{WK_C_w WK_PLUS,   {{&modnorm_ctrl_wplus},    .nim = 1, .descr = "increase pane size by one"}},
+	{WK_C_w WK_MINUS,  {{&modnorm_ctrl_wminus},   .nim = 1, .descr = "decrease pane size by one"}},
+	{WK_C_w WK_BAR,    {{&modnorm_ctrl_wpipe},    .nim = 1, .descr = "maximize pane size"}},
+	{WK_C_w WK_USCORE, {{&modnorm_ctrl_wpipe},    .nim = 1, .descr = "maximize pane size"}},
 	{WK_C_x,           {{&cmd_ctrl_x}, .descr = "decrement number in names"}},
 	{WK_C_y,           {{&cmd_ctrl_y}, .descr = "scroll one line up"}},
 	{WK_ESC,           {{&cmd_ctrl_c}, .descr = "reset selection and highlight"}},
@@ -412,15 +412,15 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_z WK_O,        {{&cmd_zO}, .descr = "reset permanent filter"}},
 	{WK_z WK_R,        {{&cmd_zR}, .descr = "save and reset all filters"}},
 	{WK_z WK_a,        {{&cmd_za}, .descr = "toggle dot files visibility"}},
-	{WK_z WK_d,        {{&cmd_zd}, .descr = "hide all directorys"}},
-	{WK_z WK_b,        {{&normal_cmd_zb}, .descr = "push cursor to the bottom"}},
+	{WK_z WK_d,        {{&cmd_zd}, .descr = "hide all directorys"}},  //mod by sim1
+	{WK_z WK_b,        {{&modnorm_zb}, .descr = "push cursor to the bottom"}},
 	{WK_z WK_f,        {{&cmd_zf}, .descr = "add current file to filter"}},
 	{WK_z WK_m,        {{&cmd_zm}, .descr = "hide dot files"}},
 	{WK_z WK_o,        {{&cmd_zo}, .descr = "show dot files"}},
 	{WK_z WK_r,        {{&cmd_zr}, .descr = "clear local filter"}},
-	{WK_z WK_t,        {{&normal_cmd_zt},   .descr = "push cursor to the top"}},
-	{WK_z WK_x,        {{&cmd_zx}, .descr = "exclude custom view entry"}},
-	{WK_z WK_z,        {{&normal_cmd_zz},   .descr = "center cursor position"}},
+	{WK_z WK_t,        {{&modnorm_zt},      .descr = "push cursor to the top"}},
+	{WK_z WK_x,        {{&cmd_zx},          .descr = "exclude custom view entry"}},  //add by sim1
+	{WK_z WK_z,        {{&modnorm_zz},      .descr = "center cursor position"}},
 	{WK_LP,            {{&cmd_left_paren},  .descr = "go to previous group of files"}},
 	{WK_RP,            {{&cmd_right_paren}, .descr = "go to next group of files"}},
 	{WK_z WK_k,        {{&cmd_z_k},  .descr = "go to previous sibling dir"}},
@@ -560,7 +560,7 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 //Add by sim1 ------------------------------------
 
 void
-init_normal_mode(void)
+modnorm_init(void)
 {
 	int ret_code;
 
@@ -579,7 +579,7 @@ init_normal_mode(void)
 static void
 cmd_ctrl_a(key_info_t key_info, keys_info_t *keys_info)
 {
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 	curr_stats.save_msg = fops_incdec(curr_view, def_count(key_info.count));
 }
 
@@ -656,7 +656,7 @@ page_scroll(int base, int direction)
 static void
 cmd_ctrl_g(key_info_t key_info, keys_info_t *keys_info)
 {
-	enter_file_info_mode(curr_view);
+	modfinfo_enter(curr_view);
 }
 
 static void
@@ -670,7 +670,7 @@ cmd_space(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_emarkemark(key_info_t key_info, keys_info_t *keys_info)
 {
-	char prefix[16];
+	char prefix[32];
 	if(key_info.count != NO_COUNT_GIVEN && key_info.count != 1)
 	{
 		if(curr_view->list_pos + key_info.count >= curr_view->list_rows)
@@ -687,8 +687,8 @@ cmd_emarkemark(key_info_t key_info, keys_info_t *keys_info)
 		strcpy(prefix, ".!");
 	}
 
-	set_count_vars(key_info.count);
-	enter_cmdline_mode(CLS_COMMAND, prefix, NULL);
+	modnorm_set_count_vars(key_info.count);
+	modcline_enter(CLS_COMMAND, prefix, NULL);
 }
 
 /* Processes !<selector> normal mode command.  Processes results of applying
@@ -953,38 +953,38 @@ cmd_ctrl_wL(key_info_t key_info, keys_info_t *keys_info)
 }
 
 void
-normal_cmd_ctrl_wequal(key_info_t key_info, keys_info_t *keys_info)
+modnorm_ctrl_wequal(key_info_t key_info, keys_info_t *keys_info)
 {
 	curr_stats.splitter_pos = -1;
 	update_screen(UT_REDRAW);
 }
 
 void
-normal_cmd_ctrl_wless(key_info_t key_info, keys_info_t *keys_info)
+modnorm_ctrl_wless(key_info_t key_info, keys_info_t *keys_info)
 {
 	move_splitter(def_count(key_info.count), is_left_or_top() ? -1 : +1);
 }
 
 void
-normal_cmd_ctrl_wgreater(key_info_t key_info, keys_info_t *keys_info)
+modnorm_ctrl_wgreater(key_info_t key_info, keys_info_t *keys_info)
 {
 	move_splitter(def_count(key_info.count), is_left_or_top() ? +1 : -1);
 }
 
 void
-normal_cmd_ctrl_wplus(key_info_t key_info, keys_info_t *keys_info)
+modnorm_ctrl_wplus(key_info_t key_info, keys_info_t *keys_info)
 {
 	move_splitter(def_count(key_info.count), is_left_or_top() ? +1 : -1);
 }
 
 void
-normal_cmd_ctrl_wminus(key_info_t key_info, keys_info_t *keys_info)
+modnorm_ctrl_wminus(key_info_t key_info, keys_info_t *keys_info)
 {
 	move_splitter(def_count(key_info.count), is_left_or_top() ? -1 : +1);
 }
 
 void
-normal_cmd_ctrl_wpipe(key_info_t key_info, keys_info_t *keys_info)
+modnorm_ctrl_wpipe(key_info_t key_info, keys_info_t *keys_info)
 {
 	if(key_info.count == NO_COUNT_GIVEN)
 	{
@@ -1040,7 +1040,7 @@ cmd_ctrl_wz(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_x(key_info_t key_info, keys_info_t *keys_info)
 {
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 	curr_stats.save_msg = fops_incdec(curr_view, -def_count(key_info.count));
 }
 
@@ -1081,9 +1081,9 @@ go_to_other_window(void)
 static int
 try_switch_into_view_mode(void)
 {
-	if(curr_stats.preview.on)
+	if(curr_stats.preview.on && curr_stats.number_of_windows != 1)
 	{
-		view_enter_mode(other_view, 0);
+		modview_enter(other_view, 0);
 		return 1;
 	}
 	return 0;
@@ -1094,7 +1094,7 @@ try_switch_into_view_mode(void)
 static void
 cmd_C(key_info_t key_info, keys_info_t *keys_info)
 {
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 	curr_stats.save_msg = fops_clone(curr_view, NULL, 0, 0,
 			def_count(key_info.count));
 }
@@ -1321,7 +1321,7 @@ do_gu(key_info_t key_info, keys_info_t *keys_info, int upper)
 static void
 cmd_gv(key_info_t key_info, keys_info_t *keys_info)
 {
-	enter_visual_mode(VS_RESTORE);
+	modvis_enter(VS_RESTORE);
 }
 
 /* Go to the first file in window. */
@@ -1377,7 +1377,7 @@ cmd_P(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_V(key_info_t key_info, keys_info_t *keys_info)
 {
-	enter_visual_mode(VS_NORMAL);
+	modvis_enter(VS_NORMAL);
 }
 
 /* Possibly exits the application without saving vifminfo file or closes a
@@ -1472,7 +1472,7 @@ cmd_percent(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_equal(key_info_t key_info, keys_info_t *keys_info)
 {
-	enter_cmdline_mode(CLS_FILTER, curr_view->local_filter.filter.raw, NULL);
+	modcline_enter(CLS_FILTER, curr_view->local_filter.filter.raw, NULL);
 }
 
 /* Continues navigation to word which starts with specified character in
@@ -1516,12 +1516,12 @@ cmd_colon(key_info_t key_info, keys_info_t *keys_info)
 		snprintf(prefix, ARRAY_LEN(prefix), ".,.+%d", key_info.count - 1);
 	}
 
-	set_count_vars(key_info.count);
-	enter_cmdline_mode(CLS_COMMAND, prefix, NULL);
+	modnorm_set_count_vars(key_info.count);
+	modcline_enter(CLS_COMMAND, prefix, NULL);
 }
 
 void
-set_count_vars(int count)
+modnorm_set_count_vars(int count)
 {
 	/* TODO: move this to a better place someday, nowhere to place right now. */
 
@@ -1573,7 +1573,7 @@ cmd_al(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_av(key_info_t key_info, keys_info_t *keys_info)
 {
-	enter_visual_mode(VS_AMEND);
+	modvis_enter(VS_AMEND);
 }
 
 /* Change word (rename file without extension). */
@@ -1621,23 +1621,21 @@ cmd_co(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_cp(key_info_t key_info, keys_info_t *keys_info)
 {
-	normal_cmd_cp(curr_view, key_info);
+	modnorm_cp(curr_view, key_info);
 }
 
 void
-normal_cmd_cp(view_t *view, key_info_t key_info)
+modnorm_cp(view_t *view, key_info_t key_info)
 {
 #ifndef _WIN32
-	char mode[32];
-	int len;
-
 	if(key_info.count == NO_COUNT_GIVEN)
 	{
 		enter_attr_mode(view);
 		return;
 	}
 
-	len = snprintf(mode, sizeof(mode), "%04d", key_info.count);
+	char mode[32];
+	int len = snprintf(mode, sizeof(mode), "%04d", key_info.count);
 	if(len != 4 || ((int)strspn(mode, "01234567") != len))
 	{
 		/* Update view because there might be not reflected changes of cursor
@@ -1649,6 +1647,7 @@ normal_cmd_cp(view_t *view, key_info_t key_info)
 		return;
 	}
 
+	flist_set_marking(view, 0);
 	files_chmod(view, mode, 0);
 #else
 	enter_attr_mode(view);
@@ -1661,7 +1660,7 @@ cmd_cw(key_info_t key_info, keys_info_t *keys_info)
 {
 	if(curr_view->selected_files > 1)
 	{
-		check_marking(curr_view, 0, NULL);
+		flist_set_marking(curr_view, 0);
 		fops_rename(curr_view, NULL, 0, 0);
 		return;
 	}
@@ -1758,7 +1757,7 @@ cmd_e(key_info_t key_info, keys_info_t *keys_info)
 		curr_stats.save_msg = 1;
 		return;
 	}
-	view_enter_mode(curr_view, 1);
+	modview_enter(curr_view, 1);
 }
 
 /* Navigates to next word which starts with specified character. */
@@ -1985,7 +1984,7 @@ activate_search(int count, int back, int external)
 	else
 	{
 		const CmdLineSubmode submode = back ? CLS_BSEARCH : CLS_FSEARCH;
-		enter_cmdline_mode(submode, "", NULL);
+		modcline_enter(submode, "", NULL);
 	}
 }
 
@@ -2168,6 +2167,17 @@ cmd_zx(key_info_t key_info, keys_info_t *keys_info)
 	flist_custom_exclude(curr_view, key_info.count == 1);
 }
 //mod by sim1 -------------------------------------
+
+void
+modnorm_zb(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(can_scroll_up(curr_view))
+	{
+		const int bottom = fpos_get_bottom_pos(curr_view);
+		scroll_up(curr_view, bottom - curr_view->list_pos);
+		redraw_current_view();
+	}
+}
 
 /* Filter selected files. */
 static void
@@ -2382,21 +2392,8 @@ cmd_right_curly_bracket(key_info_t key_info, keys_info_t *keys_info)
 	pick_or_move(keys_info, fpos_find_dir_group(curr_view, 1));
 }
 
-/* Redraw with file in bottom of list. */
 void
-normal_cmd_zb(key_info_t key_info, keys_info_t *keys_info)
-{
-	if(can_scroll_up(curr_view))
-	{
-		const int bottom = fpos_get_bottom_pos(curr_view);
-		scroll_up(curr_view, bottom - curr_view->list_pos);
-		redraw_current_view();
-	}
-}
-
-/* Redraw with file in top of list. */
-void
-normal_cmd_zt(key_info_t key_info, keys_info_t *keys_info)
+modnorm_zt(key_info_t key_info, keys_info_t *keys_info)
 {
 	if(can_scroll_down(curr_view))
 	{
@@ -2406,9 +2403,8 @@ normal_cmd_zt(key_info_t key_info, keys_info_t *keys_info)
 	}
 }
 
-/* Redraw with file in center of list. */
 void
-normal_cmd_zz(key_info_t key_info, keys_info_t *keys_info)
+modnorm_zz(key_info_t key_info, keys_info_t *keys_info)
 {
 	if(!fpos_are_all_files_visible(curr_view))
 	{
@@ -2530,8 +2526,7 @@ selector_s(key_info_t key_info, keys_info_t *keys_info)
 }
 
 int
-find_npattern(view_t *view, const char pattern[], int backward,
-		int print_errors)
+modnorm_find(view_t *view, const char pattern[], int backward, int print_errors)
 {
 	const int nrepeats = search_repeat - 1;
 	int i;

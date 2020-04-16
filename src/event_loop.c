@@ -113,9 +113,6 @@ event_loop(const int *quit)
 		size_t counter;
 		int got_input;
 
-		lwin.user_selection = 1;
-		rwin.user_selection = 1;
-
 		modes_pre();
 
 		/* Waits for timeout then skips if no key press.  Short-circuit if we're not
@@ -215,20 +212,21 @@ event_loop(const int *quit)
 			assert(counter <= input_buf_pos);
 			if(counter > 0)
 			{
+				curr_stats.save_msg = 0;
 				memmove(input_buf, input_buf + counter,
 						(wcslen(input_buf) - counter + 1)*sizeof(wchar_t));
 			}
 		}
 		else
 		{
-			if(got_input)
-			{
-				curr_stats.save_msg = 0;
-			}
-
 			if(last_result == KEYS_WAIT || last_result == KEYS_WAIT_SHORT)
 			{
 				hide_suggestion_box();
+			}
+
+			if(got_input)
+			{
+				curr_stats.save_msg = 0;
 			}
 
 			last_result = vle_keys_exec(input_buf);
@@ -641,10 +639,9 @@ prepare_suggestion_box(int *height)
 
 	/* Clear preview before displaying suggestion for the first time for specific
 	 * input if active preview needs special cleanup. */
-	if(!suggestions_are_visible && curr_stats.preview.on &&
-			curr_stats.preview.cleanup_cmd != NULL)
+	if(!suggestions_are_visible)
 	{
-		qv_cleanup(other_view, curr_stats.preview.cleanup_cmd);
+		ui_qv_cleanup_if_needed();
 	}
 
 	ui_set_bg(win, &col, -1);

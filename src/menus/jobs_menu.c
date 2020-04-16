@@ -85,7 +85,7 @@ show_jobs_menu(view_t *view)
 
 			snprintf(item_buf, sizeof(item_buf), "%-8s  %s%s", info_buf, p->cmd,
 					bg_job_cancelled(p) ? " (cancelling...)" : "");
-			i = add_to_string_array(&jobs_m.items, i, 1, item_buf);
+			i = add_to_string_array(&jobs_m.items, i, item_buf);
 			jobs_m.void_data = reallocarray(jobs_m.void_data, i,
 					sizeof(*jobs_m.void_data));
 			jobs_m.void_data[i - 1] = p;
@@ -203,7 +203,7 @@ show_job_errors(view_t *view, menu_data_t *m, bg_job_t *job)
 		m.key_handler = &errs_khandler;
 		m.items = break_into_lines(errors, errors_len, &m.len, 0);
 
-		menu_reenter_mode(&m);
+		modmenu_reenter(&m);
 	}
 	free(cmd);
 	free(errors);
@@ -216,7 +216,7 @@ errs_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"h") == 0)
 	{
-		menu_reenter_mode(&jobs_m);
+		modmenu_reenter(&jobs_m);
 		return KHR_REFRESH_WINDOW;
 	}
 	return KHR_UNHANDLED;

@@ -1,9 +1,10 @@
 #include <stic.h>
 
+#include <sys/stat.h> /* chmod() */
 #include <unistd.h> /* F_OK access() chdir() rmdir() symlink() unlink() */
 
 #include <locale.h> /* LC_ALL setlocale() */
-#include <stdio.h> /* remove() */
+#include <stdio.h> /* FILE fclose() fopen() fprintf() remove() */
 #include <string.h> /* strcpy() strdup() */
 
 #include "../../src/compat/fs_limits.h"
@@ -18,8 +19,10 @@
 #include "../../src/utils/path.h"
 #include "../../src/utils/str.h"
 #include "../../src/cmd_core.h"
+#include "../../src/filelist.h"
 #include "../../src/ops.h"
 #include "../../src/registers.h"
+#include "../../src/status.h"
 #include "../../src/undo.h"
 
 #include "utils.h"
@@ -38,7 +41,6 @@ static const cmd_add_t commands[] = {
 static int called;
 static int bg;
 static char *arg;
-static char *saved_cwd;
 
 static char cwd[PATH_MAX + 1];
 static char sandbox[PATH_MAX + 1];
@@ -80,14 +82,10 @@ SETUP()
 	called = 0;
 
 	undo_setup();
-
-	saved_cwd = save_cwd();
 }
 
 TEARDOWN()
 {
-	restore_cwd(saved_cwd);
-
 	update_string(&cfg.cd_path, NULL);
 	update_string(&cfg.fuse_home, NULL);
 	update_string(&cfg.slow_fs_list, NULL);
@@ -300,6 +298,148 @@ TEST(conversion_failure_is_handled)
 	(void)exec_commands("wincmd \xee", &lwin, CIT_COMMAND);
 
 	vle_keys_reset();
+}
+
+TEST(usercmd_range_is_as_good_as_selection)
+{
+	stats_init(&cfg);
+	init_modes();
+	regs_init();
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), test_data, "", cwd);
+	populate_dir_list(&lwin, 0);
+
+	/* For gA. */
+
+	assert_success(exec_commands("command! size :normal gA", &lwin, CIT_COMMAND));
+	assert_success(exec_commands("%size", &lwin, CIT_COMMAND));
+	wait_for_bg();
+
+	assert_string_equal("color-schemes", lwin.dir_entry[0].name);
+	assert_ulong_equal(107, fentry_get_size(&lwin, &lwin.dir_entry[0]));
+	assert_string_equal("various-sizes", lwin.dir_entry[lwin.list_rows - 1].name);
+	assert_ulong_equal(73728,
+			fentry_get_size(&lwin, &lwin.dir_entry[lwin.list_rows - 1]));
+
+	/* For zf. */
+
+	assert_success(exec_commands("command! afilter :normal zf", &lwin,
+				CIT_COMMAND));
+	assert_success(exec_commands("%afilter", &lwin, CIT_COMMAND));
+	populate_dir_list(&lwin, 1);
+	assert_int_equal(1, lwin.list_rows);
+	assert_string_equal("..", lwin.dir_entry[0].name);
+
+	/* For zd. */
+
+	flist_custom_start(&lwin, "test");
+	assert_non_null(flist_custom_add(&lwin, "existing-files/a"));
+	assert_non_null(flist_custom_add(&lwin, "existing-files/b"));
+	assert_success(flist_custom_finish(&lwin, CV_REGULAR, 0));
+
+	assert_success(exec_commands("command! exclude :normal zd", &lwin,
+				CIT_COMMAND));
+	assert_success(exec_commands("%exclude", &lwin, CIT_COMMAND));
+	assert_int_equal(1, lwin.list_rows);
+	assert_string_equal("..", lwin.dir_entry[0].name);
+
+	/* For :command in :usercmd. */
+
+	flist_custom_start(&lwin, "test");
+	assert_non_null(flist_custom_add(&lwin, "existing-files/a"));
+	assert_non_null(flist_custom_add(&lwin, "existing-files/b"));
+	assert_success(flist_custom_finish(&lwin, CV_REGULAR, 0));
+
+	reg_t *reg = regs_find('"');
+
+	assert_success(exec_commands("command! myyank :yank", &lwin, CIT_COMMAND));
+	assert_failure(exec_commands("%myyank", &lwin, CIT_COMMAND));
+	assert_int_equal(2, reg->nfiles);
+
+	assert_success(exec_commands("command! myyank :yank %a", &lwin, CIT_COMMAND));
+	assert_failure(exec_commands("%myyank", &lwin, CIT_COMMAND));
+	assert_int_equal(2, reg->nfiles);
+
+#ifndef _WIN32
+
+	conf_setup();
+	update_string(&cfg.shell, "/bin/sh");
+
+	char script_path[PATH_MAX + 1];
+	make_abs_path(script_path, sizeof(script_path), SANDBOX_PATH, "script", cwd);
+
+	FILE *fp = fopen(SANDBOX_PATH "/script", "w");
+	fprintf(fp, "#!/bin/sh\n");
+	fprintf(fp, "for arg; do echo \"$arg\" >> %s/vi-list; done\n", SANDBOX_PATH);
+	fclose(fp);
+	assert_success(chmod(SANDBOX_PATH "/script", 0777));
+
+	/* For l. */
+
+	update_string(&cfg.vi_command, script_path);
+
+	flist_custom_start(&lwin, "test");
+	assert_non_null(flist_custom_add(&lwin, "existing-files/a"));
+	assert_non_null(flist_custom_add(&lwin, "existing-files/b"));
+	assert_success(flist_custom_finish(&lwin, CV_REGULAR, 0));
+
+	assert_success(exec_commands("command! run :normal l", &lwin, CIT_COMMAND));
+	assert_success(exec_commands("%run", &lwin, CIT_COMMAND));
+
+	const char *lines[] = { "existing-files/a", "existing-files/b" };
+	file_is(SANDBOX_PATH "/vi-list", lines, ARRAY_LEN(lines));
+
+	assert_success(remove(SANDBOX_PATH "/vi-list"));
+
+	/* For cp. */
+
+	update_string(&cfg.shell, "/bin/sh");
+
+	assert_success(chdir(sandbox));
+	create_file("file1");
+	create_file("file2");
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), sandbox, "", cwd);
+	populate_dir_list(&lwin, 0);
+
+	assert_success(exec_commands("command! ex :normal 777cp", &lwin,
+				CIT_COMMAND));
+	assert_success(exec_commands("%ex", &lwin, CIT_COMMAND));
+
+	populate_dir_list(&lwin, 1);
+	assert_int_equal(FT_EXEC, lwin.dir_entry[0].type);
+	assert_int_equal(FT_EXEC, lwin.dir_entry[1].type);
+
+	assert_success(remove("file1"));
+	assert_success(remove("file2"));
+
+	/* For some :menus. */
+
+	put_string(&cfg.find_prg, format_str("%s %%s %%A", script_path));
+
+	assert_success(chdir(cwd));
+	strcpy(lwin.curr_dir, test_data);
+
+	flist_custom_start(&lwin, "test");
+	assert_non_null(flist_custom_add(&lwin, "existing-files/a"));
+	assert_non_null(flist_custom_add(&lwin, "existing-files/b"));
+	assert_success(flist_custom_finish(&lwin, CV_REGULAR, 0));
+
+	assert_failure(exec_commands(".find a", &lwin, CIT_COMMAND));
+
+	const char *find_lines[] = { "existing-files/a", "a" };
+	file_is(SANDBOX_PATH "/vi-list", find_lines, ARRAY_LEN(find_lines));
+
+	assert_success(remove(SANDBOX_PATH "/vi-list"));
+
+	assert_success(remove(script_path));
+	conf_teardown();
+
+#endif
+
+	regs_reset();
+	vle_keys_reset();
+	stats_reset(&cfg);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

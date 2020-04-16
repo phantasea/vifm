@@ -118,7 +118,6 @@ static void move_pair(short int from, short int to);
 static void create_windows(void);
 static void update_geometry(void);
 static int get_working_area_height(void);
-static void resize_all(void);
 static void clear_border(WINDOW *border);
 static int middle_border_is_visible(void);
 static void update_views(int reload);
@@ -242,7 +241,7 @@ setup_ncurses_interface(void)
 #endif
 #endif
 
-	resize_all();
+	ui_resize_all();
 
 	return 1;
 }
@@ -598,7 +597,7 @@ update_screen(UpdateType update_kind)
 	if(update_kind == UT_NONE)
 		return;
 
-	resize_all();
+	ui_resize_all();
 
 	if(curr_stats.restart_in_progress)
 	{
@@ -643,7 +642,7 @@ update_screen(UpdateType update_kind)
 
 		if(vle_mode_is(VIEW_MODE))
 		{
-			view_ruler_update();
+			modview_ruler_update();
 		}
 		else
 		{
@@ -659,7 +658,7 @@ update_screen(UpdateType update_kind)
 	if(vle_mode_is(VIEW_MODE) ||
 			(curr_stats.number_of_windows == 2 && other_view->explore_mode))
 	{
-		view_redraw();
+		modview_redraw();
 	}
 
 	update_all_windows();
@@ -673,10 +672,8 @@ update_screen(UpdateType update_kind)
 	ui_stat_job_bar_redraw();
 }
 
-/* Resizes all windows according to current screen size and TUI
- * configuration. */
-static void
-resize_all(void)
+void
+ui_resize_all(void)
 {
 	static float prev_w = -1.f, prev_h = -1.f;
 
@@ -1039,6 +1036,11 @@ show_progress(const char msg[], int period)
 void
 redraw_lists(void)
 {
+	if(curr_stats.load_stage == 0)
+	{
+		return;
+	}
+
 	redraw_current_view();
 	if(curr_stats.number_of_windows == 2)
 	{
@@ -1321,7 +1323,7 @@ void
 switch_panes(void)
 {
 	switch_panes_content();
-	view_try_activate_mode();
+	modview_try_activate();
 }
 
 void
@@ -1364,7 +1366,7 @@ switch_panes_content(void)
 	flist_update_origins(&lwin, &rwin.curr_dir[0], &lwin.curr_dir[0]);
 	flist_update_origins(&rwin, &lwin.curr_dir[0], &rwin.curr_dir[0]);
 
-	view_panes_swapped();
+	modview_panes_swapped();
 
 	stats_redraw_later();
 }
@@ -1401,7 +1403,7 @@ void
 go_to_other_pane(void)
 {
 	change_window();
-	view_try_activate_mode();
+	modview_try_activate();
 }
 
 void
@@ -1964,7 +1966,7 @@ format_view_title(const view_t *view, path_func pf)
 	}
 	else if(curr_stats.preview.on && view == other_view)
 	{
-		const char *const viewer = view_detached_get_viewer();
+		const char *const viewer = modview_detached_get_viewer();
 		if(viewer != NULL)
 		{
 			return format_str("Command: %s", viewer);
@@ -2215,20 +2217,20 @@ ui_qv_width(const view_t *view)
 }
 
 void
+ui_qv_cleanup_if_needed(void)
+{
+	if(curr_stats.preview.on && curr_stats.preview.cleanup_cmd != NULL)
+	{
+		qv_cleanup(other_view, curr_stats.preview.cleanup_cmd);
+	}
+}
+
+void
 ui_invalidate_cs(const col_scheme_t *cs)
 {
 	int i;
 	tab_info_t tab_info;
-
-	for(i = 0; tabs_enum(curr_view, i, &tab_info); ++i)
-	{
-		if(ui_view_get_cs(tab_info.view) == cs)
-		{
-			fview_reset_cs(tab_info.view);
-		}
-	}
-
-	for(i = 0; tabs_enum(other_view, i, &tab_info); ++i)
+	for(i = 0; tabs_enum_all(i, &tab_info); ++i)
 	{
 		if(ui_view_get_cs(tab_info.view) == cs)
 		{
@@ -2244,9 +2246,9 @@ ui_view_get_cs(const view_t *view)
 }
 
 void
-ui_view_erase(view_t *view)
+ui_view_erase(view_t *view, int use_global_cs)
 {
-	const col_scheme_t *cs = ui_view_get_cs(view);
+	const col_scheme_t *cs = (use_global_cs ? &cfg.cs : ui_view_get_cs(view));
 	col_attr_t col = ui_get_win_color(view, cs);
 	ui_set_bg(view->win, &col, -1);
 	werase(view->win);
@@ -2274,6 +2276,8 @@ ui_shutdown(void)
 {
 	if(curr_stats.load_stage >= 0 && !vifm_testing() && !isendwin())
 	{
+		ui_qv_cleanup_if_needed();
+		modview_hide_graphics();
 		def_prog_mode();
 		endwin();
 	}

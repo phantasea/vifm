@@ -266,8 +266,8 @@ int read_int(const char line[], int *i);
  * character. */
 void replace_char(char str[], char from, char to);
 
-/* Splits string on a separator multiple times returning next part.  *state must
- * be NULL for the first call.  Usage example:
+/* Splits string on a separator multiple times returning next part.  Empty items
+ * are skipped.  *state must be NULL for the first call.  Usage example:
  *   char *part = input, *state = NULL;
  *   while((part = split_and_get(part, ':', &state)) != NULL)
  *   {
@@ -275,10 +275,10 @@ void replace_char(char str[], char from, char to);
  *   }
  * Each next step undoes string change made on the previous one, so it could
  * also be (parts of <input> will be added from left to right):
- *   char *prefix = input, *state = NULL;
- *   while((prefix = split_and_get(prefix, ':', &state)) != NULL)
+ *   char *part = input, *state = NULL;
+ *   while((part = split_and_get(part, ':', &state)) != NULL)
  *   {
- *     process <prefix>;
+ *     process <input>;
  *   } */
 char * split_and_get(char str[], char sep, char **state);
 
@@ -292,6 +292,10 @@ int count_lines(const char text[], int max_width);
 
 /* Counts number of c char occurrences in the s string.  Returns the number. */
 size_t chars_in_str(const char s[], char c);
+
+/* Clones string passed as the argument doubling specified character in the
+ * process.  Returns cloned value. */
+char * double_char(const char str[], char c);
 
 #ifdef _WIN32
 

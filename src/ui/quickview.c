@@ -74,6 +74,7 @@ typedef struct
 	int beg_y;         /* Original y coordinate of host window. */
 	ViewerKind kind;   /* Kind of preview. */
 	int graphics_lost; /* Whether graphics was invalidated on the screen. */
+	int complete;      /* Cache contains complete output of the viewer. */
 }
 quickview_cache_t;
 
@@ -96,8 +97,9 @@ static void view_file(const char path[], const preview_area_t *parea,
 static int is_cache_valid(const quickview_cache_t *cache, const char path[],
 		const char viewer[], const preview_area_t *parea);
 static void fill_cache(quickview_cache_t *cache, FILE *fp, const char path[],
-		const char viewer[], ViewerKind kind, const preview_area_t *parea);
-TSTATIC strlist_t read_lines(FILE *fp, int max_lines);
+		const char viewer[], ViewerKind kind, const preview_area_t *parea,
+		int max_lines);
+TSTATIC strlist_t read_lines(FILE *fp, int max_lines, int *complete);
 static FILE * view_dir(const char path[], int max_lines);
 static int print_dir_tree(tree_print_state_t *s, const char path[], int last);
 static int enter_dir(tree_print_state_t *s, const char path[], int last);
@@ -215,13 +217,13 @@ qv_draw(view_t *view)
 	 * location. */
 	(void)vifm_chdir(flist_get_dir(view));
 
-	if(view_detached_draw())
+	if(modview_detached_draw())
 	{
 		/* View mode handled the drawing. */
 		return;
 	}
 
-	ui_view_erase(other_view);
+	ui_view_erase(other_view, 1);
 
 	curr = get_current_entry(view);
 	if(!fentry_is_fake(curr))
@@ -229,7 +231,7 @@ qv_draw(view_t *view)
 		const preview_area_t parea = {
 			.source = view,
 			.view = other_view,
-			.def_col = ui_view_get_cs(other_view)->color[WIN_COLOR],
+			.def_col = cfg.cs.color[WIN_COLOR],
 			.x = ui_qv_left(other_view),
 			.y = ui_qv_top(other_view),
 			.w = ui_qv_width(other_view),
@@ -278,7 +280,15 @@ view_entry(const dir_entry_t *entry, const preview_area_t *parea,
 	char path[PATH_MAX + 1];
 	qv_get_path_to_explore(entry, path, sizeof(path));
 
-	switch(entry->type)
+	FileType type = entry->type;
+
+	struct stat st;
+	if(os_stat(path, &st) == 0)
+	{
+		type = get_type_from_mode(st.st_mode);
+	}
+
+	switch(type)
 	{
 		case FT_CHAR_DEV:
 			write_message("File is a Character Device", parea);
@@ -329,13 +339,16 @@ view_file(const char path[], const preview_area_t *parea,
 	}
 
 	ViewerKind kind = VK_TEXTUAL;
+	int max_lines = MAX_PREVIEW_LINES;
 
 	FILE *fp;
 	if(viewer == NULL && is_dir(path))
 	{
+		max_lines = ui_qv_height(parea->view);
+
 		ui_cancellation_reset();
 		ui_cancellation_enable();
-		fp = view_dir(path, ui_qv_height(other_view));
+		fp = view_dir(path, max_lines);
 		ui_cancellation_disable();
 
 		if(fp == NULL)
@@ -401,7 +414,7 @@ view_file(const char path[], const preview_area_t *parea,
 	const char *clear_cmd = (viewer != NULL) ? ma_get_clear_cmd(viewer) : NULL;
 	update_string(&curr_stats.preview.cleanup_cmd, clear_cmd);
 
-	fill_cache(cache, fp, path, viewer, kind, parea);
+	fill_cache(cache, fp, path, viewer, kind, parea, max_lines);
 
 	fclose(fp);
 
@@ -429,7 +442,7 @@ is_cache_valid(const quickview_cache_t *cache, const char path[],
 	{
 		if(cache->kind == VK_TEXTUAL)
 		{
-			return 1;
+			return (cache->complete || cache->lines.nitems >= parea->h);
 		}
 
 		return !cache->graphics_lost
@@ -445,7 +458,8 @@ is_cache_valid(const quickview_cache_t *cache, const char path[],
 /* Fills the cache data with file's contents. */
 static void
 fill_cache(quickview_cache_t *cache, FILE *fp, const char path[],
-		const char viewer[], ViewerKind kind, const preview_area_t *parea)
+		const char viewer[], ViewerKind kind, const preview_area_t *parea,
+		int max_lines)
 {
 	/* File monitor must always be initialized, because it's used below. */
 	filemon_t filemon = {};
@@ -456,7 +470,7 @@ fill_cache(quickview_cache_t *cache, FILE *fp, const char path[],
 	update_string(&cache->viewer, viewer);
 
 	free_string_array(cache->lines.items, cache->lines.nitems);
-	cache->lines = read_lines(fp, MAX_PREVIEW_LINES);
+	cache->lines = read_lines(fp, max_lines, &cache->complete);
 
 	cache->pa = *parea;
 	cache->beg_x = getbegx(parea->view->win);
@@ -468,7 +482,7 @@ fill_cache(quickview_cache_t *cache, FILE *fp, const char path[],
 /* Reads at most max_lines from the stream ignoring BOM.  Returns the lines
  * read. */
 TSTATIC strlist_t
-read_lines(FILE *fp, int max_lines)
+read_lines(FILE *fp, int max_lines, int *complete)
 {
 	strlist_t lines = {};
 	skip_bom(fp);
@@ -485,6 +499,7 @@ read_lines(FILE *fp, int max_lines)
 		}
 	}
 
+	*complete = (next_line == NULL);
 	return lines;
 }
 
@@ -505,7 +520,9 @@ view_dir(const char path[], int max_lines)
 	{
 		tree_print_state_t s = {
 			.fp = fp,
-			.max = max_lines,
+			 /* Increase by one to cause cached data to be recognized as incomplete
+			  * when max_lines isn't enough. */
+			.max = (max_lines == INT_MAX ? max_lines : max_lines + 1),
 		};
 
 		if(print_dir_tree(&s, path, 0) == 0 && s.n != 0)
@@ -795,11 +812,11 @@ qv_hide(void)
 	}
 	if(lwin.explore_mode)
 	{
-		view_quit_explore_mode(&lwin);
+		modview_quit_exploring(&lwin);
 	}
 	if(rwin.explore_mode)
 	{
-		view_quit_explore_mode(&rwin);
+		modview_quit_exploring(&rwin);
 	}
 }
 

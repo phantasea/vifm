@@ -154,7 +154,7 @@ static dir_entry_t * pick_sibling(view_t *view, entries_t parent_dirs,
 		int offset, int wrap, int *wrapped);
 static int iter_entries(view_t *view, dir_entry_t **entry,
 		entry_predicate pred);
-static void clear_marking(view_t *view);
+static int mark_selected(view_t *view);
 static int set_position_by_path(view_t *view, const char path[]);
 static int flist_load_tree_internal(view_t *view, const char path[],
 		int reload);
@@ -313,7 +313,7 @@ flist_free_view(view_t *view)
 	update_string(&view->preview_prg, NULL);
 	update_string(&view->preview_prg_g, NULL);
 
-	view_info_free(view->vi);
+	modview_info_free(view->vi);
 	view->vi = NULL;
 
 	regfree(&view->primary_group);
@@ -1165,8 +1165,7 @@ enable_view_sorting(view_t *view)
 void
 flist_custom_exclude(view_t *view, int selection_only)
 {
-	dir_entry_t *entry;
-	trie_t *excluded;
+	flist_set_marking(view, 0);
 
 	if(!flist_custom_active(view))
 	{
@@ -1179,9 +1178,9 @@ flist_custom_exclude(view_t *view, int selection_only)
 		return;
 	}
 
-	entry = NULL;
-	excluded = trie_create();
-	while(iter_selection_or_current(view, &entry))
+	dir_entry_t *entry = NULL;
+	trie_t *excluded = trie_create();
+	while(iter_marked_entries(view, &entry))
 	{
 		char full_path[PATH_MAX + 1];
 
@@ -1205,7 +1204,7 @@ flist_custom_exclude(view_t *view, int selection_only)
 	(void)exclude_temporary_entries(view);
 }
 
-/* Removes selected files from compare view.  Zero selection_only enables
+/* Removes marked files from compare view.  Zero selection_only enables
  * excluding files that share ids with selected items. */
 static void
 exclude_in_compare(view_t *view, int selection_only)
@@ -1214,7 +1213,7 @@ exclude_in_compare(view_t *view, int selection_only)
 	const int double_compare = (view->custom.type == CV_DIFF);
 	const int n = other->list_rows;
 	dir_entry_t *entry = NULL;
-	while(iter_selection_or_current(view, &entry))
+	while(iter_marked_entries(view, &entry))
 	{
 		if(selection_only)
 		{
@@ -1810,15 +1809,20 @@ populate_custom_view(view_t *view, int reload)
 	{
 		if(custom_list_is_incomplete(view))
 		{
-			char selected_path[PATH_MAX + 1];
-			get_current_full_path(view, sizeof(selected_path), selected_path);
+			dir_entry_t *prev_dir_entries;
+			int prev_list_rows;
 
-			/* Replacing list of entries invalidates cursor position, so we remember
-			 * previously selected file and try to position at it again. */
+			start_dir_list_change(view, &prev_dir_entries, &prev_list_rows, reload);
+
 			replace_dir_entries(view, &view->dir_entry, &view->list_rows,
 					view->local_filter.entries, view->local_filter.entry_count);
+			/* Selection of the original list shouldn't be restored. */
+			flist_sel_drop(view);
 
-			(void)set_position_by_path(view, selected_path);
+			/* We're merging instead of simply replacing entries to account for
+			 * selection and possibly other attributes of entries.  Merging also takes
+			 * care of cursor position. */
+			finish_dir_list_change(view, prev_dir_entries, prev_list_rows);
 		}
 		else if(view->local_filter.entry_count == 0)
 		{
@@ -3347,18 +3351,6 @@ iter_selected_entries(view_t *view, dir_entry_t **entry)
 }
 
 int
-iter_active_area(view_t *view, dir_entry_t **entry)
-{
-	dir_entry_t *const curr = get_current_entry(view);
-	if(!curr->selected)
-	{
-		*entry = (*entry == NULL && fentry_is_valid(curr)) ? curr : NULL;
-		return *entry != NULL;
-	}
-	return iter_selected_entries(view, entry);
-}
-
-int
 iter_marked_entries(view_t *view, dir_entry_t **entry)
 {
 	return iter_entries(view, entry, &is_entry_marked);
@@ -3500,14 +3492,35 @@ check_marking(view_t *view, int count, const int indexes[])
 	{
 		mark_files_at(view, count, indexes);
 	}
-	else if(view->selected_files != 0)
+	else
+	{
+		flist_set_marking(view, 0);
+	}
+}
+
+void
+flist_set_marking(view_t *view, int prefer_current)
+{
+	if(view->pending_marking)
+	{
+		view->pending_marking = 0;
+		return;
+	}
+
+	dir_entry_t *curr = get_current_entry(view);
+	if(view->selected_files != 0 &&
+			(!prefer_current || (curr != NULL && curr->selected)))
 	{
 		mark_selected(view);
 	}
 	else
 	{
 		clear_marking(view);
-		get_current_entry(view)->marked = 1;
+
+		if(curr != NULL && fentry_is_valid(curr))
+		{
+			curr->marked = 1;
+		}
 	}
 }
 
@@ -3524,7 +3537,8 @@ mark_files_at(view_t *view, int count, const int indexes[])
 	}
 }
 
-int
+/* Marks selected files of the view.  Returns number of marked files. */
+static int
 mark_selected(view_t *view)
 {
 	int i;
@@ -3553,8 +3567,18 @@ mark_selection_or_current(view_t *view)
 	return mark_selected(view);
 }
 
-/* Unmarks all entries of the view. */
-static void
+int
+flist_count_marked(const view_t *view)
+{
+	int i, n = 0;
+	for(i = 0; i < view->list_rows; ++i)
+	{
+		n += (view->dir_entry[i].marked != 0);
+	}
+	return n;
+}
+
+void
 clear_marking(view_t *view)
 {
 	int i;

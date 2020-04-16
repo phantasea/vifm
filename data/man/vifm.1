@@ -1,4 +1,4 @@
-.TH VIFM 1 "March 3, 2020" "vifm 0.10.1"
+.TH VIFM 1 "April 13, 2020" "vifm 0.10.1"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -561,7 +561,7 @@ only current file is updated.
 .TP
 .BI gf
 find link destination (like l with 'followlinks' off, but also finds
-directories).
+directories).  On Windows additionally follows .lnk-files.
 .TP
 .BI gr
 only for MS-Windows
@@ -2814,6 +2814,11 @@ switch to the next tab (wrapping around).
 .BI ":tabn[ext] {n}"
 go to the tab number {n}.  Tab numeration starts with 1.
 .TP
+.BI "                                         :tabonly"
+.TP
+.BI ":tabo[nly]"
+close all tabs but the current one.  Closes pane tabs only at the active side.
+.TP
 .BI "                                         :tabprevious"
 .TP
 .BI ":tabp[revious]"
@@ -4818,7 +4823,7 @@ Controls what will be saved in the $VIFM/vifminfo file.
    state     \- file name and dot filters and terminal multiplexers integration
                state
    cs        \- primary color scheme
-   savedirs  \- save last visited directory (requires dhistory)
+   savedirs  \- save last visited directory
    chistory  \- command line history
    shistory  \- search history (/ and ? commands)
    phistory  \- prompt history
@@ -4827,6 +4832,7 @@ Controls what will be saved in the $VIFM/vifminfo file.
    dirstack  \- directory stack overwrites previous stack, unless stack of
                current session is empty
    registers \- registers content
+   tabs      \- global or pane tabs
    options   \- all options that can be set with the :set command (obsolete)
    filetypes \- associated programs and viewers (obsolete)
    commands  \- user defined commands (see :command description) (obsolete)
@@ -5935,7 +5941,9 @@ Which files to compare:
 How files are compared:
  \- byname     \- by their name only;
  \- bysize     \- only by their size;
- \- bycontents \- by combination of size and hash of file contents.
+ \- bycontents \- by data they contain (combination of size and hash of \
+small chunk of contents is used as first approximation, so don't worry too \
+much about large files).
 
 Which files to display:
  \- listall    \- all files;

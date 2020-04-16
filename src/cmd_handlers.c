@@ -80,6 +80,7 @@
 #include "utils/regexp.h"
 #include "utils/str.h"
 #include "utils/string_array.h"
+#include "utils/test_helpers.h"
 #include "utils/trie.h"
 #include "utils/utils.h"
 #include "background.h"
@@ -280,6 +281,7 @@ static int tabmove_cmd(const cmd_info_t *cmd_info);
 static int tabname_cmd(const cmd_info_t *cmd_info);
 static int tabnew_cmd(const cmd_info_t *cmd_info);
 static int tabnext_cmd(const cmd_info_t *cmd_info);
+static int tabonly_cmd(const cmd_info_t *cmd_info);
 static int tabprevious_cmd(const cmd_info_t *cmd_info);
 static int touch_cmd(const cmd_info_t *cmd_info);
 static int get_at(const view_t *view, const cmd_info_t *cmd_info);
@@ -321,6 +323,7 @@ static int parse_bg_mark(char cmd[]);
 static int explore_cmd(const cmd_info_t *cmd_info);  //add by sim1
 static int switch_cmd(const cmd_info_t *cmd_info);   //add by sim1
 static int ratings_cmd(const cmd_info_t *cmd_info);  //add by sim1
+TSTATIC void cmds_drop_state(void);
 
 const cmd_add_t cmds_list[] = {
 	{ .name = "",                  .abbr = NULL,    .id = COM_GOTO,
@@ -827,6 +830,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "go to next or n-th tab",
 	  .flags = HAS_COMMENT,
 	  .handler = &tabnext_cmd,     .min_args = 0,   .max_args = 1, },
+	{ .name = "tabonly",           .abbr = "tabo",  .id = -1,
+	  .descr = "close all tabs but the current one",
+	  .flags = HAS_COMMENT,
+	  .handler = &tabonly_cmd,     .min_args = 0,   .max_args = 0, },
 	{ .name = "tabprevious",       .abbr = "tabp",  .id = -1,
 	  .descr = "go to previous or n-th previous tab",
 	  .flags = HAS_COMMENT,
@@ -942,6 +949,19 @@ const cmd_add_t cmds_list[] = {
 	  .handler = &usercmd_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
 };
 const size_t cmds_list_size = ARRAY_LEN(cmds_list);
+
+/* Holds global state of command handlers. */
+static struct
+{
+	/* For :find command. */
+	struct
+	{
+		char *last_args;   /* Last arguments passed to the command */
+		int includes_path; /* Whether last_args contains path to search in. */
+	}
+	find;
+}
+cmds_state;
 
 /* Return value of all functions below which name ends with "_cmd" mean:
  *  - <0 -- one of CMDS_* errors from cmds.h;
@@ -1135,9 +1155,13 @@ aucmd_action_handler(const char action[], void *arg)
 {
 	view_t *view = arg;
 	view_t *tmp_curr, *tmp_other;
-
 	ui_view_pick(view, &tmp_curr, &tmp_other);
+
+	char *saved_cwd = save_cwd();
+	(void)vifm_chdir(flist_get_dir(view));
 	(void)exec_commands(action, view, CIT_COMMAND);
+	restore_cwd(saved_cwd);
+
 	ui_view_unpick(view, tmp_curr, tmp_other);
 }
 
@@ -1537,6 +1561,7 @@ chmod_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
+	flist_set_marking(curr_view, 0);
 	files_chmod(curr_view, cmd_info->args, cmd_info->emark);
 #endif
 	return 0;
@@ -1583,7 +1608,7 @@ chown_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	mark_selection_or_current(curr_view);
+	flist_set_marking(curr_view, 0);
 	return fops_chown(u, g, uid, gid) != 0;
 }
 #endif
@@ -1592,7 +1617,7 @@ chown_cmd(const cmd_info_t *cmd_info)
 static int
 clone_cmd(const cmd_info_t *cmd_info)
 {
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 
 	if(cmd_info->qmark)
 	{
@@ -1798,7 +1823,7 @@ delete_cmd(const cmd_info_t *cmd_info)
 		return result;
 	}
 
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 	if(cmd_info->bg)
 	{
 		result = fops_delete_bg(curr_view, !cmd_info->emark) != 0;
@@ -2065,6 +2090,8 @@ echo_cmd(const cmd_info_t *cmd_info)
 static int
 edit_cmd(const cmd_info_t *cmd_info)
 {
+	flist_set_marking(curr_view, 1);
+
 	if(cmd_info->argc != 0)
 	{
 		if(stats_file_choose_action_set())
@@ -2077,48 +2104,34 @@ edit_cmd(const cmd_info_t *cmd_info)
 		return 0;
 	}
 
-	if(!curr_view->selected_files || !get_current_entry(curr_view)->selected)
+	dir_entry_t *entry = NULL;
+	while(iter_marked_entries(curr_view, &entry))
 	{
-		char file_to_view[PATH_MAX + 1];
+		char full_path[PATH_MAX + 1];
+		get_full_path_of(entry, sizeof(full_path), full_path);
 
-		if(stats_file_choose_action_set())
+		if(path_exists(full_path, DEREF) && !path_exists(full_path, NODEREF))
 		{
-			/* The call below does not return. */
-			vifm_choose_files(curr_view, cmd_info->argc, cmd_info->argv);
+			show_error_msgf("Access error",
+					"Can't access destination of link \"%s\". It might be broken.",
+					full_path);
+			return 0;
 		}
-
-		get_current_full_path(curr_view, sizeof(file_to_view), file_to_view);
-		(void)vim_view_file(file_to_view, -1, -1, 1);
 	}
-	else
+
+	/* Reuse marking second time (for vifm_choose_files() or
+	 * vim_edit_marking()). */
+	curr_view->pending_marking = 1;
+
+	if(stats_file_choose_action_set())
 	{
-		int i;
+		/* The call below does not return. */
+		vifm_choose_files(curr_view, 0, NULL);
+	}
 
-		for(i = 0; i < curr_view->list_rows; ++i)
-		{
-			struct stat st;
-			if(curr_view->dir_entry[i].selected == 0)
-				continue;
-			if(os_lstat(curr_view->dir_entry[i].name, &st) == 0 &&
-					!path_exists(curr_view->dir_entry[i].name, DEREF))
-			{
-				show_error_msgf("Access error",
-						"Can't access destination of link \"%s\". It might be broken.",
-						curr_view->dir_entry[i].name);
-				return 0;
-			}
-		}
-
-		if(stats_file_choose_action_set())
-		{
-			/* The call below does not return. */
-			vifm_choose_files(curr_view, cmd_info->argc, cmd_info->argv);
-		}
-
-		if(vim_edit_selection() != 0)
-		{
-			show_error_msg("Edit error", "Can't edit selection");
-		}
+	if(vim_edit_marking() != 0)
+	{
+		show_error_msg("Edit error", "Can't edit selection");
 	}
 	return 0;
 }
@@ -2325,7 +2338,15 @@ filter_cmd(const cmd_info_t *cmd_info)
 	ret = update_filter(curr_view, cmd_info);
 	if(curr_stats.global_local_settings)
 	{
-		ret = update_filter(other_view, cmd_info);
+		int i;
+		tab_info_t tab_info;
+		for(i = 0; tabs_enum_all(i, &tab_info); ++i)
+		{
+			if(tab_info.view != curr_view)
+			{
+				ret |= update_filter(tab_info.view, cmd_info);
+			}
+		}
 	}
 
 	return ret;
@@ -2438,29 +2459,29 @@ set_view_filter(view_t *view, const char filter[], const char fallback[],
 	return 0;
 }
 
+/* Looks for files matching pattern. */
 static int
 find_cmd(const cmd_info_t *cmd_info)
 {
-	static char *last_args;
-	static int last_dir;
-
 	if(cmd_info->argc > 0)
 	{
 		if(cmd_info->argc == 1)
-			last_dir = 0;
+			cmds_state.find.includes_path = 0;
 		else if(is_dir(cmd_info->argv[0]))
-			last_dir = 1;
+			cmds_state.find.includes_path = 1;
 		else
-			last_dir = 0;
-		(void)replace_string(&last_args, cmd_info->args);
+			cmds_state.find.includes_path = 0;
+
+		(void)replace_string(&cmds_state.find.last_args, cmd_info->args);
 	}
-	else if(last_args == NULL)
+	else if(cmds_state.find.last_args == NULL)
 	{
 		ui_sb_err("Nothing to repeat");
 		return 1;
 	}
 
-	return show_find_menu(curr_view, last_dir, last_args) != 0;
+	return show_find_menu(curr_view, cmds_state.find.includes_path,
+			cmds_state.find.last_args) != 0;
 }
 
 static int
@@ -3430,7 +3451,7 @@ cpmv_cmd(const cmd_info_t *cmd_info, int move)
 {
 	const CopyMoveLikeOp op = move ? CMLO_MOVE : CMLO_COPY;
 
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 
 	if(cmd_info->qmark)
 	{
@@ -3690,7 +3711,7 @@ regular_cmd(const cmd_info_t *cmd_info)
 static int
 rename_cmd(const cmd_info_t *cmd_info)
 {
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 	return fops_rename(curr_view, cmd_info->argv, cmd_info->argc,
 			cmd_info->emark) != 0;
 }
@@ -3706,7 +3727,7 @@ restart_cmd(const cmd_info_t *cmd_info)
 static int
 restore_cmd(const cmd_info_t *cmd_info)
 {
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 	return fops_restore(curr_view) != 0;
 }
 
@@ -3723,7 +3744,7 @@ link_cmd(const cmd_info_t *cmd_info, int absolute)
 {
 	const CopyMoveLikeOp op = absolute ? CMLO_LINK_ABS : CMLO_LINK_REL;
 
-	check_marking(curr_view, 0, NULL);
+	flist_set_marking(curr_view, 0);
 
 	if(cmd_info->qmark)
 	{
@@ -3842,13 +3863,7 @@ setlocal_cmd(const cmd_info_t *cmd_info)
 static int
 shell_cmd(const cmd_info_t *cmd_info)
 {
-	const char *sh = env_get_def("SHELL", cfg.shell);
-
-	/* Run shell with clean PATH environment variable. */
-	load_clean_path_env();
-	rn_shell(sh, PAUSE_NEVER, cmd_info->emark ? 0 : 1, SHELL_BY_APP);
-	load_real_path_env();
-
+	rn_shell(NULL, PAUSE_NEVER, cmd_info->emark ? 0 : 1, SHELL_BY_APP);
 	return 0;
 }
 
@@ -3970,7 +3985,7 @@ substitute_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	mark_selected(curr_view);
+	flist_set_marking(curr_view, 0);
 	return fops_subst(curr_view, last_pattern, last_sub, ic, glob) != 0;
 }
 
@@ -4298,6 +4313,15 @@ tabnext_cmd(const cmd_info_t *cmd_info)
 	return 0;
 }
 
+/* Closes all tabs but the current one. */
+static int
+tabonly_cmd(const cmd_info_t *cmd_info)
+{
+	tabs_only(curr_view);
+	stats_redraw_later();
+	return 0;
+}
+
 /* Switches either to the previous tab or to n-th previous tab, where n is
  * specified by the only optional parameter. */
 static int
@@ -4365,7 +4389,7 @@ tr_cmd(const cmd_info_t *cmd_info)
 		buf[sl] = '\0';
 	}
 
-	mark_selected(curr_view);
+	flist_set_marking(curr_view, 0);
 	return fops_tr(curr_view, cmd_info->argv[0], buf) != 0;
 }
 
@@ -4844,7 +4868,7 @@ yank_cmd(const cmd_info_t *cmd_info)
 	result = get_reg_and_count(cmd_info, &reg);
 	if(result == 0)
 	{
-		check_marking(curr_view, 0, NULL);
+		flist_set_marking(curr_view, 0);
 		result = fops_yank(curr_view, reg) != 0;
 	}
 
@@ -4930,17 +4954,23 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 	int save_msg = 0;
 	int handled;
 
+	int lpending_marking = lwin.pending_marking;
+	int rpending_marking = rwin.pending_marking;
+
 	/* Expand macros in a bound command. */
 	expanded_com = ma_expand(cmd_info->cmd, cmd_info->args, &flags,
 			vle_cmds_identify(cmd_info->cmd) == COM_EXECUTE);
 
 	if(expanded_com[0] == ':')
 	{
-		int sm;
+		/* ma_expand() could have reset the flags, restore them to restore range
+		 * selection. */
+		lwin.pending_marking = lpending_marking;
+		rwin.pending_marking = rpending_marking;
 
 		commands_scope_start();
 
-		sm = exec_commands(expanded_com, curr_view, CIT_COMMAND);
+		int sm = exec_commands(expanded_com, curr_view, CIT_COMMAND);
 		free(expanded_com);
 
 		if(commands_scope_finish() != 0)
@@ -5031,7 +5061,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 -----------------------
-extern void view_enter_mode(view_t *view, int explore);
+extern void modview_enter(view_t *view, int explore);
 
 static int
 explore_cmd(const cmd_info_t *cmd_info)
@@ -5043,7 +5073,7 @@ explore_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	view_enter_mode(curr_view, 1);
+	modview_enter(curr_view, 1);
 	return 0;
 }
 
@@ -5052,7 +5082,7 @@ switch_cmd(const cmd_info_t *cmd_info)
 {
 	if(curr_stats.preview.on)
 	{
-		view_enter_mode(other_view, 0);
+		modview_enter(other_view, 0);
 		return 0;
 	}
 
@@ -5076,6 +5106,13 @@ parse_bg_mark(char cmd[])
 
 	amp[-1] = '\0';
 	return 1;
+}
+
+TSTATIC void
+cmds_drop_state(void)
+{
+	update_string(&cmds_state.find.last_args, NULL);
+	cmds_state.find.includes_path = 0;
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

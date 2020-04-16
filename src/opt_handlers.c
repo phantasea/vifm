@@ -83,7 +83,6 @@ optinit_t;
 
 static void uni_handler(const char name[], optval_t val, OPT_SCOPE scope);
 static void init_classify(optval_t *val);
-static char * double_commas(const char str[]);
 static void init_cpoptions(optval_t *val);
 static void init_dirsize(optval_t *val);
 static const char * to_endpoint(int i, char buffer[]);
@@ -543,6 +542,7 @@ static const char *vifminfo_set[][2] = {
 	[BIT(VINFO_PHISTORY)]  = { "phistory",  "prompt history" },
 	[BIT(VINFO_FHISTORY)]  = { "fhistory",  "local filter history" },
 	[BIT(VINFO_RATINGS)]   = { "ratings",   "star ratings" },
+	[BIT(VINFO_TABS)]      = { "tabs",      "global or pane tabs" },
 };
 ARRAY_GUARD(vifminfo_set, NUM_VINFO);
 
@@ -956,13 +956,13 @@ init_option_handlers(void)
 }
 
 /* Additional handler for processing of global-local options, namely for
- * updating the other view. */
+ * updating inactive view(s). */
 static void
 uni_handler(const char name[], optval_t val, OPT_SCOPE scope)
 {
-	/* += and similar operators act in their way only for the current view, the
-	 * other view just gets value resulted from the operation.  The behaviour is
-	 * fine and doesn't seem to be a bug. */
+	/* += and similar operators act in their way only for the current view, other
+	 * views just get value resulted from the operation.  The behaviour is fine
+	 * and doesn't seem to be a bug. */
 
 	static size_t first_local = (size_t)-1;
 
@@ -988,19 +988,33 @@ uni_handler(const char name[], optval_t val, OPT_SCOPE scope)
 	/* Look up option name and update it in the other view if found. */
 	for(i = first_local; i < ARRAY_LEN(options); ++i)
 	{
-		if(strcmp(options[i].name, name) == 0)
+		if(strcmp(options[i].name, name) != 0)
 		{
-			view_t *const tmp_view = curr_view;
-			curr_view = other_view;
+			continue;
+		}
 
-			/* Make sure option value remains valid even if updated in the handler.
-			 * Do this before calling load_view_options(), because it can change the
-			 * value. */
-			if(ONE_OF(options[i].type, OPT_STR, OPT_STRLIST, OPT_CHARSET))
+		view_t *const tmp_view = curr_view;
+
+		/* Make sure option value remains valid even if updated in the handler.
+		 * Do this before calling load_view_options(), because it can change the
+		 * value. */
+		if(ONE_OF(options[i].type, OPT_STR, OPT_STRLIST, OPT_CHARSET))
+		{
+			val.str_val = strdup(val.str_val);
+		}
+
+		int j;
+		tab_info_t tab_info;
+		for(j = 0; tabs_enum_all(j, &tab_info); ++j)
+		{
+			if(tab_info.view == curr_view)
 			{
-				val.str_val = strdup(val.str_val);
+				continue;
 			}
 
+			curr_view = tab_info.view;
+			/* XXX: do we actually need to load options?  We're calling handlers
+			 *      directly anyway.  */
 			load_view_options(curr_view);
 
 			if(scope == OPT_LOCAL)
@@ -1011,16 +1025,16 @@ uni_handler(const char name[], optval_t val, OPT_SCOPE scope)
 			{
 				options[i].global_handler(OP_SET, val);
 			}
-
-			if(ONE_OF(options[i].type, OPT_STR, OPT_STRLIST, OPT_CHARSET))
-			{
-				free(val.str_val);
-			}
-
-			curr_view = tmp_view;
-			load_view_options(curr_view);
-			break;
 		}
+
+		if(ONE_OF(options[i].type, OPT_STR, OPT_STRLIST, OPT_CHARSET))
+		{
+			free(val.str_val);
+		}
+
+		curr_view = tmp_view;
+		load_view_options(curr_view);
+		break;
 	}
 }
 
@@ -1054,15 +1068,16 @@ classify_to_str(void)
 	for(i = 0; i < cfg.name_dec_count && !memerr; ++i)
 	{
 		const file_dec_t *const name_dec = &cfg.name_decs[i];
-		char *const doubled = double_commas(matchers_get_expr(name_dec->matchers));
+		char *const doubled_commas_pat =
+			double_char(matchers_get_expr(name_dec->matchers), ',');
 		char *const addition = format_str("%s%s::%s::%s",
-				classify[0] != '\0' ? "," : "", name_dec->prefix, doubled,
+				classify[0] != '\0' ? "," : "", name_dec->prefix, doubled_commas_pat,
 				name_dec->suffix);
 
 		memerr |= (addition == NULL || strappend(&classify, &len, addition) != 0);
 
 		free(addition);
-		free(doubled);
+		free(doubled_commas_pat);
 	}
 
 	/* Type-dependent decorations. */
@@ -1084,25 +1099,6 @@ classify_to_str(void)
 	}
 
 	return memerr ? NULL : classify;
-}
-
-/* Clones string passed as the argument doubling commas in the process.  Returns
- * cloned value. */
-static char *
-double_commas(const char str[])
-{
-	char *const doubled = malloc(strlen(str)*2 + 1);
-	char *p = doubled;
-	while(*str != '\0')
-	{
-		*p++ = *str++;
-		if(p[-1] == ',')
-		{
-			*p++ = ',';
-		}
-	}
-	*p = '\0';
-	return doubled;
 }
 
 /* Composes initial value for 'cpoptions' option from a set of configuration
@@ -3099,6 +3095,13 @@ load_quickview_option(void)
 }
 
 void
+load_tabscope_option(void)
+{
+	optval_t val = { .enum_item = (cfg.pane_tabs ? 1 : 0) };
+	vle_opts_assign("tabscope", val, OPT_GLOBAL);
+}
+
+void
 load_geometry(void)
 {
 	optval_t val;
@@ -3281,6 +3284,7 @@ tabscope_handler(OPT_OP op, optval_t val)
 
 	/* Erase tabs on current scope before switching it. */
 	tabs_only(curr_view);
+	tabs_only(other_view);
 	tabs_rename(curr_view, NULL);
 
 	cfg.pane_tabs = val.bool_val;

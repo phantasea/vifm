@@ -51,7 +51,7 @@ int show_ratings_menu(view_t *view)
 		char item_buf[PATH_MAX + 1];
 		snprintf(item_buf, sizeof(item_buf), "%d %s", entry->star, entry->path);
 
-		m.len = add_to_string_array(&m.items, m.len, 1, item_buf);
+		m.len = add_to_string_array(&m.items, m.len, item_buf);
 
 		entry = entry->next;
 	}

@@ -302,14 +302,7 @@ prepare_for_exec(void)
 	 * freeing resources which will be replaced by exec(). */
 	tab_info_t tab_info;
 	int i;
-	for(i = 0; tabs_enum(&lwin, i, &tab_info); ++i)
-	{
-		view_t *view = tab_info.view;
-		fswatch_free(view->watch);
-		fswatch_free(view->left_column.watch);
-		fswatch_free(view->right_column.watch);
-	}
-	for(i = 0; tabs_enum(&rwin, i, &tab_info); ++i)
+	for(i = 0; tabs_enum_all(i, &tab_info); ++i)
 	{
 		view_t *view = tab_info.view;
 		fswatch_free(view->watch);
@@ -1054,7 +1047,10 @@ get_installed_data_dir(void)
 void
 clone_attribs(const char path[], const char from[], const struct stat *st)
 {
-	chown(path, st->st_uid, st->st_gid);
+	if(chown(path, st->st_uid, st->st_gid) != 0)
+	{
+		LOG_SERROR_MSG(errno, "Failed to chown `%s`", path);
+	}
 	clone_timestamps(path, from, st);
 	clone_xattrs(path, from);
 }

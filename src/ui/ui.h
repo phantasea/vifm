@@ -391,13 +391,11 @@ struct view_t
 	int nsaved_selection;   /* Number of items in saved_selection. */
 	char **saved_selection; /* Names of selected files. */
 
-	/* Whether files are selected by user or via range on the command-line.  Say
-	 * some commands (e.g. ga/gA) implement "smart selection", but it shouldn't
-	 * be applied for selected produced by a range. */
-	int user_selection;
+	/* Files were marked for processing, but haven't been processed yet. */
+	int pending_marking;
 
-	int explore_mode;       /* Whether this view is used for file exploring. */
-	struct view_info_t *vi; /* State of explore view (NULL initially). */
+	int explore_mode;          /* Whether this view is used for file exploring. */
+	struct modview_info_t *vi; /* State of explore view (NULL initially). */
 
 	/* Filter which is controlled by user. */
 	struct matcher_t *manual_filter;
@@ -519,6 +517,10 @@ int cv_compare(CVType type);
 /* Checks whether custom view of specified type is a tree view.  Returns
  * non-zero if so, otherwise zero is returned. */
 int cv_tree(CVType type);
+
+/* Resizes all windows according to current screen size and TUI
+ * configuration. */
+void ui_resize_all(void);
 
 /* Redraws whole screen with possible reloading of file lists (depends on
  * argument). */
@@ -703,6 +705,10 @@ int ui_qv_height(const view_t *view);
 /* Retrieves width of quickview area.  Returns the width. */
 int ui_qv_width(const view_t *view);
 
+/* If active preview needs special cleanup (i.e., simply redrawing a window
+ * isn't enough. */
+void ui_qv_cleanup_if_needed(void);
+
 /* Invalidates views-specific knowledge about given color scheme. */
 void ui_invalidate_cs(const col_scheme_t *cs);
 
@@ -711,7 +717,7 @@ void ui_invalidate_cs(const col_scheme_t *cs);
 const col_scheme_t * ui_view_get_cs(const view_t *view);
 
 /* Erases view window by filling it with the background color. */
-void ui_view_erase(view_t *view);
+void ui_view_erase(view_t *view, int use_global_cs);
 
 /* Figures out base color for the pane.  Returns the color. */
 col_attr_t ui_get_win_color(const view_t *view, const col_scheme_t *cs);

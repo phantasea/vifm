@@ -83,9 +83,9 @@ show_file_menu(view_t *view, int background)
 
 	for(i = 0; i < ft.count; ++i)
 	{
-		(void)add_to_string_array(&m.data, m.len, 1, ft.list[i].command);
-		m.len = add_to_string_array(&m.items, m.len, 1,
-				form_filetype_menu_entry(ft.list[i], max_len));
+		(void)add_to_string_array(&m.data, m.len, ft.list[i].command);
+		const char *entry = form_filetype_menu_entry(ft.list[i], max_len);
+		m.len = add_to_string_array(&m.items, m.len, entry);
 	}
 
 #ifdef ENABLE_DESKTOP_FILES
@@ -93,8 +93,8 @@ show_file_menu(view_t *view, int background)
 	 * kind. */
 	if(ft.count > 0 || magic.count > 0)
 	{
-		(void)add_to_string_array(&m.data, m.len, 1, NONE_PSEUDO_PROG.command);
-		m.len = add_to_string_array(&m.items, m.len, 1, "");
+		(void)add_to_string_array(&m.data, m.len, NONE_PSEUDO_PROG.command);
+		m.len = add_to_string_array(&m.items, m.len, "");
 	}
 #endif
 
@@ -102,9 +102,9 @@ show_file_menu(view_t *view, int background)
 
 	for(i = 0; i < magic.count; ++i)
 	{
-		(void)add_to_string_array(&m.data, m.len, 1, magic.list[i].command);
-		m.len = add_to_string_array(&m.items, m.len, 1,
-				form_filetype_menu_entry(magic.list[i], max_len));
+		(void)add_to_string_array(&m.data, m.len, magic.list[i].command);
+		const char *entry = form_filetype_menu_entry(magic.list[i], max_len);
+		m.len = add_to_string_array(&m.items, m.len, entry);
 	}
 
 	return menus_enter(m.state, view);
@@ -124,7 +124,7 @@ form_filetype_menu_entry(assoc_record_t prog, int descr_width)
 
 	if(descr_width > 0)
 	{
-		char format[16];
+		char format[32];
 		if(prog.description[0] == '\0')
 		{
 			snprintf(format, sizeof(format), "%%-%ds  ", descr_width);
@@ -167,7 +167,7 @@ filetypes_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 		const char *const prog_str = m->data[m->pos];
 		if(prog_str[0] != '\0')
 		{
-			menu_morph_into_cmdline(CLS_COMMAND, prog_str, 1);
+			modmenu_morph_into_cline(CLS_COMMAND, prog_str, 1);
 			return KHR_MORPHED_MENU;
 		}
 	}
@@ -217,8 +217,8 @@ fill_menu_from_records(menu_data_t *m, const assoc_records_t *records)
 
 	for(i = 0; i < records->count; ++i)
 	{
-		m->len = add_to_string_array(&m->items, m->len, 1,
-				form_filetype_menu_entry(records->list[i], max_len));
+		const char *entry = form_filetype_menu_entry(records->list[i], max_len);
+		m->len = add_to_string_array(&m->items, m->len, entry);
 	}
 }
 

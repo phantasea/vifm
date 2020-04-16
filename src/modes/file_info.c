@@ -76,7 +76,7 @@ static keys_add_info_t builtin_cmds[] = {
 };
 
 void
-init_file_info_mode(void)
+modfinfo_init(void)
 {
 	int ret_code;
 
@@ -88,7 +88,7 @@ init_file_info_mode(void)
 }
 
 void
-enter_file_info_mode(view_t *v)
+modfinfo_enter(view_t *v)
 {
 	if(fentry_is_fake(get_current_entry(v)))
 	{
@@ -99,9 +99,15 @@ enter_file_info_mode(view_t *v)
 	vle_mode_set(FILE_INFO_MODE, VMT_PRIMARY);
 	view = v;
 	ui_setup_for_menu_like();
-	redraw_file_info_dialog();
+	modfinfo_redraw();
 
 	was_redraw = 0;
+}
+
+void
+modfinfo_abort(void)
+{
+	leave_file_info_mode();
 }
 
 static void
@@ -120,7 +126,7 @@ leave_file_info_mode(void)
 }
 
 void
-redraw_file_info_dialog(void)
+modfinfo_redraw(void)
 {
 	const dir_entry_t *curr;
 	char perm_buf[26];
@@ -241,29 +247,44 @@ show_file_type(view_t *view, int curr_y)
 	curr = get_current_entry(view);
 
 	mvwaddstr(menu_win, curr_y, 2, "Type: ");
-	if(curr->type == FT_LINK)
+	if(curr->type == FT_LINK || is_shortcut(curr->name))
 	{
 		char full_path[PATH_MAX + 1];
 		char linkto[PATH_MAX + NAME_MAX];
 
 		get_current_full_path(view, sizeof(full_path), full_path);
 
-		mvwaddstr(menu_win, curr_y, 8, "Link");
-		curr_y += 2;
-		mvwaddstr(menu_win, curr_y, 2, "Link To: ");
+		int broken_offset;
+		int target_offset;
+		if(curr->type == FT_LINK)
+		{
+			mvwaddstr(menu_win, curr_y, 8, "Link");
+			curr_y += 2;
+			mvwaddstr(menu_win, curr_y, 2, "Link To: ");
+			broken_offset = 12;
+			target_offset = 11;
+		}
+		else
+		{
+			mvwaddstr(menu_win, curr_y, 8, "Shortcut");
+			curr_y += 2;
+			mvwaddstr(menu_win, curr_y, 2, "Shortcut To: ");
+			broken_offset = 16;
+			target_offset = 15;
+		}
 
 		if(get_link_target(full_path, linkto, sizeof(linkto)) == 0)
 		{
-			mvwaddnstr(menu_win, curr_y, 11, linkto, x - 11);
+			mvwaddnstr(menu_win, curr_y, target_offset, linkto, x - target_offset);
 
 			if(!path_exists(linkto, DEREF))
 			{
-				mvwaddstr(menu_win, curr_y - 2, 12, " (BROKEN)");
+				mvwaddstr(menu_win, curr_y - 2, broken_offset, " (BROKEN)");
 			}
 		}
 		else
 		{
-			mvwaddstr(menu_win, curr_y, 11, "Couldn't Resolve Link");
+			mvwaddstr(menu_win, curr_y, target_offset, "Couldn't Resolve Link");
 		}
 	}
 	else if(curr->type == FT_EXEC || curr->type == FT_REG)
@@ -399,7 +420,7 @@ cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_l(key_info_t key_info, keys_info_t *keys_info)
 {
-	redraw_file_info_dialog();
+	modfinfo_redraw();
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
