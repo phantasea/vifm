@@ -44,3 +44,6 @@ aclocal.m4
 # windows specific
 src/*.exe
 src/*.res
+
+# git merge backup file
+*.orig
