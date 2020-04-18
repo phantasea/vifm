@@ -2198,8 +2198,8 @@ store_rating_info(JSON_Object *root)
 	{
 		rating_entry_t *temp = entry->next;
 
-		if ((entry->star > 0) && 
-				(path_exists(entry->path, NODEREF)))
+		//if ((entry->star > 0) && (path_exists(entry->path, NODEREF)))
+		if (entry->star > 0)  //don't care if file exists
 		{
 			str_rot_encypt(entry->path);
 
