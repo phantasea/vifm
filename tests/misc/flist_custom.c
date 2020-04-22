@@ -458,7 +458,7 @@ TEST(files_with_newline_in_names, IF(filenames_can_include_newline))
 
 	create_file("a\nb");
 	assert_non_null(get_cwd(lwin.curr_dir, sizeof(lwin.curr_dir)));
-	assert_success(rn_for_flist(&lwin, "cat list", 0, 0));
+	assert_success(rn_for_flist(&lwin, "cat list", "title", 0, 0));
 	assert_success(unlink("a\nb"));
 	assert_success(unlink("list"));
 
@@ -487,7 +487,7 @@ TEST(current_directory_can_be_added_via_dot)
 #endif
 	stats_update_shell_type(cfg.shell);
 
-	assert_success(rn_for_flist(&lwin, "echo ../misc", 0, 0));
+	assert_success(rn_for_flist(&lwin, "echo ../misc", "title", 0, 0));
 
 	stats_update_shell_type("/bin/sh");
 	update_string(&cfg.shell, NULL);
@@ -612,6 +612,7 @@ TEST(excluded_entries_do_not_return)
 	assert_int_equal(2, lwin.list_rows);
 
 	flist_custom_exclude(&lwin, 0);
+	assert_int_equal(0, lwin.selected_files);
 	assert_int_equal(1, lwin.list_rows);
 
 	load_dir_list(&lwin, 1);
@@ -639,6 +640,7 @@ TEST(excluding_entries_does_not_affect_local_filter_list)
 	assert_int_equal(2, lwin.list_rows);
 
 	flist_custom_exclude(&lwin, 0);
+	assert_int_equal(0, lwin.selected_files);
 	assert_int_equal(1, lwin.list_rows);
 
 	local_filter_remove(&lwin);

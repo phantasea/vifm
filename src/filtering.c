@@ -148,7 +148,7 @@ dot_filter_toggle(view_t *view)
 
 //mod by sim1
 void
-filter_files(view_t *view, iter_view_entry iter)
+name_filters_add_active(view_t *view, iter_view_entry iter)
 {
 	filter_t filter;
 	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);

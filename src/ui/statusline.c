@@ -347,13 +347,33 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 		buf[0] = '\0';
 		switch(c)
 		{
+			char path[PATH_MAX + 1];
+			char *escaped;
+
 			case 'a':
 				friendly_size_notation(get_free_space(curr_view->curr_dir), sizeof(buf),
 						buf);
 				break;
 			case 't':
+<<<<<<< HEAD
 				//mod by sim1 for file name left ellipsis
 				format_entry_name(curr, NF_FULL | (1 << 3), sizeof(buf), buf);
+||||||| merged common ancestors
+				format_entry_name(curr, NF_FULL, sizeof(buf), buf);
+=======
+			case 'f':
+				if(c == 't')
+				{
+					format_entry_name(curr, NF_FULL, sizeof(path), path);
+				}
+				else
+				{
+					get_short_path_of(view, curr, NF_FULL, 0, sizeof(path), path);
+				}
+				escaped = escape_unreadable(path);
+				copy_str(buf, sizeof(buf), escaped);
+				free(escaped);
+>>>>>>> d8313429411f9c561f475f032b3b88dd67c6914f
 				break;
 			case 'T':
 				if(curr->type == FT_LINK)
@@ -372,9 +392,6 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					}
 					//mod by sim1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 				}
-				break;
-			case 'f':
-				get_short_path_of(view, curr, NF_FULL, 0, sizeof(buf), buf);
 				break;
 			case 'A':
 #ifndef _WIN32
@@ -395,7 +412,6 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 			//add by sim1 ************************************************
 			case 'r':
 				{
-					char path[PATH_MAX] = {0};
 					get_full_path_at(view, view->list_pos, sizeof(path), path);
 					(void)get_rating_string(buf, sizeof(buf), path);
 				}

@@ -406,6 +406,7 @@ TEST(macro_can_be_added_implicitly, IF(not_windows))
 {
 	start_use_script();
 	lwin.dir_entry[1].selected = 0;
+	--lwin.selected_files;
 
 	char *error;
 	matchers_t *ms = matchers_alloc("{a}", 0, 1, "", &error);
@@ -430,6 +431,7 @@ TEST(handler_can_be_matched_by_a_prefix, IF(not_windows))
 {
 	start_use_script();
 	lwin.dir_entry[1].selected = 0;
+	--lwin.selected_files;
 
 	char *error;
 	matchers_t *ms = matchers_alloc("{a}", 0, 1, "", &error);
@@ -448,14 +450,6 @@ TEST(handler_can_be_matched_by_a_prefix, IF(not_windows))
 	assert_failure(remove(SANDBOX_PATH "/vi-list"));
 
 	stop_use_script();
-}
-
-TEST(shorten_cmd_works_as_expected)
-{
-	assert_int_equal(0, shorten_cmd("", 10));
-	assert_int_equal(0, shorten_cmd("a", 1));
-	assert_int_equal(3, shorten_cmd("a b c", 2));
-	assert_int_equal(0, shorten_cmd("a b\\ c", 2));
 }
 
 static int
