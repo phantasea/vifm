@@ -347,7 +347,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 		buf[0] = '\0';
 		switch(c)
 		{
-			char path[PATH_MAX + 1];
+			char path[PATH_MAX + 1] = {0};
 			char *escaped;
 
 			case 'a':
@@ -355,16 +355,11 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 						buf);
 				break;
 			case 't':
-<<<<<<< HEAD
-				//mod by sim1 for file name left ellipsis
-				format_entry_name(curr, NF_FULL | (1 << 3), sizeof(buf), buf);
-||||||| merged common ancestors
-				format_entry_name(curr, NF_FULL, sizeof(buf), buf);
-=======
 			case 'f':
 				if(c == 't')
 				{
-					format_entry_name(curr, NF_FULL, sizeof(path), path);
+					//mod by sim1 for file name left ellipsis
+					format_entry_name(curr, NF_FULL | (1 << 3), sizeof(path), path);
 				}
 				else
 				{
@@ -373,7 +368,6 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				escaped = escape_unreadable(path);
 				copy_str(buf, sizeof(buf), escaped);
 				free(escaped);
->>>>>>> d8313429411f9c561f475f032b3b88dd67c6914f
 				break;
 			case 'T':
 				if(curr->type == FT_LINK)
@@ -381,7 +375,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					char full_path[PATH_MAX + 1];
 					char link_path[PATH_MAX + 1];  //add by sim1
 					get_full_path_of(curr, sizeof(full_path), full_path);
-					//mod by sim1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+					//mod by sim1 ++++++++++++++++++++++++++++++++++
 					if(get_link_target(full_path, link_path, sizeof(link_path)) != 0)
 					{
 						copy_str(buf, sizeof(buf), "Failed to resolve link");
@@ -390,7 +384,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					{
 						snprintf(buf, sizeof(buf), " -> %s", link_path);
 					}
-					//mod by sim1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+					//mod by sim1 ----------------------------------
 				}
 				break;
 			case 'A':

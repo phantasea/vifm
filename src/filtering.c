@@ -146,9 +146,71 @@ dot_filter_toggle(view_t *view)
 	}
 }
 
-//mod by sim1
 void
-name_filters_add_active(view_t *view, iter_view_entry iter)
+name_filters_add_active(view_t *view)
+{
+	filter_t filter;
+	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);
+
+	flist_set_marking(view, 0);
+
+	/* Traverse items and update/create filter values. */
+	dir_entry_t *entry = NULL;
+	while(iter_marked_entries(view, &entry))
+	{
+		const char *name = entry->name;
+		char name_with_slash[NAME_MAX + 1 + 1];
+
+		if(fentry_is_dir(entry))
+		{
+			append_slash(entry->name, name_with_slash, sizeof(name_with_slash));
+			name = name_with_slash;
+		}
+
+		(void)filter_append(&view->auto_filter, name);
+		(void)filter_append(&filter, name);
+	}
+
+	/* Even current file might be unavailable for filtering.  In this case, just do nothing. */
+	if (filter_is_empty(&filter))
+	{
+		filter_dispose(&filter);
+		return;
+	}
+
+	if (view->custom.type == CV_DIFF)
+	{
+		(void)filter_in_compare(view, &filter, &is_newly_filtered);
+		ui_view_schedule_redraw(view);
+		filter_dispose(&filter);
+		return;
+	}
+
+	/* Update entry lists to remove entries that must be filtered out now.  No
+	 * view reload is needed. */
+	int filtered = zap_entries(view, view->dir_entry, &view->list_rows,
+			&is_newly_filtered, &filter, 0, 1);
+	if(flist_custom_active(view))
+	{
+		(void)zap_entries(view, view->local_filter.entries,
+				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);
+	}
+	else
+	{
+		view->filtered += filtered;
+	}
+
+	filter_dispose(&filter);
+
+	fpos_ensure_valid_pos(view);
+	ui_view_schedule_redraw(view);
+
+	return;
+}
+
+//add by sim1  --------------------------------------------
+void
+filter_files(view_t *view, iter_view_entry iter)
 {
 	filter_t filter;
 	(void)filter_init(&filter, FILTER_DEF_CASE_SENSITIVITY);
@@ -228,7 +290,7 @@ void name_filters_add_selection(view_t *view)
 {
 	filter_files(view, iter_selection_or_current);
 }
-//mod by sim1 ---END
+//add by sim1  --------------------------------------------
 
 /* zap_entries() filter to filter-out files that match filter passed in the
  * arg. */
