@@ -1,5 +1,7 @@
 #include <stic.h>
 
+#include <test-utils.h>
+
 #include "../../src/engine/keys.h"
 #include "../../src/int/file_magic.h"
 #include "../../src/modes/modes.h"
@@ -8,8 +10,6 @@
 #include "../../src/filelist.h"
 #include "../../src/filetype.h"
 #include "../../src/status.h"
-
-#include "utils.h"
 
 static void check_filetype(void);
 static int prog_exists(const char name[]);
@@ -140,7 +140,7 @@ TEST(cv_is_built_by_handler)
 	assert_success(exec_commands("normal l", &lwin, CIT_COMMAND));
 	assert_true(flist_custom_active(&lwin));
 
-	assert_string_equal("!echo %c %u", lwin.custom.title);
+	assert_string_equal("echo %c %u", lwin.custom.title);
 
 	vle_keys_reset();
 }
