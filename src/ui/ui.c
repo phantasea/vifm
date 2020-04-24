@@ -2019,6 +2019,8 @@ print_view_title(const view_t *view, int active_view, char title[])
 	{
 		snprintf(buf, sizeof(buf), "%s@%s:%s", username, hostname, ellipsis);
 		wprint(view->title, buf);
+		//add by sim1: add pane tag shown at the right-most of the pane
+		mvwaddstr(view->title, 0, (title_width - 2), view == &lwin ? "㈠" : "㈡");
 	}
 	else
 	{
