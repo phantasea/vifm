@@ -440,7 +440,9 @@ vertical_layout(int screen_x)
 	else
 		splitter_pos = curr_stats.splitter_pos;
 
-	int splitter_width = (cfg.flexible_splitter ? 2 - screen_x%2 : 1);
+	//mod by sim1
+	//int splitter_width = (cfg.flexible_splitter ? 2 - screen_x%2 : 1);
+	int splitter_width = (cfg.flexible_splitter ? 1 - screen_x%2 : 1);
 	if(splitter_pos < 4)
 		splitter_pos = 4;
 	if(splitter_pos > screen_x - 4 - splitter_width)
