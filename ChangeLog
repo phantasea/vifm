@@ -12,6 +12,10 @@
 
 	Added :tabo[nly] command that closes all tabs but the current one.
 
+	Added "v" flag to the 'tuioptions' option.  It controls whether width of
+	middle border is adjusted to equalize view sizes.  Thanks to Matthias
+	Braun (a.k.a. mb720).
+
 	Made documentation of :command more comprehensible.
 
 	Explicitly documented that macros are expanded in user defined commands.
@@ -216,6 +220,10 @@
 
 	Fixed invalid background in more mode after opening a menu.  Thanks to
 	filterfalse.
+
+	Fixed mapped keys being reinterpreted as builtin keys if RHS of the
+	mapping failed at some point (e.g., contained an unmapped key).  Thanks to
+	Seok Won Lee (a.k.a. ijleesw).
 
 0.10.1-beta to 0.10.1 (2019-07-29)
 
