@@ -434,15 +434,14 @@ vertical_layout(int screen_x)
 	const int border_height = get_working_area_height();
 	const int y = get_tabline_height();
 
+	int splitter_width = (cfg.flexible_splitter ? 2 - screen_x%2 : 1);
 	int splitter_pos;
+	//mod by sim1
 	if(curr_stats.splitter_pos < 0)
-		splitter_pos = screen_x/2 - 1 + screen_x%2;
+		splitter_pos = screen_x/2 - splitter_width%2 + screen_x%2;
 	else
 		splitter_pos = curr_stats.splitter_pos;
 
-	//mod by sim1
-	//int splitter_width = (cfg.flexible_splitter ? 2 - screen_x%2 : 1);
-	int splitter_width = (cfg.flexible_splitter ? 1 - screen_x%2 : 1);
 	if(splitter_pos < 4)
 		splitter_pos = 4;
 	if(splitter_pos > screen_x - 4 - splitter_width)
@@ -738,9 +737,6 @@ ui_resize_all(void)
 static void
 clear_border(WINDOW *border)
 {
-	int i;
-	int height;
-
 	werase(border);
 
 	if(strcmp(cfg.border_filler, " ") == 0)
@@ -748,10 +744,15 @@ clear_border(WINDOW *border)
 		return;
 	}
 
-	height = getmaxy(border);
-	for(i = 0; i < height; ++i)
+	//mod by sim1: draw mborder filler smartly
+	int wid = getmaxx(border);
+	int hei = getmaxy(border);
+	for(int i = 0; i< wid; ++i)
 	{
-		mvwaddstr(border, i, 0, cfg.border_filler);
+		for(int j = 0; j < hei; ++j)
+		{
+			mvwaddstr(border, j, i, cfg.border_filler);
+		}
 	}
 
 	wnoutrefresh(border);
@@ -762,13 +763,6 @@ clear_border(WINDOW *border)
 static int
 middle_border_is_visible(void)
 {
-	//add by sim1 ***************
-	if (getmaxx(stdscr) % 2 != 0)
-	{
-		return FALSE;
-	}
-	//add by sim1 ***************
-
 	return (curr_stats.number_of_windows == 2 && curr_stats.split == VSPLIT);
 }
 
@@ -1716,7 +1710,14 @@ void print_top_mid_filler(void)
 
 	ui_set_bg(top_line, &cfg.cs.color[TOP_MID_COLOR], cfg.cs.pair[TOP_MID_COLOR]);
 	werase(top_line);
-	wprint(top_line, cfg.top_mid_filler);
+
+	char topmidstr[10] = {0};
+	for(int i = 0; i < getmaxx(top_line); ++i)
+	{
+		strcat(topmidstr, cfg.top_mid_filler);
+	}
+
+	wprint(top_line, topmidstr);
 	wnoutrefresh(top_line);
 }
 //add by sim1 ***********************
