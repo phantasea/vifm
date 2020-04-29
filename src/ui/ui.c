@@ -2005,6 +2005,8 @@ print_view_title(const view_t *view, int active_view, char title[])
 	char username[LOGIN_NAME_MAX] = {0};
 	char buf[PATH_MAX + 1] = {0};
 	int  ret = 0;
+	int  pane_tag_len = 3;
+	int  ellipsis_len = 0;
 	//add by sim1 *******************************
 
 	const size_t title_width = getmaxx(view->title);
@@ -2013,11 +2015,13 @@ print_view_title(const view_t *view, int active_view, char title[])
 		return;
 	}
 
-	werase(view->title);
+	ellipsis_len = title_width;
+	if (!middle_border_is_visible())
+	{
+		ellipsis_len -= pane_tag_len;
+	}
 
-	ellipsis = active_view
-	         ? left_ellipsis(title, title_width, curr_stats.ellipsis)
-	         : right_ellipsis(title, title_width, curr_stats.ellipsis);
+	werase(view->title);
 
 	//mod by sim1 *******************************
 	ret = gethostname(hostname, HOST_NAME_MAX);
@@ -2028,10 +2032,22 @@ print_view_title(const view_t *view, int active_view, char title[])
 
 	if (!ret)
 	{
+		ellipsis_len -= (strlen(username) + 1 + strlen(hostname) + 1);
+	}
+
+	ellipsis = active_view
+	         ? left_ellipsis(title, ellipsis_len, curr_stats.ellipsis)
+	         : right_ellipsis(title, ellipsis_len, curr_stats.ellipsis);
+
+	if (!ret)
+	{
 		snprintf(buf, sizeof(buf), "%s@%s:%s", username, hostname, ellipsis);
 		wprint(view->title, buf);
 		//add by sim1: add pane tag shown at the right-most of the pane
-		mvwaddstr(view->title, 0, (title_width - 2), view == &lwin ? "㈠" : "㈡");
+		if (!middle_border_is_visible())
+		{
+			mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? " ㈠" : " ㈡");
+		}
 	}
 	else
 	{
