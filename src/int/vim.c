@@ -55,7 +55,7 @@ static void dump_filenames(view_t *view, FILE *fp, int nfiles, char *files[]);
 int
 vim_format_help_cmd(const char topic[], char cmd[], size_t cmd_size)
 {
-	int bg;
+	int bg = 0;
 
 #ifndef _WIN32
 	char *const escaped_rtp = shell_like_escape(PACKAGE_DATA_DIR, 0);
