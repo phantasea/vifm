@@ -438,7 +438,7 @@ vertical_layout(int screen_x)
 	int splitter_pos;
 	//mod by sim1
 	if(curr_stats.splitter_pos < 0)
-		splitter_pos = screen_x/2 - splitter_width%2 + screen_x%2;
+		splitter_pos = (screen_x - splitter_width) / 2;
 	else
 		splitter_pos = curr_stats.splitter_pos;
 
