@@ -650,7 +650,7 @@ update_screen(UpdateType update_kind)
 
 	if(curr_stats.save_msg == 0)
 	{
-		ui_sb_msg("");
+		ui_sb_clear();
 	}
 
 	if(vle_mode_is(VIEW_MODE) ||

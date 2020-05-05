@@ -1645,7 +1645,7 @@ hist_next(line_stats_t *stat, const hist_t *hist, size_t len)
 		int len = stat->hist_search_len;
 		while(--pos >= 0)
 		{
-			wchar_t *const buf = to_wide(hist->items[pos]);
+			wchar_t *const buf = to_wide(hist->items[pos].text);
 			if(wcsncmp(stat->line, buf, len) == 0)
 			{
 				free(buf);
@@ -1661,7 +1661,7 @@ hist_next(line_stats_t *stat, const hist_t *hist, size_t len)
 		stat->cmd_pos = pos;
 	}
 
-	(void)replace_input_line(stat, hist->items[stat->cmd_pos]);
+	(void)replace_input_line(stat, hist->items[stat->cmd_pos].text);
 
 	update_cmdline(stat);
 
@@ -2095,24 +2095,18 @@ remove_previous_dot_completion(void)
 static wchar_t *
 next_dot_completion(void)
 {
-	size_t len;
-	char *last;
-	wchar_t *wide;
+	if(input_stat.dot_pos >= curr_stats.cmd_hist.size)
+	{
+		return vifm_wcsdup(L"");
+	}
 
-	if(input_stat.dot_pos <= curr_stats.cmd_hist.pos)
-	{
-		last = vle_cmds_last_arg(curr_stats.cmd_hist.items[input_stat.dot_pos++], 1,
-				&len);
-	}
-	else
-	{
-		last = "";
-		len = 0;
-	}
-	last = strdup(last);
-	last[len] = '\0';
-	wide = to_wide(last);
-	free(last);
+	size_t len;
+	const char *last_entry = curr_stats.cmd_hist.items[input_stat.dot_pos++].text;
+	const char *last_arg_pos = vle_cmds_last_arg(last_entry, 1, &len);
+
+	char *last_arg = format_str("%.*s", (int)len, last_arg_pos);
+	wchar_t *wide = to_wide(last_arg);
+	free(last_arg);
 
 	return wide;
 }
@@ -2338,7 +2332,7 @@ hist_prev(line_stats_t *stat, const hist_t *hist, size_t len)
 
 	if(stat->history_search != HIST_SEARCH)
 	{
-		if(stat->cmd_pos == hist->pos)
+		if(stat->cmd_pos == hist->size - 1)
 		{
 			return;
 		}
@@ -2350,9 +2344,9 @@ hist_prev(line_stats_t *stat, const hist_t *hist, size_t len)
 		 * string.  Initially cmd_pos is -1, no need to check anything if history
 		 * contains only one element as even if it's equal input line won't be
 		 * changed. */
-		if(stat->cmd_pos == 0 && hist->pos != 0)
+		if(stat->cmd_pos == 0 && hist->size != 1)
 		{
-			wchar_t *const wide_item = to_wide(hist->items[0]);
+			wchar_t *const wide_item = to_wide(hist->items[0].text);
 			if(wcscmp(stat->line, wide_item) == 0)
 			{
 				++stat->cmd_pos;
@@ -2364,9 +2358,9 @@ hist_prev(line_stats_t *stat, const hist_t *hist, size_t len)
 	{
 		int pos = stat->cmd_pos;
 		int len = stat->hist_search_len;
-		while(++pos <= hist->pos)
+		while(++pos < hist->size)
 		{
-			wchar_t *const wide_item = to_wide(hist->items[pos]);
+			wchar_t *const wide_item = to_wide(hist->items[pos].text);
 			if(wcsncmp(stat->line, wide_item, len) == 0)
 			{
 				free(wide_item);
@@ -2374,12 +2368,12 @@ hist_prev(line_stats_t *stat, const hist_t *hist, size_t len)
 			}
 			free(wide_item);
 		}
-		if(pos > hist->pos)
+		if(pos >= hist->size)
 			return;
 		stat->cmd_pos = pos;
 	}
 
-	(void)replace_input_line(stat, hist->items[stat->cmd_pos]);
+	(void)replace_input_line(stat, hist->items[stat->cmd_pos].text);
 
 	update_cmdline(stat);
 

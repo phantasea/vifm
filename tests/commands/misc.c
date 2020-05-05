@@ -526,9 +526,9 @@ TEST(grep_command, IF(not_windows))
 	assert_int_equal(2, lwin.list_rows);
 	assert_string_equal("Grep command", lwin.custom.title);
 
-	/* Repeat last grep. */
+	/* Repeat last grep, but add inversion. */
 	assert_success(exec_commands("grep!", &lwin, CIT_COMMAND));
-	assert_int_equal(3, lwin.list_rows);
+	assert_int_equal(5, lwin.list_rows);
 	assert_string_equal("Grep command", lwin.custom.title);
 
 	opt_handlers_teardown();
@@ -660,8 +660,8 @@ TEST(hist_next_and_prev)
 	cfg_resize_histories(0);
 	cfg_resize_histories(10);
 
-	flist_hist_save(&lwin, sandbox, ".", 0);
-	flist_hist_save(&lwin, test_data, ".", 0);
+	flist_hist_setup(&lwin, sandbox, ".", 0, 1);
+	flist_hist_setup(&lwin, test_data, ".", 0, 1);
 
 	assert_success(exec_commands("histprev", &lwin, CIT_COMMAND));
 	assert_true(paths_are_same(lwin.curr_dir, sandbox));

@@ -1098,6 +1098,7 @@ get_view_data(modview_info_t *vi, const char file_to_view[])
 			}
 			//************************************************************
 
+			/* Binary mode is important on Windows. */
 			fp = os_fopen(file_to_view, "rb");
 		}
 
