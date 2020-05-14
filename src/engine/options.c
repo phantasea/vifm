@@ -1239,12 +1239,16 @@ set_print(const opt_t *opt)
 {
 	if(opt->type == OPT_BOOL)
 	{
-		vle_tb_append_linef(vle_err, "%s%s", opt->val.bool_val ? "  " : "no",
+		//mod by sim1: display no spaces at the beginning
+		//vle_tb_append_linef(vle_err, "%s%s", opt->val.bool_val ? "  " : "no",
+		vle_tb_append_linef(vle_err, "%s%s", opt->val.bool_val ? "" : "no",
 				opt->name);
 	}
 	else
 	{
-		vle_tb_append_linef(vle_err, "  %s=%s", opt->name, get_value(opt));
+		//mod by sim1: display no spaces at the beginning
+		//vle_tb_append_linef(vle_err, "  %s=%s", opt->name, get_value(opt));
+		vle_tb_append_linef(vle_err, "%s=%s", opt->name, get_value(opt));
 	}
 	return 0;
 }
