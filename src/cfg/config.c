@@ -688,8 +688,8 @@ add_default_marks(void)
 {
 	LOG_FUNC_ENTER;
 
-	set_user_mark('H', cfg.home_dir, NO_MARK_FILE);
-	set_user_mark('z', cfg.config_dir, NO_MARK_FILE);
+	marks_set_user(curr_view, 'H', cfg.home_dir, NO_MARK_FILE);
+	marks_set_user(curr_view, 'z', cfg.config_dir, NO_MARK_FILE);
 }
 
 extern void set_millerview(int mv);  //add by sim1
