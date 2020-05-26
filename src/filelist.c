@@ -210,6 +210,9 @@ init_flist(view_t *view)
 	view->on_slow_fs = 0;
 	view->has_dups = 0;
 
+	view->watched_dir = NULL;
+	view->last_dir = NULL;
+
 	view->matches = 0;
 
 	view->custom.entries = NULL;
@@ -290,6 +293,9 @@ flist_free_view(view_t *view)
 
 	fswatch_free(view->watch);
 	view->watch = NULL;
+	update_string(&view->watched_dir, NULL);
+
+	update_string(&view->last_dir, NULL);
 
 	flist_free_cache(view, &view->left_column);
 	flist_free_cache(view, &view->right_column);
@@ -461,7 +467,10 @@ navigate_back(view_t *view)
 	const char *const dest = flist_custom_active(view)
 	                       ? view->custom.orig_dir
 	                       : view->last_dir;
-	navigate_to(view, dest);
+	if(dest != NULL)
+	{
+		navigate_to(view, dest);
+	}
 }
 
 void
@@ -617,7 +626,7 @@ change_directory(view_t *view, const char directory[])
 	/* Clean up any excess separators */
 	if(!is_root_dir(view->curr_dir))
 		chosp(view->curr_dir);
-	if(!is_root_dir(view->last_dir))
+	if(view->last_dir != NULL && !is_root_dir(view->last_dir))
 		chosp(view->last_dir);
 
 #ifndef _WIN32
@@ -681,7 +690,7 @@ change_directory(view_t *view, const char directory[])
 
 	if(location_changed)
 	{
-		copy_str(view->last_dir, sizeof(view->last_dir), flist_get_dir(view));
+		replace_string(&view->last_dir, flist_get_dir(view));
 		view->on_slow_fs = is_on_slow_fs(dir_dup, cfg.slow_fs_list);
 	}
 
@@ -1530,7 +1539,8 @@ fentry_get_dir_info(const view_t *view, const dir_entry_t *entry,
 	assert((size != NULL || nitems != NULL) &&
 			"At least one of out parameters has to be non-NULL.");
 
-	dcache_get_of(entry, &size_res, &nitems_res);
+	dcache_get_of(entry, (size == NULL ? NULL : &size_res),
+			(nitems == NULL ? NULL : &nitems_res));
 
 	if(size != NULL)
 	{
@@ -1577,8 +1587,13 @@ entry_calc_nitems(const dir_entry_t *entry)
 	char full_path[PATH_MAX + 1];
 	get_full_path_of(entry, sizeof(full_path), full_path);
 
+	uint64_t inode = DCACHE_UNKNOWN;
+#ifndef _WIN32
+	inode = entry->inode;
+#endif
+
 	ret = count_dir_items(full_path);
-	dcache_set_at(full_path, DCACHE_UNKNOWN, ret);
+	dcache_set_at(full_path, inode, DCACHE_UNKNOWN, ret);
 
 	return ret;
 }
@@ -1677,7 +1692,8 @@ populate_dir_list_internal(view_t *view, int reload)
 	}
 
 	/* If directory didn't change. */
-	if(view->watch != NULL && stroscmp(view->watched_dir, view->curr_dir) == 0)
+	if(view->watch != NULL && view->watched_dir != NULL &&
+			stroscmp(view->watched_dir, view->curr_dir) == 0)
 	{
 		int failed;
 		/* Drain all events that happened before this point. */
@@ -1948,7 +1964,8 @@ update_dir_watcher(view_t *view)
 {
 	const char *const curr_dir = flist_get_dir(view);
 
-	if(view->watch == NULL || stroscmp(view->watched_dir, curr_dir) != 0)
+	if(view->watch == NULL || view->watched_dir == NULL ||
+			stroscmp(view->watched_dir, curr_dir) != 0)
 	{
 		fswatch_free(view->watch);
 		view->watch = fswatch_create(curr_dir);
@@ -1957,7 +1974,7 @@ update_dir_watcher(view_t *view)
 		 * this doesn't feel like a reason to block anything else. */
 		if(view->watch != NULL)
 		{
-			copy_str(view->watched_dir, sizeof(view->watched_dir), curr_dir);
+			replace_string(&view->watched_dir, curr_dir);
 		}
 	}
 }
@@ -3034,7 +3051,7 @@ flist_pick_cd_path(view_t *view, const char base_dir[], const char path[],
 		snprintf(buf, buf_size, "%c:%s", base_dir[0], arg);
 #endif
 	else if(strcmp(arg, "-") == 0)
-		copy_str(buf, buf_size, view->last_dir);
+		copy_str(buf, buf_size, view->last_dir == NULL ? "." : view->last_dir);
 	else if(is_parent_dir(arg) && stroscmp(base_dir, flist_get_dir(view)) == 0)
 		*updir = 1;
 	else
