@@ -256,6 +256,7 @@ static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_U(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zi(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zI(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gM(key_info_t key_info, keys_info_t *keys_info);
 //add by sim1 -------------------------------------------------------
 
 static int last_fast_search_char;
@@ -376,6 +377,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_g WK_l,        {{&cmd_return}, .descr = "open current item(s)"}},
 	{WK_g WK_s,        {{&cmd_gs}, .descr = "restore/make selection"}},
 	{WK_g WK_t,        {{&cmd_gt}, .descr = "next or n-th tab"}},
+	{WK_g WK_M,        {{&cmd_gM}, .descr = "jump to middle position depends on mode"}},
 	{WK_g WK_T,        {{&cmd_gT}, .descr = "n-th previous tab"}},
 	{WK_g WK_U,        {{&cmd_gU}, FOLLOWED_BY_SELECTOR, .descr = "convert to uppercase"}},
 	{WK_g WK_u,        {{&cmd_gu}, FOLLOWED_BY_SELECTOR, .descr = "convert to lowercase"}},
@@ -1344,6 +1346,31 @@ cmd_M(key_info_t key_info, keys_info_t *keys_info)
 {
 	pick_or_move(keys_info, fpos_get_middle_pos(curr_view));
 }
+
+// add by sim1  ******************************************
+static void
+cmd_gM(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(key_info.count == NO_COUNT_GIVEN || key_info.count == 1)
+	{
+		int pos_top = 0;
+		int pos_bot = curr_view->list_rows - 1;
+		pick_or_move(keys_info, (pos_top + pos_bot)/2);
+	}
+	else if(key_info.count == 2)
+	{
+		int pos_cur = curr_view->list_pos;
+		int pos_bot = fpos_get_bottom_pos(curr_view);
+		pick_or_move(keys_info, (pos_cur + pos_bot)/2);
+	}
+	else if(key_info.count == 3)
+	{
+		int pos_cur = curr_view->list_pos;
+		int pos_top = fpos_get_top_pos(curr_view);
+		pick_or_move(keys_info, (pos_cur + pos_top)/2);
+	}
+}
+// add by sim1  ******************************************
 
 /* Picks files or moves cursor depending whether key was pressed as a selector
  * or not. */
