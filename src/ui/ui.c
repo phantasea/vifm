@@ -175,6 +175,21 @@ ui_ruler_update(view_t *view, int lazy_redraw)
 	free(expanded);
 }
 
+//****************************************************************
+void
+ui_input_set_systime()
+{
+	time_t t = time(NULL);
+	struct tm *tm_ptr = localtime(&t);
+	char curr_time[128] = {0};
+
+	strftime(curr_time, sizeof(curr_time), "%y-%m-%d %H:%M", tm_ptr);
+	werase(input_win);
+	mvwaddstr(input_win, 0, 0, curr_time);
+	wnoutrefresh(input_win);
+}
+//****************************************************************
+
 void
 ui_ruler_set(const char val[])
 {
