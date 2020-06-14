@@ -254,14 +254,28 @@ friendly_size_notation(uint64_t num, int str_size, char str[])
 	if(fraction == 0)
 	{
 		//mod by sim1 for displaying xxx.0 of size
-		snprintf(str, str_size, "%.01f%s%s", d, cfg.sizefmt.space ? " " : "",
+		snprintf(str, str_size, "%05.01f%s%s", d, cfg.sizefmt.space ? " " : "",
 				units[u]);
 	}
 	else
 	{
-		snprintf(str, str_size, "%.0f.%0*" PRINTF_ULL "%s%s", d, fraction_width,
+		//mod by sim1 for unified format
+		snprintf(str, str_size, "%03.0f.%0*" PRINTF_ULL "%s%s", d, fraction_width,
 				fraction, cfg.sizefmt.space ? " " : "", units[u]);
 	}
+
+	//add by sim1 for unified format +++++++
+	if (str[0] == '0' && str[1] == '0')
+	{
+		str[0] = ' ';
+		str[1] = ' ';
+	}
+
+	if (str[0] == '0')
+	{
+		str[0] = ' ';
+	}
+	//add by sim1 for unified format +++++++
 
 	return u > 0U;
 }
