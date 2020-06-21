@@ -248,8 +248,7 @@ io_progress_fg(const io_progress_t *state, int progress)
 		return;
 	}
 
-	(void)friendly_size_notation(estim->total_bytes, sizeof(total_size_str),
-			total_size_str);
+	(void)friendly_size_notation(estim->total_bytes, sizeof(total_size_str), total_size_str, 0);
 
 	copy_str(src_path, sizeof(src_path), replace_home_part(estim->item));
 	remove_last_path_component(src_path);
@@ -270,8 +269,7 @@ io_progress_fg(const io_progress_t *state, int progress)
 		return;
 	}
 
-	(void)friendly_size_notation(estim->current_byte,
-			sizeof(current_size_str), current_size_str);
+	(void)friendly_size_notation(estim->current_byte, sizeof(current_size_str), current_size_str, 0);
 
 	item_name = get_last_path_component(estim->item);
 
@@ -333,8 +331,7 @@ io_progress_fg_sb(const io_progress_t *state, int progress)
 	char pretty_path[PATH_MAX + 1];
 	char *suffix;
 
-	(void)friendly_size_notation(estim->total_bytes, sizeof(total_size_str),
-			total_size_str);
+	(void)friendly_size_notation(estim->total_bytes, sizeof(total_size_str), total_size_str, 0);
 
 	format_pretty_path(ops->base_dir, estim->item, pretty_path,
 			sizeof(pretty_path));
@@ -346,8 +343,7 @@ io_progress_fg_sb(const io_progress_t *state, int progress)
 					(unsigned long long)estim->total_items, total_size_str, pretty_path);
 			break;
 		case IO_PS_IN_PROGRESS:
-			(void)friendly_size_notation(estim->current_byte,
-					sizeof(current_size_str), current_size_str);
+			(void)friendly_size_notation(estim->current_byte, sizeof(current_size_str), current_size_str, 0);
 
 			if(progress < 0)
 			{
@@ -406,10 +402,8 @@ format_file_progress(const ioeta_estim_t *estim, int precision)
 		return strdup("");
 	}
 
-	(void)friendly_size_notation(estim->current_file_byte, sizeof(current_size),
-			current_size);
-	(void)friendly_size_notation(estim->total_file_bytes, sizeof(total_size),
-			total_size);
+	(void)friendly_size_notation(estim->current_file_byte, sizeof(current_size), current_size, 0);
+	(void)friendly_size_notation(estim->total_file_bytes, sizeof(total_size), total_size, 0);
 
 	return format_str("\nprogress %s/%s (%2d%%)", current_size, total_size,
 			file_progress/precision);

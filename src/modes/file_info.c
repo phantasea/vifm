@@ -155,7 +155,7 @@ modfinfo_redraw(void)
 	curr = get_current_entry(view);
 
 	size = fentry_get_size(view, curr);
-	size_not_precise = friendly_size_notation(size, sizeof(size_buf), size_buf);
+	size_not_precise = friendly_size_notation(size, sizeof(size_buf), size_buf, 0);
 
 	curr_y = 2;
 

@@ -228,8 +228,9 @@ expand_envvars(const char str[], int escape_vals)
 	return result;
 }
 
+//mod by sim1: add flag to adapt unified format
 int
-friendly_size_notation(uint64_t num, int str_size, char str[])
+friendly_size_notation(uint64_t num, int str_size, char str[], int flag)
 {
 	unsigned long long fraction = 0ULL;
 	int fraction_width;
@@ -254,26 +255,33 @@ friendly_size_notation(uint64_t num, int str_size, char str[])
 	if(fraction == 0)
 	{
 		//mod by sim1 for displaying xxx.0 of size
-		snprintf(str, str_size, "%05.01f%s%s", d, cfg.sizefmt.space ? " " : "",
-				units[u]);
+		if (flag == 1)
+			snprintf(str, str_size, "%05.01f%s%s", d, cfg.sizefmt.space ? " " : "", units[u]);
+		else
+			snprintf(str, str_size, "%.01f%s%s", d, cfg.sizefmt.space ? " " : "", units[u]);
 	}
 	else
 	{
 		//mod by sim1 for unified format
-		snprintf(str, str_size, "%03.0f.%0*" PRINTF_ULL "%s%s", d, fraction_width,
-				fraction, cfg.sizefmt.space ? " " : "", units[u]);
+		if (flag == 1)
+			snprintf(str, str_size, "%03.0f.%0*" PRINTF_ULL "%s%s", d, fraction_width, fraction, cfg.sizefmt.space ? " " : "", units[u]);
+		else
+			snprintf(str, str_size, "%.0f.%0*" PRINTF_ULL "%s%s", d, fraction_width, fraction, cfg.sizefmt.space ? " " : "", units[u]);
 	}
 
 	//add by sim1 for unified format +++++++
-	if (str[0] == '0' && str[1] == '0')
+	if (flag == 1)
 	{
-		str[0] = ' ';
-		str[1] = ' ';
-	}
+		if (str[0] == '0' && str[1] == '0')
+		{
+			str[0] = ' ';
+			str[1] = ' ';
+		}
 
-	if (str[0] == '0')
-	{
-		str[0] = ' ';
+		if (str[0] == '0')
+		{
+			str[0] = ' ';
+		}
 	}
 	//add by sim1 for unified format +++++++
 

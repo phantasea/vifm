@@ -84,7 +84,7 @@ format_item(const char trash_dir[], int calc_size)
 	size = fops_dir_size(trash_dir, 1, &no_cancellation);
 
 	size_str[0] = '\0';
-	friendly_size_notation(size, sizeof(size_str), size_str);
+	friendly_size_notation(size, sizeof(size_str), size_str, 0);
 
 	return format_str("[%8s] %s", size_str, trash_dir);
 }
