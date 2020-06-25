@@ -356,9 +356,12 @@ draw_left_column(view_t *view)
 	remove_last_path_component(path);
 	(void)flist_update_cache(view, &view->left_column, path);
 
+	//del by sim1: not display number on the left column
+	/****************************************************
 	number_width = calculate_number_width(view,
 			view->left_column.entries.nentries, lcol_width);
 	lcol_width -= number_width;
+	****************************************************/
 
 	if(view->left_column.entries.nentries >= 0)
 	{
