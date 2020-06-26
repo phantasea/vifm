@@ -560,8 +560,14 @@ calculate_number_width(const view_t *view, int list_length, int width)
 {
 	if(ui_view_displays_numbers(view))
 	{
-		const int digit_count = count_digits(list_length);
+		int digit_count = count_digits(list_length);
 		const int min = view->num_width;
+
+		//add by sim1: number width DIY for non-MIX
+		if (view->num_type != NT_MIX && digit_count > 2) {
+			digit_count = 2;
+		}
+
 		return MIN(MAX(1 + digit_count, min), width);
 	}
 
