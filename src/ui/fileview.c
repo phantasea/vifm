@@ -563,8 +563,8 @@ calculate_number_width(const view_t *view, int list_length, int width)
 		int digit_count = count_digits(list_length);
 		const int min = view->num_width;
 
-		//add by sim1: number width DIY for non-MIX
-		if (view->num_type != NT_MIX && digit_count > 2) {
+		//add by sim1: relativenumber width DIY
+		if (view->num_type == NT_REL && digit_count > 2) {
 			digit_count = 2;
 		}
 
