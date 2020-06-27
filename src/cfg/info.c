@@ -284,8 +284,8 @@ static void store_file(const char path[], filemon_t *mon, int vinfo);
 static void get_session_dir(char buf[], size_t buf_size);
 
 //add by sim1 ********************************************************
+//static void write_rating_info(FILE *const fp);
 static rating_entry_t *rating_list = NULL;
-static void write_rating_info(FILE *const fp);
 static void str_rot_encypt(char *str);
 static void str_rot_decypt(char *str);
 static rating_entry_t * create_rating_info(int star, char path[]);
@@ -2953,6 +2953,7 @@ rating_entry_t * get_rating_list()
 	return rating_list;
 }
 
+/*******************************************
 static void
 write_rating_info(FILE *const fp)
 {
@@ -2989,6 +2990,7 @@ write_rating_info(FILE *const fp)
 
 	return;
 }
+*******************************************/
 
 static rating_entry_t *
 create_rating_info(int star, char path[])

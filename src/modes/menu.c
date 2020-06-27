@@ -802,7 +802,7 @@ cmd_n(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_v(key_info_t key_info, keys_info_t *keys_info)
 {
-	int bg;
+	//int bg;  //del by sim1
 	const char *vi_cmd;
 	FILE *vim_stdin;
 	char *cmd;
