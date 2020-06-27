@@ -207,6 +207,7 @@ static void set_view_columns_option(view_t *view, const char value[],
 static void add_column(columns_t *columns, column_info_t column_info);
 static int map_name(const char name[], void *arg);
 static void resort_view(view_t * view);
+static void sessionoptions_handler(OPT_OP op, optval_t val);
 static void statusline_handler(OPT_OP op, optval_t val);
 static void suggestoptions_handler(OPT_OP op, optval_t val);
 static void reset_suggestoptions(void);
@@ -760,6 +761,11 @@ options[] = {
 	{ "scrolloff", "so", "minimal cursor distance to view borders",
 	  OPT_INT, 0, NULL, &scrolloff_handler, NULL,
 	  { .ref.int_val = &cfg.scroll_off },
+	},
+	{ "sessionoptions", "ssop", "what to store in a session file",
+	  OPT_SET, ARRAY_LEN(vifminfo_set), vifminfo_set, &sessionoptions_handler,
+	  NULL,
+	  { .ref.set_items = &cfg.session_options },
 	},
 	{ "shell", "sh", "shell to run external commands",
 	  OPT_STR, 0, NULL, &shell_handler, NULL,
@@ -3136,6 +3142,13 @@ resort_view(view_t * view)
 	ui_view_schedule_redraw(curr_view);
 }
 
+/* Configures what is stored as part of a session file. */
+static void
+sessionoptions_handler(OPT_OP op, optval_t val)
+{
+	cfg.session_options = val.set_items;
+}
+
 static void
 statusline_handler(OPT_OP op, optval_t val)
 {
@@ -3455,6 +3468,7 @@ vixcmd_handler(OPT_OP op, optval_t val)
 	cfg.vi_x_cmd_bg = cut_suffix(cfg.vi_x_command, "&");
 }
 
+/* Configures what is stored between sessions. */
 static void
 vifminfo_handler(OPT_OP op, optval_t val)
 {
