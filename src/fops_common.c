@@ -255,8 +255,7 @@ update_io_rate(progress_data_t *pdata, const ioeta_estim_t *estim)
 	pdata->last_seen_byte = estim->current_byte;
 
 	char rate_str[64];
-	(void)friendly_size_notation(pdata->rate*1000, sizeof(rate_str) - 8,
-			rate_str);
+	(void)friendly_size_notation(pdata->rate*1000, sizeof(rate_str) - 8, rate_str, 0);  //mod by sim1
 	strcat(rate_str, "/s");
 	replace_string(&pdata->rate_str, rate_str);
 }
