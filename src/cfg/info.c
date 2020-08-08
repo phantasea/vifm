@@ -97,6 +97,7 @@
  *      } ]
  *      splitter = {
  *          pos = -1
+ *          ratio = 0.5
  *          orientation = "v" # or "h"
  *          expanded = false  # only mode
  *      }
@@ -776,6 +777,7 @@ load_gtab_layout(const JSON_Object *gtab, int apply, int reread)
 		.only_mode = 0,
 		.split = VSPLIT,
 		.splitter_pos = -1,
+		.splitter_ratio = -1,
 		.preview = 0,
 	};
 
@@ -792,7 +794,11 @@ load_gtab_layout(const JSON_Object *gtab, int apply, int reread)
 	}
 	if(get_int(splitter, "pos", &layout.splitter_pos) && apply)
 	{
-		curr_stats.splitter_pos = layout.splitter_pos;
+		stats_set_splitter_pos(layout.splitter_pos);
+	}
+	if(get_double(splitter, "ratio", &layout.splitter_ratio) && apply)
+	{
+		stats_set_splitter_ratio(layout.splitter_ratio);
 	}
 	if(get_bool(splitter, "expanded", &layout.only_mode) && apply && !reread)
 	{
@@ -2115,6 +2121,7 @@ store_gtab(int vinfo, JSON_Object *gtab, const char name[], const
 
 		JSON_Object *splitter = add_object(gtab, "splitter");
 		set_int(splitter, "pos", layout->splitter_pos);
+		set_double(splitter, "ratio", layout->splitter_ratio);
 		set_str(splitter, "orientation", layout->split == VSPLIT ? "v" : "h");
 		set_bool(splitter, "expanded", layout->only_mode);
 	}
