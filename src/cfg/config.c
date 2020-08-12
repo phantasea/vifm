@@ -710,7 +710,7 @@ cfg_load(void)
 	 * views. */
 	curr_stats.global_local_settings = 1;
 
-	if(curr_stats.load_stage >= 0)
+	if(!vifm_testing())
 	{
 		/* Try to load global configuration. */
 		(void)cfg_source_file(PACKAGE_SYSCONF_DIR "/" VIFMRC);
@@ -887,6 +887,22 @@ void cfg_set_vicmd(const char vicmd[])
 
 	replace_string(&cfg.vi_command, vicmd);
 	return;
+}
+
+void
+cfg_clear_histories(int clear_dhistory)
+{
+	if(clear_dhistory)
+	{
+		cfg_resize_histories(0);
+	}
+	else
+	{
+		hists_resize(0);
+		cfg.history_len = 0;
+		/* Directory histories keep their data, which will be truncated or updated
+		 * later. */
+	}
 }
 
 void
