@@ -1083,10 +1083,9 @@ get_view_data(modview_info_t *vi, const char file_to_view[])
 	{
 		if(is_dir(file_to_view))
 		{
-			ui_cancellation_reset();
-			ui_cancellation_enable();
+			ui_cancellation_push_on();
 			fp = qv_view_dir(file_to_view);
-			ui_cancellation_disable();
+			ui_cancellation_pop();
 		}
 		else
 		{
@@ -1155,10 +1154,9 @@ get_view_data(modview_info_t *vi, const char file_to_view[])
 
 		vi->kind = kind;
 
-		ui_cancellation_reset();
-		ui_cancellation_enable();
+		ui_cancellation_push_on();
 		vi->lines = read_stream_lines(fp, &vi->nlines, 0, NULL, NULL);
-		ui_cancellation_disable();
+		ui_cancellation_pop();
 	}
 
 	fclose(fp);

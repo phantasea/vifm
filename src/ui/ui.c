@@ -380,7 +380,7 @@ ui_char_pressed(wint_t c)
 		return 0;
 	}
 
-	const int cancellation_state = ui_cancellation_pause();
+	ui_cancellation_push_off();
 	wint_t pressed;
 
 	while(1)
@@ -403,7 +403,7 @@ ui_char_pressed(wint_t c)
 		}
 	}
 
-	ui_cancellation_resume(cancellation_state);
+	ui_cancellation_pop();
 
 	return (pressed == c);
 }
