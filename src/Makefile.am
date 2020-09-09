@@ -18,7 +18,9 @@ vim_syntax_dir = $(vim_dir)/syntax
 
 vimdoc_doc_dir = $(vimdoc_dir)/doc
 
-dist_vim_autoload_vifm__DATA = ../data/vim/autoload/vifm/edit.vim
+dist_vim_autoload_vifm__DATA = ../data/vim/autoload/vifm/colorconv.vim \
+															 ../data/vim/autoload/vifm/edit.vim \
+															 ../data/vim/autoload/vifm/globals.vim
 dist_sample_colors__DATA = ../data/colors/astrell-root.vifm \
 									 ../data/colors/astrell-user.vifm \
 									 ../data/colors/dmilith-root.vifm \
@@ -179,6 +181,7 @@ vifm_SOURCES = \
 	ui/cancellation.c ui/cancellation.h \
 	ui/color_manager.c ui/color_manager.h \
 	ui/color_scheme.c ui/color_scheme.h \
+	ui/colored_line.c ui/colored_line.h \
 	ui/colors.h \
 	ui/column_view.c ui/column_view.h \
 	ui/escape.c ui/escape.h \

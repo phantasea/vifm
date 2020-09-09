@@ -1,4 +1,4 @@
-*vifm-app.txt*    For Vifm version 0.10.1  Last change: 2020 August 26
+*vifm-app.txt*    For Vifm version 0.10.1  Last change: 2020 September 6
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -473,6 +473,9 @@ otherwise only current file is updated.
 gf                                             *vifm-gf*
     find link destination (like l with |vifm-'followlinks'| off, but also
     finds directories).  On Windows additionally follows .lnk-files.
+
+gF                                             *vifm-gF*
+    Same as gf, but resolves final path of the chain of symbolic links.
 
                                                *vifm-gr*
 gr                                             {only for MS-Windows}
@@ -1779,8 +1782,6 @@ Available group-name values:
  - TabLine - tab line color (for |vifm-'tabscope'| set to "global")
  - TabLineSel - color of the tip of selected tab (regardless of
                 |vifm-'tabscope'|)
- - TabNr - tab number color
- - TabNrSel - tab number color for current tab
  - TopLine - top line color of the other pane
  - TopLineSel - top line color of the current pane
  - CmdLine - the command line/status bar color
@@ -1962,12 +1963,10 @@ transparency:
   TopLine
     TopLineSel
       TabLineSel (for pane tabs)
-        TabNr
-          TabNrSel
+        User1..User9
   TabLine
     TabLineSel
-      TabNr
-        TabNrSel
+      User1..User9
 
 "none" means default terminal color for highlight groups at the first level
 of the hierarchy and transparency for all others.
@@ -2170,7 +2169,8 @@ order using the '.' operator.  Any whitespace is ignored.
 :[range]rename name1 name2...
     rename each of selected files to a corresponding name.
 
-:restart                                       *vifm-:restart*
+                                               *vifm-:restart*
+:restart
     free a lot of things (histories, commands, etc.), reread vifminfo, vifmrc
     and session files and run startup commands passed in the argument list,
     thus losing all unsaved changes (e.g. recent history or keys mapped after
@@ -2178,6 +2178,8 @@ order using the '.' operator.  Any whitespace is ignored.
 
     While many things get reset, some basic UI state and current locations
     are preserved, including tabs.
+:restart full
+    variation of :restart that makes no attempt to preserve anything.
 
 :[range]restore                                *vifm-:restore*
     restore file from |vifm-trash| directory, doesn't work outside one of trash
@@ -3232,6 +3234,9 @@ option and %% sequence for inserting percent sign literally.  The macros are:
    %a     empty or
           literal arguments of :find or
           predicate followed by escaped arguments of :find
+   %p     empty or
+          literal arguments of :find or
+          escaped arguments (parameters) of :find
 
    %u     redirect output to custom view instead of showing a menu
    %U     redirect output to unsorted custom view instead of showing a menu
@@ -3242,20 +3247,20 @@ If both %u and %U are specified, %U is chosen.
 
 Some macros can be added implicitly:
  - if %s isn't present, it's appended
- - if neither of %a and %A is present, %a is appended
- - if neither of %s, %a and %A is present, %s and %a are appended in this
+ - if neither of %a, %A and %p is present, %a is appended
+ - if neither of %s, %a, %A and %p is present, %s and %a are appended in this
    order
 
 The macros slightly change their meaning depending on format of :find's
 arguments:
  - if the first argument points to an existing directory, %s is assigned all
-   arguments while %a and %A are left empty
+   arguments while %a, %A and %p are left empty
  - otherwise:
     - %s is assigned a dot (".") meaning current directory or list of
       selected file names, if any
-    - %a and %A are assigned literal arguments when first argument starts
+    - %a, %A and %p are assigned literal arguments when first argument starts
       with a dash ("-"), otherwise %a gets an escaped version of the arguments
-      with a predicate
+      with a predicate and %p contains escaped version of the arguments
 
 Starting with Windows Server 2003 a `where` command is available.  One can
 configure vifm to use it in the following way: >
@@ -3936,21 +3941,24 @@ tablabel
 type: string
 default: ""
 
-When non-empty, determines format of a single tab's label, excluding tab
-number and tab delimiters.
+When non-empty, determines format of the main part of a single tab's label.
 
 When empty, tab label is set to either tab name for named tabs or to view
 title (usually current path) for unnamed tabs.
 
-The following macros can appear in the format:
-    %T - flag of a tree mode (see below)
-    %c - description of a custom view
-    %n - name of the tab
-    %p - path of the view (handles |vifm-filename-modifiers|)
-    %t - title of the view (affected by |vifm-'shortmess'| flags)
-    %% - literal percent sign
-    %[ - designates beginning of an optional block
-    %] - designates end of an optional block
+The following macros can appear in the format (see below for what a flag is):
+    %C      - flag of a current tab
+    %N      - number of the tab
+    %T      - flag of a tree mode
+    %c      - description of a custom view
+    %n      - name of the tab
+    %p      - path of the view (handles |vifm-filename-modifiers|)
+    %t      - title of the view (affected by |vifm-'shortmess'| flags)
+    %%      - literal percent sign
+    %[      - designates beginning of an optional block
+    %]      - designates end of an optional block
+    %*, %0* - resets highlighting
+    %1-%9   - applies one of User1..User9 highlight groups
 
 In global tabs the view in bullets above refers to currently active view of that
 tab.
@@ -3971,6 +3979,22 @@ Example: >
  " %p:t            -- tail part of view's location
  set tablabel=%[(%n)%]%[%[%T{tree}%]%[{%c}%]@%]%p:t
 <
+                                               *vifm-'tabprefix'*
+tabprefix
+type: string
+default: "[%N:"
+
+Determines prefix of a tab's label.  Formatting is done as for
+|vifm-'tablabel'| option.
+
+Example of highlighting tab number: >
+ " setup color for non-current tabs
+ highlight User7 ctermfg=red
+ " setup color for current tabs
+ highlight User8 ctermbg=blue ctermfg=none
+ " use optional group predicated on current-tab flag
+ set tabprefix=[%7*%[%8*%C%]%N%*:
+
                                                *vifm-'tabscope'*
 tabscope
 type: enumeration
@@ -3987,6 +4011,14 @@ type: integer
 default: value from curses library
 
 Number of spaces that a Tab in the file counts for.
+
+                                               *vifm-'tabsuffix'*
+tabsuffix
+type: string
+default: "]"
+
+Determines suffix of a tab's label.  Formatting is done as for
+|vifm-'tablabel'| option.
 
                                                *vifm-'timefmt'*
 timefmt
