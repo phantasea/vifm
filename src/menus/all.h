@@ -37,6 +37,7 @@
 #include "marks_menu.h"
 #include "ratings_menu.h"  //add by sim1
 #include "media_menu.h"
+#include "plugins_menu.h"
 #include "registers_menu.h"
 #include "trash_menu.h"
 #include "trashes_menu.h"
