@@ -211,7 +211,7 @@ expand_status_line_macros(view_t *view, const char format[])
 		return cline_make();
 	}
 
-	return parse_view_macros(view, &format, "nrtTfaAugsEdD-xlLSz%[]{*", 0); //mod by sim1
+	return parse_view_macros(view, &format, "nrtTfaAugsEdD-xlLPSz%[]{*", 0);  //mod by sim1
 }
 
 /* Expands possibly limited set of view macros.  Returns newly allocated string,
@@ -395,6 +395,10 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				break;
 			case 'L':
 				skip = expand_num(buf, sizeof(buf), view->list_rows + view->filtered);
+				break;
+			case 'P':
+				format_position(buf, sizeof(buf), view->top_line, view->list_rows,
+						view->window_cells);
 				break;
 			case 'S':
 				skip = expand_num(buf, sizeof(buf), view->list_rows);

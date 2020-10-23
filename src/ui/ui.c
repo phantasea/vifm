@@ -1321,7 +1321,7 @@ get_ruler_width(view_t *view)
 static char *
 expand_ruler_macros(view_t *view, const char format[])
 {
-	return expand_view_macros(view, format, "-rxlLS%[]");  //mod by sim1, add char r for rating stars
+	return expand_view_macros(view, format, "-rxlLPS%[]");  //mod by sim1, add char r for rating stars
 }
 
 void
