@@ -847,6 +847,12 @@ get_installed_data_dir(void)
 	return data_dir;
 }
 
+const char *
+get_sys_conf_dir(void)
+{
+	return get_installed_data_dir();
+}
+
 FILE *
 win_tmpfile()
 {
