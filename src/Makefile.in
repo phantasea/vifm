@@ -165,14 +165,14 @@ am_vifm_OBJECTS = cfg/config.$(OBJEXT) cfg/info.$(OBJEXT) \
 	menus/commands_menu.$(OBJEXT) menus/dirhistory_menu.$(OBJEXT) \
 	menus/dirstack_menu.$(OBJEXT) menus/filetypes_menu.$(OBJEXT) \
 	menus/find_menu.$(OBJEXT) menus/grep_menu.$(OBJEXT) \
-	menus/ratings_menu.$(OBJEXT) \
 	menus/history_menu.$(OBJEXT) menus/jobs_menu.$(OBJEXT) \
 	menus/locate_menu.$(OBJEXT) menus/trash_menu.$(OBJEXT) \
 	menus/trashes_menu.$(OBJEXT) menus/map_menu.$(OBJEXT) \
-	menus/marks_menu.$(OBJEXT) menus/media_menu.$(OBJEXT) \
-	menus/menus.$(OBJEXT) menus/plugins_menu.$(OBJEXT) \
-	menus/registers_menu.$(OBJEXT) menus/undolist_menu.$(OBJEXT) \
-	menus/users_menu.$(OBJEXT) menus/vifm_menu.$(OBJEXT) \
+	menus/marks_menu.$(OBJEXT) menus/ratings_menu.$(OBJEXT) \
+	menus/media_menu.$(OBJEXT) menus/menus.$(OBJEXT) \
+	menus/plugins_menu.$(OBJEXT) menus/registers_menu.$(OBJEXT) \
+	menus/undolist_menu.$(OBJEXT) menus/users_menu.$(OBJEXT) \
+	menus/vifm_menu.$(OBJEXT) \
 	modes/dialogs/attr_dialog_nix.$(OBJEXT) \
 	modes/dialogs/change_dialog.$(OBJEXT) \
 	modes/dialogs/msg_dialog.$(OBJEXT) \
@@ -1607,8 +1607,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/marks_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/media_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/menus.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/ratings_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/plugins_menu.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/ratings_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/registers_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/trash_menu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@menus/$(DEPDIR)/trashes_menu.Po@am__quote@
