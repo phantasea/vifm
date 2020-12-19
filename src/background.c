@@ -893,7 +893,7 @@ launch_external(const char cmd[], int capture_output, int new_session,
 				_Exit(EXIT_FAILURE);
 			}
 			//add by sim1 *****************************
-			if (strstr(command, "2>&1") != NULL)
+			if (strstr(cmd, "2>&1") != NULL)
 			{
 				if(dup2(nullfd, STDERR_FILENO) == -1)
 				{
@@ -906,10 +906,10 @@ launch_external(const char cmd[], int capture_output, int new_session,
 
 		//add by sim1 *****************************
 		char *pred = NULL;
-		if ((pred = strstr(command, "> /dev/null")) != NULL
-			|| (pred = strstr(command, ">/dev/null")) != NULL)
+		if ((pred = strstr(cmd, "> /dev/null")) != NULL
+			|| (pred = strstr(cmd, ">/dev/null")) != NULL)
 		{
-			if ((pred > command) && (*(pred - 1) == ' '))
+			if ((pred > cmd) && (*(pred - 1) == ' '))
 			{
 				*(pred - 1) = '\0';
 			}
