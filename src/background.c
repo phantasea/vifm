@@ -893,6 +893,7 @@ launch_external(const char cmd[], int capture_output, int new_session,
 				_Exit(EXIT_FAILURE);
 			}
 			//add by sim1 *****************************
+			/*
 			if (strstr(cmd, "2>&1") != NULL)
 			{
 				if(dup2(nullfd, STDERR_FILENO) == -1)
@@ -901,10 +902,12 @@ launch_external(const char cmd[], int capture_output, int new_session,
 					_Exit(EXIT_FAILURE);
 				}
 			}
+			*/
 			//add by sim1 *****************************
 		}
 
 		//add by sim1 *****************************
+		/*
 		char *pred = NULL;
 		if ((pred = strstr(cmd, "> /dev/null")) != NULL
 			|| (pred = strstr(cmd, ">/dev/null")) != NULL)
@@ -918,6 +921,7 @@ launch_external(const char cmd[], int capture_output, int new_session,
 				pred[0] = '\0';
 			}
 		}
+		*/
 		//add by sim1 *****************************
 
 		if(new_session)
