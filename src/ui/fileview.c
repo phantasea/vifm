@@ -131,6 +131,9 @@ static void format_nlinks(void *data, size_t buf_len, char buf[],
 static void format_inode(void *data, size_t buf_len, char buf[],
 		const format_info_t *info);
 #endif
+//add by sim1
+static void format_rating(void *data, size_t buf_len, char buf[],
+		const format_info_t *info);
 static void format_id(void *data, size_t buf_len, char buf[],
 		const format_info_t *info);
 static size_t calculate_column_width(view_t *view);
@@ -139,7 +142,6 @@ static preview_area_t get_miller_preview_area(view_t *view);
 static size_t get_max_filename_width(const view_t *view);
 static size_t get_filename_width(const view_t *view, int i);
 static size_t get_filetype_decoration_width(const dir_entry_t *entry);
-static void format_rating(int id, const void *data, size_t buf_len, char buf[]);  //add by sim1
 static int cache_cursor_pos(view_t *view);
 static void invalidate_cursor_pos_cache(view_t *view);
 static void position_hardware_cursor(view_t *view);
@@ -1745,9 +1747,9 @@ format_inode(void *data, size_t buf_len, char buf[], const format_info_t *info)
 //add by sim1 ***************************************************
 /* File star rating format callback for column_view unit. */
 static void
-format_rating(int id, const void *data, size_t buf_len, char buf[])
+format_rating(void *data, size_t buf_len, char buf[], const format_info_t *info)
 {
-	const column_data_t *cdt = data;
+	const column_data_t *cdt = info->data;
 	view_t *view = cdt->view;
   int pos = cdt->line_pos;
 
@@ -1756,7 +1758,7 @@ format_rating(int id, const void *data, size_t buf_len, char buf[])
 	int stars = get_rating_string(buf, buf_len, path);
 	if (stars <= 0)
 	{
-		format_size(id, data, buf_len, buf);
+		format_size(data, buf_len, buf, info);
 	}
 
 	return;
