@@ -23,8 +23,8 @@
 
 #include "utils.h"
 
-static void column_line_print(const void *data, int column_id, const char buf[],
-		size_t offset, AlignType align, const char full_column[]);
+static void column_line_print(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info);
 
 static char cwd[PATH_MAX + 1];
 
@@ -72,13 +72,16 @@ TEST(tree_accounts_for_auto_filter)
 {
 	assert_success(load_tree(&lwin, TEST_DATA_PATH "/tree", cwd));
 	assert_int_equal(12, lwin.list_rows);
+	assert_int_equal(0, lwin.filtered);
 	lwin.dir_entry[11].selected = 1;
 	lwin.selected_files = 1;
 	name_filters_add_active(&lwin);
+	assert_int_equal(1, lwin.filtered);
 
 	assert_success(load_tree(&lwin, TEST_DATA_PATH "/tree", cwd));
 	assert_int_equal(11, lwin.list_rows);
 	assert_int_equal(0, lwin.selected_files);
+	assert_int_equal(1, lwin.filtered);
 	validate_tree(&lwin);
 }
 
@@ -290,9 +293,19 @@ TEST(filtering_does_not_hide_parent_refs)
 	assert_success(rmdir(SANDBOX_PATH "/empty-dir"));
 }
 
+TEST(filtering_and_nesting_limit)
+{
+	(void)filter_set(&lwin.local_filter.filter, "^[^1]+$");
+
+	assert_success(load_limited_tree(&lwin, TEST_DATA_PATH "/tree", cwd, 0));
+	assert_int_equal(2, lwin.list_rows);
+	populate_dir_list(&lwin, /*reload=*/1);
+	assert_int_equal(2, lwin.list_rows);
+}
+
 static void
-column_line_print(const void *data, int column_id, const char buf[],
-		size_t offset, AlignType align, const char full_column[])
+column_line_print(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info)
 {
 	/* Do nothing. */
 }

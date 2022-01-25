@@ -33,6 +33,7 @@
 #include "../compat/fs_limits.h"
 #include "../compat/os.h"
 #include "../engine/mode.h"
+#include "../lua/vlua.h"
 #include "../modes/dialogs/msg_dialog.h"
 #include "../modes/modes.h"
 #include "../modes/view.h"
@@ -41,7 +42,6 @@
 #include "../utils/path.h"
 #include "../utils/str.h"
 #include "../utils/string_array.h"
-#include "../utils/test_helpers.h"
 #include "../utils/utf8.h"
 #include "../utils/utils.h"
 #include "../filelist.h"
@@ -51,7 +51,6 @@
 #include "../types.h"
 #include "../vcache.h"
 #include "cancellation.h"
-#include "color_manager.h"
 #include "color_scheme.h"
 #include "colors.h"
 #include "escape.h"
@@ -86,13 +85,14 @@ typedef struct
 	int ndirs;         /* Number of seen directories. */
 	int nfiles;        /* Number of seen files. */
 	int max;           /* Maximum line number. */
+	int full_stats;    /* Collect statistics for the whole tree. */
 	char prefix[4096]; /* Prefix character for each tree level. */
 }
 tree_print_state_t;
 
-static void view_entry(const dir_entry_t *entry, const preview_area_t *parea,
-		quickview_cache_t *cache);
-static void view_file(const char path[], const preview_area_t *parea,
+static const char * view_entry(const dir_entry_t *entry,
+		const preview_area_t *parea, quickview_cache_t *cache);
+static const char * view_file(const char path[], const preview_area_t *parea,
 		quickview_cache_t *cache);
 static int is_cache_valid(const quickview_cache_t *cache, const char path[],
 		const char viewer[], const preview_area_t *parea);
@@ -100,7 +100,9 @@ static void update_cache(quickview_cache_t *cache, const char path[],
 		const char viewer[], ViewerKind kind, const preview_area_t *parea,
 		int max_lines);
 static strlist_t get_lines(const quickview_cache_t *cache);
+static void print_tree_stats(tree_print_state_t *s);
 static int print_dir_tree(tree_print_state_t *s, const char path[], int last);
+static void collect_subtree_stats(tree_print_state_t *s, const char path[]);
 static int enter_dir(tree_print_state_t *s, const char path[], int last);
 static int visit_file(tree_print_state_t *s, const char path[], int last);
 static int visit_link(tree_print_state_t *s, const char path[], int last,
@@ -116,9 +118,8 @@ static void draw_lines(const strlist_t *lines, int wrapped,
 		const preview_area_t *parea, ViewerKind kind);
 static void write_message(const char msg[], const preview_area_t *parea);
 static void cleanup_for_text(const preview_area_t *parea);
-TSTATIC FILE * qv_execute_viewer(const char viewer[]);
-static void cleanup_area(const preview_area_t *parea, const char cmd[]);
 static void wipe_area(const preview_area_t *parea);
+static void fill_area(const preview_area_t *parea);
 
 /* Cached preview data for a single file entry. */
 static quickview_cache_t qv_cache;
@@ -236,43 +237,37 @@ qv_draw(view_t *view)
 			.w = ui_qv_width(other_view),
 			.h = ui_qv_height(other_view),
 		};
-		view_entry(curr, &parea, &qv_cache);
+		(void)view_entry(curr, &parea, &qv_cache);
 	}
 
 	refresh_view_win(other_view);
 	ui_view_title_update(other_view);
 }
 
-void
+const char *
 qv_draw_on(const dir_entry_t *entry, const preview_area_t *parea)
 {
 	static quickview_cache_t lwin_cache, rwin_cache;
 
-	char filler[parea->w + 1];
-	memset(filler, ' ', sizeof(filler) - 1U);
-	filler[sizeof(filler) - 1U] = '\0';
-
 	ui_set_attr(parea->view->win, &parea->def_col, -1);
-
-	int line;
-	for(line = parea->y; line < parea->y + parea->h; ++line)
-	{
-		mvwaddstr(parea->view->win, line, parea->x, filler);
-	}
+	fill_area(parea);
 
 	quickview_cache_t *cache = (parea->view == &lwin ? &lwin_cache : &rwin_cache);
 
-	view_entry(entry, parea, cache);
+	const char *clear_cmd = view_entry(entry, parea, cache);
 
 	parea->view->displays_graphics = (cache->kind != VK_TEXTUAL);
 
 	/* Unconditionally invalidate graphics cache, since we don't keep track of its
 	 * validity in any way. */
 	cache->graphics_lost = 1;
+
+	return clear_cmd;
 }
 
-/* Draws preview of the entry in the other view. */
-static void
+/* Draws preview of the entry in the other view.  Returns preview clear command
+ * or NULL. */
+static const char *
 view_entry(const dir_entry_t *entry, const preview_area_t *parea,
 		quickview_cache_t *cache)
 {
@@ -309,6 +304,15 @@ view_entry(const dir_entry_t *entry, const preview_area_t *parea,
 				write_message("Cannot resolve Link", parea);
 				break;
 			}
+
+			if(!path_exists(path, DEREF))
+			{
+				char *msg = format_str("Cannot access link's target: %s", path);
+				write_message(msg, parea);
+				free(msg);
+				break;
+			}
+
 			if(!ends_with_slash(path) && is_dir(path))
 			{
 				strncat(path, "/", sizeof(path) - strlen(path) - 1);
@@ -316,18 +320,29 @@ view_entry(const dir_entry_t *entry, const preview_area_t *parea,
 			/* break is omitted intentionally. */
 		case FT_UNK:
 		default:
-			view_file(path, parea, cache);
-			break;
+			return view_file(path, parea, cache);
 	}
+
+	return NULL;
 }
 
 /* Displays contents of file or output of its viewer in the other pane
- * starting from the second line and second column. */
-static void
+ * starting from the second line and second column.  Returns preview clear
+ * command or NULL. */
+static const char *
 view_file(const char path[], const preview_area_t *parea,
 		quickview_cache_t *cache)
 {
 	const char *viewer = qv_get_viewer(path);
+	const char *clear_cmd = (viewer != NULL ? ma_get_clear_cmd(viewer) : NULL);
+
+	/* Don't draw graphics while dialog is shown as they aren't combined nicely
+	 * on the screen. */
+	const ViewerKind kind = ft_viewer_kind(viewer);
+	if(kind != VK_TEXTUAL && modes_is_dialog_like())
+	{
+		return NULL;
+	}
 
 	if(is_cache_valid(cache, path, viewer, parea))
 	{
@@ -335,10 +350,9 @@ view_file(const char path[], const preview_area_t *parea,
 		cache->pa = *parea;
 
 		draw_lines(&cache->lines, cfg.wrap_quick_view, &cache->pa, cache->kind);
-		return;
+		return clear_cmd;
 	}
 
-	ViewerKind kind = ft_viewer_kind(viewer);
 	int max_lines = is_dir(path) ? ui_qv_height(parea->view)
 	                             : MAX_PREVIEW_LINES;
 
@@ -346,7 +360,7 @@ view_file(const char path[], const preview_area_t *parea,
 	 * terminal emulator do actual refresh (at least some of them need this). */
 	if(kind != VK_TEXTUAL)
 	{
-		cleanup_area(parea, curr_stats.preview.cleanup_cmd);
+		qv_cleanup_area(parea, curr_stats.preview.cleanup_cmd);
 		usleep(cfg.graphics_delay);
 	}
 	else
@@ -358,7 +372,6 @@ view_file(const char path[], const preview_area_t *parea,
 
 	curr_stats.preview.kind = kind;
 
-	const char *clear_cmd = (viewer != NULL) ? ma_get_clear_cmd(viewer) : NULL;
 	update_string(&curr_stats.preview.cleanup_cmd, clear_cmd);
 
 	update_cache(cache, path, viewer, kind, parea, max_lines);
@@ -371,6 +384,8 @@ view_file(const char path[], const preview_area_t *parea,
 		cache->lines.items = copy_string_array(lines.items, lines.nitems);
 		cache->lines.nitems = lines.nitems;
 	}
+
+	return clear_cmd;
 }
 
 /* Checks whether data in the cache is up to date with the file on disk.
@@ -434,9 +449,12 @@ get_lines(const quickview_cache_t *cache)
 
 	const char *error;
 
-	char *expanded = (cache->viewer == NULL) ? NULL
-	                                         : qv_expand_viewer(cache->viewer);
-	strlist_t lines = vcache_lookup(cache->path, expanded, cache->kind,
+	MacroFlags flags = MF_NONE;
+	char *expanded = (cache->viewer == NULL)
+	               ? NULL
+	               : qv_expand_viewer(cache->pa.source, cache->viewer, &flags);
+
+	strlist_t lines = vcache_lookup(cache->path, expanded, flags, cache->kind,
 			cache->max_lines, VC_ASYNC, &error);
 	free(expanded);
 
@@ -454,41 +472,65 @@ get_lines(const quickview_cache_t *cache)
 FILE *
 qv_view_dir(const char path[], int max_lines)
 {
+	enum { NSPACES = 64 };
+
 	FILE *fp = os_tmpfile();
-
-	if(fp != NULL)
+	if(fp == NULL)
 	{
-		tree_print_state_t s = {
-			.fp = fp,
-			 /* Increase by one to cause cached data to be recognized as incomplete
-			  * when max_lines isn't enough. */
-			.max = (max_lines == INT_MAX ? max_lines : max_lines + 1),
-		};
-
-		if(print_dir_tree(&s, path, 0) == 0 && s.n != 0)
-		{
-			/* Print summary only if we visited the whole subtree. */
-			fprintf(fp, "%s\n%d director%s, %d file%s",
-					ui_cancellation_requested() ? "(cancelled)\n" : "",
-					s.ndirs, (s.ndirs == 1) ? "y" : "ies",
-					s.nfiles, (s.nfiles == 1) ? "" : "s");
-		}
-		else if(ui_cancellation_requested())
-		{
-			fputs("(cancelled)", fp);
-		}
-
-		if(s.n == 0)
-		{
-			fclose(fp);
-			fp = NULL;
-		}
-		else
-		{
-			fseek(fp, 0, SEEK_SET);
-		}
+		return NULL;
 	}
+
+	tree_print_state_t s = {
+		.fp = fp,
+		/* Increase by one to cause cached data to be recognized as incomplete
+		 * when max_lines isn't enough. */
+		.max = (max_lines == INT_MAX ? max_lines : max_lines + 1),
+		.full_stats = cfg.top_tree_stats,
+		.n = (cfg.top_tree_stats ? 2 : 0),
+	};
+
+	/* Spare blank line on the top of the view to put the (files, directories)
+	 * count in case "toptreestats" option is set. */
+	fprintf(fp, "%*s\n", NSPACES, "");
+
+	const int whole_tree = (print_dir_tree(&s, path, 0) == 0 && s.n != 0);
+	if(!whole_tree && ui_cancellation_requested())
+	{
+		fputs("(cancelled)", fp);
+	}
+
+	if(s.n == 0)
+	{
+		fclose(fp);
+		return NULL;
+	}
+
+	if(cfg.top_tree_stats)
+	{
+		/* Print count on the top, spare line. */
+		fseek(fp, 0, SEEK_SET);
+		print_tree_stats(&s);
+		fseek(fp, 0, SEEK_SET);
+	}
+	else
+	{
+		/* Print count at the bottom and "hide" the spare line away. */
+		fputs("\n", fp);
+		print_tree_stats(&s);
+		fseek(fp, NSPACES + 1, SEEK_SET);
+	}
+
 	return fp;
+}
+
+/* Prints one-line tree statistics. */
+static void
+print_tree_stats(tree_print_state_t *s)
+{
+	fprintf(s->fp, "%s%d director%s, %d file%s\n",
+			ui_cancellation_requested() ? "(cancelled)\n" : "",
+			s->ndirs, (s->ndirs == 1) ? "y" : "ies",
+			s->nfiles, (s->nfiles == 1) ? "" : "s");
 }
 
 /* Produces tree preview of the path.  Returns non-zero to request stopping of
@@ -496,28 +538,24 @@ qv_view_dir(const char path[], int max_lines)
 static int
 print_dir_tree(tree_print_state_t *s, const char path[], int last)
 {
-	int i;
-	int reached_limit;
-
 	int len;
 	char **lst = list_sorted_files(path, &len);
-
 	if(len < 0)
 	{
-		free_string_array(lst, len);
 		return 1;
 	}
 
 	if(enter_dir(s, path, last) != 0)
 	{
 		free_string_array(lst, len);
+		collect_subtree_stats(s, path);
 		return 1;
 	}
 
-	reached_limit = 0;
+	int i;
+	int reached_limit = 0;
 	for(i = 0; i < len && !reached_limit && !ui_cancellation_requested(); ++i)
 	{
-		char link_target[PATH_MAX + 1];
 		const int last_entry = (i == len - 1);
 		char *const full_path = format_str("%s/%s", path, lst[i]);
 
@@ -530,6 +568,7 @@ print_dir_tree(tree_print_state_t *s, const char path[], int last)
 			++s->nfiles;
 		}
 
+		char link_target[PATH_MAX + 1];
 		if(get_link_target(full_path, link_target, sizeof(link_target)) == 0)
 		{
 			if(visit_link(s, full_path, last_entry, link_target) != 0)
@@ -537,8 +576,8 @@ print_dir_tree(tree_print_state_t *s, const char path[], int last)
 				reached_limit = 1;
 			}
 		}
-		/* If is_dir_empty() returns non-zero than we know that it's directory and
-		 * no additional checks are needed. */
+		/* If is_dir_empty() returns non-zero then we know that it's a directory
+		 * and no additional checks are needed. */
 		else if(!is_dir_empty(full_path))
 		{
 			if(last_entry)
@@ -550,18 +589,81 @@ print_dir_tree(tree_print_state_t *s, const char path[], int last)
 				reached_limit = 1;
 			}
 		}
-		else if(visit_file(s, full_path, last_entry) != 0)
+		else
 		{
-			reached_limit = 1;
+			if(visit_file(s, full_path, last_entry) != 0)
+			{
+				reached_limit = 1;
+			}
 		}
 
 		free(full_path);
 	}
-	free_string_array(lst, len);
 
+	if(reached_limit && s->full_stats)
+	{
+		for(; i < len && !ui_cancellation_requested(); ++i)
+		{
+			char *const full_path = format_str("%s/%s", path, lst[i]);
+			if(is_symlink(full_path))
+			{
+				++s->nfiles;
+			}
+			else if(is_dir(full_path))
+			{
+				++s->ndirs;
+				collect_subtree_stats(s, full_path);
+			}
+			else
+			{
+				++s->nfiles;
+			}
+			free(full_path);
+		}
+	}
+
+	free_string_array(lst, len);
 	leave_dir(s);
 
 	return reached_limit;
+}
+
+/* Collects stats for items of a directory in a much faster way than traversal
+ * for printing. */
+static void
+collect_subtree_stats(tree_print_state_t *s, const char path[])
+{
+	DIR *dir = os_opendir(path);
+	if(dir == NULL)
+	{
+		return;
+	}
+
+	struct dirent *d;
+	while((d = os_readdir(dir)) != NULL)
+	{
+		if(is_builtin_dir(d->d_name))
+		{
+			continue;
+		}
+
+		char *const full_path = format_str("%s/%s", path, d->d_name);
+		if(entry_is_dir(full_path, d))
+		{
+			++s->ndirs;
+			collect_subtree_stats(s, full_path);
+		}
+		else if(is_dirent_targets_dir(full_path, d))
+		{
+			++s->ndirs;
+		}
+		else
+		{
+			++s->nfiles;
+		}
+		free(full_path);
+	}
+	os_closedir(dir);
 }
 
 /* Handles entering directory on directory tree traversal.  Returns non-zero to
@@ -579,7 +681,7 @@ enter_dir(tree_print_state_t *s, const char path[], int last)
 	indent_prefix(s);
 	set_prefix_char(s, '|');
 
-	return ++s->n >= s->max;
+	return (++s->n >= s->max);
 }
 
 /* Handles visiting file on directory tree traversal.  Returns non-zero to
@@ -590,7 +692,7 @@ visit_file(tree_print_state_t *s, const char path[], int last)
 	set_prefix_char(s, last ? '`' : '|');
 	print_tree_entry(s, path, 1);
 
-	return ++s->n >= s->max;
+	return (++s->n >= s->max);
 }
 
 /* Handles visiting symbolic link on directory tree traversal.  Returns non-zero
@@ -605,7 +707,7 @@ visit_link(tree_print_state_t *s, const char path[], int last,
 	fputs(target, s->fp);
 	fputc('\n', s->fp);
 
-	return ++s->n >= s->max;
+	return (++s->n >= s->max);
 }
 
 /* Handles leaving directory on directory tree traversal. */
@@ -737,7 +839,7 @@ cleanup_for_text(const preview_area_t *parea)
 	if(curr_stats.preview.cleanup_cmd != NULL ||
 			curr_stats.preview.kind != VK_TEXTUAL)
 	{
-		cleanup_area(parea, curr_stats.preview.cleanup_cmd);
+		qv_cleanup_area(parea, curr_stats.preview.cleanup_cmd);
 	}
 	update_string(&curr_stats.preview.cleanup_cmd, NULL);
 	curr_stats.preview.kind = VK_TEXTUAL;
@@ -760,36 +862,21 @@ qv_hide(void)
 	}
 }
 
-/* Expands and executes viewer command.  Returns file containing results of the
- * viewer. */
-TSTATIC FILE *
-qv_execute_viewer(const char viewer[])
-{
-	FILE *fp;
-	char *expanded;
-
-	expanded = qv_expand_viewer(viewer);
-	fp = read_cmd_output(expanded, 0);
-	free(expanded);
-
-	return fp;
-}
-
-/* Returns a pointer to newly allocated memory, which should be released by the
- * caller. */
 char *
-qv_expand_viewer(const char viewer[])
+qv_expand_viewer(view_t *view, const char viewer[], MacroFlags *flags)
 {
+	ma_flags_set(flags, MF_NONE);
+
 	char *result;
 	if(strchr(viewer, '%') == NULL)
 	{
-		char *escaped = shell_like_escape(get_current_file_name(curr_view), 0);
+		char *escaped = shell_like_escape(get_current_file_name(view), 0);
 		result = format_str("%s %s", viewer, escaped);
 		free(escaped);
 	}
 	else
 	{
-		result = ma_expand(viewer, NULL, NULL, 1);
+		result = ma_expand(viewer, NULL, flags, 1);
 	}
 	return result;
 }
@@ -806,12 +893,11 @@ qv_cleanup(view_t *view, const char cmd[])
 		.w = view->window_cols,
 		.h = view->window_rows,
 	};
-	cleanup_area(&parea, cmd);
+	qv_cleanup_area(&parea, cmd);
 }
 
-/* Erases area using external command if available. */
-static void
-cleanup_area(const preview_area_t *parea, const char cmd[])
+void
+qv_cleanup_area(const preview_area_t *parea, const char cmd[])
 {
 	if(cmd == NULL)
 	{
@@ -824,14 +910,29 @@ cleanup_area(const preview_area_t *parea, const char cmd[])
 
 	curr_stats.preview.clearing = 1;
 	curr_stats.preview_hint = parea;
-	FILE *fp = qv_execute_viewer(cmd);
+
+	char *expanded = qv_expand_viewer(parea->view, cmd, NULL);
+	if(vlua_handler_cmd(curr_stats.vlua, expanded))
+	{
+		char path[PATH_MAX + 1];
+		dir_entry_t *entry = get_current_entry(parea->source);
+		qv_get_path_to_explore(entry, path, sizeof(path));
+
+		strlist_t lines = vlua_view_file(curr_stats.vlua, expanded, path, parea);
+		free_string_array(lines.items, lines.nitems);
+	}
+	else
+	{
+		FILE *fp = read_cmd_output(expanded, /*preserve_stdin=*/0);
+		while(fgetc(fp) != EOF);
+		fclose(fp);
+	}
+	free(expanded);
+
 	curr_stats.preview_hint = NULL;
 	curr_stats.preview.clearing = 0;
 
 	curr_view = curr;
-
-	while(fgetc(fp) != EOF);
-	fclose(fp);
 
 	wipe_area(parea);
 }
@@ -849,9 +950,26 @@ wipe_area(const preview_area_t *parea)
 
 	/* User doesn't need to see fake filling so draw it with the color of
 	 * background. */
-	col_attr_t col = { .fg = parea->def_col.fg, .bg = parea->def_col.bg };
+	col_attr_t col = parea->def_col;
+	col.attr = 0;
+	col.gui_attr = 0;
 	ui_set_attr(parea->view->win, &col, -1);
 
+	fill_area(parea);
+	/* The check is for tests, which work otherwise. */
+	if(parea->view->win != NULL)
+	{
+		redrawwin(parea->view->win);
+	}
+	ui_refresh_win(parea->view->win);
+
+	ui_set_attr(parea->view->win, &parea->def_col, -1);
+}
+
+/* Fills preview area with spaces just to clear background. */
+static void
+fill_area(const preview_area_t *parea)
+{
 	char filler[parea->w + 1];
 	memset(filler, ' ', sizeof(filler) - 1U);
 	filler[sizeof(filler) - 1U] = '\0';
@@ -861,10 +979,6 @@ wipe_area(const preview_area_t *parea)
 	{
 		mvwaddstr(parea->view->win, line, parea->x, filler);
 	}
-	redrawwin(parea->view->win);
-	ui_refresh_win(parea->view->win);
-
-	ui_set_attr(parea->view->win, &parea->def_col, -1);
 }
 
 const char *

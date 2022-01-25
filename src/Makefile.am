@@ -110,13 +110,14 @@ vifm_SOURCES = \
 	engine/functions.c engine/functions.h \
 	engine/keys.c engine/keys.h \
 	engine/mode.c engine/mode.h \
-	engine/options.c engine/options.h engine/private/options.h \
+	engine/options.c engine/options.h \
 	engine/parsing.c engine/parsing.h \
 	engine/text_buffer.c engine/text_buffer.h \
 	engine/var.c engine/var.h \
 	engine/variables.c engine/variables.h \
 	\
 	int/desktop.c int/desktop.h \
+	int/ext_edit.c int/ext_edit.h \
 	int/file_magic.c int/file_magic.h \
 	int/fuse.c int/fuse.h \
 	int/path_env.c int/path_env.h \
@@ -176,7 +177,19 @@ vifm_SOURCES = \
 	lua/lua/lvm.c lua/lua/lvm.h \
 	lua/lua/lzio.c lua/lua/lzio.h \
 	\
+	lua/api.h \
+	lua/common.c lua/common.h \
+	lua/vifm_cmds.c lua/vifm_cmds.h \
+	lua/vifm_handlers.c lua/vifm_handlers.h \
+	lua/vifm_keys.c lua/vifm_keys.h \
+	lua/vifm_tabs.c lua/vifm_tabs.h \
+	lua/vifm_viewcolumns.c lua/vifm_viewcolumns.h \
+	lua/vifmentry.c lua/vifmentry.h \
+	lua/vifmjob.c lua/vifmjob.h \
+	lua/vifmtab.c lua/vifmtab.h \
+	lua/vifmview.c lua/vifmview.h \
 	lua/vlua.c lua/vlua.h \
+	lua/vlua_state.c lua/vlua_state.h \
 	\
 	menus/all.h \
 	menus/apropos_menu.c menus/apropos_menu.h \

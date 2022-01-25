@@ -102,13 +102,11 @@ static WINDOW *no_delay_window;
 /* Window configured to wait for input indefinitely.  Never appears on the
  * screen, sometimes used for reading input. */
 static WINDOW *inf_delay_window;
-/* Mutexes for views, located out of view_t so that they are never moved nor
- * copied, which would yield undefined behaviour. */
-static pthread_mutex_t lwin_timestamps_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t rwin_timestamps_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-view_t lwin = { .timestamps_mutex = &lwin_timestamps_mutex };
-view_t rwin = { .timestamps_mutex = &rwin_timestamps_mutex };
+unsigned int ui_next_view_id = 3;
+
+view_t lwin = { .id = 1 };
+view_t rwin = { .id = 2 };
 
 view_t *other_view;
 view_t *curr_view;
@@ -128,10 +126,14 @@ static WINDOW *tab_line;
 
 static WINDOW *mborder;
 
-static int pair_in_use(short int pair);
-static void move_pair(short int from, short int to);
+static int init_pair_wrapper(int pair, int fg, int bg);
+static int pair_content_wrapper(int pair, int *fg, int *bg);
+static int pair_in_use(int pair);
+static void move_pair(int from, int to);
 static void create_windows(void);
 static void update_geometry(void);
+static int update_start(UpdateType update_kind);
+static void update_finish(void);
 static void adjust_splitter(int screen_w, int screen_h);
 static int get_working_area_height(void);
 static void clear_border(WINDOW *border);
@@ -168,6 +170,9 @@ static void print_view_title(const view_t *view, int active_view, char title[]);
 static col_attr_t fixup_titles_attributes(const view_t *view, int active_view);
 static int is_in_miller_view(const view_t *view);
 static int is_forced_list_mode(const view_t *view);
+
+/* List of macros that are expanded in the ruler. */
+static const char RULER_MACROS[] = "-rxlLPS%[]";  //mod by sim1, add char r for rating stars
 
 void
 ui_ruler_update(view_t *view, int lazy_redraw)
@@ -250,8 +255,8 @@ setup_ncurses_interface(void)
 	const colmgr_conf_t colmgr_conf = {
 		.max_color_pairs = COLOR_PAIRS,
 		.max_colors = COLORS,
-		.init_pair = &init_pair,
-		.pair_content = &pair_content,
+		.init_pair = &init_pair_wrapper,
+		.pair_content = &pair_content_wrapper,
 		.pair_in_use = &pair_in_use,
 		.move_pair = &move_pair,
 	};
@@ -277,15 +282,64 @@ setup_ncurses_interface(void)
 #endif
 #endif
 
+#if defined(NCURSES_VERSION) && defined(ENABLE_EXTENDED_KEYS)
+	/* Disable 'unsupported' extended keys so that esc-codes will be
+	 * received instead of unnamed extended keycode values (> KEY_MAX).
+	 * These keys can then be mapped with esc-codes in vifmrc.
+	 * An example could be <c-down>:
+	 *     qnoremap <esc>[1;5B j
+	 * as without this change <c-down> can return a keycode value of 531
+	 * (terminfo name kDN5), which is larger than KEY_MAX and has no
+	 * pre-defined curses key name. */
+	int i;
+	for(i = KEY_MAX; i < 2000; ++i)
+	{
+		keyok(i, FALSE);
+	}
+#endif
+
+#ifdef HAVE_EXTENDED_COLORS
+	curr_stats.direct_color = (COLORS == 0x1000000);
+#endif
+
 	ui_resize_all();
 
 	return 1;
 }
 
+/* Calls init_pair() from libcurses. */
+static int
+init_pair_wrapper(int pair, int fg, int bg)
+{
+#ifdef HAVE_EXTENDED_COLORS
+	return init_extended_pair(pair, fg, bg);
+#else
+	return init_pair(pair, fg, bg);
+#endif
+}
+
+/* Calls pair_content() from libcurses. */
+static int
+pair_content_wrapper(int pair, int *fg, int *bg)
+{
+#ifdef HAVE_EXTENDED_COLORS
+	return extended_pair_content(pair, fg, bg);
+#else
+	short fg_short, bg_short;
+
+	const int result = pair_content(pair, &fg_short, &bg_short);
+
+	*fg = fg_short;
+	*bg = bg_short;
+
+	return result;
+#endif
+}
+
 /* Checks whether pair is being used at the moment.  Returns non-zero if so and
  * zero otherwise. */
 static int
-pair_in_use(short int pair)
+pair_in_use(int pair)
 {
 	int i;
 
@@ -303,7 +357,7 @@ pair_in_use(short int pair)
 
 /* Substitutes old pair number with the new one. */
 static void
-move_pair(short int from, short int to)
+move_pair(int from, int to)
 {
 	int i;
 	for(i = 0; i < MAXNUM_COLOR; ++i)
@@ -560,12 +614,12 @@ horizontal_layout(int screen_x, int screen_y)
 static int
 get_working_area_height(void)
 {
-	return getmaxy(stdscr)                  /* Total available height. */
-	     - 1                                /* Top line. */
-	     - (cfg.display_statusline ? 1 : 0) /* Status line. */
-	     - ui_stat_job_bar_height()         /* Job bar. */
-	     - 1                                /* Status bar line. */
-	     - get_tabline_height();            /* Tab line. */
+	return getmaxy(stdscr)          /* Total available height. */
+	     - 1                        /* Top line. */
+	     - ui_stat_height()         /* Status line. */
+	     - ui_stat_job_bar_height() /* Job bar. */
+	     - 1                        /* Status bar line. */
+	     - get_tabline_height();    /* Tab line. */
 }
 
 /* Updates internal data structures to reflect actual terminal geometry. */
@@ -625,17 +679,38 @@ cv_tree(CVType type)
 void
 update_screen(UpdateType update_kind)
 {
-	if(curr_stats.load_stage < 2)
-		return;
+	if(update_start(update_kind))
+	{
+		update_all_windows();
+		update_finish();
+	}
+}
 
-	if(update_kind == UT_NONE)
-		return;
+void
+ui_redraw_as_background(void)
+{
+	if(update_start(UT_REDRAW))
+	{
+		update_finish();
+	}
+}
+
+/* Most of the update logic.  Everything that's done before updating windows.
+ * Returns non-zero if update was carried out until the end, otherwise zero is
+ * returned. */
+static int
+update_start(UpdateType update_kind)
+{
+	if(curr_stats.load_stage < 2 || update_kind == UT_NONE)
+	{
+		return 0;
+	}
 
 	ui_resize_all();
 
 	if(curr_stats.restart_in_progress)
 	{
-		return;
+		return 0;
 	}
 
 	update_attributes();
@@ -647,7 +722,7 @@ update_screen(UpdateType update_kind)
 
 	if(curr_stats.term_state != TS_NORMAL)
 	{
-		return;
+		return 0;
 	}
 
 	qv_ui_updated();
@@ -695,8 +770,13 @@ update_screen(UpdateType update_kind)
 		modview_redraw();
 	}
 
-	update_all_windows();
+	return 1;
+}
 
+/* Post-windows-update part of an update. */
+static void
+update_finish(void)
+{
 	if(!curr_view->explore_mode)
 	{
 		fview_cursor_redraw(curr_view);
@@ -741,7 +821,7 @@ ui_resize_all(void)
 	correct_size(&lwin);
 	correct_size(&rwin);
 
-	wresize(stat_win, 1, screen_w);
+	wresize(stat_win, ui_stat_height(), screen_w);
 	(void)ui_stat_reposition(1, 0);
 
 	wresize(job_bar, 1, screen_w);
@@ -984,10 +1064,8 @@ static void
 update_window_lazy(WINDOW *win)
 {
 	touchwin(win);
-	/*
-	 * redrawwin() shouldn't be needed.  But without it there is a
-	 * lot of flickering when redrawing the windows?
-	 */
+	/* Tell curses that it shouldn't assume that screen isn't messed up in any
+	 * way. */
 	redrawwin(win);
 	wnoutrefresh(win);
 }
@@ -1163,7 +1241,10 @@ wprinta(WINDOW *win, const char str[], const cchar_t *line_attrs,
 	wchar_t wch[getcchar(line_attrs, NULL, &attrs, &color_pair, NULL)];
 	getcchar(line_attrs, wch, &attrs, &color_pair, NULL);
 
-	col_attr_t col = { .attr = attrs ^ attrs_xors };
+	col_attr_t col = {
+		.attr = attrs ^ attrs_xors,
+		.gui_attr = attrs ^ attrs_xors
+	};
 	ui_set_attr(win, &col, color_pair);
 	wprint(win, str);
 	wnoutrefresh(win);
@@ -1321,7 +1402,7 @@ get_ruler_width(view_t *view)
 static char *
 expand_ruler_macros(view_t *view, const char format[])
 {
-	return expand_view_macros(view, format, "-rxlLPS%[]");  //mod by sim1, add char r for rating stars
+	return expand_view_macros(view, format, RULER_MACROS);
 }
 
 void
@@ -1396,8 +1477,8 @@ switch_panes_content(void)
 {
 	ui_swap_view_data(&lwin, &rwin);
 
-	flist_update_origins(&lwin, &rwin.curr_dir[0], &lwin.curr_dir[0]);
-	flist_update_origins(&rwin, &lwin.curr_dir[0], &rwin.curr_dir[0]);
+	flist_update_origins(&lwin);
+	flist_update_origins(&rwin);
 
 	modview_panes_swapped();
 
@@ -1678,7 +1759,7 @@ ui_view_win_changed(view_t *view)
 	refresh_bottom_lines();
 }
 
-/* Makes sure that statusline and statusbar are drawn over view window after
+/* Makes sure that status line and status bar are drawn over view window after
  * view refresh. */
 static void
 refresh_bottom_lines(void)
@@ -2203,11 +2284,13 @@ print_view_title(const view_t *view, int active_view, char title[])
 		return;
 	}
 
+	//add by sim1 *******************************
 	ellipsis_len = title_width;
 	if (!middle_border_is_visible())
 	{
 		ellipsis_len -= pane_tag_len;
 	}
+	//add by sim1 *******************************
 
 	werase(view->title);
 
@@ -2223,9 +2306,18 @@ print_view_title(const view_t *view, int active_view, char title[])
 		ellipsis_len -= (strlen(username) + 1 + strlen(hostname) + 1);
 	}
 
-	ellipsis = active_view
-	         ? left_ellipsis(title, ellipsis_len, curr_stats.ellipsis)
-	         : right_ellipsis(title, ellipsis_len, curr_stats.ellipsis);
+	if (cfg.ellipsis_position != 0)
+	{
+		ellipsis = cfg.ellipsis_position < 0
+		         ? left_ellipsis(title, ellipsis_len, curr_stats.ellipsis)
+		         : right_ellipsis(title, ellipsis_len, curr_stats.ellipsis);
+	}
+	else
+	{
+		ellipsis = active_view
+		         ? left_ellipsis(title, ellipsis_len, curr_stats.ellipsis)
+		         : right_ellipsis(title, ellipsis_len, curr_stats.ellipsis);
+	}
 
 	if (!ret)
 	{
@@ -2443,6 +2535,16 @@ ui_qv_cleanup_if_needed(void)
 }
 
 void
+ui_hide_graphics(void)
+{
+	if(curr_stats.preview.on && curr_stats.preview.kind != VK_TEXTUAL)
+	{
+		qv_cleanup(other_view, curr_stats.preview.cleanup_cmd);
+	}
+	modview_hide_graphics();
+}
+
+void
 ui_invalidate_cs(const col_scheme_t *cs)
 {
 	int i;
@@ -2527,19 +2629,11 @@ ui_pause(void)
 void
 ui_set_bg(WINDOW *win, const col_attr_t *col, int pair)
 {
-	if(curr_stats.load_stage < 1)
+	if(curr_stats.load_stage >= 1)
 	{
-		return;
+		const cchar_t bg = cs_color_to_cchar(col, pair);
+		wbkgrndset(win, &bg);
 	}
-
-	if(pair < 0)
-	{
-		pair = colmgr_get_pair(col->fg, col->bg);
-	}
-
-	cchar_t bg;
-	setcchar(&bg, L" ", col->attr, pair, NULL);
-	wbkgrndset(win, &bg);
 }
 
 void
@@ -2553,13 +2647,13 @@ ui_set_attr(WINDOW *win, const col_attr_t *col, int pair)
 
 	if(pair < 0)
 	{
-		pair = colmgr_get_pair(col->fg, col->bg);
+		pair = cs_load_color(col);
 	}
 
 	/* Compiler complains about unused result of comma operator, because
 	 * wattr_set() is a macro and it uses comma to evaluate multiple expresions.
-	 * So cast result to void.*/
-	(void)wattr_set(win, col->attr, pair, NULL);
+	 * So cast result to void. */
+	(void)wattr_set(win, cs_color_get_attr(col), pair, NULL);
 }
 
 void

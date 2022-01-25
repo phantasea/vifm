@@ -17,8 +17,8 @@
 #include "../../src/event_loop.h"
 #include "../../src/ops.h"
 
-static void column_line_print(const void *data, int column_id, const char buf[],
-		size_t offset, AlignType align, const char full_column[]);
+static void column_line_print(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info);
 static int files_are_identical(const char a[], const char b[]);
 
 static char *saved_cwd;
@@ -33,7 +33,6 @@ SETUP()
 
 	opt_handlers_setup();
 
-	cfg.delete_prg = strdup("");
 	cfg.use_system_calls = 1;
 	cfg.sizefmt.base = 1;
 
@@ -50,8 +49,6 @@ TEARDOWN()
 	view_teardown(&rwin);
 
 	opt_handlers_teardown();
-
-	free(cfg.delete_prg);
 
 	undo_teardown();
 }
@@ -123,8 +120,8 @@ TEST(moving_to_fake_entry_creates_the_other_file_and_entry_is_updated)
 }
 
 static void
-column_line_print(const void *data, int column_id, const char buf[],
-		size_t offset, AlignType align, const char full_column[])
+column_line_print(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info)
 {
 	/* Do nothing. */
 }
@@ -183,7 +180,7 @@ TEST(moving_equal_does_nothing)
 	assert_success(remove(SANDBOX_PATH "/same-name-same-content"));
 }
 
-TEST(file_id_is_not_updated_on_failed_move, IF(not_windows))
+TEST(file_id_is_not_updated_on_failed_move, IF(regular_unix_user))
 {
 	make_abs_path(rwin.curr_dir, sizeof(rwin.curr_dir), SANDBOX_PATH, "",
 			saved_cwd);

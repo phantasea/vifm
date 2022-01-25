@@ -67,7 +67,6 @@ there for instructions.
     |  |
     |  |-- engine/ - the core of vi[m]-like functionality
     |  |  |
-    |  |  |-- private/ - private headers of the engine
     |  |  |-- abbrevs.c - implementation of abbreviations
     |  |  |-- autocmds.c - implementation of autocommands
     |  |  |-- cmds.c - command line parsing core
@@ -83,6 +82,7 @@ there for instructions.
     |  |-- int/ - integration with environment/external tools
     |  |  |
     |  |  |-- desktop.c - code that parses *.desktop files on *nix systems
+    |  |  |-- ext_edit.c - managing of state related to external renaming
     |  |  |-- file_magic.c - determines programs associated with file using its
     |  |  |                  mime-type
     |  |  |-- fuse.c - provides support of FUSE filesystems
@@ -105,8 +105,18 @@ there for instructions.
     |  |
     |  |-- lua/ - Lua interface
     |  |  |
-    |  |  |-- lua/ - Lua 5.4 sources
-    |  |  `-- vlua.c - main Lua interface unit
+    |  |  |-- lua/ - Lua 5.4.2 sources
+    |  |  |-- common.c - common code for Lua API implementation
+    |  |  |-- vifm_cmds.c - implementation of `vifm.cmds`
+    |  |  |-- vifm_handlers.c - implementation of `vifm.addhandler`
+    |  |  |-- vifm_tabs.c - implementation of `vifm.tabs`
+    |  |  |-- vifm_viewcolumns.c - implementation of `vifm.addcolumntype`
+    |  |  |-- vifmentry.c - implementation of VifmEntry
+    |  |  |-- vifmjob.c - implementation of VifmJob
+    |  |  |-- vifmtab.c - implementation of VifmTab
+    |  |  |-- vifmview.c - implementation of VifmView
+    |  |  |-- vlua.c - main Lua interface unit
+    |  |  `-- vlua_state.c - management of state of vlua.c unit
     |  |
     |  |-- menus/ - implementation of all menus
     |  |  |

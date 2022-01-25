@@ -61,7 +61,6 @@ static char filter_single(int *quoted, char c, char data,
 		int ncurr, int nother);
 static char * expand_macros_i(const char command[], const char args[],
 		MacroFlags *flags, int for_shell, macro_filter_func filter);
-static void set_flags(MacroFlags *flags, MacroFlags value);
 TSTATIC char * append_selected_files(view_t *view, char expanded[],
 		int under_cursor, int quotes, const char mod[], int for_shell);
 static char * append_entry(view_t *view, char expanded[], PathType type,
@@ -168,7 +167,7 @@ expand_macros_i(const char command[], const char args[], MacroFlags *flags,
 	size_t x;
 	int len = 0;
 
-	set_flags(flags, MF_NONE);
+	ma_flags_set(flags, MF_NONE);
 
 	cmd_len = strlen(command);
 
@@ -261,42 +260,48 @@ expand_macros_i(const char command[], const char args[], MacroFlags *flags,
 				len = strlen(expanded);
 				break;
 			case 'n': /* Forbid using of terminal multiplexer, even if active. */
-				set_flags(flags, MF_NO_TERM_MUX);
+				ma_flags_set(flags, MF_NO_TERM_MUX);
+				break;
+			case 'N': /* Do not run command in a separate terminal session. */
+				ma_flags_set(flags, MF_KEEP_SESSION);
 				break;
 			case 'm': /* Use menu. */
-				set_flags(flags, MF_MENU_OUTPUT);
+				ma_flags_set(flags, MF_MENU_OUTPUT);
 				break;
 			case 'M': /* Use menu like with :locate and :find. */
-				set_flags(flags, MF_MENU_NAV_OUTPUT);
+				ma_flags_set(flags, MF_MENU_NAV_OUTPUT);
 				break;
 			case 'S': /* Show command output in the status bar */
-				set_flags(flags, MF_STATUSBAR_OUTPUT);
+				ma_flags_set(flags, MF_STATUSBAR_OUTPUT);
 				break;
 			case 'q': /* Show command output in the preview */
-				set_flags(flags, MF_PREVIEW_OUTPUT);
+				ma_flags_set(flags, MF_PREVIEW_OUTPUT);
 				break;
-			case 's': /* Split in new screen region and execute command there. */
-				set_flags(flags, MF_SPLIT);
+			case 's': /* Execute command in a new horizontal split. */
+				ma_flags_set(flags, MF_SPLIT);
+				break;
+			case 'v': /* Execute command in a new vertical split. */
+				ma_flags_set(flags, MF_SPLIT_VERT);
 				break;
 			case 'u': /* Parse output as list of files and compose custom view. */
-				set_flags(flags, MF_CUSTOMVIEW_OUTPUT);
+				ma_flags_set(flags, MF_CUSTOMVIEW_OUTPUT);
 				break;
 			case 'U': /* Parse output as list of files and compose unsorted view. */
-				set_flags(flags, MF_VERYCUSTOMVIEW_OUTPUT);
+				ma_flags_set(flags, MF_VERYCUSTOMVIEW_OUTPUT);
 				break;
 			case 'i': /* Ignore output. */
-				set_flags(flags, MF_IGNORE);
+				ma_flags_set(flags, MF_IGNORE);
 				break;
 			case 'I': /* Interactive custom views. */
 				switch(command[x + 1])
 				{
 					case 'u':
 						++x;
-						set_flags(flags, MF_CUSTOMVIEW_IOUTPUT);
+						ma_flags_set(flags, MF_CUSTOMVIEW_IOUTPUT);
 						break;
 					case 'U':
 						++x;
-						set_flags(flags, MF_VERYCUSTOMVIEW_IOUTPUT);
+						ma_flags_set(flags, MF_VERYCUSTOMVIEW_IOUTPUT);
 						break;
 				}
 				break;
@@ -315,6 +320,12 @@ expand_macros_i(const char command[], const char args[], MacroFlags *flags,
 				{
 					return expanded;
 				}
+				if(key == 'u') /* Do not cache preview result. */
+				{
+					ma_flags_set(flags, MF_NO_CACHE);
+					++x;
+					break;
+				}
 				/* Just skip %pd. */
 				if(key == 'd')
 				{
@@ -327,6 +338,19 @@ expand_macros_i(const char command[], const char args[], MacroFlags *flags,
 				if(well_formed)
 				{
 					++x;
+				}
+				break;
+			case 'P': /* Pipe file list. */
+				switch(command[x + 1])
+				{
+					case 'l':
+						++x;
+						ma_flags_set(flags, MF_PIPE_FILE_LIST);
+						break;
+					case 'z':
+						++x;
+						ma_flags_set(flags, MF_PIPE_FILE_LIST_Z);
+						break;
 				}
 				break;
 			case '%':
@@ -376,13 +400,29 @@ expand_macros_i(const char command[], const char args[], MacroFlags *flags,
 	return expanded;
 }
 
-/* Sets *flags to the value, if flags isn't NULL. */
-static void
-set_flags(MacroFlags *flags, MacroFlags value)
+void
+ma_flags_set(MacroFlags *flags, MacroFlags flag)
 {
-	if(flags != NULL)
+	if(flags == NULL)
 	{
-		*flags = value;
+		return;
+	}
+
+	if(flag == MF_NONE)
+	{
+		*flags = MF_NONE;
+	}
+	else if(flag < MF_SECOND_SET_)
+	{
+		*flags = (*flags & ~0x00f) | flag;
+	}
+	else if(flag < MF_THIRD_SET_)
+	{
+		*flags = (*flags & ~0x0f0) | flag;
+	}
+	else
+	{
+		*flags = (*flags & ~0xf00) | flag;
 	}
 }
 
@@ -640,7 +680,7 @@ ma_get_clear_cmd(const char cmd[])
 		return NULL;
 	}
 
-	clear_cmd = break_point + 3;
+	clear_cmd = skip_whitespace(break_point + 3);
 	return is_null_or_empty(clear_cmd) ? NULL : clear_cmd;
 }
 
@@ -800,11 +840,41 @@ add_missing_macros(char expanded[], size_t len, size_t nmacros,
 	return expanded;
 }
 
+int
+ma_flags_present(MacroFlags flags, MacroFlags flag)
+{
+	if(flag == MF_NONE)
+	{
+		return (flags == MF_NONE);
+	}
+	else if(flag < MF_SECOND_SET_)
+	{
+		return ((flags & 0x00f) == flag);
+	}
+	else if(flag < MF_THIRD_SET_)
+	{
+		return ((flags & 0x0f0) == flag);
+	}
+	else
+	{
+		return ((flags & 0xf00) == flag);
+	}
+}
+
+int
+ma_flags_missing(MacroFlags flags, MacroFlags flag)
+{
+	return !ma_flags_present(flags, flag);
+}
+
 const char *
 ma_flags_to_str(MacroFlags flags)
 {
 	switch(flags)
 	{
+		case MF_FIRST_SET_:
+		case MF_SECOND_SET_:
+		case MF_THIRD_SET_:
 		case MF_NONE: return "";
 
 		case MF_MENU_OUTPUT: return "%m";
@@ -817,8 +887,16 @@ ma_flags_to_str(MacroFlags flags)
 		case MF_VERYCUSTOMVIEW_IOUTPUT: return "%IU";
 
 		case MF_SPLIT: return "%s";
+		case MF_SPLIT_VERT: return "%v";
 		case MF_IGNORE: return "%i";
 		case MF_NO_TERM_MUX: return "%n";
+
+		case MF_KEEP_SESSION: return "%N";
+
+		case MF_PIPE_FILE_LIST: return "%Pl";
+		case MF_PIPE_FILE_LIST_Z: return "%Pz";
+
+		case MF_NO_CACHE: return "%pu";
 	}
 
 	assert(0 && "Unhandled MacroFlags item.");

@@ -10,9 +10,9 @@ src_dir := $(call getparentdir, $(lastword $(MAKEFILE_LIST)))
 # lookup for out-of-tree builds
 VPATH := $(src_dir)
 
-override CFLAGS := -c -Wall -Werror -MMD -DPDC_WIDE -D_XOPEN_SOURCE $(CFLAGS)
+override CFLAGS := -c -Wall -Werror -DPDC_WIDE -D_XOPEN_SOURCE $(CFLAGS)
 override CFLAGS += -include ../build-aux/config.h -D_FILE_OFFSET_BITS=64 -pipe
-override CFLAGS += -pthread
+override CFLAGS += -pthread -MMD -MP
 ifeq ($(RELEASE),1)
     override CFLAGS += -O2
 else
@@ -22,7 +22,7 @@ endif
 MANGEN := groff
 UNDER_VCS := $(shell [ "`which git 2> /dev/null`" -a -d ../.git ] && echo 1)
 
-LIBS := -lregex -lnetapi32 -lws2_32 -lm -lole32 -luuid
+LIBS := -lregex -lnetapi32 -lws2_32 -lm -lole32 -luuid -lmpr
 ifeq ($(OS),Windows_NT)
     LIBS += -lpdcurses
 else
@@ -31,9 +31,6 @@ else
 endif
 
 LDFLAGS := -pthread
-
-DIRS := ./ compat/ cfg/ engine/ int/ io/ io/private/ menus/ modes/
-DIRS += modes/dialogs/ ui/ utils/
 
 cfg := config.c info.c
 cfg := $(addprefix cfg/, $(cfg))
@@ -46,7 +43,7 @@ engine := abbrevs.c autocmds.c cmds.c functions.c completion.c keys.c mode.c \
           options.c parsing.c text_buffer.c var.c variables.c
 engine := $(addprefix engine/, $(engine))
 
-int := file_magic.c fuse.c path_env.c term_title.c vim.c
+int := ext_edit.c file_magic.c fuse.c path_env.c term_title.c vim.c
 int := $(addprefix int/, $(int))
 
 io := private/ioc.c private/ioe.c private/ioeta.c private/ionotif.c
@@ -59,7 +56,10 @@ lua := lapi.c lauxlib.c lbaselib.c lcode.c lcorolib.c lctype.c ldblib.c \
        lstring.c lstrlib.c ltable.c ltablib.c ltm.c lundump.c lutf8lib.c lvm.c \
        lzio.c
 lua := $(addprefix lua/, $(lua))
-lua := $(addprefix lua/, $(lua) vlua.c)
+lua := $(addprefix lua/, $(lua) common.c vifm_cmds.c vifm_handlers.c \
+                                vlua_state.c vifm_keys.c vifm_tabs.c \
+                                vifm_viewcolumns.c vifmentry.c vifmjob.c \
+                                vifmtab.c vifmview.c vlua.c)
 
 menus := apropos_menu.c bmarks_menu.c cabbrevs_menu.c colorscheme_menu.c \
          commands_menu.c dirhistory_menu.c dirstack_menu.c filetypes_menu.c \
@@ -102,6 +102,8 @@ vifm_SOURCES := $(cfg) $(compat) $(engine) $(int) $(io) $(lua) $(menus) \
 vifm_OBJECTS := $(vifm_SOURCES:.c=.o)
 vifm_EXECUTABLE := vifm.exe
 
+DIRS := $(sort $(dir $(vifm_OBJECTS)))
+
 # determine list of output directories that don't exist at the moment
 out_dirs := $(sort $(dir $(vifm_OBJECTS)))
 out_dirs := $(filter-out $(wildcard $(out_dirs)) ./, $(out_dirs))
@@ -135,7 +137,7 @@ vifmres.o: vifm.res
 ../build-aux/config.h:
 	@echo Creating sample $@
 	mkdir -p ../build-aux
-	echo '#define VERSION "0.11"' > $@; \
+	echo '#define VERSION "0.12"' > $@; \
 	echo '#define ENABLE_EXTENDED_KEYS' >> $@; \
 	echo '#define _GNU_SOURCE 1' >> $@; \
 	echo '#define PACKAGE_SYSCONF_DIR ""' >> $@; \

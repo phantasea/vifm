@@ -19,7 +19,7 @@
 #include "cmds.h"
 
 #include <assert.h> /* assert() */
-#include <ctype.h> /* isalpha() isdigit() isspace() */
+#include <ctype.h> /* isalnum() isalpha() isdigit() isspace() */
 #include <stddef.h> /* NULL size_t */
 #include <stdio.h>
 #include <stdlib.h> /* calloc() malloc() free() realloc() */
@@ -61,6 +61,8 @@ static const char * get_cmd_name(const char cmd[], char buf[], size_t buf_len);
 static void init_cmd_info(cmd_info_t *cmd_info);
 static const char * skip_prefix_commands(const char cmd[]);
 static cmd_t * find_cmd(const char name[]);
+static cmd_t * find_cmd_advance(cmd_t *cmd, const char name[]);
+static int find_cmd_match(cmd_t *cmd, const char name[]);
 static const char * parse_range(const char cmd[], cmd_info_t *cmd_info);
 static const char * parse_range_elem(const char cmd[], cmd_info_t *cmd_info,
 		char last_sep);
@@ -69,6 +71,7 @@ static int complete_cmd_args(cmd_t *cur, const char args[],
 static void complete_cmd_name(const char cmd_name[], int user_only);
 TSTATIC int add_builtin_cmd(const char name[], CMD_TYPE type,
 		const cmd_add_t *conf);
+static int is_builtin_like_name_ok(const char name[]);
 static int comclear_cmd(const cmd_info_t *cmd_info);
 static void remove_commands(CMD_TYPE type);
 static int command_cmd(const cmd_info_t *cmd_info);
@@ -113,6 +116,7 @@ vle_cmds_init(int udf, cmds_conf_t *conf)
 
 	if(inner == NULL)
 	{
+		assert(conf->complete_line != NULL);
 		assert(conf->complete_args != NULL);
 		assert(conf->swap_range != NULL);
 		assert(conf->resolve_mark != NULL);
@@ -168,7 +172,7 @@ int
 vle_cmds_run(const char cmd[])
 {
 	cmd_info_t cmd_info;
-	char cmd_name[MAX_CMD_NAME_LEN];
+	char cmd_name[MAX_CMD_NAME_LEN + 1];
 	cmd_t *cur;
 	const char *args;
 	int execution_code;
@@ -502,7 +506,7 @@ vle_cmds_complete(const char cmd[], void *arg)
 	cmd_name_pos = parse_range(cmd, &cmd_info);
 	if(cmd_name_pos != NULL)
 	{
-		char cmd_name[MAX_CMD_NAME_LEN];
+		char cmd_name[MAX_CMD_NAME_LEN + 1];
 		const char *args;
 		cmd_t *cur;
 
@@ -512,11 +516,26 @@ vle_cmds_complete(const char cmd[], void *arg)
 		if(*args == '\0' && strcmp(cmd_name, "!") != 0)
 		{
 			complete_cmd_name(cmd_name, 0);
-			prefix_len += cmd_name_pos - cmd;
+
+			if(vle_compl_get_count() == 0)
+			{
+				prefix_len += cmds_conf->complete_line(cmd_name, arg);
+			}
+			else
+			{
+				vle_compl_add_last_match(cmd_name);
+				prefix_len += cmd_name_pos - cmd;
+			}
+		}
+		else if(cur == NULL || cur->name[0] == '\0')
+		{
+			/* Handle empty command specially here. */
+			prefix_len += cmds_conf->complete_line(cmd, arg);
 		}
 		else
 		{
 			prefix_len += args - cmd;
+			cmd_info.user_data = cur->user_data;
 			prefix_len += complete_cmd_args(cur, args, &cmd_info, arg);
 		}
 	}
@@ -537,7 +556,7 @@ skip_prefix_commands(const char cmd[])
 	cmd_name_pos = parse_range(cmd, &cmd_info);
 	if(cmd_name_pos != NULL)
 	{
-		char cmd_name[MAX_CMD_NAME_LEN];
+		char cmd_name[MAX_CMD_NAME_LEN + 1];
 		const char *args;
 		cmd_t *cur;
 
@@ -568,23 +587,42 @@ skip_prefix_commands(const char cmd[])
 	return cmd;
 }
 
+/* Looks up a command by its name. */
 static cmd_t *
 find_cmd(const char name[])
 {
-	cmd_t *cmd;
+	cmd_t *const cmd = find_cmd_advance(inner->head.next, name);
+	return (find_cmd_match(cmd, name) ? cmd : NULL);
+}
 
-	cmd = inner->head.next;
+/* Advances to the first command whose name is not less than the parameter.
+ * Returns advanced values (could be unchanged or NULL). */
+static cmd_t *
+find_cmd_advance(cmd_t *cmd, const char name[])
+{
 	while(cmd != NULL && strcmp(cmd->name, name) < 0)
 	{
 		cmd = cmd->next;
 	}
+	return cmd;
+}
 
-	if(cmd != NULL && strncmp(name, cmd->name, strlen(name)) != 0)
+/* Checks that command search was a success.  Returns non-zero if so, otherwise
+ * zero is returned. */
+static int
+find_cmd_match(cmd_t *cmd, const char name[])
+{
+	if(cmd == NULL)
 	{
-		cmd = NULL;
+		return 0;
 	}
 
-	return cmd;
+	if(name[0] == '\0')
+	{
+		return (cmd->name[0] == '\0');
+	}
+
+	return (strncmp(name, cmd->name, strlen(name)) == 0);
 }
 
 /* Parses whole command range (e.g. "<val>;+<val>,,-<val>").  Returns advanced
@@ -705,9 +743,6 @@ parse_range_elem(const char cmd[], cmd_info_t *cmd_info, char last_sep)
 static const char *
 get_cmd_name(const char cmd[], char buf[], size_t buf_len)
 {
-	const char *t;
-	size_t len;
-
 	assert(buf_len != 0 && "The buffer is expected to be of size > 0.");
 
 	if(cmd[0] == '!')
@@ -717,11 +752,28 @@ get_cmd_name(const char cmd[], char buf[], size_t buf_len)
 		return cmd;
 	}
 
-	t = cmd;
-	while(isalpha(*t))
-		t++;
+	cmd_t *c = inner->head.next;
 
-	len = MIN((size_t)(t - cmd), buf_len - 1);
+	const char *t = cmd;
+	if(isalpha(*t))
+		++t;
+	while(isalnum(*t))
+	{
+		if(isdigit(*t))
+		{
+			size_t len = MIN((size_t)(t - cmd), buf_len - 1);
+			copy_str(buf, len + 1, cmd);
+
+			c = find_cmd_advance(c, buf);
+			if(find_cmd_match(c, buf) && c->name[len] != *t)
+			{
+				break;
+			}
+		}
+		++t;
+	}
+
+	size_t len = MIN((size_t)(t - cmd), buf_len - 1);
 	strncpy(buf, cmd, len);
 	buf[len] = '\0';
 	if(*t == '?' || *t == '!')
@@ -769,7 +821,7 @@ get_cmd_name(const char cmd[], char buf[], size_t buf_len)
 	return t;
 }
 
-/* Returns offset at which completion was done. */
+/* Completes command arguments.  Returns offset at which completion was done. */
 static int
 complete_cmd_args(cmd_t *cur, const char args[], cmd_info_t *cmd_info,
 		void *arg)
@@ -777,7 +829,7 @@ complete_cmd_args(cmd_t *cur, const char args[], cmd_info_t *cmd_info,
 	const char *tmp_args = args;
 	int result = 0;
 
-	if(cur == NULL || (cur->id >= NO_COMPLETION_BOUNDARY && cur->id < 0))
+	if(cur->id >= NO_COMPLETION_BOUNDARY && cur->id < 0)
 		return 0;
 
 	args = parse_tail(cur, tmp_args, cmd_info);
@@ -792,6 +844,8 @@ complete_cmd_args(cmd_t *cur, const char args[], cmd_info_t *cmd_info,
 		arg = (arg == NULL) ? args : (arg + 1);
 
 		complete_cmd_name(arg, 1);
+		vle_compl_add_last_match(arg);
+
 		result += arg - args;
 	}
 	else
@@ -839,8 +893,6 @@ complete_cmd_name(const char cmd_name[], int user_only)
 			vle_compl_add_match(cur->name, cur->descr);
 		cur = cur->next;
 	}
-
-	vle_compl_add_last_match(cmd_name);
 }
 
 void
@@ -888,6 +940,11 @@ vle_cmds_add_foreign(const cmd_add_t *cmd)
 		return 1;
 	}
 
+	if(!is_valid_udc_name(cmd->name))
+	{
+		return CMDS_ERR_INCORRECT_NAME;
+	}
+
 	int failure = (add_builtin_cmd(cmd->name, FOREIGN_CMD, cmd) != 0);
 	if(!failure)
 	{
@@ -912,16 +969,9 @@ add_builtin_cmd(const char name[], CMD_TYPE type, const cmd_add_t *conf)
 		return 0;
 	}
 
-	if(strcmp(name, "!") != 0)
+	if(!is_builtin_like_name_ok(name))
 	{
-		unsigned int i;
-		for(i = 0U; name[i] != '\0'; ++i)
-		{
-			if(!isalpha(name[i]))
-			{
-				return -1;
-			}
-		}
+		return -1;
 	}
 
 	cmp = -1;
@@ -961,6 +1011,33 @@ add_builtin_cmd(const char name[], CMD_TYPE type, const cmd_add_t *conf)
 	init_command_flags(new, conf->flags);
 
 	return 0;
+}
+
+/* Checks validity of a name for a builtin-like command.  Returns non-zero if
+ * it's valid and zero otherwise. */
+static int
+is_builtin_like_name_ok(const char name[])
+{
+	if(name[0] == '\0' || strcmp(name, "!") == 0)
+	{
+		return 1;
+	}
+
+	if(!isalpha(name[0]))
+	{
+		return 0;
+	}
+
+	int i;
+	for(i = 1; name[i] != '\0'; ++i)
+	{
+		if(!isalnum(name[i]))
+		{
+			return 0;
+		}
+	}
+
+	return 1;
 }
 
 /* Implements :comclear builtin command provided by this unit. */
@@ -1016,7 +1093,7 @@ command_cmd(const cmd_info_t *cmd_info)
 		return inner->command_handler(cmd_info);
 	}
 
-	char name[MAX_CMD_NAME_LEN];
+	char name[MAX_CMD_NAME_LEN + 1];
 	const char *body = get_user_cmd_name(cmd_info->args, name, sizeof(name));
 	body = vle_cmds_at_arg(body);
 
@@ -1134,7 +1211,7 @@ get_user_cmd_name(const char cmd[], char buf[], size_t buf_len)
 
 	t = vle_cmds_past_arg(cmd);
 
-	len = MIN((size_t)(t - cmd), buf_len);
+	len = MIN((size_t)(t - cmd), buf_len - 1);
 	strncpy(buf, cmd, len);
 	buf[len] = '\0';
 	return t;
@@ -1150,21 +1227,51 @@ is_valid_udc_name(const char name[])
 		return 0;
 	if(strcmp(name, "?") == 0)
 		return 0;
+	if(!isalpha(name[0]))
+		return 0;
+	if(strlen(name) >= MAX_CMD_NAME_LEN)
+		return 0;
 
-	char cmd_name[MAX_CMD_NAME_LEN + 1];
-	copy_str(cmd_name, sizeof(cmd_name), name);
+	char cmd_name[MAX_CMD_NAME_LEN];
+	char *p = cmd_name;
+
+	cmd_t *cmd = inner->head.next;
 
 	while(name[0] != '\0')
 	{
-		if(!isalpha(name[0]))
+		*p++ = *name;
+
+		if(!isalnum(name[0]))
 		{
 			if(name[1] != '\0')
 				return 0;
 			else if(name[0] != '!' && name[0] != '?')
 				return 0;
 		}
-		name++;
+		else if(isdigit(name[1]))
+		{
+			*p = '\0';
+			cmd = find_cmd_advance(cmd, cmd_name);
+
+			if(find_cmd_match(cmd, cmd_name))
+			{
+				if(cmd->type == BUILTIN_CMD || cmd->type == BUILTIN_ABBR)
+				{
+					return 0;
+				}
+
+				const int name_len = p - cmd_name;
+				if(cmd->name[name_len] == '\0' || isalpha(cmd->name[name_len]))
+				{
+					return 0;
+				}
+			}
+		}
+
+		++name;
 	}
+
+	*p = '\0';
 
 	/* Builtins with custom separator have higher priority.  Disallow registering
 	 * user-defined commands which will never be called. */
@@ -1172,9 +1279,15 @@ is_valid_udc_name(const char name[])
 	{
 		cmd_name[strlen(cmd_name) - 1] = '\0';
 	}
-	const cmd_t *const c = find_cmd(cmd_name);
-	if(c != NULL && c->cust_sep && strcmp(c->name, cmd_name) == 0)
-		return 0;
+
+	cmd = find_cmd_advance(cmd, cmd_name);
+	if(find_cmd_match(cmd, cmd_name))
+	{
+		if(cmd->cust_sep && strcmp(cmd->name, cmd_name) == 0)
+			return 0;
+		if(isdigit(cmd->name[strlen(cmd_name)]))
+			return 0;
+	}
 
 	return 1;
 }

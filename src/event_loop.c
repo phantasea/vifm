@@ -27,7 +27,7 @@
 #include <stddef.h> /* NULL size_t wchar_t */
 #include <stdlib.h> /* free() */
 #include <string.h> /* memmove() strncpy() */
-#include <wchar.h> /* wint_t wcslen() wcscmp() wcsncat() wmemcpy() */
+#include <wchar.h> /* wint_t wcslen() wcscmp() wcsncat() wmemmove() */
 
 #include "cfg/config.h"
 #include "compat/curses.h"
@@ -45,13 +45,13 @@
 #include "ui/ui.h"
 #include "utils/log.h"
 #include "utils/macros.h"
-#include "utils/path.h"
 #include "utils/test_helpers.h"
 #include "utils/utf8.h"
 #include "utils/utils.h"
 #include "background.h"
 #include "bracket_notation.h"
 #include "filelist.h"
+#include "instance.h"
 #include "ipc.h"
 #include "registers.h"
 #include "status.h"
@@ -176,6 +176,7 @@ event_loop(const int *quit)
 		}
 		while(1);
 
+		const int suggestions_were_visible = suggestions_are_visible;
 		suggestions_are_visible = 0;
 
 		/* Ensure that current working directory is set correctly (some pieces of
@@ -197,8 +198,7 @@ event_loop(const int *quit)
 
 			if(c == WC_C_z)
 			{
-				ui_shutdown();
-				stop_process();
+				instance_stop();
 				continue;
 			}
 
@@ -219,7 +219,10 @@ event_loop(const int *quit)
 		counter = vle_keys_counter();
 		if(!got_input && last_result == KEYS_WAIT_SHORT)
 		{
-			hide_suggestion_box();
+			if(suggestions_were_visible)
+			{
+				hide_suggestion_box();
+			}
 
 			last_result = vle_keys_exec_timed_out(input_buf);
 			counter = vle_keys_counter() - counter;
@@ -233,7 +236,8 @@ event_loop(const int *quit)
 		}
 		else
 		{
-			if(last_result == KEYS_WAIT || last_result == KEYS_WAIT_SHORT)
+			if(suggestions_were_visible &&
+					(last_result == KEYS_WAIT || last_result == KEYS_WAIT_SHORT))
 			{
 				hide_suggestion_box();
 			}
@@ -404,7 +408,7 @@ get_char_async_loop(WINDOW *win, wint_t *c, int timeout)
 			if(input_queue[0] != L'\0')
 			{
 				*c = input_queue[0];
-				wmemcpy(input_queue, input_queue + 1, wcslen(input_queue));
+				wmemmove(input_queue, input_queue + 1, wcslen(input_queue));
 				return OK;
 			}
 
@@ -413,12 +417,37 @@ get_char_async_loop(WINDOW *win, wint_t *c, int timeout)
 			{
 				if(result == KEY_CODE_YES)
 				{
-					*c = K(*c);
+#ifdef __PDCURSES__
+					switch(*c)
+					{
+						case PADENTER: *c = WC_CR; result = OK; break;
+						case PADSLASH: *c = '/'; result = OK; break;
+						case PADMINUS: *c = '-'; result = OK; break;
+						case PADSTAR: *c = '*'; result = OK; break;
+						case PADPLUS: *c = '+'; result = OK; break;
+
+						case KEY_A1: *c = KEY_HOME; break;
+						case KEY_A2: *c = KEY_UP; break;
+						case KEY_A3: *c = KEY_PPAGE; break;
+						case KEY_B1: *c = KEY_LEFT; break;
+						case KEY_B3: *c = KEY_RIGHT; break;
+						case KEY_C1: *c = KEY_END; break;
+						case KEY_C2: *c = KEY_DOWN; break;
+						case KEY_C3: *c = KEY_NPAGE; break;
+						case PADSTOP: *c = KEY_DC; break;
+					}
+
+					if(result == KEY_CODE_YES)
+#endif
+					{
+						*c = K(*c);
+					}
 				}
 				else if(*c == L'\0')
 				{
 					*c = WC_C_SPACE;
 				}
+
 				return result;
 			}
 
@@ -437,9 +466,8 @@ is_previewed(const char path[])
 {
 	if(curr_stats.preview.on)
 	{
-		char previewed[PATH_MAX + 1];
-		get_current_full_path(curr_view, sizeof(previewed), previewed);
-		return paths_are_equal(path, previewed);
+		dir_entry_t *entry = get_current_entry(curr_view);
+		return fentry_points_to(entry, path);
 	}
 
 	return (fview_previews(curr_view, path) || fview_previews(other_view, path));
@@ -534,7 +562,8 @@ should_check_views_for_changes(void)
 {
 	return !ui_sb_multiline()
 	    && !is_in_menu_like_mode()
-	    && NONE(vle_mode_is, CMDLINE_MODE, MSG_MODE)
+	    && !modes_is_dialog_like()
+	    && !vle_mode_is(CMDLINE_MODE)
 	    && !suggestions_are_visible;
 }
 
@@ -681,7 +710,7 @@ prepare_suggestion_box(int *height)
 			ui_stat_job_bar_height() - 2;
 		*height = MIN(count, max_height);
 		wresize(stat_win, *height, getmaxx(stdscr));
-		ui_stat_reposition(getmaxy(status_bar), 1);
+		ui_stat_reposition(getmaxy(status_bar), *height);
 		win = stat_win;
 	}
 
@@ -702,10 +731,7 @@ prepare_suggestion_box(int *height)
 static void
 hide_suggestion_box(void)
 {
-	if(should_display_suggestion_box())
-	{
-		update_screen(UT_REDRAW);
-	}
+	update_screen(UT_REDRAW);
 }
 
 /* Checks whether suggestion box should be displayed.  Returns non-zero if so,

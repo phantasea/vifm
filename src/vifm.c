@@ -176,7 +176,7 @@ vifm_main(int argc, char *argv[])
 	json_set_check_strings(0);
 
 	args_parse(&vifm_args, argc, argv, dir);
-	args_process(&vifm_args, 1);
+	args_process(&vifm_args, AS_GENERAL, curr_stats.ipc);
 
 	lwin_cv = (strcmp(vifm_args.lwin_path, "-") == 0 && vifm_args.lwin_handle);
 	rwin_cv = (strcmp(vifm_args.rwin_path, "-") == 0 && vifm_args.rwin_handle);
@@ -193,13 +193,24 @@ vifm_main(int argc, char *argv[])
 	(void)setlocale(LC_ALL, "");
 	srand(time(NULL));
 
-	cfg_init();
-
 	if(vifm_args.logging)
 	{
 		init_logger(1, vifm_args.startup_log_path);
 	}
 
+	/* Process --remote* parameters even before initializing configuration as it
+	 * indirectly depends on terminal initialization and IPC interaction mustn't
+	 * need a terminal. */
+	struct ipc_t *ipc = ipc_init(vifm_args.server_name, &parse_received_arguments,
+			&eval_received_expression);
+	if(ipc_enabled() && ipc == NULL)
+	{
+		fputs("Failed to initialize IPC unit", stderr);
+		return -1;
+	}
+	args_process(&vifm_args, AS_IPC, ipc);
+
+	cfg_init();
 	init_filelists();
 	tabs_init();
 	regs_init();
@@ -220,6 +231,8 @@ vifm_main(int argc, char *argv[])
 		return -1;
 	}
 
+	curr_stats.ipc = ipc;
+
 	/* Tell file type module what function to use to check availability of
 	 * external programs. */
 	ft_init(&external_command_exists);
@@ -235,21 +248,14 @@ vifm_main(int argc, char *argv[])
 		state_load(0);
 	}
 
-	curr_stats.ipc = ipc_init(vifm_args.server_name, &parse_received_arguments,
-			&eval_received_expression);
-	if(ipc_enabled() && curr_stats.ipc == NULL)
-	{
-		fputs("Failed to initialize IPC unit", stderr);
-		return -1;
-	}
-	/* Export chosen server name to parsing unit. */
+	/* Export chosen IPC server name to parsing unit. */
 	{
 		var_t var = var_from_str(ipc_get_name(curr_stats.ipc));
 		setvar("v:servername", var);
 		var_free(var);
 	}
 
-	args_process(&vifm_args, 0);
+	args_process(&vifm_args, AS_OTHER, curr_stats.ipc);
 
 	bg_init();
 
@@ -352,6 +358,10 @@ vifm_main(int argc, char *argv[])
 
 	curr_stats.load_stage = 3;
 
+	/* Update screen after startup commands while in load state 3 so CHPOS_STARTUP
+	 * has no effect and doesn't reset cursor position after `+"goto path"`. */
+	update_screen(stats_update_fetch());
+
 	event_loop(&quit);
 
 	return 0;
@@ -395,10 +405,12 @@ parse_received_arguments(char *argv[])
 	(void)vifm_chdir(argv[0]);
 	opterr = 0;
 	args_parse(&args, count_strings(argv), argv, argv[0]);
-	args_process(&args, 0);
+	args_process(&args, AS_IPC, curr_stats.ipc);
+	args_process(&args, AS_OTHER, curr_stats.ipc);
 
 	abort_menu_like_mode();
 	exec_startup_commands(&args);
+	update_screen(stats_update_fetch());
 
 	if(NONE(vle_mode_is, NORMAL_MODE, VIEW_MODE))
 	{
@@ -429,7 +441,7 @@ parse_received_arguments(char *argv[])
 
 	args_free(&args);
 
-	/* XXX: why force clearing of the statusbar? */
+	/* XXX: why force clearing of the status bar? */
 	ui_sb_clear();
 	curr_stats.save_msg = 0;
 }
@@ -530,6 +542,7 @@ void
 vifm_reexec_startup_commands(void)
 {
 	exec_startup_commands(&vifm_args);
+	update_screen(stats_update_fetch());
 }
 
 /* Executes list of startup commands. */
@@ -544,8 +557,6 @@ exec_startup_commands(const args_t *args)
 
 		(void)exec_commands(args->cmds[i], curr_view, CIT_COMMAND);
 	}
-
-	update_screen(stats_update_fetch());
 }
 
 void

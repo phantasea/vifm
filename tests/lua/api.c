@@ -1,14 +1,10 @@
 #include <stic.h>
 
-#include <stdio.h> /* puts() */
-
 #include "../../src/cfg/config.h"
-#include "../../src/compat/os.h"
 #include "../../src/lua/vlua.h"
 #include "../../src/ui/statusbar.h"
 #include "../../src/ui/ui.h"
 #include "../../src/utils/str.h"
-#include "../../src/utils/string_array.h"
 #include "../../src/cmd_core.h"
 #include "../../src/status.h"
 
@@ -24,7 +20,7 @@ SETUP()
 	curr_view = &lwin;
 	other_view = &rwin;
 
-	engine_cmds_setup();
+	engine_cmds_setup(/*real_completion=*/0);
 }
 
 TEARDOWN()
@@ -90,232 +86,6 @@ TEST(vifm_makepath)
 	remove_dir(SANDBOX_PATH "/dir1");
 }
 
-/* This test comes before other startjob tests to make it pass faster.  When
- * it's first, there are no other jobs which can slow down receiving errors from
- * the process. */
-TEST(vifmjob_errors)
-{
-	conf_setup();
-	ui_sb_msg("");
-
-	assert_success(vlua_run_string(vlua, "info = { cmd = 'echo err 1>&2' }\n"
-	                                     "job = vifm.startjob(info)\n"
-	                                     "job:wait()\n"
-	                                     "while #job:errors() == 0 do end\n"
-	                                     "print(job:errors())"));
-	assert_true(starts_with_lit(ui_sb_last(), "err"));
-
-	assert_success(vlua_run_string(vlua, "info = { cmd = 'echo out' }\n"
-	                                     "job = vifm.startjob(info)\n"
-	                                     "print(job:errors())"));
-	assert_string_equal("", ui_sb_last());
-
-	conf_teardown();
-}
-
-TEST(vifm_startjob)
-{
-	conf_setup();
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "job = vifm.startjob({ cmd = 'echo' })\n"
-	                                     "print(job:exitcode())"));
-	assert_string_equal("0", ui_sb_last());
-
-	conf_teardown();
-}
-
-TEST(vifmjob_exitcode)
-{
-	conf_setup();
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "info = {\n"
-	                                     "  cmd = 'exit 41',\n"
-	                                     "  visible = true,\n"
-	                                     "  description = 'exit 41'\n"
-	                                     "}\n"
-	                                     "job = vifm.startjob(info)\n"
-	                                     "print(job:exitcode())"));
-	assert_string_equal("41", ui_sb_last());
-
-	conf_teardown();
-}
-
-TEST(vifmjob_stdout)
-{
-	conf_setup();
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "info = { cmd = 'echo out' }\n"
-	                                     "job = vifm.startjob(info)\n"
-	                                     "if job:stdout() ~= job:stdout() then\n"
-	                                     "  print('Result should be the same')\n"
-	                                     "else\n"
-	                                     "  print(job:stdout():read('a'))\n"
-	                                     "end"));
-	assert_true(starts_with_lit(ui_sb_last(), "out"));
-
-	conf_teardown();
-}
-
-TEST(vifmjob_stderr)
-{
-	conf_setup();
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "info = { cmd = 'echo err 1>&2' }\n"
-	                                     "job = vifm.startjob(info)\n"
-	                                     "print(job:stdout():read('a'))"));
-	assert_string_equal("", ui_sb_last());
-	assert_success(vlua_run_string(vlua, "info = { cmd = 'echo err 1>&2',"
-	                                     "         mergestreams = true }\n"
-	                                     "job = vifm.startjob(info)\n"
-	                                     "print(job:stdout():read('a'))"));
-	assert_true(starts_with_lit(ui_sb_last(), "err"));
-
-	conf_teardown();
-}
-
-TEST(cmds_add)
-{
-	init_commands();
-
-	ui_sb_msg("");
-
-	assert_success(vlua_run_string(vlua, "function handler()\n"
-	                                     "  print 'msg'\n"
-	                                     "end"));
-	assert_string_equal("", ui_sb_last());
-
-	assert_success(vlua_run_string(vlua, "function badhandler()\n"
-	                                     "  adsf()\n"
-	                                     "end"));
-	assert_string_equal("", ui_sb_last());
-
-	assert_failure(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  name = 'cmd'"
-	                                     "}"));
-	assert_true(ends_with(ui_sb_last(), "`handler` key is mandatory"));
-
-	assert_failure(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  handler = handler"
-	                                     "}"));
-	assert_true(ends_with(ui_sb_last(), "`name` key is mandatory"));
-
-	assert_failure(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  name = 'cmd',"
-	                                     "  handler = 10"
-	                                     "}"));
-	assert_true(ends_with(ui_sb_last(), "`handler` value must be a function"));
-
-	assert_failure(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  name = 'cmd',"
-	                                     "  handler = handler,"
-	                                     "  minargs = 'min'"
-	                                     "}"));
-	assert_true(ends_with(ui_sb_last(), "`minargs` value must be a number"));
-
-	assert_failure(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  name = 'cmd',"
-	                                     "  handler = handler,"
-	                                     "  maxargs = 'max'"
-	                                     "}"));
-	assert_true(ends_with(ui_sb_last(), "`maxargs` value must be a number"));
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  name = 'cmd',"
-	                                     "  description = 'description',"
-	                                     "  handler = handler,"
-	                                     "  minargs = 1,"
-	                                     "}"));
-	assert_string_equal("", ui_sb_last());
-
-	ui_sb_msg("");
-	assert_failure(exec_command("cmd arg", curr_view, CIT_COMMAND));
-	assert_string_equal("msg", ui_sb_last());
-	assert_int_equal(1, curr_stats.save_msg);
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  name = 'bcmd',"
-	                                     "  handler = badhandler,"
-	                                     "  minargs = 0,"
-	                                     "}"));
-	assert_string_equal("", ui_sb_last());
-
-	ui_sb_msg("");
-	assert_failure(exec_command("bcmd", curr_view, CIT_COMMAND));
-	assert_true(ends_with(ui_sb_last(), "to call a nil value (global 'adsf')"));
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "vifm.cmds.add {"
-	                                     "  name = 'cmdinf',"
-	                                     "  handler = handler,"
-	                                     "  minargs = 1,"
-	                                     "  maxargs = -1"
-	                                     "}"));
-	assert_string_equal("", ui_sb_last());
-
-	ui_sb_msg("");
-	assert_failure(exec_command("cmdinf arg1 arg2", curr_view, CIT_COMMAND));
-	assert_string_equal("msg", ui_sb_last());
-	assert_int_equal(1, curr_stats.save_msg);
-}
-
-TEST(cmds_command)
-{
-	ui_sb_msg("");
-	assert_failure(vlua_run_string(vlua, "vifm.cmds.command {"
-	                                     "  name = 'name',"
-	                                     "  action = ''"
-	                                     "}"));
-	assert_true(ends_with(ui_sb_last(), "Action can't be empty"));
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "r = vifm.cmds.command({"
-	                                     "  name = 'name',"
-	                                     "  action = 'action',"
-	                                     "  description = 'descr'"
-	                                     "})\n"
-	                                     "if not r then print 'fail' end"));
-	assert_string_equal("", ui_sb_last());
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "r = vifm.cmds.command {"
-	                                     "  name = 'name',"
-	                                     "  action = 'action'"
-	                                     "}\n"
-	                                     "if not r then print 'fail' end"));
-	assert_string_equal("fail", ui_sb_last());
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "r = vifm.cmds.command {"
-	                                     "  name = 'name',"
-	                                     "  action = 'action',"
-	                                     "  overwrite = true"
-	                                     "}\n"
-	                                     "if not r then print 'fail' end"));
-	assert_string_equal("", ui_sb_last());
-}
-
-TEST(cmds_delcommand)
-{
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "r = vifm.cmds.command {"
-	                                     "  name = 'name',"
-	                                     "  action = 'action'"
-	                                     "}\n"
-	                                     "if not r then print 'fail' end"));
-	assert_string_equal("", ui_sb_last());
-
-	ui_sb_msg("");
-	assert_success(vlua_run_string(vlua, "r = vifm.cmds.delcommand('name')\n"
-	                                     "if not r then print 'fail' end"));
-	assert_string_equal("", ui_sb_last());
-}
-
 TEST(vifm_expand)
 {
 	copy_str(curr_view->curr_dir, sizeof(curr_view->curr_dir), "/tst");
@@ -325,7 +95,7 @@ TEST(vifm_expand)
 	assert_string_equal("/tst", ui_sb_last());
 }
 
-TEST(vifm_change_dir)
+TEST(vifmview_cd)
 {
 	stub_colmgr();
 	conf_setup();
@@ -337,7 +107,7 @@ TEST(vifm_change_dir)
 
 	ui_sb_msg("");
 	assert_success(vlua_run_string(vlua,
-				"print(vifm.cd(testdata) and 'y' or 'n')"));
+				"print(vifm.currview():cd(testdata) and 'y' or 'n')"));
 	assert_string_equal("y", ui_sb_last());
 
 	view_teardown(curr_view);
@@ -375,6 +145,74 @@ TEST(sb_quick_message_is_not_stored)
 
 	assert_string_equal("", ui_sb_last());
 	assert_int_equal(0, curr_stats.save_msg);
+}
+
+TEST(vifm_currview)
+{
+	init_commands();
+
+	conf_setup();
+	cfg.pane_tabs = 0;
+	view_setup(curr_view);
+	view_setup(other_view);
+	opt_handlers_setup();
+	columns_setup_column(SK_BY_NAME);
+	columns_setup_column(SK_BY_SIZE);
+
+	assert_success(vlua_run_string(vlua, "l = vifm.currview()"));
+	swap_view_roles();
+	assert_success(vlua_run_string(vlua, "r = vifm.currview()"));
+
+	/* Both non-nil and aren't equal. */
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua, "print(l and 'y' or 'n')"));
+	assert_string_equal("y", ui_sb_last());
+	assert_success(vlua_run_string(vlua, "print(r and 'y' or 'n')"));
+	assert_string_equal("y", ui_sb_last());
+	assert_success(vlua_run_string(vlua, "print(r ~= l and 'y' or 'n')"));
+	assert_string_equal("y", ui_sb_last());
+
+	/* Can access visible views. */
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua, "r:cd('/')"));
+	assert_string_equal("", ui_sb_last());
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua, "l:cd('/')"));
+	assert_string_equal("", ui_sb_last());
+
+	/* Can't access view that can't be found. */
+	++curr_view->id;
+	ui_sb_msg("");
+	assert_failure(vlua_run_string(vlua, "r:cd('bla')"));
+	assert_true(ends_with(ui_sb_last(),
+				"Invalid VifmView object (associated view is dead)"));
+
+	assert_success(exec_command("tabnew", curr_view, CIT_COMMAND));
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua, "l:cd('/')"));
+	assert_string_equal("", ui_sb_last());
+
+	assert_success(exec_command("tabonly", curr_view, CIT_COMMAND));
+
+	columns_teardown();
+	opt_handlers_teardown();
+	view_teardown(curr_view);
+	view_teardown(other_view);
+	conf_teardown();
+}
+
+TEST(vifm_version)
+{
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.has('feature'))"));
+	assert_string_equal("false", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.atleast(0, 0, 0))"));
+	assert_string_equal("true", ui_sb_last());
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

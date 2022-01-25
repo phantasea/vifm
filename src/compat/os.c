@@ -154,6 +154,15 @@ os_rename(const char oldpath[], const char newpath[])
 }
 
 int
+os_rmdir(const char path[])
+{
+	wchar_t *const utf16_path = utf8_to_utf16(path);
+	const int result = _wrmdir(utf16_path);
+	free(utf16_path);
+	return result;
+}
+
+int
 os_mkdir(const char pathname[], int mode)
 {
 	wchar_t *const utf16_pathname = utf8_to_utf16(pathname);
@@ -334,6 +343,25 @@ os_getcwd(char buf[], size_t size)
 
 	system_to_internal_slashes(buf);
 	return buf;
+}
+
+#else
+
+#include <fcntl.h> /* F_FULLFSYNC */
+#include <unistd.h> /* fcntl() fdatasync() */
+
+int
+os_fdatasync(int fd)
+{
+#ifdef F_FULLFSYNC
+	/* OS X system might not have fdatasync(). */
+	return fcntl(fd, F_FULLFSYNC);
+#elif defined(HAVE_FDATASYNC)
+	return fdatasync(fd);
+#else
+	/* At least Haiku lacks fdatasync(). */
+	return fsync(fd);
+#endif
 }
 
 #endif

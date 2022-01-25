@@ -103,6 +103,31 @@ TEST(multiple_plugins_loaded)
 	remove_dir(SANDBOX_PATH "/plugins/plug2");
 }
 
+TEST(can_load_plugins_only_once)
+{
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua", "return {}");
+	assert_false(plugs_loaded(plugs));
+
+	ui_sb_msg("");
+	plugs_load(plugs, cfg.config_dir);
+	assert_string_equal("", ui_sb_last());
+
+	assert_true(plugs_loaded(plugs));
+
+	const plug_t *plug;
+	assert_true(plugs_get(plugs, 0, &plug));
+	assert_false(plugs_get(plugs, 1, &plug));
+
+	plugs_load(plugs, cfg.config_dir);
+	assert_string_equal("", ui_sb_last());
+	assert_true(plugs_loaded(plugs));
+
+	assert_true(plugs_get(plugs, 0, &plug));
+	assert_false(plugs_get(plugs, 1, &plug));
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+}
+
 TEST(loading_missing_plugin_fails)
 {
 	assert_failure(vlua_load_plugin(vlua, "plug", &plug_dummy));
@@ -131,6 +156,109 @@ TEST(plugin_statuses_are_correct)
 	remove_dir(SANDBOX_PATH "/plugins/plug2");
 }
 
+TEST(plugins_can_be_blacklisted)
+{
+	create_dir(SANDBOX_PATH "/plugins/plug2");
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua", "return {}");
+	make_file(SANDBOX_PATH "/plugins/plug2/init.lua", "return {}");
+
+	plugs_blacklist(plugs, "plug2");
+
+	ui_sb_msg("");
+	plugs_load(plugs, cfg.config_dir);
+	assert_string_equal("", ui_sb_last());
+
+	assert_success(vlua_run_string(vlua,
+	      "print((vifm.plugins.all.plug and '1y' or '1n').."
+	      "      (vifm.plugins.all.plug2 and '2y' or '2n'))"));
+	assert_string_equal("1y2n", ui_sb_last());
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+	remove_file(SANDBOX_PATH "/plugins/plug2/init.lua");
+	remove_dir(SANDBOX_PATH "/plugins/plug2");
+}
+
+TEST(plugins_can_be_whitelisted)
+{
+	create_dir(SANDBOX_PATH "/plugins/plug2");
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua", "return {}");
+	make_file(SANDBOX_PATH "/plugins/plug2/init.lua", "return {}");
+
+	plugs_whitelist(plugs, "plug2");
+	plugs_blacklist(plugs, "plug2");
+
+	ui_sb_msg("");
+	plugs_load(plugs, cfg.config_dir);
+	assert_string_equal("", ui_sb_last());
+
+	assert_success(vlua_run_string(vlua,
+	      "print((vifm.plugins.all.plug and '1y' or '1n').."
+	      "      (vifm.plugins.all.plug2 and '2y' or '2n'))"));
+	assert_string_equal("1n2y", ui_sb_last());
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+	remove_file(SANDBOX_PATH "/plugins/plug2/init.lua");
+	remove_dir(SANDBOX_PATH "/plugins/plug2");
+}
+
+TEST(plugin_metadata)
+{
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua",
+			"return { name = vifm.plugin.name }");
+
+	ui_sb_msg("");
+	plugs_load(plugs, cfg.config_dir);
+	assert_success(vlua_run_string(vlua, "print(vifm.plugins.all.plug.name)"));
+	assert_string_equal("plug", ui_sb_last());
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+}
+
+TEST(good_plugin_module)
+{
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua",
+			"return vifm.plugin.require('sub')");
+	make_file(SANDBOX_PATH "/plugins/plug/sub.lua",
+			"return { source = 'sub' }");
+
+	ui_sb_msg("");
+	plugs_load(plugs, cfg.config_dir);
+	assert_success(vlua_run_string(vlua, "print(vifm.plugins.all.plug.source)"));
+	assert_string_equal("sub", ui_sb_last());
+
+	remove_file(SANDBOX_PATH "/plugins/plug/sub.lua");
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+}
+
+TEST(missing_plugin_module)
+{
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua",
+			"return vifm.plugin.require('sub')");
+
+	ui_sb_msg("");
+	plugs_load(plugs, cfg.config_dir);
+	assert_success(vlua_run_string(vlua, "print(vifm.plugins.all.plug)"));
+	assert_string_equal("nil", ui_sb_last());
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+}
+
+TEST(plugins_can_add_handler)
+{
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua",
+			"local function handler() end\n"
+			"vifm.addhandler({ name='handler', handler=handler })\n"
+			"return {}");
+
+	ui_sb_msg("");
+	plugs_load(plugs, cfg.config_dir);
+	assert_string_equal("", ui_sb_last());
+
+	assert_true(vlua_handler_present(vlua, "#plug#handler"));
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+}
+
 TEST(can_not_load_same_plugin_twice, IF(not_windows))
 {
 	make_file(SANDBOX_PATH "/plugins/plug/init.lua", "return {}");
@@ -154,6 +282,31 @@ TEST(can_not_load_same_plugin_twice, IF(not_windows))
 
 	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
 	remove_file(SANDBOX_PATH "/plugins/plug2");
+}
+
+TEST(print_outputs_to_plugin_log)
+{
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua",
+			"print('arg1', 'arg2'); return {}");
+
+	ui_sb_msg("");
+	assert_success(vlua_load_plugin(vlua, "plug", &plug_dummy));
+	assert_string_equal("", ui_sb_last());
+	assert_string_equal("arg1\targ2", plug_dummy.log);
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
+}
+
+TEST(print_without_arguments)
+{
+	make_file(SANDBOX_PATH "/plugins/plug/init.lua",
+			"print('first line'); print(); print('third line'); return {}");
+
+	update_string(&plug_dummy.log, NULL);
+	assert_success(vlua_load_plugin(vlua, "plug", &plug_dummy));
+	assert_string_equal("first line\n\nthird line", plug_dummy.log);
+
+	remove_file(SANDBOX_PATH "/plugins/plug/init.lua");
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

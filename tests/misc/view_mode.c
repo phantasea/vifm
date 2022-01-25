@@ -17,7 +17,8 @@
 #include "../../src/running.h"
 #include "../../src/status.h"
 
-static void start_view_mode(const char pattern[], const char tests_dir[]);
+static int start_view_mode(const char pattern[], const char viewers[],
+		const char base_dir[], const char sub_path[]);
 
 SETUP_ONCE()
 {
@@ -27,6 +28,8 @@ SETUP_ONCE()
 SETUP()
 {
 	view_setup(&lwin);
+	lwin.window_rows = 1;
+
 	curr_view = &lwin;
 	other_view = &rwin;
 
@@ -50,9 +53,24 @@ TEARDOWN()
 	ft_reset(0);
 }
 
+TEST(initialization, IF(not_windows))
+{
+	/* With empty output. */
+	assert_true(start_view_mode("*", "true", TEST_DATA_PATH, "read"));
+	assert_string_equal("true", modview_current_viewer(lwin.vi));
+
+	(void)vle_keys_exec_timed_out(WK_q);
+	ft_reset(0);
+
+	/* With non-empty output. */
+	assert_true(start_view_mode("*", "echo 1", TEST_DATA_PATH, "read"));
+	assert_string_equal("echo 1", modview_current_viewer(lwin.vi));
+}
+
 TEST(toggling_raw_mode)
 {
-	start_view_mode("*", "read");
+	assert_true(start_view_mode("*", "echo 1, echo 2, echo 3", TEST_DATA_PATH,
+				"read"));
 
 	assert_false(modview_is_raw(lwin.vi));
 	(void)vle_keys_exec_timed_out(WK_i);
@@ -63,7 +81,8 @@ TEST(toggling_raw_mode)
 
 TEST(switching_between_viewers)
 {
-	start_view_mode("*", "read");
+	assert_true(start_view_mode("*", "echo 1, echo 2, echo 3", TEST_DATA_PATH,
+				"read"));
 
 	assert_string_equal("echo 1", modview_current_viewer(lwin.vi));
 	(void)vle_keys_exec_timed_out(WK_a);
@@ -85,7 +104,8 @@ TEST(switching_between_viewers)
 
 TEST(directories_are_matched_separately)
 {
-	start_view_mode("*[^/]", "");
+	assert_true(start_view_mode("*[^/]", "echo 1, echo 2, echo 3", TEST_DATA_PATH,
+				""));
 
 	assert_string_equal(NULL, modview_current_viewer(lwin.vi));
 }
@@ -98,7 +118,7 @@ TEST(command_for_quickview_is_not_expanded_again)
 	update_string(&curr_view->dir_entry[0].name, "fake");
 
 	int save_msg;
-	assert_true(rn_ext("echo %d%c", "title", MF_PREVIEW_OUTPUT, 0,
+	assert_true(rn_ext(curr_view, "echo %d%c", "title", MF_PREVIEW_OUTPUT, 0,
 		&save_msg) < 0);
 
 	strlist_t lines = modview_lines(curr_stats.preview.explore);
@@ -106,21 +126,137 @@ TEST(command_for_quickview_is_not_expanded_again)
 	assert_string_equal("%d%c", lines.items[0]);
 
 	opt_handlers_teardown();
+
+	curr_stats.preview.on = 0;
 }
 
-static void
-start_view_mode(const char pattern[], const char tests_dir[])
+TEST(quickview_command_with_input_redirection, IF(have_cat))
 {
-	char *error;
-	matchers_t *ms = matchers_alloc(pattern, 0, 1, "", &error);
-	assert_non_null(ms);
-	ft_set_viewers(ms, "echo 1, echo 2, echo 3");
+	curr_stats.number_of_windows = 2;
+	opt_handlers_setup();
+	setup_grid(curr_view, 1, 1, 1);
+	update_string(&curr_view->dir_entry[0].name, "fake");
+	curr_view->dir_entry[0].marked = 1;
+	curr_view->pending_marking = 1;
 
-	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, tests_dir,
-			NULL);
+	int save_msg;
+	assert_true(rn_ext(curr_view, "cat", "title",
+				MF_PREVIEW_OUTPUT | MF_PIPE_FILE_LIST, 0, &save_msg) < 0);
+
+	strlist_t lines = modview_lines(curr_stats.preview.explore);
+	assert_int_equal(1, lines.nitems);
+	assert_string_equal("/path/fake", lines.items[0]);
+
+	opt_handlers_teardown();
+
+	curr_stats.preview.on = 0;
+}
+
+TEST(scrolling_in_view_mode)
+{
+	make_file(SANDBOX_PATH "/file", "1\n2\n3\nlast");
+	assert_true(start_view_mode("*", NULL, SANDBOX_PATH, ""));
+
+	strlist_t lines = modview_lines(lwin.vi);
+	assert_int_equal(4, lines.nitems);
+	assert_string_equal("1", lines.items[0]);
+	assert_string_equal("2", lines.items[1]);
+	assert_string_equal("3", lines.items[2]);
+	assert_string_equal("last", lines.items[3]);
+
+	(void)vle_keys_exec_timed_out(WK_j);
+	assert_int_equal(1, modview_current_line(lwin.vi));
+	(void)vle_keys_exec_timed_out(L"10" WK_j);
+	assert_int_equal(3, modview_current_line(lwin.vi));
+	(void)vle_keys_exec_timed_out(L"1" WK_k);
+	assert_int_equal(2, modview_current_line(lwin.vi));
+
+	(void)vle_keys_exec_timed_out(WK_g);
+	assert_int_equal(0, modview_current_line(lwin.vi));
+	(void)vle_keys_exec_timed_out(WK_G);
+	assert_int_equal(3, modview_current_line(lwin.vi));
+	(void)vle_keys_exec_timed_out(L"2" WK_G);
+	assert_int_equal(1, modview_current_line(lwin.vi));
+
+	(void)vle_keys_exec_timed_out(WK_f);
+	assert_int_equal(2, modview_current_line(lwin.vi));
+	(void)vle_keys_exec_timed_out(WK_b);
+	assert_int_equal(1, modview_current_line(lwin.vi));
+
+	(void)vle_keys_exec_timed_out(WK_d);
+	assert_int_equal(2, modview_current_line(lwin.vi));
+	(void)vle_keys_exec_timed_out(WK_u);
+	assert_int_equal(1, modview_current_line(lwin.vi));
+
+	remove_file(SANDBOX_PATH "/file");
+}
+
+TEST(searching_in_view_mode)
+{
+	curr_stats.save_msg = 0;
+
+	make_file(SANDBOX_PATH "/file", "1\n2\n3\nlast");
+	assert_true(start_view_mode("*", NULL, SANDBOX_PATH, ""));
+
+	(void)vle_keys_exec_timed_out(L"/[0-9]");
+	(void)vle_keys_exec_timed_out(WK_CR);
+	assert_int_equal(1, modview_current_line(lwin.vi));
+	assert_int_equal(0, curr_stats.save_msg);
+
+	(void)vle_keys_exec_timed_out(WK_n);
+	assert_int_equal(2, modview_current_line(lwin.vi));
+	assert_int_equal(0, curr_stats.save_msg);
+	(void)vle_keys_exec_timed_out(WK_n);
+	assert_int_equal(2, modview_current_line(lwin.vi));
+	assert_int_equal(1, curr_stats.save_msg);
+
+	curr_stats.save_msg = 0;
+
+	(void)vle_keys_exec_timed_out(WK_N);
+	assert_int_equal(1, modview_current_line(lwin.vi));
+	assert_int_equal(0, curr_stats.save_msg);
+	(void)vle_keys_exec_timed_out(WK_N);
+	assert_int_equal(0, modview_current_line(lwin.vi));
+	assert_int_equal(0, curr_stats.save_msg);
+	(void)vle_keys_exec_timed_out(WK_N);
+	assert_int_equal(0, modview_current_line(lwin.vi));
+	assert_int_equal(1, curr_stats.save_msg);
+
+	remove_file(SANDBOX_PATH "/file");
+}
+
+TEST(operations_with_empty_output)
+{
+	assert_true(start_view_mode("*", "true", TEST_DATA_PATH, "read"));
+
+	/* They just shouldn't crash. */
+	(void)vle_keys_exec_timed_out(WK_g);
+	(void)vle_keys_exec_timed_out(WK_PERCENT);
+	(void)vle_keys_exec_timed_out(L"?[0-9]");
+	(void)vle_keys_exec_timed_out(WK_CR);
+	(void)vle_keys_exec_timed_out(WK_n);
+	(void)vle_keys_exec_timed_out(WK_N);
+
+	modview_ruler_update();
+}
+
+static int
+start_view_mode(const char pattern[], const char viewers[],
+		const char base_dir[], const char sub_path[])
+{
+	if(viewers != NULL)
+	{
+		char *error;
+		matchers_t *ms = matchers_alloc(pattern, 0, 1, "", &error);
+		assert_non_null(ms);
+		ft_set_viewers(ms, viewers);
+	}
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), base_dir, sub_path, NULL);
 	populate_dir_list(&lwin, 0);
 	(void)vle_keys_exec_timed_out(WK_e);
-	assert_true(vle_mode_is(VIEW_MODE));
+
+	return vle_mode_is(VIEW_MODE);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

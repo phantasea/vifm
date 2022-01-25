@@ -3,6 +3,7 @@
 #include <sys/time.h> /* timeval utimes() */
 #include <unistd.h> /* chdir() rmdir() symlink() */
 
+#include <limits.h> /* INT_MAX */
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* free() remove() */
 #include <string.h> /* strdup() */
@@ -15,6 +16,7 @@
 #include "../../src/engine/functions.h"
 #include "../../src/engine/parsing.h"
 #include "../../src/engine/variables.h"
+#include "../../src/lua/vlua.h"
 #include "../../src/utils/env.h"
 #include "../../src/utils/fs.h"
 #include "../../src/utils/str.h"
@@ -219,7 +221,7 @@ TEST(getpanetype_for_very_custom_view)
 
 TEST(getpanetype_for_tree_view)
 {
-	flist_load_tree(&lwin, TEST_DATA_PATH);
+	flist_load_tree(&lwin, TEST_DATA_PATH, INT_MAX);
 
 	curr_view = &lwin;
 	ASSERT_OK("getpanetype()", "tree");
@@ -247,8 +249,9 @@ TEST(chooseopt_options_are_not_set)
 	assert_success(stats_init(&cfg));
 
 	args_parse(&args, ARRAY_LEN(argv) - 1U, argv, "/");
-	args_process(&args, 0);
-	args_process(&args, 1);
+	args_process(&args, AS_GENERAL, /*ipc=*/NULL);
+	args_process(&args, AS_IPC, /*ipc=*/NULL);
+	args_process(&args, AS_OTHER, /*ipc=*/NULL);
 
 	ASSERT_OK("chooseopt('files')", "");
 	ASSERT_OK("chooseopt('dir')", "");
@@ -273,8 +276,9 @@ TEST(chooseopt_options_are_set)
 	assert_success(stats_init(&cfg));
 
 	args_parse(&args, ARRAY_LEN(argv) - 1U, argv, "/");
-	args_process(&args, 0);
-	args_process(&args, 1);
+	args_process(&args, AS_GENERAL, /*ipc=*/NULL);
+	args_process(&args, AS_IPC, /*ipc=*/NULL);
+	args_process(&args, AS_OTHER, /*ipc=*/NULL);
 
 	ASSERT_OK("chooseopt('files')", "/files-file");
 	ASSERT_OK("chooseopt('dir')", "/dir-file");
@@ -372,6 +376,22 @@ TEST(has)
 	ASSERT_OK("has('anythingelse')", "0");
 	ASSERT_OK("has('nix')", "0");
 	ASSERT_OK("has('windows')", "0");
+}
+
+TEST(has_handler)
+{
+	curr_stats.vlua = vlua_init();
+
+	assert_success(vlua_run_string(curr_stats.vlua,
+				"function handler(info) end"));
+	assert_success(vlua_run_string(curr_stats.vlua,
+				"vifm.addhandler{ name = 'handler', handler = handler }"));
+
+	ASSERT_OK("has('#vifmtest#nohandler')", "0");
+	ASSERT_OK("has('#vifmtest#handler')", "1");
+
+	vlua_finish(curr_stats.vlua);
+	curr_stats.vlua = NULL;
 }
 
 TEST(extcached)

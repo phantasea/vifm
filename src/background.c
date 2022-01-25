@@ -30,7 +30,7 @@
 #include <sys/wait.h> /* waitpid() */
 #endif
 #include <signal.h> /* SIG* kill() */
-#include <unistd.h> /* execve() fork() setpgid() setsid() */
+#include <unistd.h> /* execve() fork() setsid() */
 
 #include <assert.h> /* assert() */
 #include <errno.h> /* errno */
@@ -121,10 +121,12 @@ static void free_drained_jobs(bg_job_t **jobs);
 static void import_error_jobs(bg_job_t **jobs);
 static void make_ready_list(const bg_job_t *jobs, selector_t *selector);
 #ifndef _WIN32
+static void rip_children(void);
+static void rip_child(pid_t pid, int status);
 static void report_error_msg(const char title[], const char text[]);
 #endif
-static bg_job_t * launch_external(const char cmd[], int capture_output,
-		int new_session, BgJobFlags flags, ShellRequester by);
+static bg_job_t * launch_external(const char cmd[], BgJobFlags flags,
+		ShellRequester by);
 static void append_error_msg(bg_job_t *job, const char err_msg[]);
 static void place_on_job_bar(bg_job_t *job);
 static void get_off_job_bar(bg_job_t *job);
@@ -164,11 +166,13 @@ bg_init(void)
 void
 bg_check(void)
 {
-	bg_job_t *head = bg_jobs;
+#ifndef _WIN32
+	rip_children();
+#endif
 
 	/* Quit if there is no jobs or list is unavailable (e.g. used by another
 	 * invocation of this function). */
-	if(head == NULL)
+	if(bg_jobs == NULL)
 	{
 		set_jobcount_var(0);
 		return;
@@ -176,7 +180,7 @@ bg_check(void)
 
 	int active_jobs = 0;
 
-	head = bg_jobs;
+	bg_job_t *head = bg_jobs;
 	bg_jobs = NULL;
 
 	bg_job_t *p = head;
@@ -303,6 +307,10 @@ job_free(bg_job_t *job)
 		CloseHandle(job->hjob);
 	}
 #endif
+	if(job->input != NULL)
+	{
+		fclose(job->input);
+	}
 	if(job->output != NULL)
 	{
 		fclose(job->output);
@@ -552,6 +560,39 @@ make_ready_list(const bg_job_t *jobs, selector_t *selector)
 }
 
 #ifndef _WIN32
+
+/* Rips children updating status of jobs in the process. */
+static void
+rip_children(void)
+{
+	int status;
+	pid_t pid;
+
+	/* This needs to be a loop in case of multiple blocked signals. */
+	while((pid = waitpid(-1, &status, WNOHANG)) > 0)
+	{
+		if(WIFEXITED(status) || WIFSIGNALED(status))
+		{
+			rip_child(pid, status);
+		}
+	}
+}
+
+/* Looks up a child in job list and rips it if found. */
+static void
+rip_child(pid_t pid, int status)
+{
+	bg_job_t *job;
+	for(job = bg_jobs; job != NULL; job = job->next)
+	{
+		if(job->pid == pid)
+		{
+			mark_job_finished(job, status_to_exit_code(status));
+			break;
+		}
+	}
+}
+
 /* Either displays error message to the user for foreground operations or saves
  * it for displaying on the next invocation of bg_check(). */
 static void
@@ -569,6 +610,7 @@ report_error_msg(const char title[], const char text[])
 		append_error_msg(job, text);
 	}
 }
+
 #endif
 
 /* Appends message to error-related fields of the job. */
@@ -586,7 +628,7 @@ append_error_msg(bg_job_t *job, const char err_msg[])
 
 #ifndef _WIN32
 pid_t
-bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err)
+bg_run_and_capture(char cmd[], int user_sh, FILE *in, FILE **out, FILE **err)
 {
 	pid_t pid;
 	int out_pipe[2];
@@ -604,6 +646,11 @@ bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err)
 		close(out_pipe[0]);
 		close(out_pipe[1]);
 		return (pid_t)-1;
+	}
+
+	if(in != NULL)
+	{
+		fflush(in);
 	}
 
 	if((pid = fork()) == -1)
@@ -631,6 +678,18 @@ bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err)
 			_Exit(EXIT_FAILURE);
 		}
 
+		if(in != NULL)
+		{
+			rewind(in);
+
+			if(dup2(fileno(in), STDIN_FILENO) == -1)
+			{
+				_Exit(EXIT_FAILURE);
+			}
+
+			fclose(in);
+		}
+
 		sh = user_sh ? get_execv_path(cfg.shell) : "/bin/sh";
 		sh_flag = user_sh ? cfg.shell_cmd_flag : "-c";
 		prepare_for_exec();
@@ -647,10 +706,12 @@ bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err)
 }
 #else
 /* Runs command in a background and redirects its stdout and stderr streams to
- * file streams which are set.  Returns (pid_t)0 or (pid_t)-1 on error. */
+ * file streams which are set.  Input is redirected only if in parameter isn't
+ * NULL.  Don't pass pipe for input, it can cause deadlock.  Returns (pid_t)0 or
+ * (pid_t)-1 on error. */
 static pid_t
-background_and_capture_internal(char cmd[], int user_sh, FILE **out, FILE **err,
-		int out_pipe[2], int err_pipe[2])
+background_and_capture_internal(char cmd[], int user_sh, FILE *in, FILE **out,
+		FILE **err, int out_pipe[2], int err_pipe[2])
 {
 	const wchar_t *args[4];
 	char *cwd;
@@ -659,6 +720,15 @@ background_and_capture_internal(char cmd[], int user_sh, FILE **out, FILE **err,
 	wchar_t *wide_sh = NULL;
 	wchar_t *wide_sh_flag;
 	const int use_cmd = (!user_sh || curr_stats.shell_type == ST_CMD);
+
+	if(in != NULL)
+	{
+		fflush(in);
+		rewind(in);
+
+		if(_dup2(_fileno(in), _fileno(stdin)) != 0)
+			return (pid_t)-1;
+	}
 
 	if(_dup2(out_pipe[1], _fileno(stdout)) != 0)
 		return (pid_t)-1;
@@ -723,8 +793,9 @@ background_and_capture_internal(char cmd[], int user_sh, FILE **out, FILE **err,
 }
 
 pid_t
-bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err)
+bg_run_and_capture(char cmd[], int user_sh, FILE *in, FILE **out, FILE **err)
 {
+	int in_fd;
 	int out_fd, out_pipe[2];
 	int err_fd, err_pipe[2];
 	pid_t pid;
@@ -743,15 +814,17 @@ bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err)
 		return (pid_t)-1;
 	}
 
+	in_fd = dup(_fileno(stdin));
 	out_fd = dup(_fileno(stdout));
 	err_fd = dup(_fileno(stderr));
 
-	pid = background_and_capture_internal(cmd, user_sh, out, err, out_pipe,
+	pid = background_and_capture_internal(cmd, user_sh, in, out, err, out_pipe,
 			err_pipe);
 
 	_close(out_pipe[1]);
 	_close(err_pipe[1]);
 
+	_dup2(in_fd, _fileno(stdin));
 	_dup2(out_fd, _fileno(stdout));
 	_dup2(err_fd, _fileno(stderr));
 
@@ -766,7 +839,8 @@ bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err)
 #endif
 
 int
-bg_run_external(const char cmd[], int skip_errors, ShellRequester by)
+bg_run_external(const char cmd[], int skip_errors, ShellRequester by,
+		FILE **input)
 {
 	char *command = (cfg.fast_run ? fast_run_complete(cmd) : strdup(cmd));
 	if(command == NULL)
@@ -774,11 +848,22 @@ bg_run_external(const char cmd[], int skip_errors, ShellRequester by)
 		return 1;
 	}
 
-	bg_job_t *job = launch_external(command, 0, 0, BJF_NONE, by);
+	const BgJobFlags flags = (input == NULL ? BJF_NONE : BJF_SUPPLY_INPUT);
+	bg_job_t *job = launch_external(command, flags, by);
 	free(command);
 	if(job == NULL)
 	{
+		if(input != NULL)
+		{
+			*input = NULL;
+		}
 		return 1;
+	}
+
+	if(input != NULL)
+	{
+		*input = job->input;
+		job->input = NULL;
 	}
 
 	/* It's safe to do this here because bg_check() is executed on the same
@@ -790,7 +875,7 @@ bg_run_external(const char cmd[], int skip_errors, ShellRequester by)
 bg_job_t *
 bg_run_external_job(const char cmd[], BgJobFlags flags)
 {
-	bg_job_t *job = launch_external(cmd, 1, 1, flags, SHELL_BY_APP);
+	bg_job_t *job = launch_external(cmd, flags, SHELL_BY_APP);
 	if(job == NULL)
 	{
 		return NULL;
@@ -813,31 +898,48 @@ bg_run_external_job(const char cmd[], BgJobFlags flags)
 
 /* Starts a new external command job.  Returns the new job or NULL on error. */
 static bg_job_t *
-launch_external(const char cmd[], int capture_output, int new_session,
-		BgJobFlags flags, ShellRequester by)
+launch_external(const char cmd[], BgJobFlags flags, ShellRequester by)
 {
 	/* TODO: simplify this function (launch_external()) somehow, maybe split in
 	 *       two. */
-	int jb_visible = (flags & BJF_JOB_BAR_VISIBLE);
-	int merge_streams = (capture_output && (flags & BJF_MERGE_STREAMS));
+	const int jb_visible = (flags & BJF_JOB_BAR_VISIBLE);
+	const int supply_input = (flags & BJF_SUPPLY_INPUT);
+	const int capture_output = (flags & BJF_CAPTURE_OUT);
+	const int merge_streams = (capture_output && (flags & BJF_MERGE_STREAMS));
 
 #ifndef _WIN32
+	const int keep_session = (flags & BJF_KEEP_SESSION);
+
 	pid_t pid;
+	int input_pipe[2];
 	int output_pipe[2];
 
 	/* For the sake of simplicity just use -1, calling close(-1) won't hurt. */
 	int error_pipe[2] = { -1, -1 };
 	if(!merge_streams && pipe(error_pipe) != 0)
 	{
-		show_error_msg("File pipe error", "Error creating pipe");
+		show_error_msg("File pipe error", "Error creating error pipe");
 		return NULL;
+	}
+
+	if(supply_input)
+	{
+		if(pipe(input_pipe) != 0)
+		{
+			show_error_msg("File pipe error", "Error creating input pipe");
+			close(error_pipe[0]);
+			close(error_pipe[1]);
+			return NULL;
+		}
 	}
 
 	if(capture_output)
 	{
 		if(pipe(output_pipe) != 0)
 		{
-			show_error_msg("File pipe error", "Error creating pipe");
+			show_error_msg("File pipe error", "Error creating output pipe");
+			close(input_pipe[0]);
+			close(input_pipe[1]);
 			close(error_pipe[0]);
 			close(error_pipe[1]);
 			return NULL;
@@ -848,6 +950,11 @@ launch_external(const char cmd[], int capture_output, int new_session,
 	{
 		close(error_pipe[0]);
 		close(error_pipe[1]);
+		if(supply_input)
+		{
+			close(input_pipe[0]);
+			close(input_pipe[1]);
+		}
 		if(capture_output)
 		{
 			close(output_pipe[0]);
@@ -871,7 +978,21 @@ launch_external(const char cmd[], int capture_output, int new_session,
 		close(STDIN_FILENO);
 		close(STDOUT_FILENO);
 		/* Close read end of pipe. */
-		close(error_pipe[0]);
+		if(error_pipe[0] != -1)
+		{
+			close(error_pipe[0]);
+		}
+
+		if(supply_input)
+		{
+			if(dup2(input_pipe[0], STDIN_FILENO) == -1)
+			{
+				perror("dup2");
+				_Exit(EXIT_FAILURE);
+			}
+			/* Close write end of pipe. */
+			close(input_pipe[1]);
+		}
 
 		if(capture_output)
 		{
@@ -888,7 +1009,7 @@ launch_external(const char cmd[], int capture_output, int new_session,
 		int nullfd = open("/dev/null", O_RDWR);
 		if(nullfd != -1)
 		{
-			if(dup2(nullfd, STDIN_FILENO) == -1)
+			if(!supply_input && dup2(nullfd, STDIN_FILENO) == -1)
 			{
 				perror("dup2 for stdin");
 				_Exit(EXIT_FAILURE);
@@ -930,23 +1051,20 @@ launch_external(const char cmd[], int capture_output, int new_session,
 		*/
 		//add by sim1 *****************************
 
-		if(new_session)
+		if(keep_session)
 		{
-			/* setsid() creates process group as well and doesn't work if current
-			 * process is group leader, so don't do setpgid(). */
-			if(setsid() == (pid_t)-1)
-			{
-				perror("setsid");
-				_Exit(EXIT_FAILURE);
-			}
-		}
-		else
-		{
-			if(setpgid(0, 0) != 0)
+			if(setpgid(0, 0) == -1)
 			{
 				perror("setpgid");
 				_Exit(EXIT_FAILURE);
 			}
+		}
+		/* setsid() creates process group as well and doesn't work if current
+		 * process is a group leader, so don't do setpgid(). */
+		else if(setsid() == (pid_t)-1)
+		{
+			perror("setsid");
+			_Exit(EXIT_FAILURE);
 		}
 
 		prepare_for_exec();
@@ -956,8 +1074,15 @@ launch_external(const char cmd[], int capture_output, int new_session,
 		_Exit(127);
 	}
 
-	/* Close write ends of pipes. */
-	close(error_pipe[1]);
+	/* Close unused ends of pipes. */
+	if(error_pipe[1] != -1)
+	{
+		close(error_pipe[1]);
+	}
+	if(supply_input)
+	{
+		close(input_pipe[0]);
+	}
 	if(capture_output)
 	{
 		close(output_pipe[1]);
@@ -965,6 +1090,15 @@ launch_external(const char cmd[], int capture_output, int new_session,
 
 	bg_job_t *job = add_background_job(pid, cmd, (uintptr_t)error_pipe[0], 0,
 			BJT_COMMAND, jb_visible);
+
+	if(supply_input)
+	{
+		job->input = fdopen(input_pipe[1], "w");
+		if(job->input == NULL)
+		{
+			close(input_pipe[1]);
+		}
+	}
 
 	if(capture_output)
 	{
@@ -982,13 +1116,7 @@ launch_external(const char cmd[], int capture_output, int new_session,
 	char *sh_cmd;
 	wchar_t *wide_cmd;
 
-	SECURITY_ATTRIBUTES sec_attr = {
-		.nLength = sizeof(sec_attr),
-		.lpSecurityDescriptor = NULL,
-		.bInheritHandle = 1,
-	};
-
-	HANDLE hnul = CreateFileA("NUL", GENERIC_READ | GENERIC_WRITE, 0, &sec_attr,
+	HANDLE hnul = CreateFileA("NUL", GENERIC_READ | GENERIC_WRITE, 0, NULL,
 			OPEN_EXISTING, 0, NULL);
 	if(hnul == INVALID_HANDLE_VALUE)
 	{
@@ -998,9 +1126,16 @@ launch_external(const char cmd[], int capture_output, int new_session,
 	startup.hStdOutput = hnul;
 
 	HANDLE herr = INVALID_HANDLE_VALUE;
-	if(!merge_streams &&
-			!CreatePipe(&herr, &startup.hStdError, &sec_attr, 16*1024))
+	if(!merge_streams && !CreatePipe(&herr, &startup.hStdError, NULL, 16*1024))
 	{
+		CloseHandle(hnul);
+		return NULL;
+	}
+
+	HANDLE hin = INVALID_HANDLE_VALUE;
+	if(supply_input && !CreatePipe(&startup.hStdInput, &hin, NULL, 16*1024))
+	{
+		CloseHandle(herr);
 		CloseHandle(hnul);
 		return NULL;
 	}
@@ -1008,9 +1143,10 @@ launch_external(const char cmd[], int capture_output, int new_session,
 	HANDLE hout = INVALID_HANDLE_VALUE;
 	if(capture_output)
 	{
-		if(!CreatePipe(&hout, &startup.hStdOutput, &sec_attr, 16*1024))
+		if(!CreatePipe(&hout, &startup.hStdOutput, NULL, 16*1024))
 		{
 			CloseHandle(herr);
+			CloseHandle(hin);
 			CloseHandle(hnul);
 			return NULL;
 		}
@@ -1021,6 +1157,10 @@ launch_external(const char cmd[], int capture_output, int new_session,
 		}
 	}
 
+	SetHandleInformation(startup.hStdInput, HANDLE_FLAG_INHERIT, 1);
+	SetHandleInformation(startup.hStdOutput, HANDLE_FLAG_INHERIT, 1);
+	SetHandleInformation(startup.hStdError, HANDLE_FLAG_INHERIT, 1);
+
 	sh_cmd = win_make_sh_cmd(cmd, by);
 
 	wide_cmd = to_wide(sh_cmd);
@@ -1028,6 +1168,10 @@ launch_external(const char cmd[], int capture_output, int new_session,
 			NULL, NULL, &startup, &pinfo);
 	free(wide_cmd);
 	CloseHandle(hnul);
+	if(startup.hStdInput != INVALID_HANDLE_VALUE)
+	{
+		CloseHandle(startup.hStdInput);
+	}
 	CloseHandle(startup.hStdOutput);
 	if(startup.hStdError != startup.hStdOutput)
 	{
@@ -1038,6 +1182,7 @@ launch_external(const char cmd[], int capture_output, int new_session,
 	{
 		free(sh_cmd);
 		CloseHandle(hout);
+		CloseHandle(hin);
 		return NULL;
 	}
 
@@ -1054,6 +1199,7 @@ launch_external(const char cmd[], int capture_output, int new_session,
 	if(job == NULL)
 	{
 		CloseHandle(herr);
+		CloseHandle(hin);
 		CloseHandle(hout);
 		CloseHandle(pinfo.hProcess);
 		CloseHandle(hjob);
@@ -1062,9 +1208,25 @@ launch_external(const char cmd[], int capture_output, int new_session,
 
 	job->hjob = hjob;
 
+	if(supply_input)
+	{
+		const int fd = _open_osfhandle((intptr_t)hin, _O_WRONLY);
+		if(fd == -1)
+		{
+			CloseHandle(hin);
+			return NULL;
+		}
+
+		job->input = fdopen(fd, "w");
+		if(job->input == NULL)
+		{
+			close(fd);
+		}
+	}
+
 	if(capture_output)
 	{
-		int fd = _open_osfhandle((intptr_t)hout, _O_RDONLY);
+		const int fd = _open_osfhandle((intptr_t)hout, _O_RDONLY);
 		if(fd == -1)
 		{
 			CloseHandle(hout);
@@ -1179,6 +1341,7 @@ add_background_job(pid_t pid, const char cmd[], uintptr_t err, uintptr_t data,
 	new->use_count = 0;
 	new->exit_code = -1;
 
+	new->input = NULL;
 	new->output = NULL;
 
 #ifndef _WIN32
@@ -1352,6 +1515,16 @@ bg_job_is_running(bg_job_t *job)
 }
 
 int
+bg_job_was_killed(bg_job_t *job)
+{
+	pthread_spin_lock(&job->status_lock);
+	int running = job->running;
+	int exit_code = job->exit_code;
+	pthread_spin_unlock(&job->status_lock);
+	return (!running && exit_code >= 0);
+}
+
+int
 bg_job_wait(bg_job_t *job)
 {
 	assert(job->type == BJT_COMMAND &&
@@ -1360,6 +1533,20 @@ bg_job_wait(bg_job_t *job)
 	if(!bg_job_is_running(job))
 	{
 		return 0;
+	}
+
+	/* Close input to avoid situation when the job is blocked on read. */
+	if(job->input != NULL)
+	{
+		fclose(job->input);
+		job->input = NULL;
+	}
+
+	/* Close output to avoid situation when the job is blocked on write. */
+	if(job->output != NULL)
+	{
+		fclose(job->output);
+		job->output = NULL;
 	}
 
 #ifndef _WIN32

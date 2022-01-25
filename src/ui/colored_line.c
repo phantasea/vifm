@@ -25,9 +25,10 @@
 #include "../cfg/config.h"
 #include "../utils/str.h"
 #include "../utils/utf8.h"
-#include "color_manager.h"
 #include "color_scheme.h"
 #include "ui.h"
+
+static size_t effective_chrw(const char line[]);
 
 cline_t
 cline_make(void)
@@ -95,9 +96,7 @@ cline_splice_attrs(cline_t *cline, cline_t *admixture)
 void
 cline_print(const cline_t *cline, WINDOW *win, const col_attr_t *def_col)
 {
-	cchar_t def_attr;
-	setcchar(&def_attr, L" ", def_col->attr,
-			colmgr_get_pair(def_col->fg, def_col->bg), NULL);
+	const cchar_t def_attr = cs_color_to_cchar(def_col, -1);
 
 	const char *line = cline->line;
 	const char *attrs = cline->attrs;
@@ -114,10 +113,10 @@ cline_print(const cline_t *cline, WINDOW *win, const col_attr_t *def_col)
 			const int color = (USER1_COLOR + (*attrs - '1'));
 			col_attr_t col = *def_col;
 			cs_mix_colors(&col, &cfg.cs.color[color]);
-			setcchar(&attr, L" ", col.attr, colmgr_get_pair(col.fg, col.bg), NULL);
+			attr = cs_color_to_cchar(&col, -1);
 		}
 
-		const size_t len = utf8_chrw(line);
+		const size_t len = effective_chrw(line);
 		char char_buf[len + 1];
 		copy_str(char_buf, sizeof(char_buf), line);
 		wprinta(win, char_buf, &attr, 0);
@@ -125,6 +124,22 @@ cline_print(const cline_t *cline, WINDOW *win, const col_attr_t *def_col)
 		line += len;
 		attrs += utf8_chrsw(char_buf);
 	}
+}
+
+/* Computes size of the leading UTF-8 character in bytes including all
+ * zero-width characters that follow it (like for umlauts).  Returns byte
+ * count. */
+static size_t
+effective_chrw(const char line[])
+{
+	size_t effective = utf8_chrw(line);
+
+	while(line[effective] != '\0' && utf8_chrsw(line + effective) == 0)
+	{
+		effective += utf8_chrw(line + effective);
+	}
+
+	return effective;
 }
 
 void
@@ -147,6 +162,7 @@ cline_left_ellipsis(cline_t *cline, size_t max_width, const char ell[])
 	size_t ell_width = utf8_strsw(ell);
 	if(max_width <= ell_width)
 	{
+		free(cline->line);
 		/* Insert as many characters of ellipsis as we can. */
 		const int prefix = (int)utf8_nstrsnlen(ell, max_width);
 		cline->line = format_str("%.*s", prefix, ell);

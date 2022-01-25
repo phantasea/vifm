@@ -1,15 +1,18 @@
 #include <stic.h>
 
+#include <ctype.h> /* isspace() */
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* free() */
-#include <string.h> /* strcpy() strdup() */
+#include <string.h> /* memset() strcpy() strdup() */
 
 #include <test-utils.h>
 
 #include "../../src/cfg/config.h"
 #include "../../src/compat/curses.h"
 #include "../../src/compat/fs_limits.h"
+#include "../../src/engine/abbrevs.h"
 #include "../../src/engine/keys.h"
+#include "../../src/engine/mode.h"
 #include "../../src/modes/cmdline.h"
 #include "../../src/modes/modes.h"
 #include "../../src/modes/wk.h"
@@ -18,6 +21,9 @@
 #include "../../src/utils/fs.h"
 #include "../../src/utils/matcher.h"
 #include "../../src/filelist.h"
+#include "../../src/status.h"
+
+static int have_ext_keys(void);
 
 static line_stats_t *stats;
 
@@ -62,6 +68,8 @@ SETUP()
 	rwin.dir_entry[0].name = strdup("otherroot.otherext");
 	rwin.dir_entry[0].origin = &rwin.curr_dir[0];
 	strcpy(rwin.curr_dir, "other/dir/othertail");
+
+	opt_handlers_setup();
 }
 
 TEARDOWN()
@@ -72,6 +80,166 @@ TEARDOWN()
 	(void)vle_keys_exec_timed_out(WK_C_c);
 
 	vle_keys_reset();
+
+	opt_handlers_teardown();
+}
+
+TEST(backspace_exit)
+{
+	assert_true(vle_mode_is(CMDLINE_MODE));
+	assert_wstring_equal(L"", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	assert_true(vle_mode_is(NORMAL_MODE));
+	assert_wstring_equal(NULL, stats->line);
+}
+
+TEST(backspace_eol)
+{
+	(void)vle_keys_exec_timed_out(L"abc");
+	assert_wstring_equal(L"abc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	assert_wstring_equal(L"ab", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	assert_wstring_equal(L"a", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	assert_wstring_equal(L"", stats->line);
+}
+
+TEST(backspace_not_eol)
+{
+	(void)vle_keys_exec_timed_out(L"abc");
+	assert_wstring_equal(L"abc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_b);
+	assert_wstring_equal(L"abc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	assert_wstring_equal(L"ac", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	assert_wstring_equal(L"c", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	assert_wstring_equal(L"c", stats->line);
+}
+
+TEST(right_kill)
+{
+	(void)vle_keys_exec_timed_out(L"abc");
+	assert_wstring_equal(L"abc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_k);
+	assert_wstring_equal(L"abc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_h);
+	(void)vle_keys_exec_timed_out(WK_C_k);
+	assert_wstring_equal(L"ab", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_a);
+	(void)vle_keys_exec_timed_out(WK_C_k);
+	assert_wstring_equal(L"", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_k);
+	assert_wstring_equal(L"", stats->line);
+}
+
+TEST(left_kill)
+{
+	(void)vle_keys_exec_timed_out(L"abc");
+	assert_wstring_equal(L"abc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_b);
+	(void)vle_keys_exec_timed_out(WK_C_b);
+	assert_wstring_equal(L"abc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_u);
+	assert_wstring_equal(L"bc", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_f);
+	(void)vle_keys_exec_timed_out(WK_C_u);
+	assert_wstring_equal(L"c", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_f);
+	(void)vle_keys_exec_timed_out(WK_C_u);
+	assert_wstring_equal(L"", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_u);
+	assert_wstring_equal(L"", stats->line);
+}
+
+TEST(history)
+{
+	cfg.history_len = 4;
+	assert_success(stats_init(&cfg));
+
+	(void)vle_keys_exec_timed_out(L"first");
+	assert_wstring_equal(L"first", stats->line);
+	(void)vle_keys_exec_timed_out(WK_ESC);
+
+	(void)vle_keys_exec_timed_out(L":second");
+	assert_wstring_equal(L"second", stats->line);
+	(void)vle_keys_exec_timed_out(WK_ESC);
+
+	(void)vle_keys_exec_timed_out(L":third" WK_C_p);
+	assert_wstring_equal(L"second", stats->line);
+	(void)vle_keys_exec_timed_out(WK_C_p);
+	assert_wstring_equal(L"first", stats->line);
+	(void)vle_keys_exec_timed_out(WK_C_p);
+	assert_wstring_equal(L"first", stats->line);
+
+	(void)vle_keys_exec_timed_out(WK_C_n);
+	assert_wstring_equal(L"second", stats->line);
+	(void)vle_keys_exec_timed_out(WK_C_n);
+	assert_wstring_equal(L"third", stats->line);
+	(void)vle_keys_exec_timed_out(WK_C_n);
+	assert_wstring_equal(L"third", stats->line);
+
+	hists_resize(0);
+	cfg.history_len = 0;
+	assert_success(stats_reset(&cfg));
+}
+
+TEST(prefix_history, IF(have_ext_keys))
+{
+	const wchar_t up[] = {K(KEY_UP), 0};
+	const wchar_t down[] = {K(KEY_DOWN), 0};
+
+	cfg.history_len = 4;
+	assert_success(stats_init(&cfg));
+
+	(void)vle_keys_exec_timed_out(L"first");
+	assert_wstring_equal(L"first", stats->line);
+	(void)vle_keys_exec_timed_out(WK_ESC);
+
+	(void)vle_keys_exec_timed_out(L":second");
+	assert_wstring_equal(L"second", stats->line);
+	(void)vle_keys_exec_timed_out(WK_ESC);
+
+	(void)vle_keys_exec_timed_out(L":finish");
+	assert_wstring_equal(L"finish", stats->line);
+	(void)vle_keys_exec_timed_out(WK_ESC);
+
+	(void)vle_keys_exec_timed_out(L":fi");
+	assert_wstring_equal(L"fi", stats->line);
+	(void)vle_keys_exec_timed_out(up);
+	assert_wstring_equal(L"finish", stats->line);
+	(void)vle_keys_exec_timed_out(up);
+	assert_wstring_equal(L"first", stats->line);
+
+	(void)vle_keys_exec_timed_out(down);
+	assert_wstring_equal(L"finish", stats->line);
+	(void)vle_keys_exec_timed_out(down);
+	assert_wstring_equal(L"fi", stats->line);
+	(void)vle_keys_exec_timed_out(down);
+	assert_wstring_equal(L"fi", stats->line);
+
+	hists_resize(0);
+	cfg.history_len = 0;
+	assert_success(stats_reset(&cfg));
 }
 
 TEST(value_of_manual_filter_is_pasted)
@@ -234,6 +402,37 @@ TEST(last_argument_is_inserted)
 	assert_wstring_equal(L" d4", stats->line);
 
 	cfg_resize_histories(0);
+}
+
+TEST(abbrevs_are_expanded)
+{
+	int i;
+	for(i = 0; i < 255; ++i)
+	{
+		cfg.word_chars[i] = !isspace(i);
+	}
+
+	assert_success(vle_abbr_add(L"lhs", L"rhs"));
+
+	(void)vle_keys_exec_timed_out(L"lhs");
+	assert_wstring_equal(L"lhs", stats->line);
+
+	(void)vle_keys_exec_timed_out(L" ");
+	assert_wstring_equal(L"rhs ", stats->line);
+
+	vle_abbr_reset();
+
+	memset(cfg.word_chars, 0, sizeof(cfg.word_chars));
+}
+
+static int
+have_ext_keys(void)
+{
+#ifdef ENABLE_EXTENDED_KEYS
+	return 1;
+#else
+	return 0;
+#endif
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

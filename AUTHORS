@@ -86,8 +86,8 @@ Vetter (a.k.a. jubalh).
 Some build system fixes/updates/best practices by Hendrik Jaeger (a.k.a.
 henk).
 
-Shell completions and patches for Vim plugin, vifm-screen-split and
-documentation by filterfalse.
+Shell completions and patches for Vim plugin, vifm-screen-split, documentation
+and code by filterfalse.
 
 Christian Fillion (a.k.a. cfillion) fixed crash on navigation to end of line
 in command-line mode.
@@ -128,7 +128,7 @@ zsugabubus provided multiple patches.
 
 Von Welch submitted vifm-media-osx script.
 
-Richard Benson provided icon for the project.
+Richard Benson provided icon for the project (since October 2013).
 
 Roman Plášil (a.k.a. Quiark) authored script for converting Vim's color scheme
 into a Vifm's one.
@@ -144,3 +144,13 @@ Hans Bieshaar added HardLink highlight group.
 Alborz Jafari added rate and progress bar to progress dialog.
 
 pkgs/AppImage/* provided by michaellee8.
+
+M Kelly fixed inability to map escape sequences due to extended keys in
+terminfo database.
+
+Phil Runninger helped to provide target information for drives in :volumes
+menu.
+
+qsmodo contributed multiple patches.
+
+Hescalalu provided icon for the project (since July 2021).

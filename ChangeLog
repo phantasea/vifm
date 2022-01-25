@@ -1,6 +1,91 @@
-0.11 to current
+0.12 to current
 
-	Added beginnings of Lua plugins.
+	Added 'autocd' option.  Makes invalid :commands be interpreted as an
+	implicit :cd command.  Thanks to Taras Halturin (a.k.a. halturin).
+
+	Added %N macro that prevents detaching viewers from current session.
+	Thanks to emorozov.
+
+	Added cl key visual mode (similar to its function in normal mode).
+
+	Added handling of "-" in :session for switching to a previous session.
+
+	Added %pu macro that disables caching of viewer's output.  Thanks to
+	b0x4it.
+
+	Added comparison action to conflict resolution dialog.  Thanks to
+	anonymous at Vifm Q2A site and dalvand.
+
+	Extended optimizations for globs to cover `something*` and `some*thing`
+	cases.
+
+	Updated xxHash to 0.8.0 and switched to XXH3 variant.
+
+	Extended has() builtin function to check for Lua handlers.
+
+	Extended cl normal mode key to handle selection of multiple files.  Thanks
+	to aleksejrs.
+
+	Hide graphics when displaying dialogs or entering menus, more or file info
+	modes.  Thanks to heelsleeh and PRESFIL.
+
+	More consistent spelling of "status bar" and "status line" in
+	documentation.  Thanks to tcftbl.
+
+	Document that <del> key might correspond to <bs>.  Thanks to dalvand.
+
+	Fixed cursor appearing at random places on entering command-line mode.
+
+	Fixed flicker and loosing parts of input on incremental search in menus.
+
+	Fixed ruler flickering on typing during incremental search in menus.
+
+	Fixed severe performance degradation after measuring size of large
+	directory trees.
+
+	Fixed building when fdatasync() call isn't available.  Thanks to Schrijvers
+	Luc (a.k.a. Begasus).
+
+	Fixed flicker of status line on editing in command-line mode.
+
+	Fixed resolving symlinks to symlinks on checks for regular file.  Thanks
+	to Olmo Kramer.
+
+	Fixed :goto command not positioning cursor correctly if provided on
+	command-line.  Thanks to Toan Nguyen (a.k.a. toan2406).
+
+	Fixed --remote and --remote-expr failing if $TERM isn't valid (regression
+	in 0.11-beta).  Thanks to b0x4it.
+
+0.12-beta to 0.12 (2021-09-29)
+
+	Made :VifmCs of the plugin handle 24-bit colors.
+
+	Collect desktop files also from ~/.local/share/applications.  Thanks to
+	Jose Riha (a.k.a. jose1711).
+
+	Align output of :highlight better.
+
+	Fixed maximum number of arguments for :highlight command.  Thanks to
+	Yuriy Artemyev (a.k.a. anuvyklack).
+
+	Fixed binary data messing up TUI.
+
+	Fixed new "combine" highlight attribute not being completed or displayed
+	by :highlight command.
+
+	Fixed garbage being printed sometimes after doing search in a menu.
+
+	Fixed miller preview blinking too much.  Thanks to filterfalse.
+
+0.11 to 0.12-beta (2021-09-15)
+
+	Changed semantics of light* color groups to add bold attribute only for
+	terminals with less than 16 colors.  Aligns the behaviour with Vim.
+	Affects you only if you relied on that implicit bold attribute.  Thanks to
+	Jose Riha (a.k.a. jose1711).
+
+	Added experimental Lua plugins support.
 
 	Added :plugins command that opens plugins menu.
 
@@ -8,8 +93,8 @@
 	to All, Top, xx% or Bot to indicate position within the view.  Thanks to
 	iSeeU816.
 
-	Added percent-like (corresponds to new %P macro of 'rulerformat') to the
-	ruler of the view mode.  Thanks to iSeeU816.
+	Added progress indication to the ruler of the view mode (corresponds to new
+	%P macro of 'rulerformat').  Thanks to iSeeU816.
 
 	Added i view mode key that toggles raw mode (ignoring of defined viewers).
 	Thanks to j-xella.
@@ -19,6 +104,64 @@
 
 	Added 'previewoptions' option to allow tweaking graphics preview a bit.
 	Thanks to Joshua Jensch (a.k.a., patroclos) and flux242.
+
+	Added "toptreestats" value to 'previewoptions' option, which makes stats
+	appear before the tree.  Patch by qsmodo.
+
+	Added :plugin command that manages plugins.
+
+	Added network mount and `subst` targets to :volumes menu.  Patch by Phil
+	Runninger.
+
+	Added "combine" pseudo-attribute to "cterm" parameter of :highlight
+	command.  It changes behaviour from overwriting attributes of a parent
+	highlight group (within their hierarchy) to appending to it.  Thanks to
+	Andrew Savchenko.
+
+	Added literal values to 'viewcolumns' option.  Thanks to Jose Riha (a.k.a.
+	jose1711), chelovechishko, DieSpinne and rwtallant13.
+
+	Added shortcuts for toggling flags in permissions dialog on *nix.  Patch by
+	qsmodo.
+
+	Added %v macro for vertical splitting in terminal multiplexers.  Patch by
+	qsmodo.
+
+	Added %Pl and %Pz macros for redirecting list of files to standard input
+	of commands.  Thanks to PRESFIL.
+
+	Added %N macro to 'statusline' option, which adds a line break and
+	increases height of the status line.  Thanks to Jose Riha (a.k.a.
+	jose1711), qsmodo and jcarreja.
+
+	Added interactive re-editing of file names in external editor.  Format now
+	supports comments for displaying last error and original file names.
+	Thanks to Jose Riha (a.k.a. jose1711) and Diogo Lemos (a.k.a. dmlemos).
+
+	Added "l" and "r" flags to the 'tuioptions' option.  It controls
+	truncation of view titles.  Patch by qsmodo.
+
+	Added periodic forced flushing of data on copying data when 'syscalls' is
+	set.  Thanks to Matthias Braun (a.k.a. mb720).
+
+	Added :st[op] command that behaves like Ctrl-Z.  It's to be used in
+	mappings.  Thanks to GummyGun.
+
+	Added zx normal mode key to fold/unfold directories in tree views.  The
+	implementation is not optimal at this moment though.  Thanks to
+	filterfalse, Ben Lu (a.k.a. ayroblu), RR0925 and Alexandre Viau.
+
+	Added "depth=N" parameter to the :tree command.  Thanks to filterfalse.
+
+	Added support for direct/"true"/24-bit colors for ncurses 6.0 or later.
+	Thanks to Anton Kochkov (a.k.a. XVilka) and IvanBarsukov.
+
+	Added "gui", "guifg" and "guibg" parameters to :highlight command.
+
+	Added some additional information about instance to the :version/:vifm menu.
+
+	Added %c 'statusline' macro that displays size of current file-system.
+	Thanks to Jose Riha (a.k.a. jose1711).
 
 	Made :VifmCs of the plugin fail when 'termguicolors' produces a 24-bit color
 	value.  Thanks to AtomToast.
@@ -40,7 +183,25 @@
 
 	Implemented asynchronous previewing for textual and pass-through (think
 	sixel) viewers.  Thanks to StillSteal, laur89, Joshua
-	Jensch (a.k.a., patroclos) and p-kolacz.
+	Jensch (a.k.a. patroclos) and p-kolacz.
+
+	Run background programs detached from a terminal.  Thanks to Miguel Madrid
+	Mencía (a.k.a. mimame).
+
+	Allow exploring empty files or output of viewers.  Thanks to Andrew
+	Savchenko.
+
+	Allow user-defined commands to include numbers in their names.  Thanks to
+	anonymous at Vifm Q2A site.
+
+	Make :compare obey file name filters.  Patch by qsmodo.
+
+	Always display UID/GID in numeric form in File Info dialog (in parenthesis
+	if the id was resolved to a string).
+
+	Updated logo of the project.  Thanks to Hescalalu for making it.
+
+	Detect broken links on preview and report them as such.
 
 	Fixed pointing 'trashdir' to a symbolic link to a directory causing
 	issues.  Thanks to ChongChong He.
@@ -66,6 +227,98 @@
 
 	Fixed hang on using previewer that takes over control over the
 	terminal (like 7z does to read password).  Thanks to PRESFIL.
+
+	Fixed inability to map escape sequences due to extended keys in terminfo
+	database.  Patch by M Kelly.
+
+	Fixed not being able to view really long file names in full in File Info
+	dialog.  Thanks to 702b.
+
+	Fixed compilation on AIX.  Thanks to Jose Riha (a.k.a. jose1711).
+
+	Fixed mounting and directory replacement not being detected as directory
+	change when inotify is used.  Thanks to Jakob Helmecke and PRESFIL.
+
+	Fixed :empty leaving empty directories on Windows.  Thanks to Grueslayer.
+
+	Fixed losing files as a result of executing ":copy! &" or ":move! &" when
+	both panes show the same directory.  Thanks to Hans Bieshaar.
+
+	Fixed a memory leak possible on formatting tab titles and status line.
+
+	Fixed possible crash after changing 'classify' and then switching to
+	inactive tab.
+
+	Fixed attempts to complete nonsensical arguments to :set removing those
+	arguments.
+
+	Fixed some scrolling keys in view mode when there is only one visible
+	line.
+
+	Fixed backward search of view mode not reporting failure if there was a
+	match at the very first line.
+
+	Fixed running tests as root user.  Thanks to Michka Popoff (a.k.a.
+	iMichka).
+
+	Fixed graphical preview of files in the right column of miller view not
+	being properly cleared on directory change.  Thanks to CosmosAtlas.
+
+	Fixed vifm-convert-dircolors dropping copies of entries that differ only by
+	case.  Thanks to flux242.
+
+	Fixed permission dialog on *nix systems not showing all information
+	correctly after a redraw.
+
+	Fixed incorrect colors on redrawing wild menu popup on terminal resize.
+
+	Fixed order of checks on :copy?/:move?/:alink?/:rlink?.  Now custom view
+	is checked for duplicates before prompting for list of files.
+
+	Fixed refusing to :copy/move/alink/rlink identically-named files from
+	custom views even if list of new names is supplied.
+
+	Fixed cw key of visual mode not being documented.
+
+	Fixed copying of executable files not working on FreeBSD.  Thanks to
+	makijato.
+
+	Fixed :chmod lacking a reload, which is needed because attribute change
+	might not be detected.
+
+	Fixed :goto not working with backslashes on Windows.  Thanks to
+	Grueslayer.
+
+	Fixed full path patterns ({{globs}} and //regexp//) not working in tree
+	views.
+
+	Fixed number of filtered files not being updated in tree views on pressing
+	zf key.
+
+	Fixed "Building tree..." message not restoring contents of status bar in
+	command-line mode.  Thanks to filterfalse.
+
+	Fixed issues with displaying composite characters.  Thanks to Dennis
+	Preiser (a.k.a. 0xDP).
+
+	Fixed some file operations not being blocked in custom trees even though
+	they can't handle them (custom views in general can't).  Thanks to
+	filterfalse.
+
+	Fixed graphical preview of files in the right column of miller view not
+	being properly cleared on switching to a directory preview.  Thanks to
+	TheMystifyingCharacter.
+
+	Fixed sample :zip command to work with multiple files.  Thanks to
+	Branislav Gerazov.
+
+	Fixed handling of broken links that exist at destination on putting files.
+	Thanks to aleksejrs.
+
+	Fixed zj not working before the last entry if it's an empty directory.
+	Thanks to filterfalse.
+
+	Fixed processing of keypad keys on Windows.  Thanks to Roland.
 
 0.11-beta to 0.11 (2020-09-24)
 
@@ -257,7 +510,7 @@
 	Update terminal title when in menus.  Thanks to filterfalse.
 
 	Escape some characters as ^X in view and tab titles, custom menu titles,
-	on statusline and in terminal title.  Thanks to filterfalse.
+	on status line and in terminal title.  Thanks to filterfalse.
 
 	Use name of user-defined command in titles of custom views and menus.
 	Thanks to filterfalse.
@@ -409,7 +662,7 @@
 	Fixed selection being lost or incorrectly preserved on changes of local
 	filter in custom views.  Thanks to filterfalse.
 
-	Fixed statusbar message not being cleared sometimes.  Thanks to
+	Fixed status bar message not being cleared sometimes.  Thanks to
 	filterfalse.
 
 	Fixed graphics preview not being cleared on switching tabs or starting
@@ -481,7 +734,7 @@
 
 	Fixed highlighting of `fileviewer .*/,*/` as if it contains a pattern.
 
-	Fixed highlighting of statusline being shifted due to unmatched `%[`.
+	Fixed highlighting of status line being shifted due to unmatched `%[`.
 
 	Fixed weird tabline layout on very large number of tabs.
 
@@ -838,7 +1091,7 @@
 	Fixed outdated comment about 'vimhelp' in sample vifmrc file.  Thanks to
 	Tiago.
 
-	Fixed statusbar clearing messages when inside directories with
+	Fixed status bar clearing messages when inside directories with
 	directory-specific color scheme.
 
 	Fixed reading data past initialized region on printing control message of
@@ -876,7 +1129,7 @@
 	Fixed crash on previewing contents of directory without execute right in
 	miller view.  Thanks to filterfalse.
 
-	Fixed statusline highlighting being broken by wide characters.
+	Fixed status line highlighting being broken by wide characters.
 
 0.9.1 to 0.10-beta (2018-10-28)
 
@@ -1313,7 +1566,7 @@
 	Fixed ".." not being preserved in path loaded into custom view.  Thanks to
 	filterfalse.
 
-	Fixed directory size in statusline.  Patch by Dmitry Frank (a.k.a.
+	Fixed directory size in status line.  Patch by Dmitry Frank (a.k.a.
 	dimonomid).
 
 	Fixed extra width of inactive cursor in ls-like view when 'classify'
@@ -1328,7 +1581,7 @@
 	Fixed not recording last visited directory on leaving custom view.  Thanks
 	to filterfalse.
 
-	Fixed displaying of wild menu popup when statusbar is more than single
+	Fixed displaying of wild menu popup when status bar is more than single
 	line in height.
 
 	Fixed weird view scrolling after zO (hard to notice) and Ctrl-A/X.
@@ -1344,7 +1597,7 @@
 	Fixed handling Tab and Shift-Tab on search prompt as if they are command
 	prompts.
 
-	Fixed horrible flickering of multiline statusbar for interactive queries.
+	Fixed horrible flickering of multiline status bar for interactive queries.
 
 	Fixed :normal command resetting selection.  Thanks to filterfalse.
 
@@ -2045,7 +2298,7 @@
 	Fixed redrawing message dialog when 'relativenumber' option is on.  Thanks
 	to aleksejrs.
 
-	Fixed resetting statusbar contents on displaying message dialog.
+	Fixed resetting status bar contents on displaying message dialog.
 
 	Fixed parsing background mark after quote (as in `:put " &`).
 
@@ -2689,7 +2942,7 @@
 	fixes issue with passing input to FUSE mounter.  Thanks to Johannes (a.k.a.
 	johannesmeng).
 
-	Added %[ and %] macros for statusline/ruler.  Thanks to ranousse.
+	Added %[ and %] macros for status line/ruler.  Thanks to ranousse.
 
 	Added single-argument form of :file[x]type and :fileviewer commands that
 	lists (in menu mode) currently registered patterns that match specified
@@ -3809,7 +4062,7 @@
 	Check destination path existence before changing directory to it on :sync
 	command.
 
-	Consider 'classify' option on displaying file name in the statusbar.
+	Consider 'classify' option on displaying file name in the status bar.
 
 	Don't overwrite directory stack stored in vifminfo on exit unless it was
 	changed in current session.
@@ -3962,7 +4215,7 @@
 	Baumann, a.k.a. derflob).
 
 	Added 'shortmess' option and its first flag: "T" to shorten long
-	status-bar messages.
+	status bar messages.
 
 	Added --without/[with]-dyn-X11 flag to the configure script to control
 	static/dynamic linking against libX11 library.  Thanks to Hendrik
@@ -4422,7 +4675,7 @@
 
 	Draw quickview on startup only once.
 
-	Faster redrawing of statusbar with "-- VISUAL --" message after "Press
+	Faster redrawing of status bar with "-- VISUAL --" message after "Press
 	Enter message".
 
 	Show correct number of selected files in visual mode after n and N keys.
@@ -4748,7 +5001,7 @@
 
 	Fixed creation of Trash dir if it doesn't exist in ~/.vifm/.
 
-	Fixed statusbar message after Ctrl-A/Ctrl-X on Windows.
+	Fixed status bar message after Ctrl-A/Ctrl-X on Windows.
 
 	Fixed bug with drawing extra character after file list redraw (e.g. on
 	za).
@@ -4786,7 +5039,7 @@
 
 	Fixed Ctrl-U/D/F/B keys in visual and menu modes one again.
 
-	Fixed a typo in statusbar message after :mkdir.
+	Fixed a typo in status bar message after :mkdir.
 
 	Fixed sorting with ignoring case.
 

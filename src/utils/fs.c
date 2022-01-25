@@ -82,7 +82,7 @@ is_dir(const char path[])
 static int
 is_dir_fast(const char path[])
 {
-#if !defined(_WIN32) && !defined(__APPLE__) && !defined(BSD)
+#ifdef __linux__
 	/* Optimization idea: is_dir() ends up using stat() call, which in turn has
 	 * to:
 	 *  1) resolve path to an inode number;
@@ -101,7 +101,8 @@ is_dir_fast(const char path[])
 
 	return os_access(path_to_selfref, F_OK) == 0;
 #else
-	/* Some systems report that "/path/to/file/." is directory... */
+	/* Other systems report that "/path/to/file/." is a directory either for all
+	 * files or for executable ones, always or sometimes... */
 	return 0;
 #endif
 }
@@ -504,28 +505,13 @@ list_sorted_files(const char path[], int *len)
 int
 is_regular_file(const char path[])
 {
-	char resolved_link[PATH_MAX + 1];
-	if(is_symlink(path))
+	char path_real[PATH_MAX + 1];
+	if(os_realpath(path, path_real) != path_real)
 	{
-		char *const symlink_base = strdup(path);
-
-		if(!is_root_dir(symlink_base))
-		{
-			remove_last_path_component(symlink_base);
-		}
-
-		if(get_link_target_abs(path, symlink_base, resolved_link,
-					sizeof(resolved_link)) != 0)
-		{
-			free(symlink_base);
-			return 0;
-		}
-		free(symlink_base);
-
-		path = resolved_link;
+		return 0;
 	}
 
-	return is_regular_file_noderef(path);
+	return is_regular_file_noderef(path_real);
 }
 
 int
@@ -581,8 +567,12 @@ remove_dir_content(const char path[])
 				 * descending into. */
 				(void)os_chmod(full_path, 0777);
 				remove_dir_content(full_path);
+				(void)os_rmdir(full_path);
 			}
-			(void)remove(full_path);
+			else
+			{
+				(void)remove(full_path);
+			}
 			free(full_path);
 		}
 	}

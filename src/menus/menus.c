@@ -33,6 +33,7 @@
 #include "../compat/fs_limits.h"
 #include "../compat/os.h"
 #include "../compat/reallocarray.h"
+#include "../engine/mode.h"
 #include "../int/term_title.h"
 #include "../int/vim.h"
 #include "../modes/dialogs/msg_dialog.h"
@@ -40,7 +41,6 @@
 #include "../modes/menu.h"
 #include "../modes/modes.h"
 #include "../ui/cancellation.h"
-#include "../ui/color_manager.h"
 #include "../ui/color_scheme.h"
 #include "../ui/colors.h"
 #include "../ui/statusbar.h"
@@ -300,16 +300,21 @@ menus_set_pos(menu_state_t *ms, int pos)
 	else
 	{
 		draw_menu_item(ms, m->pos, ms->current, 0);
+		show_position_in_menu(m);
 	}
-	checked_wmove(menu_win, ms->current, 2);
 
-	show_position_in_menu(m);
+	checked_wmove(menu_win, ms->current, 2);
 }
 
 /* Displays current menu position on a ruler. */
 static void
 show_position_in_menu(const menu_data_t *m)
 {
+	if(vle_mode_is(CMDLINE_MODE))
+	{
+		return;
+	}
+
 	char pos_buf[32];
 	snprintf(pos_buf, sizeof(pos_buf), " %d-%d ", m->pos + 1, m->len);
 
@@ -442,6 +447,8 @@ menus_partial_redraw(menu_state_t *m)
 	{
 		draw_menu_item(m, pos, i + 1, 0);
 	}
+
+	show_position_in_menu(m->d);
 }
 
 /* Draws single menu item at position specified by line argument.  Non-zero
@@ -466,7 +473,7 @@ draw_menu_item(menu_state_t *ms, int pos, int line, int clear)
 	{
 		cs_mix_colors(&col, &cfg.cs.color[CURR_LINE_COLOR]);
 	}
-	int color_pair = colmgr_get_pair(col.fg, col.bg);
+	int color_pair = cs_load_color(&col);
 
 	/* Calculate offset of m->hor_pos's character in item text. */
 	off = 0;
@@ -506,8 +513,7 @@ draw_menu_item(menu_state_t *ms, int pos, int line, int clear)
 
 	if(ms->search_highlight && ms->matches != NULL && ms->matches[pos][0] >= 0)
 	{
-		cchar_t cch;
-		setcchar(&cch, L" ", col.attr, color_pair, NULL);
+		const cchar_t cch = cs_color_to_cchar(&col, color_pair);
 		draw_search_match(item_tail, ms->matches[pos][0] - m->hor_pos,
 				ms->matches[pos][1] - m->hor_pos, line, width, &cch);
 	}
@@ -841,20 +847,28 @@ menu_and_view_are_in_sync(const menu_data_t *m, const view_t *view)
 
 int
 menus_capture(view_t *view, const char cmd[], int user_sh, menu_data_t *m,
-		int custom_view, int very_custom_view)
+		MacroFlags flags)
 {
-	if(custom_view || very_custom_view)
+	if(ma_flags_present(flags, MF_CUSTOMVIEW_OUTPUT) ||
+			ma_flags_present(flags, MF_VERYCUSTOMVIEW_OUTPUT))
 	{
-		rn_for_flist(view, cmd, m->title, very_custom_view, 0);
+		rn_for_flist(view, cmd, m->title, flags);
 		menus_reset_data(m);
 		return 0;
 	}
 
-	if(process_cmd_output("Loading menu", cmd, user_sh, 0, &output_handler,
-				m) != 0)
+	FILE *input_tmp = make_in_file(view, flags);
+
+	if(process_cmd_output("Loading menu", cmd, input_tmp, user_sh, 0,
+				&output_handler, m) != 0)
 	{
 		show_error_msgf("Trouble running command", "Unable to run: %s", cmd);
 		return 0;
+	}
+
+	if(input_tmp != NULL)
+	{
+		fclose(input_tmp);
 	}
 
 	if(ui_cancellation_requested())
@@ -1070,52 +1084,53 @@ navigate_to_match(menu_state_t *m, int pos)
 			menus_erase_current(m);
 			menus_set_pos(m, pos);
 		}
-		menus_search_print_msg(m);
+		menus_search_print_msg(m->d);
 	}
 	else
 	{
 		menus_set_pos(m, m->d->pos);
 		if(cfg.wrap_scan)
 		{
-			menus_search_print_msg(m);
+			menus_search_print_msg(m->d);
 		}
 	}
 	return 1;
 }
 
 void
-menus_search_print_msg(const menu_state_t *m)
+menus_search_print_msg(const menu_data_t *m)
 {
+	const menu_state_t *ms = m->state;
 	int cflags;
 	regex_t re;
 	int err;
 
 	/* Can be NULL after regex compilation failure. */
-	if(m->regexp == NULL)
+	if(ms->regexp == NULL)
 	{
 		return;
 	}
 
-	cflags = get_regexp_cflags(m->regexp);
-	err = regcomp(&re, m->regexp, cflags);
+	cflags = get_regexp_cflags(ms->regexp);
+	err = regcomp(&re, ms->regexp, cflags);
 
 	if(err != 0)
 	{
-		ui_sb_errf("Regexp (%s) error: %s", m->regexp, get_regexp_error(err, &re));
+		ui_sb_errf("Regexp (%s) error: %s", ms->regexp, get_regexp_error(err, &re));
 		regfree(&re);
 		return;
 	}
 
 	regfree(&re);
 
-	if(m->matching_entries > 0)
+	if(ms->matching_entries > 0)
 	{
-		ui_sb_msgf("%d of %d %s", get_match_index(m), m->matching_entries,
-				(m->matching_entries == 1) ? "match" : "matches");
+		ui_sb_msgf("%d of %d %s", get_match_index(ms), ms->matching_entries,
+				(ms->matching_entries == 1) ? "match" : "matches");
 	}
 	else
 	{
-		ui_sb_errf("No matches for: %s", m->regexp);
+		ui_sb_errf("No matches for: %s", ms->regexp);
 	}
 }
 

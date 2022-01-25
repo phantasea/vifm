@@ -192,10 +192,12 @@ name_filters_add_active(view_t *view)
 			&is_newly_filtered, &filter, 0, 1);
 	if(flist_custom_active(view))
 	{
-		(void)zap_entries(view, view->local_filter.entries,
-				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);
+		/* Name exclusion from a custom filter is not reversible. */
+		(void)zap_entries(view, view->custom.full.entries,
+				&view->custom.full.nentries, &is_newly_filtered, &filter, 1, 1);
 	}
-	else
+
+	if(flist_is_fs_backed(view))
 	{
 		view->filtered += filtered;
 	}
@@ -382,7 +384,7 @@ filters_invert(view_t *view)
 }
 
 int
-filters_file_is_visible(view_t *view, const char dir[], const char name[],
+filters_file_is_visible(const view_t *view, const char dir[], const char name[],
 		int is_dir, int apply_local_filter)
 {
 	/* FIXME: some very long file names won't be matched against some regexps. */
@@ -544,12 +546,8 @@ load_unfiltered_list(view_t *view)
 			current_file_pos = view->list_rows - 1;
 		}
 	}
-	else
-	{
-		/* Save unfiltered (by local filter) list for further use. */
-		replace_dir_entries(view, &view->local_filter.entries,
-				&view->local_filter.entry_count, view->dir_entry, view->list_rows);
-	}
+
+	flist_custom_save(view);
 
 	view->local_filter.unfiltered = view->dir_entry;
 	view->local_filter.unfiltered_count = view->list_rows;
@@ -569,7 +567,7 @@ list_is_incomplete(view_t *view)
 		return 1;
 	}
 
-	if(flist_custom_active(view) && view->custom.type != CV_TREE)
+	if(!flist_is_fs_backed(view))
 	{
 		return 0;
 	}
@@ -880,14 +878,7 @@ local_filter_apply(view_t *view, const char filter[])
 	(void)filter_change(&view->local_filter.filter, filter, case_sensitive);
 	hists_filter_save(view->local_filter.filter.raw);
 
-	if(flist_custom_active(view) && view->custom.type != CV_TREE &&
-			view->local_filter.entry_count == 0)
-	{
-		/* Save unfiltered (by local filter) list for further use so it can be
-		 * restored on changing local filter. */
-		replace_dir_entries(view, &view->local_filter.entries,
-				&view->local_filter.entry_count, view->dir_entry, view->list_rows);
-	}
+	flist_custom_save(view);
 
 	ui_view_schedule_reload(view);
 }

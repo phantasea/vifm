@@ -4,7 +4,7 @@
 
 #include <sys/stat.h> /* chmod() */
 #include <sys/time.h> /* timeval utimes() */
-#include <unistd.h> /* access() rmdir() symlink() usleep() */
+#include <unistd.h> /* access() geteuid() rmdir() symlink() usleep() */
 
 #ifdef _WIN32
 #include <windows.h>
@@ -13,13 +13,16 @@
 #include <locale.h> /* LC_ALL setlocale() */
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* FILE fclose() fopen() fread() remove() */
-#include <stdlib.h> /* free() */
+#include <stdlib.h> /* free() malloc() */
 #include <string.h> /* memset() strcpy() strdup() */
 
 #include "../../src/cfg/config.h"
 #include "../../src/compat/os.h"
+#include "../../src/compat/pthread.h"
 #include "../../src/engine/cmds.h"
 #include "../../src/engine/options.h"
+#include "../../src/engine/var.h"
+#include "../../src/engine/variables.h"
 #include "../../src/ui/color_manager.h"
 #include "../../src/ui/column_view.h"
 #include "../../src/ui/ui.h"
@@ -33,6 +36,7 @@
 #include "../../src/utils/string_array.h"
 #include "../../src/utils/utils.h"
 #include "../../src/background.h"
+#include "../../src/cmd_completion.h"
 #include "../../src/filelist.h"
 #include "../../src/filtering.h"
 #include "../../src/opt_handlers.h"
@@ -41,8 +45,10 @@
 
 static int exec_func(OPS op, void *data, const char *src, const char *dst);
 static int op_avail(OPS op);
-static void format_none(int id, const void *data, size_t buf_len, char buf[]);
-static int complete_args(int id, const cmd_info_t *cmd_info, int arg_pos,
+static void format_none(void *data, size_t buf_len, char buf[],
+		const format_info_t *info);
+static int complete_line_stub(const char cmd_line[], void *extra_arg);
+static int complete_args_stub(int id, const cmd_info_t *cmd_info, int arg_pos,
 		void *extra_arg);
 static int swap_range(void);
 static int resolve_mark(char mark);
@@ -53,10 +59,10 @@ static void post(int id);
 static void select_range(int id, const cmd_info_t *cmd_info);
 static int skip_at_beginning(int id, const char *args);
 static void init_list(view_t *view);
-static int init_pair_stub(short pair, short f, short b);
-static int pair_content_stub(short pair, short *f, short *b);
-static int pair_in_use_stub(short int pair);
-static void move_pair_stub(short int from, short int to);
+static int init_pair_stub(int pair, int f, int b);
+static int pair_content_stub(int pair, int *f, int *b);
+static int pair_in_use_stub(int pair);
+static void move_pair_stub(int from, int to);
 
 void
 fix_environ(void)
@@ -91,6 +97,7 @@ conf_setup(void)
 	update_string(&cfg.tab_prefix, "");
 	update_string(&cfg.tab_label, "");
 	update_string(&cfg.tab_suffix, "");
+	update_string(&cfg.delete_prg, "");
 
 #ifndef _WIN32
 	replace_string(&cfg.shell, "/bin/sh");
@@ -121,7 +128,10 @@ conf_teardown(void)
 	update_string(&cfg.locate_prg, NULL);
 	update_string(&cfg.media_prg, NULL);
 	update_string(&cfg.border_filler, NULL);
+	update_string(&cfg.tab_prefix, NULL);
 	update_string(&cfg.tab_label, NULL);
+	update_string(&cfg.tab_suffix, NULL);
+	update_string(&cfg.delete_prg, NULL);
 	update_string(&cfg.shell, NULL);
 	update_string(&cfg.shell_cmd_flag, NULL);
 
@@ -230,8 +240,11 @@ view_setup(view_t *view)
 	view->custom.entry_count = 0;
 	view->custom.entries = NULL;
 
-	view->local_filter.entry_count = 0;
-	view->local_filter.entries = NULL;
+	view->custom.full.nentries = 0;
+	view->custom.full.entries = NULL;
+
+	view->timestamps_mutex = malloc(sizeof(*view->timestamps_mutex));
+	pthread_mutex_init(view->timestamps_mutex, NULL);
 }
 
 void
@@ -243,11 +256,11 @@ view_teardown(view_t *view)
 void
 columns_setup_column(int id)
 {
-	columns_add_column_desc(id, &format_none);
+	columns_add_column_desc(id, &format_none, NULL);
 }
 
 static void
-format_none(int id, const void *data, size_t buf_len, char buf[])
+format_none(void *data, size_t buf_len, char buf[], const format_info_t *info)
 {
 	buf[0] = '\0';
 }
@@ -260,10 +273,10 @@ columns_teardown(void)
 }
 
 void
-engine_cmds_setup(void)
+engine_cmds_setup(int real_completion)
 {
 	static cmds_conf_t cmds_conf = {
-		.complete_args = &complete_args,
+		.complete_line = &complete_line_stub,
 		.swap_range = &swap_range,
 		.resolve_mark = &resolve_mark,
 		.expand_macros = &expand_macros,
@@ -273,11 +286,20 @@ engine_cmds_setup(void)
 		.skip_at_beginning = &skip_at_beginning,
 	};
 
+	cmds_conf.complete_args = real_completion ? &complete_args
+	                                          : &complete_args_stub;
 	vle_cmds_init(1, &cmds_conf);
 }
 
 static int
-complete_args(int id, const cmd_info_t *cmd_info, int arg_pos, void *extra_arg)
+complete_line_stub(const char cmd_line[], void *extra_arg)
+{
+	return 0;
+}
+
+static int
+complete_args_stub(int id, const cmd_info_t *cmd_info, int arg_pos,
+		void *extra_arg)
 {
 	return 0;
 }
@@ -480,6 +502,22 @@ not_windows(void)
 #endif
 }
 
+int
+regular_unix_user(void)
+{
+#ifdef _WIN32
+	return 0;
+#else
+	return (geteuid() != 0);
+#endif
+}
+
+int
+have_cat(void)
+{
+	return (find_cmd_in_path("cat", 0, NULL) == 0);
+}
+
 void
 try_enable_utf8_locale(void)
 {
@@ -568,6 +606,25 @@ init_list(view_t *view)
 }
 
 void
+check_compare_invariants(int expected_len)
+{
+	assert_true(flist_custom_active(&lwin));
+	assert_true(flist_custom_active(&rwin));
+
+	assert_true(cv_compare(lwin.custom.type));
+	assert_true(cv_compare(rwin.custom.type));
+
+	assert_int_equal(expected_len, lwin.list_rows);
+	assert_int_equal(expected_len, rwin.list_rows);
+
+	int i;
+	for(i = 0; i < expected_len; ++i)
+	{
+		assert_int_equal(lwin.dir_entry[i].id, rwin.dir_entry[i].id);
+	}
+}
+
+void
 wait_for_bg(void)
 {
 	int counter = 0;
@@ -583,6 +640,29 @@ wait_for_bg(void)
 }
 
 void
+wait_for_all_bg(void)
+{
+	int counter = 0;
+
+	var_t var = var_from_int(-1);
+	setvar("v:jobcount", var);
+	var_free(var);
+
+	bg_check();
+	while(bg_jobs != NULL)
+	{
+		if(++counter > 100)
+		{
+			assert_fail("Waiting for too long.");
+			break;
+		}
+
+		usleep(5000);
+		bg_check();
+	}
+}
+
+void
 file_is(const char path[], const char *lines[], int nlines)
 {
 	FILE *fp = fopen(path, "r");
@@ -593,7 +673,8 @@ file_is(const char path[], const char *lines[], int nlines)
 	}
 
 	int actual_nlines;
-	char **actual_lines = read_file_lines(fp, &actual_nlines);
+	char **actual_lines = read_stream_lines(fp, &actual_nlines,
+			/*null_sep_heuristic=*/0, NULL, NULL);
 	fclose(fp);
 
 	assert_int_equal(nlines, actual_nlines);
@@ -645,13 +726,13 @@ stub_colmgr(void)
 }
 
 static int
-init_pair_stub(short pair, short f, short b)
+init_pair_stub(int pair, int f, int b)
 {
 	return 0;
 }
 
 static int
-pair_content_stub(short pair, short *f, short *b)
+pair_content_stub(int pair, int *f, int *b)
 {
 	*f = 0;
 	*b = 0;
@@ -659,13 +740,13 @@ pair_content_stub(short pair, short *f, short *b)
 }
 
 static int
-pair_in_use_stub(short int pair)
+pair_in_use_stub(int pair)
 {
 	return 0;
 }
 
 static void
-move_pair_stub(short int from, short int to)
+move_pair_stub(int from, int to)
 {
 }
 

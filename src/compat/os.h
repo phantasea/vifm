@@ -46,10 +46,13 @@
 #define os_mkdir mkdir
 #define os_realpath realpath
 #define os_rename rename
+#define os_rmdir rmdir
 #define os_stat stat
 #define os_system system
 #define os_tmpfile tmpfile
 #define os_getcwd getcwd
+
+int os_fdatasync(int fd);
 
 #else
 
@@ -80,6 +83,8 @@ DIR * os_opendir(const char name[]);
 struct dirent * os_readdir(DIR *dirp);
 
 int os_rename(const char oldpath[], const char newpath[]);
+
+int os_rmdir(const char path[]);
 
 int os_mkdir(const char pathname[], int mode);
 

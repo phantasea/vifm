@@ -20,8 +20,8 @@
 #include "../../src/opt_handlers.h"
 #include "../../src/registers.h"
 
-static void print_func(const void *data, int column_id, const char buf[],
-		size_t offset, AlignType align, const char full_column[]);
+static void print_func(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info);
 
 static int ncols;
 
@@ -68,10 +68,10 @@ TEARDOWN()
 }
 
 static void
-print_func(const void *data, int column_id, const char buf[], size_t offset,
-		AlignType align, const char full_column[])
+print_func(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info)
 {
-	ncols += (column_id != FILL_COLUMN_ID);
+	ncols += (info->id != FILL_COLUMN_ID);
 }
 
 TEST(lsview_block_columns_update_on_sort_change)
@@ -559,28 +559,36 @@ TEST(previewprg_updates_state_of_view)
 TEST(tuioptions)
 {
 	assert_success(vle_opts_set("tuioptions=", OPT_GLOBAL));
+	assert_int_equal(0, cfg.ellipsis_position);
 	assert_false(cfg.extra_padding);
 	assert_false(cfg.side_borders_visible);
 	assert_false(cfg.use_unicode_characters);
 	assert_false(cfg.flexible_splitter);
 
-	assert_success(vle_opts_set("tuioptions=pu", OPT_GLOBAL));
+	assert_success(vle_opts_set("tuioptions=pul", OPT_GLOBAL));
+	assert_int_equal(-1, cfg.ellipsis_position);
 	assert_true(cfg.extra_padding);
 	assert_false(cfg.side_borders_visible);
 	assert_true(cfg.use_unicode_characters);
 	assert_false(cfg.flexible_splitter);
 
-	assert_success(vle_opts_set("tuioptions+=s", OPT_GLOBAL));
+	assert_success(vle_opts_set("tuioptions+=sr", OPT_GLOBAL));
+	assert_int_equal(1, cfg.ellipsis_position);
 	assert_true(cfg.extra_padding);
 	assert_true(cfg.side_borders_visible);
 	assert_true(cfg.use_unicode_characters);
 	assert_false(cfg.flexible_splitter);
+	/* "l" shouldn't be in the value along with "r". */
+	assert_string_equal("prsu", vle_opts_get("tuioptions", OPT_GLOBAL));
 
-	assert_success(vle_opts_set("tuioptions+=v", OPT_GLOBAL));
+	assert_success(vle_opts_set("tuioptions+=vl", OPT_GLOBAL));
+	assert_int_equal(-1, cfg.ellipsis_position);
 	assert_true(cfg.extra_padding);
 	assert_true(cfg.side_borders_visible);
 	assert_true(cfg.use_unicode_characters);
 	assert_true(cfg.flexible_splitter);
+	/* "r" shouldn't be in the value along with "l". */
+	assert_string_equal("lpsuv", vle_opts_get("tuioptions", OPT_GLOBAL));
 }
 
 TEST(setting_tabscope_works)
@@ -732,11 +740,13 @@ TEST(previewoptions)
 				CIT_COMMAND));
 	assert_int_equal(12345, cfg.graphics_delay);
 	assert_false(cfg.hard_graphics_clear);
+	assert_false(cfg.top_tree_stats);
 
 	assert_failure(exec_commands("set previewoptions=graphicsdelay:inf", &lwin,
 				CIT_COMMAND));
 	assert_int_equal(12345, cfg.graphics_delay);
 	assert_false(cfg.hard_graphics_clear);
+	assert_false(cfg.top_tree_stats);
 	assert_string_equal("Failed to parse \"graphicsdelay\" value: inf",
 			vle_tb_get_data(vle_err));
 
@@ -744,6 +754,7 @@ TEST(previewoptions)
 				CIT_COMMAND));
 	assert_int_equal(12345, cfg.graphics_delay);
 	assert_false(cfg.hard_graphics_clear);
+	assert_false(cfg.top_tree_stats);
 	assert_string_equal("\"graphicsdelay\" can't be negative, got: -12345",
 			vle_tb_get_data(vle_err));
 
@@ -751,6 +762,7 @@ TEST(previewoptions)
 				&lwin, CIT_COMMAND));
 	assert_int_equal(12345, cfg.graphics_delay);
 	assert_false(cfg.hard_graphics_clear);
+	assert_false(cfg.top_tree_stats);
 	assert_string_equal("Unknown key for 'previewoptions' option: wtf",
 			vle_tb_get_data(vle_err));
 
@@ -758,10 +770,26 @@ TEST(previewoptions)
 				CIT_COMMAND));
 	assert_int_equal(0, cfg.graphics_delay);
 	assert_true(cfg.hard_graphics_clear);
+	assert_false(cfg.top_tree_stats);
+
+	assert_success(exec_commands("set previewoptions=toptreestats", &lwin,
+				CIT_COMMAND));
+	assert_true(cfg.top_tree_stats);
+	assert_int_equal(0, cfg.graphics_delay);
+	assert_false(cfg.hard_graphics_clear);
 
 	assert_success(exec_commands("set previewoptions=", &lwin, CIT_COMMAND));
 	assert_int_equal(0, cfg.graphics_delay);
 	assert_false(cfg.hard_graphics_clear);
+	assert_false(cfg.top_tree_stats);
+}
+
+TEST(autocd)
+{
+	assert_success(exec_commands("set autocd", &lwin, CIT_COMMAND));
+	assert_true(cfg.auto_cd);
+	assert_success(exec_commands("set noautocd", &lwin, CIT_COMMAND));
+	assert_false(cfg.auto_cd);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

@@ -4,7 +4,9 @@
 #include <unistd.h> /* rmdir() symlink() unlink() */
 
 #include <string.h> /* strcpy() strdup() */
-#include <time.h> /* time_t */
+#include <time.h> /* time() time_t */
+
+#include <test-utils.h>
 
 #include "../../src/cfg/config.h"
 #include "../../src/compat/fs_limits.h"
@@ -15,14 +17,13 @@
 #include "../../src/fops_misc.h"
 #include "../../src/status.h"
 
-#include "utils.h"
-
 static void setup_single_entry(view_t *view, const char name[]);
 static uint64_t wait_for_size(const char path[]);
 
 SETUP()
 {
 	stats_init(&cfg);
+	view_setup(&lwin);
 }
 
 TEARDOWN()
@@ -71,6 +72,7 @@ TEST(changed_directory_detected_on_size_calculation, IF(not_windows))
 
 	assert_success(unlink(SANDBOX_PATH "/dir/subdir/file"));
 	view_teardown(&lwin);
+	view_setup(&lwin);
 	strcpy(lwin.curr_dir, SANDBOX_PATH);
 	setup_single_entry(&lwin, "dir");
 
@@ -81,9 +83,28 @@ TEST(changed_directory_detected_on_size_calculation, IF(not_windows))
 	assert_success(rmdir(SANDBOX_PATH "/dir"));
 }
 
+TEST(directory_size_is_not_recalculated)
+{
+	strcpy(lwin.curr_dir, TEST_DATA_PATH);
+	setup_single_entry(&lwin, ".");
+	lwin.dir_entry[0].selected = 1;
+
+	fops_size_bg(&lwin, 0);
+	assert_int_equal(73728, wait_for_size(TEST_DATA_PATH "/various-sizes"));
+
+	const time_t ts = time(NULL) + 10;
+	dcache_set_size_timestamp(TEST_DATA_PATH "/various-sizes", ts);
+
+	fops_size_bg(&lwin, 0);
+	wait_for_bg();
+
+	assert_ulong_equal(ts,
+			dcache_get_size_timestamp(TEST_DATA_PATH "/various-sizes"));
+}
+
 TEST(symlinks_to_dirs, IF(not_windows))
 {
-	create_empty_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir");
 
 	char cwd[PATH_MAX + 1];
 	get_cwd(cwd, sizeof(cwd));
@@ -94,8 +115,7 @@ TEST(symlinks_to_dirs, IF(not_windows))
 	assert_success(symlink(dir, SANDBOX_PATH "/link"));
 #endif
 
-	view_setup(&lwin);
-	set_to_sandbox_path(lwin.curr_dir, sizeof(lwin.curr_dir));
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
 	populate_dir_list(&lwin, 0);
 	assert_int_equal(2, lwin.list_rows);
 	lwin.dir_entry[0].marked = 1;
@@ -106,7 +126,6 @@ TEST(symlinks_to_dirs, IF(not_windows))
 	assert_int_equal(0, wait_for_size(SANDBOX_PATH "/dir"));
 	assert_int_equal(73728, wait_for_size(SANDBOX_PATH "/link"));
 
-	view_teardown(&lwin);
 	assert_success(unlink(SANDBOX_PATH "/link"));
 	assert_success(rmdir(SANDBOX_PATH "/dir"));
 }

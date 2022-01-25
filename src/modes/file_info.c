@@ -24,13 +24,13 @@
 #include <sys/stat.h>
 
 #include <assert.h> /* assert() */
+#include <ctype.h> /* isdigit() */
 #include <inttypes.h> /* PRId64 */
 #include <stddef.h> /* size_t */
 #include <stdint.h> /* uint64_t */
 #include <stdio.h>
 #include <stdlib.h> /* free() */
 #include <string.h> /* strlen() */
-#include <time.h> /* tm localtime() strftime() */
 
 #include "../cfg/config.h"
 #include "../compat/fs_limits.h"
@@ -60,7 +60,6 @@ static int print_item(const char label[], const char path[], int curr_y);
 static int show_file_type(view_t *view, int curr_y);
 static int print_link_info(const dir_entry_t *curr, int curr_y);
 static int show_mime_type(view_t *view, int curr_y);
-static void format_time(time_t t, char buf[], size_t buf_size);
 static void cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_l(key_info_t key_info, keys_info_t *keys_info);
 
@@ -99,6 +98,7 @@ modfinfo_enter(view_t *v)
 
 	term_title_update("File Information");
 	vle_mode_set(FILE_INFO_MODE, VMT_PRIMARY);
+	ui_qv_cleanup_if_needed();
 	view = v;
 	ui_setup_for_menu_like();
 	modfinfo_redraw();
@@ -176,13 +176,13 @@ modfinfo_redraw(void)
 	curr_y += print_item("Hard Links: ", buf, curr_y);
 #endif
 
-	format_time(curr->mtime, buf, sizeof(buf));
+	format_iso_time(curr->mtime, buf, sizeof(buf));
 	curr_y += print_item("Modified: ", buf, curr_y);
 
-	format_time(curr->atime, buf, sizeof(buf));
+	format_iso_time(curr->atime, buf, sizeof(buf));
 	curr_y += print_item("Accessed: ", buf, curr_y);
 
-	format_time(curr->ctime, buf, sizeof(buf));
+	format_iso_time(curr->ctime, buf, sizeof(buf));
 #ifndef _WIN32
 	curr_y += print_item("Changed: ", buf, curr_y);
 #else
@@ -191,10 +191,26 @@ modfinfo_redraw(void)
 
 #ifndef _WIN32
 	get_uid_string(curr, 0, sizeof(id_buf), id_buf);
-	curr_y += print_item("Owner: ", id_buf, curr_y);
+	if(isdigit(id_buf[0]))
+	{
+		copy_str(buf, sizeof(buf), id_buf);
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "%s (%lu)", id_buf, (unsigned long)curr->uid);
+	}
+	curr_y += print_item("Owner: ", buf, curr_y);
 
 	get_gid_string(curr, 0, sizeof(id_buf), id_buf);
-	curr_y += print_item("Group: ", id_buf, curr_y);
+	if(isdigit(id_buf[0]))
+	{
+		copy_str(buf, sizeof(buf), id_buf);
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "%s (%lu)", id_buf, (unsigned long)curr->gid);
+	}
+	curr_y += print_item("Group: ", buf, curr_y);
 #endif
 
 	/* Fake use after last assignment. */
@@ -207,27 +223,32 @@ modfinfo_redraw(void)
 	checked_wmove(menu_win, 2, 2);
 }
 
-/* Prints item prefixed with a label truncating the item if it's too long.
+/* Prints item prefixed with a label wrapping the item if it's too long.
  * Returns increment for curr_y. */
 static int
-print_item(const char label[], const char path[], int curr_y)
+print_item(const char label[], const char text[], int curr_y)
 {
-	const int max_width = getmaxx(menu_win) - strlen(label) - 2;
-	const size_t print_len = utf8_nstrsnlen(path, max_width);
-
 	mvwaddstr(menu_win, curr_y, 2, label);
-	if(path[print_len] == '\0')
-	{
-		wprint(menu_win, path);
-	}
-	else
-	{
-		char path_buf[PATH_MAX + 1];
-		copy_str(path_buf, MIN(sizeof(path_buf), print_len + 1), path);
-		wprint(menu_win, path_buf);
-	}
+	int x = getcurx(menu_win);
+	int max_width = getmaxx(menu_win) - 2 - x;
+	int dy = 0;
 
-	return 2;
+	do
+	{
+		const size_t print_len = utf8_nstrsnlen(text, max_width);
+
+		char part[1000];
+		copy_str(part, MIN(sizeof(part), print_len + 1), text);
+		wprint(menu_win, part);
+
+		text += print_len;
+		++dy;
+		++curr_y;
+		checked_wmove(menu_win, curr_y, x);
+	}
+	while(text[0] != '\0');
+
+	return dy + 1;
 }
 
 /* Returns increment for curr_y. */
@@ -402,35 +423,15 @@ static int
 show_mime_type(view_t *view, int curr_y)
 {
 	char full_path[PATH_MAX + 1];
-	const char *mimetype = NULL;
-
 	get_current_full_path(view, sizeof(full_path), full_path);
-	mimetype = get_mimetype(full_path, 0);
 
-	mvwaddstr(menu_win, curr_y, 2, "Mime Type: ");
-
+	const char *mimetype = get_mimetype(full_path, 0);
 	if(mimetype == NULL)
 	{
 		mimetype = "Unknown";
 	}
 
-	mvwaddstr(menu_win, curr_y, 13, mimetype);
-
-	return 2;
-}
-
-/* Formats single time field as a string.  Writes empty string on error. */
-static void
-format_time(time_t t, char buf[], size_t buf_size)
-{
-	struct tm *const tm = localtime(&t);
-	if(tm == NULL)
-	{
-		copy_str(buf, buf_size, "");
-		return;
-	}
-
-	strftime(buf, buf_size, "%a, %d %b %Y %H:%M:%S", tm);
+	return print_item("Mime Type: ", mimetype, curr_y);
 }
 
 static void

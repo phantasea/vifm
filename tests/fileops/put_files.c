@@ -3,7 +3,10 @@
 #include <sys/stat.h> /* stat */
 #include <unistd.h> /* stat() rmdir() symlink() unlink() */
 
+#include <limits.h> /* INT_MAX */
 #include <string.h> /* strcpy() */
+
+#include <test-utils.h>
 
 #include "../../src/cfg/config.h"
 #include "../../src/compat/fs_limits.h"
@@ -15,8 +18,6 @@
 #include "../../src/fops_put.h"
 #include "../../src/registers.h"
 #include "../../src/trash.h"
-
-#include "utils.h"
 
 static void line_prompt(const char prompt[], const char filename[],
 		fo_prompt_cb cb, fo_complete_cmd_func complete, int allow_ee);
@@ -31,6 +32,8 @@ static char options_prompt_overwrite(const char title[], const char message[],
 static char options_prompt_abort(const char title[], const char message[],
 		const struct response_variant *variants);
 static char options_prompt_skip_all(const char title[], const char message[],
+		const struct response_variant *variants);
+static char options_prompt_compare(const char title[], const char message[],
 		const struct response_variant *variants);
 static char cm_overwrite(const char title[], const char message[],
 		const struct response_variant *variants);
@@ -50,6 +53,7 @@ SETUP()
 	saved_cwd = save_cwd();
 
 	regs_init();
+	fops_init(NULL, NULL);
 
 	view_setup(&lwin);
 	lwin.sort[0] = SK_BY_NAME;
@@ -119,6 +123,14 @@ options_prompt_skip_all(const char title[], const char message[],
 }
 
 static char
+options_prompt_compare(const char title[], const char message[],
+		const struct response_variant *variants)
+{
+	fops_init(NULL, &options_prompt_abort);
+	return 'c';
+}
+
+static char
 cm_overwrite(const char title[], const char message[],
 		const struct response_variant *variants)
 {
@@ -165,7 +177,7 @@ TEST(put_files_bg_fails_on_identical_names_in_a_register)
 
 TEST(put_files_bg_fails_on_file_name_conflict)
 {
-	create_empty_file(SANDBOX_PATH "/a");
+	create_file(SANDBOX_PATH "/a");
 
 	assert_success(regs_append('a', TEST_DATA_PATH "/rename/a"));
 
@@ -187,8 +199,8 @@ TEST(put_files_bg_copies_files)
 
 TEST(put_files_bg_skips_nonexistent_source_files)
 {
-	create_empty_dir(SANDBOX_PATH "/dir");
-	create_empty_file(SANDBOX_PATH "/dir/b");
+	create_dir(SANDBOX_PATH "/dir");
+	create_file(SANDBOX_PATH "/dir/b");
 
 	assert_success(regs_append('a', TEST_DATA_PATH "/existing-files/a"));
 	assert_success(regs_append('a', SANDBOX_PATH "/dir/b"));
@@ -208,8 +220,7 @@ TEST(put_files_bg_demangles_names_of_trashed_files)
 
 	trash_set_specs(path);
 
-	create_empty_dir(SANDBOX_PATH "/trash");
-	create_empty_file(SANDBOX_PATH "/trash/000_b");
+	create_file(SANDBOX_PATH "/trash/000_b");
 
 	make_abs_path(path, sizeof(path), SANDBOX_PATH, "trash/000_b", saved_cwd);
 	assert_success(regs_append('a', path));
@@ -226,9 +237,9 @@ TEST(put_files_copies_files_according_to_tree_structure)
 	char path[PATH_MAX + 1];
 
 	cfg.dot_dirs = DD_TREE_LEAFS_PARENT;
-	create_empty_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir");
 
-	flist_load_tree(&lwin, lwin.curr_dir);
+	flist_load_tree(&lwin, lwin.curr_dir, INT_MAX);
 
 	make_abs_path(path, sizeof(path), TEST_DATA_PATH, "existing-files/a",
 			saved_cwd);
@@ -269,8 +280,8 @@ TEST(overwrite_request_accounts_for_target_file_rename)
 	struct stat st;
 	char src_file[PATH_MAX + 1];
 
-	create_empty_file(SANDBOX_PATH "/binary-data");
-	create_empty_file(SANDBOX_PATH "/b");
+	create_file(SANDBOX_PATH "/binary-data");
+	create_file(SANDBOX_PATH "/b");
 
 	make_abs_path(src_file, sizeof(src_file), TEST_DATA_PATH, "read/binary-data",
 			saved_cwd);
@@ -294,11 +305,11 @@ TEST(overwrite_request_accounts_for_target_file_rename)
 
 TEST(abort_stops_operation)
 {
-	create_empty_file(SANDBOX_PATH "/a");
-	create_empty_dir(SANDBOX_PATH "/dir");
-	create_empty_dir(SANDBOX_PATH "/dir/dir");
-	create_empty_file(SANDBOX_PATH "/dir/dir/a");
-	create_empty_file(SANDBOX_PATH "/dir/b");
+	create_file(SANDBOX_PATH "/a");
+	create_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir/dir");
+	create_file(SANDBOX_PATH "/dir/dir/a");
+	create_file(SANDBOX_PATH "/dir/b");
 
 	assert_success(regs_append('a', SANDBOX_PATH "/dir/dir/a"));
 	assert_success(regs_append('a', SANDBOX_PATH "/dir/b"));
@@ -331,7 +342,7 @@ TEST(rename_on_put)
 	char path[PATH_MAX + 1];
 	make_abs_path(path, sizeof(path), SANDBOX_PATH, "a", saved_cwd);
 
-	create_empty_file(SANDBOX_PATH "/a");
+	create_file(SANDBOX_PATH "/a");
 
 	assert_success(regs_append('a', path));
 
@@ -360,14 +371,14 @@ TEST(change_mind)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_dir(SANDBOX_PATH "/dir");
-	create_empty_dir(SANDBOX_PATH "/dir/dir");
-	create_empty_dir(SANDBOX_PATH "/dir/dir/dir");
-	create_empty_file(SANDBOX_PATH "/dir/dir/dir/file1");
-	create_empty_dir(SANDBOX_PATH "/dir2");
-	create_empty_dir(SANDBOX_PATH "/dir2/dir");
-	create_empty_dir(SANDBOX_PATH "/dir2/dir/dir");
-	create_empty_file(SANDBOX_PATH "/dir2/dir/dir/file2");
+	create_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir/dir");
+	create_dir(SANDBOX_PATH "/dir/dir/dir");
+	create_file(SANDBOX_PATH "/dir/dir/dir/file1");
+	create_dir(SANDBOX_PATH "/dir2");
+	create_dir(SANDBOX_PATH "/dir2/dir");
+	create_dir(SANDBOX_PATH "/dir2/dir/dir");
+	create_file(SANDBOX_PATH "/dir2/dir/dir/file2");
 
 	make_abs_path(path, sizeof(path), SANDBOX_PATH, "dir/dir", saved_cwd);
 	assert_success(regs_append('a', path));
@@ -394,12 +405,9 @@ TEST(broken_link_does_not_stop_putting, IF(not_windows))
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_dir(SANDBOX_PATH "/dir2");
-	create_empty_dir(SANDBOX_PATH "/dst");
-	/* symlink() is not available on Windows, but the rest of the code is fine. */
-#ifndef _WIN32
-	assert_success(symlink("dir2", SANDBOX_PATH "/dir1"));
-#endif
+	create_dir(SANDBOX_PATH "/dir2");
+	create_dir(SANDBOX_PATH "/dst");
+	assert_success(make_symlink("dir2", SANDBOX_PATH "/dir1"));
 
 	make_abs_path(path, sizeof(path), SANDBOX_PATH, "dir1", saved_cwd);
 	assert_success(regs_append('a', path));
@@ -421,16 +429,36 @@ TEST(broken_link_does_not_stop_putting, IF(not_windows))
 	assert_success(rmdir(SANDBOX_PATH "/dst"));
 }
 
+TEST(broken_link_behaves_like_a_regular_file_on_conflict, IF(not_windows))
+{
+	create_dir(SANDBOX_PATH "/src");
+	create_file(SANDBOX_PATH "/src/symlink");
+	assert_success(make_symlink("notarget", SANDBOX_PATH "/symlink"));
+
+	char path[PATH_MAX + 1];
+	make_abs_path(path, sizeof(path), SANDBOX_PATH, "src/symlink", saved_cwd);
+	assert_success(regs_append('a', path));
+
+	fops_init(&line_prompt, &cm_no);
+	(void)fops_put(&lwin, -1, 'a', /*move=*/1);
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	remove_file(SANDBOX_PATH "/src/symlink");
+	remove_dir(SANDBOX_PATH "/src");
+	remove_file(SANDBOX_PATH "/symlink");
+}
+
 static void
 parent_overwrite_with_put(int move)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_dir(SANDBOX_PATH "/dir");
-	create_empty_dir(SANDBOX_PATH "/dir/dir");
-	create_empty_dir(SANDBOX_PATH "/dir/dir1");
-	create_empty_file(SANDBOX_PATH "/dir/dir/file");
-	create_empty_file(SANDBOX_PATH "/dir/dir1/file2");
+	create_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir/dir");
+	create_dir(SANDBOX_PATH "/dir/dir1");
+	create_file(SANDBOX_PATH "/dir/dir/file");
+	create_file(SANDBOX_PATH "/dir/dir1/file2");
 
 	make_abs_path(path, sizeof(path), SANDBOX_PATH, "dir/dir", saved_cwd);
 	assert_success(regs_append('a', path));
@@ -459,11 +487,11 @@ double_clash_with_put(int move)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_dir(SANDBOX_PATH "/dir");
-	create_empty_dir(SANDBOX_PATH "/dir/dir");
-	create_empty_dir(SANDBOX_PATH "/dir/dir/dir");
-	create_empty_file(SANDBOX_PATH "/dir/dir/file1");
-	create_empty_file(SANDBOX_PATH "/dir/dir/dir/file2");
+	create_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir/dir");
+	create_dir(SANDBOX_PATH "/dir/dir/dir");
+	create_file(SANDBOX_PATH "/dir/dir/file1");
+	create_file(SANDBOX_PATH "/dir/dir/dir/file2");
 
 	make_abs_path(path, sizeof(path), SANDBOX_PATH, "dir/dir", saved_cwd);
 	assert_success(regs_append('a', path));
@@ -487,7 +515,7 @@ TEST(putting_single_file_moves_cursor_to_that_file)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir");
 
 	load_dir_list(&lwin, 0);
 
@@ -509,7 +537,7 @@ TEST(putting_multiple_files_moves_cursor_to_the_first_one_in_sorted_order)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_dir(SANDBOX_PATH "/dir");
+	create_dir(SANDBOX_PATH "/dir");
 
 	load_dir_list(&lwin, 0);
 
@@ -536,8 +564,8 @@ TEST(putting_file_with_conflict_moves_cursor_on_aborting)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_dir(SANDBOX_PATH "/dir");
-	create_empty_file(SANDBOX_PATH "/a");
+	create_dir(SANDBOX_PATH "/dir");
+	create_file(SANDBOX_PATH "/a");
 
 	load_dir_list(&lwin, 0);
 
@@ -560,7 +588,7 @@ TEST(putting_files_with_conflict_moves_cursor_to_the_last_conflicting_file)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_file(SANDBOX_PATH "/b");
+	create_file(SANDBOX_PATH "/b");
 
 	load_dir_list(&lwin, 0);
 
@@ -587,7 +615,7 @@ TEST(putting_files_with_conflict_moves_cursor_to_the_last_renamed_file)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_file(SANDBOX_PATH "/c");
+	create_file(SANDBOX_PATH "/c");
 
 	load_dir_list(&lwin, 0);
 
@@ -615,8 +643,8 @@ TEST(cursor_is_moved_even_if_no_file_was_processed)
 {
 	char path[PATH_MAX + 1];
 
-	create_empty_file(SANDBOX_PATH "/a");
-	create_empty_file(SANDBOX_PATH "/b");
+	create_file(SANDBOX_PATH "/a");
+	create_file(SANDBOX_PATH "/b");
 
 	load_dir_list(&lwin, 0);
 
@@ -634,6 +662,24 @@ TEST(cursor_is_moved_even_if_no_file_was_processed)
 
 	assert_success(unlink(SANDBOX_PATH "/b"));
 	assert_success(unlink(SANDBOX_PATH "/a"));
+}
+
+TEST(files_can_be_diffed)
+{
+	create_file(SANDBOX_PATH "/a");
+	create_dir(SANDBOX_PATH "/dir");
+	create_file(SANDBOX_PATH "/dir/a");
+
+	assert_success(regs_append('a', SANDBOX_PATH "/dir/a"));
+
+	fops_init(&line_prompt, &options_prompt_compare);
+	(void)fops_put(&lwin, -1, 'a', 0);
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	assert_success(unlink(SANDBOX_PATH "/a"));
+	assert_success(unlink(SANDBOX_PATH "/dir/a"));
+	assert_success(rmdir(SANDBOX_PATH "/dir"));
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

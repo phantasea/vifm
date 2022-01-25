@@ -34,7 +34,7 @@
 #include <sys/stat.h> /* O_* S_* */
 #include <sys/statvfs.h> /* statvfs statvfs() */
 #include <sys/time.h> /* timeval futimens() utimes() */
-#include <sys/wait.h> /* WEXITSTATUS() WIFEXITED() waitpid() */
+#include <sys/wait.h> /* WEXITSTATUS() WIFEXITED() WIFSIGNALED() waitpid() */
 #include <fcntl.h> /* open() close() */
 #include <grp.h> /* getgrnam() getgrgid_r() */
 #include <pthread.h> /* pthread_sigmask() */
@@ -113,6 +113,12 @@ pause_shell(void)
 int
 run_in_shell_no_cls(char command[], ShellRequester by)
 {
+	return run_with_input(command, /*input=*/NULL, by);
+}
+
+int
+run_with_input(char command[], FILE *input, ShellRequester by)
+{
 	int pid;
 	int result;
 	extern char **environ;
@@ -126,6 +132,11 @@ run_in_shell_no_cls(char command[], ShellRequester by)
 	new.sa_flags = SA_RESTART;
 	sigaction(SIGTSTP, &new, &old);
 
+	if(input != NULL)
+	{
+		fflush(input);
+	}
+
 	pid = fork();
 	if(pid == -1)
 	{
@@ -138,6 +149,19 @@ run_in_shell_no_cls(char command[], ShellRequester by)
 		signal(SIGINT, SIG_DFL);
 
 		prepare_for_exec();
+
+		if(input != NULL)
+		{
+			rewind(input);
+
+			if(dup2(fileno(input), STDIN_FILENO) == -1)
+			{
+				_Exit(127);
+			}
+
+			fclose(input);
+		}
+
 		char *sh_flag = (by == SHELL_BY_USER ? cfg.shell_cmd_flag : "-c");
 		execve(get_execv_path(cfg.shell),
 				make_execv_array(cfg.shell, sh_flag, command), environ);
@@ -154,7 +178,11 @@ run_in_shell_no_cls(char command[], ShellRequester by)
 void
 recover_after_shellout(void)
 {
-	/* Do nothing.  No need to recover anything on this platform. */
+	if(curr_stats.load_stage > 0)
+	{
+		reset_prog_mode();
+		doupdate();
+	}
 }
 
 void
@@ -205,23 +233,25 @@ process_cancel_request(pid_t pid, const struct cancellation_t *cancellation)
 int
 get_proc_exit_status(pid_t pid)
 {
-	do
+	while(1)
 	{
 		int status;
 		if(waitpid(pid, &status, 0) == -1)
 		{
-			if(errno != EINTR)
+			if(errno == EINTR)
 			{
-				LOG_SERROR_MSG(errno, "waitpid()");
-				return -1;
+				continue;
 			}
+			LOG_SERROR_MSG(errno, "waitpid()");
+			break;
 		}
-		else
+
+		if(WIFEXITED(status) || WIFSIGNALED(status))
 		{
 			return status;
 		}
 	}
-	while(1);
+	return -1;
 }
 
 void _gnuc_noreturn
@@ -721,7 +751,19 @@ get_gid(const char group[], gid_t *gid)
 int
 status_to_exit_code(int status)
 {
-	return (status != -1 && WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+	if(status == -1)
+	{
+		return -127;
+	}
+	if(WIFEXITED(status))
+	{
+		return WEXITSTATUS(status);
+	}
+	if(WIFSIGNALED(status))
+	{
+		return -WTERMSIG(status);
+	}
+	return -128;
 }
 
 int
@@ -1071,7 +1113,8 @@ clone_attribs(const char path[], const char from[], const struct stat *st)
 static void
 clone_timestamps(const char path[], const char from[], const struct stat *st)
 {
-#if defined(HAVE_STRUCT_STAT_ST_MTIM) && defined(HAVE_FUTIMENS)
+#if defined(HAVE_STRUCT_STAT_ST_MTIM) && defined(HAVE_FUTIMENS) && \
+    defined(HAVE_CONSISTENT_TIMESPEC)
 	const int fd = open(path, O_WRONLY);
 	if(fd != -1)
 	{
@@ -1153,21 +1196,25 @@ clone_xattrs(const char path[], const char from[])
 #endif
 }
 
-uint64_t
-get_free_space(const char at[])
+int
+get_drive_info(const char at[], uint64_t *total_bytes, uint64_t *free_bytes)
 {
 	struct statvfs st;
 	if(statvfs(at, &st) != 0)
 	{
-		return 0;
+		return -1;
 	}
 
 #ifdef __APPLE__
 	/* Apple is so fucking different... */
-	return (uint64_t)st.f_frsize*st.f_bavail;
+	const uint64_t block_size = st.f_frsize;
 #else
-	return (uint64_t)st.f_bsize*st.f_bavail;
+	const uint64_t block_size = st.f_bsize;
 #endif
+
+	*total_bytes = st.f_blocks*block_size;
+	*free_bytes = st.f_bavail*block_size;
+	return 0;
 }
 
 uint64_t

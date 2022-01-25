@@ -39,7 +39,6 @@
 #include "../engine/mode.h"
 #include "../int/vim.h"
 #include "../modes/dialogs/msg_dialog.h"
-#include "../ui/color_manager.h"
 #include "../ui/colors.h"
 #include "../ui/escape.h"
 #include "../ui/fileview.h"
@@ -107,12 +106,13 @@ struct modview_info_t
 	                            fields). */
 
 	/* The rest of the state. */
-	view_t *view;    /* File view association with the view. */
-	char *filename;  /* Full path to the file being viewed. */
-	int detached;    /* Whether view mode was detached. */
-	ViewerKind kind; /* Kind of preview. */
-	int wrap;        /* Whether lines are wrapped. */
-	int raw;         /* Forced raw preview. */
+	view_t *view;     /* File view association with the view. */
+	char *filename;   /* Full path to the file being viewed. */
+	int detached;     /* Whether view mode was detached. */
+	ViewerKind kind;  /* Kind of preview. */
+	MacroFlags flags; /* Macro flags for ext_viewer. */
+	int wrap;         /* Whether lines are wrapped. */
+	int raw;          /* Forced raw preview. */
 };
 
 /* View information structure indexes and count. */
@@ -186,8 +186,8 @@ static void cmd_k(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_n(key_info_t key_info, keys_info_t *keys_info);
 static void goto_search_result(int repeat_count, int inverse_direction);
 static void search(int repeat_count, int backward);
-static void find_previous(int vline_offset);
-static void find_next(void);
+static int find_previous(void);
+static int find_next(void);
 static void cmd_q(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_u(key_info_t key_info, keys_info_t *keys_info);
 static void update_with_half_win(key_info_t *key_info);
@@ -204,6 +204,7 @@ static void cleanup(modview_info_t *vi);
 static modview_info_t * view_info_alloc(void);
 TSTATIC int modview_is_raw(modview_info_t *vi);
 TSTATIC const char * modview_current_viewer(modview_info_t *vi);
+TSTATIC int modview_current_line(modview_info_t *vi);
 TSTATIC strlist_t modview_lines(modview_info_t *vi);
 
 /* Points to current (for quick view) or last used (for explore mode)
@@ -222,7 +223,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_n,           {{&cmd_j},      .descr = "scroll one line down"}},
 	{WK_C_p,           {{&cmd_k},      .descr = "scroll one line up"}},
 	{WK_C_r,           {{&cmd_ctrl_l}, .descr = "redraw"}},
-	{WK_C_u,           {{&cmd_u},      .descr = "undo file operation"}},
+	{WK_C_u,           {{&cmd_u},      .descr = "scroll half-page down"}},
 	{WK_C_v,           {{&cmd_f},      .descr = "scroll page down"}},
 	{WK_C_w WK_H,      {{&cmd_ctrl_wH}, .descr = "move window to the left"}},
 	{WK_C_w WK_J,      {{&cmd_ctrl_wJ}, .descr = "move window to the bottom"}},
@@ -291,7 +292,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_p,             {{&cmd_percent}, .descr = "to [count]% position"}},
 	{WK_q,             {{&cmd_q},       .descr = "leave view mode"}},
 	{WK_r,             {{&cmd_ctrl_l},  .descr = "redraw"}},
-	{WK_u,             {{&cmd_u},       .descr = "undo file operation"}},
+	{WK_u,             {{&cmd_u},       .descr = "scroll half-page down"}},
 	{WK_v,             {{&cmd_v},       .descr = "edit file at current line"}},
 	{WK_y,             {{&cmd_k},       .descr = "scroll one line up"}},
 	{WK_w,             {{&cmd_w},       .descr = "scroll backward one window"}},
@@ -353,10 +354,7 @@ modview_enter(view_t *view, int explore)
 
 	if(load_view_data(vi, "File exploring", full_path, NOSILENT) != 0)
 	{
-		free_string_array(vi->viewers.items, vi->viewers.nitems);
-		vi->viewers.items = NULL;
-		vi->viewers.nitems = 0;
-		update_string(&vi->filename, NULL);
+		reset_view_info(vi);
 		return;
 	}
 
@@ -377,7 +375,7 @@ modview_enter(view_t *view, int explore)
 }
 
 void
-modview_detached_make(view_t *view, const char cmd[])
+modview_detached_make(view_t *view, const char cmd[], MacroFlags flags)
 {
 	char full_path[PATH_MAX + 1];
 
@@ -392,6 +390,7 @@ modview_detached_make(view_t *view, const char cmd[])
 
 	vi->view = view;
 	vi->ext_viewer = strdup(cmd);
+	vi->flags = flags;
 	vi->filename = strdup(full_path);
 	vi->detached = 1;
 
@@ -470,7 +469,8 @@ modview_ruler_update(void)
 			vi->view->window_rows);
 
 	char buf[64];
-	snprintf(buf, sizeof(buf), "%d-%d %s", vi->line + 1, vi->nlines, rel_pos);
+	int curr_line = vi->line + (vi->nlines > 0 ? 1 : 0);
+	snprintf(buf, sizeof(buf), "%d-%d %s", curr_line, vi->nlines, rel_pos);
 
 	ui_ruler_set(buf);
 }
@@ -936,6 +936,11 @@ cmd_meta_space(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_percent(key_info_t key_info, keys_info_t *keys_info)
 {
+	if(vi->nlines == 0)
+	{
+		return;
+	}
+
 	if(key_info.count == NO_COUNT_GIVEN)
 		key_info.count = 0;
 	if(key_info.count > 100)
@@ -1070,17 +1075,18 @@ load_view_data(modview_info_t *vi, const char action[],
 
 	if(vi->nlines == 0)
 	{
-		show_error_msg(action, "Nothing to explore");
-		return 1;
+		vi->widths = NULL;
 	}
-
-	vi->widths = reallocarray(NULL, vi->nlines, sizeof(*vi->widths));
-	if(vi->widths == NULL)
+	else
 	{
-		vi->lines = NULL;
-		vi->nlines = 0;
-		show_error_msg(action, "Not enough memory");
-		return 1;
+		vi->widths = reallocarray(NULL, vi->nlines, sizeof(*vi->widths));
+		if(vi->widths == NULL)
+		{
+			vi->lines = NULL;
+			vi->nlines = 0;
+			show_error_msg(action, "Not enough memory");
+			return 1;
+		}
 	}
 
 	return 0;
@@ -1122,13 +1128,16 @@ get_view_data(modview_info_t *vi, const char file_to_view[])
 	if(vi->curr_viewer == vi->ext_viewer)
 	{
 		/* No macros in this viewer. */
-		lines = vcache_lookup(file_to_view, vi->ext_viewer, kind, INT_MAX, VC_SYNC,
-				&error);
+		lines = vcache_lookup(file_to_view, vi->ext_viewer, vi->flags, kind,
+				INT_MAX, VC_SYNC, &error);
 	}
 	else
 	{
-		char *expanded = (viewer == NULL ? NULL : qv_expand_viewer(viewer));
-		lines = vcache_lookup(file_to_view, expanded, kind, INT_MAX, VC_SYNC,
+		MacroFlags flags = MF_NONE;
+		char *expanded = (viewer == NULL)
+		               ? NULL
+		               : qv_expand_viewer(curr_view, viewer, &flags);
+		lines = vcache_lookup(file_to_view, expanded, flags, kind, INT_MAX, VC_SYNC,
 				&error);
 		free(expanded);
 	}
@@ -1140,15 +1149,6 @@ get_view_data(modview_info_t *vi, const char file_to_view[])
 	vi->nlines = lines.nitems;
 
 	vi->kind = kind;
-
-	if(vi->kind != VK_TEXTUAL && vi->nlines == 0)
-	{
-		/* Exploring absent output gives error, add an empty line to allow empty
-		 * output for graphical previewers. */
-		static char *lines[] = { "" };
-		vi->lines = lines;
-		vi->nlines = 1;
-	}
 
 	return error;
 }
@@ -1284,8 +1284,11 @@ cmd_g(key_info_t key_info, keys_info_t *keys_info)
 	key_info.count = MIN(vi->nlinesv - ui_qv_height(vi->view), key_info.count);
 	key_info.count = MAX(1, key_info.count);
 
-	if(vi->linev == vi->widths[key_info.count - 1][0])
+	if(vi->nlines == 0 || vi->linev == vi->widths[key_info.count - 1][0])
+	{
 		return;
+	}
+
 	vi->line = key_info.count - 1;
 	vi->linev = vi->widths[vi->line][0];
 	draw();
@@ -1386,35 +1389,43 @@ search(int repeat_count, int backward)
 		repeat_count = 1;
 	}
 
-	while(repeat_count-- > 0 && curr_stats.save_msg == 0)
+	while(repeat_count-- > 0)
 	{
-		if(backward)
+		if(backward ? find_previous() : find_next())
 		{
-			find_previous(1);
-		}
-		else
-		{
-			find_next();
+			break;
 		}
 	}
 }
 
-static void
-find_previous(int vline_offset)
+/* Scrolls to the previous search match.  Returns zero on success and non-zero
+ * if pattern wasn't found.  Prints a message on search failure. */
+static int
+find_previous(void)
 {
-	int i;
-	int offset = 0;
-	char buf[ui_qv_width(vi->view)*4];
-	int vl, l;
+	if(vi->linev == 0)
+	{
+		draw();
+		display_error("Nothing to search");
+		return 1;
+	}
 
-	vl = vi->linev - vline_offset;
-	l = vi->line;
+	char buf[ui_qv_width(vi->view)*4];
+
+	int vl = vi->linev - 1;
+	int l = vi->line;
 
 	if(l > 0 && vl < vi->widths[l][0])
-		l--;
+	{
+		--l;
+	}
 
-	for(i = 0; i <= vl - vi->widths[l][0]; i++)
+	int i;
+	int offset = 0;
+	for(i = 0; l < vi->nlines && i <= vl - vi->widths[l][0]; ++i)
+	{
 		offset = get_part(vi->lines[l], offset, ui_qv_width(vi->view), buf);
+	}
 
 	/* Don't stop until we go above first virtual line of the first line. */
 	while(l >= 0 && vl >= 0)
@@ -1427,38 +1438,47 @@ find_previous(int vline_offset)
 		}
 		if(l > 0 && vl - 1 < vi->widths[l][0])
 		{
-			l--;
+			--l;
 			offset = 0;
 			for(i = 0; i <= vl - 1 - vi->widths[l][0]; i++)
 				offset = get_part(vi->lines[l], offset, ui_qv_width(vi->view), buf);
 		}
 		else
 			offset = get_part(vi->lines[l], offset, ui_qv_width(vi->view), buf);
-		vl--;
+		--vl;
 	}
+
 	draw();
-	if(vi->line != l)
+
+	if(vi->linev != vl || vi->nlines == 0)
 	{
 		display_error("Pattern not found");
+		return 1;
 	}
+	return 0;
 }
 
-static void
+/* Scrolls to the next search match.  Returns zero on success and non-zero if
+ * pattern wasn't found.  Prints a message on search failure. */
+static int
 find_next(void)
 {
-	int i;
-	int offset = 0;
 	char buf[ui_qv_width(vi->view)*4];
-	int vl, l;
 
-	vl = vi->linev + 1;
-	l = vi->line;
+	int vl = vi->linev + 1;
+	int l = vi->line;
 
 	if(l < vi->nlines - 1 && vl == vi->widths[l + 1][0])
-		l++;
+	{
+		++l;
+	}
 
-	for(i = 0; i <= vl - vi->widths[l][0]; i++)
+	int i;
+	int offset = 0;
+	for(i = 0; l < vi->nlines && i <= vl - vi->widths[l][0]; ++i)
+	{
 		offset = get_part(vi->lines[l], offset, ui_qv_width(vi->view), buf);
+	}
 
 	while(l < vi->nlines)
 	{
@@ -1473,17 +1493,21 @@ find_next(void)
 		{
 			if(l == vi->nlines - 1)
 				break;
-			l++;
+			++l;
 			offset = 0;
 		}
 		offset = get_part(vi->lines[l], offset, ui_qv_width(vi->view), buf);
-		vl++;
+		++vl;
 	}
+
 	draw();
-	if(vi->line != l)
+
+	if(vi->linev != vl || vi->nlines == 0)
 	{
 		display_error("Pattern not found");
+		return 1;
 	}
+	return 0;
 }
 
 /* Extracts part of the line replacing all occurrences of horizontal tabulation
@@ -1530,9 +1554,10 @@ update_with_half_win(key_info_t *key_info)
 {
 	if(key_info->count == NO_COUNT_GIVEN)
 	{
+		int height = ui_qv_height(vi->view);
 		key_info->count = (vi->half_win > 0)
 			? vi->half_win
-			: ui_qv_height(vi->view)/2;
+			: (height == 1 ? 1 : height/2);
 	}
 	else
 	{
@@ -1588,9 +1613,15 @@ update_with_win(key_info_t *key_info)
 static void
 set_from_default_win(key_info_t *key_info)
 {
-	key_info->count = (vi->win_size > 0)
-		? vi->win_size
-		: (ui_qv_height(vi->view) - 1);
+	if(vi->win_size > 0)
+	{
+		key_info->count = vi->win_size;
+	}
+	else
+	{
+		int height = ui_qv_height(vi->view);
+		key_info->count = (height == 1 ? 1 : height - 1);
+	}
 }
 
 int
@@ -1813,6 +1844,12 @@ TSTATIC const char *
 modview_current_viewer(modview_info_t *vi)
 {
 	return vi->curr_viewer;
+}
+
+TSTATIC int
+modview_current_line(modview_info_t *vi)
+{
+	return vi->line;
 }
 
 TSTATIC strlist_t

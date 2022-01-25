@@ -109,11 +109,59 @@ run_in_shell_no_cls(char command[], ShellRequester by)
 	{
 		int returned_exit_code;
 		ret = win_exec_cmd(sh_cmd, &returned_exit_code);
+		if (!returned_exit_code)
+		{
+			ret = -1;
+		}
 	}
 
 	free(sh_cmd);
 
 	return ret;
+}
+
+int
+run_with_input(char command[], FILE *input, ShellRequester by)
+{
+	rewind(input);
+
+	PROCESS_INFORMATION pinfo;
+
+	STARTUPINFOW startup = {
+		.dwFlags = STARTF_USESTDHANDLES,
+		.hStdInput = (HANDLE)_get_osfhandle(_fileno(input)),
+		.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE),
+		.hStdError = GetStdHandle(STD_ERROR_HANDLE),
+	};
+	SetHandleInformation(startup.hStdInput, HANDLE_FLAG_INHERIT, 1);
+	SetHandleInformation(startup.hStdOutput, HANDLE_FLAG_INHERIT, 1);
+	SetHandleInformation(startup.hStdError, HANDLE_FLAG_INHERIT, 1);
+
+	char *sh_cmd = win_make_sh_cmd(command, by);
+	wchar_t *wide_cmd = to_wide(sh_cmd);
+	free(sh_cmd);
+
+	int started = CreateProcessW(NULL, wide_cmd, NULL, NULL, 1, 0,
+			NULL, NULL, &startup, &pinfo);
+	free(wide_cmd);
+
+	if(!started)
+	{
+		return -1;
+	}
+
+	CloseHandle(pinfo.hThread);
+
+	int is_exit_code;
+	DWORD code = handle_process(NULL, pinfo.hProcess, &is_exit_code);
+	if(!is_exit_code && code != NO_ERROR)
+	{
+		LOG_WERROR(code);
+		code = -1;
+	}
+
+	CloseHandle(pinfo.hProcess);
+	return code;
 }
 
 void
@@ -339,14 +387,14 @@ base64_encode(const char str[])
 	return out;
 }
 
-/* Handles process execution.  Returns system error code when sets
- * *got_exit_code to 0 and exit code of the process otherwise. */
+/* Handles process execution.  The cmd can be NULL.  Returns system error code
+ * when sets *got_exit_code to 0 and exit code of the process otherwise. */
 static DWORD
 handle_process(const char cmd[], HANDLE proc, int *got_exit_code)
 {
 	DWORD exit_code;
 
-	if(!should_wait_for_program(cmd))
+	if(cmd != NULL && !should_wait_for_program(cmd))
 	{
 		return 0;
 	}
@@ -888,7 +936,7 @@ get_sys_conf_dir(void)
 }
 
 FILE *
-win_tmpfile()
+win_tmpfile(void)
 {
 	char dir[PATH_MAX + 1];
 	char file[PATH_MAX + 1];
@@ -1023,21 +1071,24 @@ get_set_owner_privilege(void)
 	return granted;
 }
 
-uint64_t
-get_free_space(const char at[])
+int
+get_drive_info(const char at[], uint64_t *total_bytes, uint64_t *free_bytes)
 {
 	char *const root_path = get_root_path(at);
-	DWORD sectors_per_cluster, bytes_per_sector, number_of_free_clusters;
+	DWORD sectors_in_cluster, bytes_in_sector, free_cluster_count;
 	DWORD total_number_of_clusters;
-	if(!GetDiskFreeSpaceA(root_path, &sectors_per_cluster,
-				&bytes_per_sector, &number_of_free_clusters, &total_number_of_clusters))
+	if(!GetDiskFreeSpaceA(root_path, &sectors_in_cluster, &bytes_in_sector,
+				&free_cluster_count, &total_number_of_clusters))
 	{
 		free(root_path);
-		return 0;
+		return -1;
 	}
 	free(root_path);
 
-	return (uint64_t)bytes_per_sector*sectors_per_cluster*number_of_free_clusters;
+	*total_bytes =
+		(uint64_t)bytes_in_sector*sectors_in_cluster*total_number_of_clusters;
+	*free_bytes = (uint64_t)bytes_in_sector*sectors_in_cluster*free_cluster_count;
+	return 0;
 }
 
 /* Extracts root part of the path (drive name or UNC share name).  Returns newly

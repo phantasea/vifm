@@ -1,4 +1,4 @@
-.TH VIFM 1 "December 7, 2020" "vifm 0.11"
+.TH VIFM 1 "January 2, 2022" "vifm 0.12"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -507,6 +507,27 @@ filter out files that don't match regular expression.  Whether view is updated
 as regular expression is changed depends on the value of the 'incsearch' option.
 This kind of filter is automatically reset when directory is changed.
 .\" ---------------------------------------------------------------------------
+.SH Tree-related Keys
+.\" ---------------------------------------------------------------------------
+While some of the keys make sense outside of tree-view, they are most useful
+in trees.
+.TP
+.BI [z
+go to first sibling of current entry.
+.TP
+.BI ]z
+go to last sibling of current entry.
+.TP
+.BI zj
+go to next directory sibling of current entry or do nothing.
+.TP
+.BI zk
+go to previous directory sibling of current entry or do nothing.
+.TP
+.BI zx
+toggle fold under the cursor or parent entry of the current file if cursor
+is not on a directory.
+.\" ---------------------------------------------------------------------------
 .SH Other Normal Mode Keys
 .\" ---------------------------------------------------------------------------
 .TP
@@ -605,13 +626,15 @@ explore file in the current pane.
 handle file (even if it's an executable and 'runexec' option is set).
 .TP
 .BI cw
-change word is used to rename a file or files.
+change word is used to rename a file or files.  If multiple files are selected,
+behaves as :rename command run without arguments.
 .TP
 .BI cW
 change WORD is used to change only name of file (without extension).
 .TP
 .BI cl
-change link target.
+change link target.  If multiple files are selected, an editor is spawn
+to edit paths.
 .TP
 .BI co
 only for *nix
@@ -753,18 +776,6 @@ go to previous selected entry or do nothing.
 .TP
 .BI ]s
 go to next selected entry or do nothing.
-.TP
-.BI [z
-go to first sibling of current entry.
-.TP
-.BI ]z
-go to last sibling of current entry.
-.TP
-.BI zj
-go to next directory sibling of current entry or do nothing.
-.TP
-.BI zk
-go to previous directory sibling of current entry or do nothing.
 .\" ---------------------------------------------------------------------------
 .SH Using Count
 .\" ---------------------------------------------------------------------------
@@ -896,7 +907,7 @@ after reject.  Accepting selection by performing an operation on selected
 items (e.g. yanking them via "y") moves cursor to the top of current selection
 region (not to the top most selected file of the view).
 
-In turn, selection editing supports three types of editing (look at statusbar
+In turn, selection editing supports three types of editing (look at status bar
 to know which one is currently active):
 .RS 2
 .IP \- 2
@@ -945,6 +956,12 @@ make names of selected files lowercase.
 .TP
 .BI "gU, U"
 make names of selected files uppercase.
+.TP
+.BI cl
+change target of symbolic link(s).
+.TP
+.BI cw
+same as running :rename command without arguments.
 .\" ---------------------------------------------------------------------------
 .SH View Mode
 .\" ---------------------------------------------------------------------------
@@ -1641,9 +1658,25 @@ set or redefine a user command.
 Use :com[mand]! to overwrite a previously set command of the same name.
 Builtin commands can't be redefined.
 .br
-Unlike in vim, user commands do not have to start with a capital letter.
-However, command name cannot contain numbers or special symbols except for
-single trailing '?' or '!'.
+User commands must start with an upper or lower case letter.
+Command name can't contain special symbols except for a single trailing
+\(aq?' or '!'.  Numbers are allowed provided that they don't cause parsing
+ambiguity (no command name prefix that precedes a digit can match an
+existing command unless it has a digit in the same place), for example:
+.EX
+  " good
+  :command mp3 command
+  " good
+  :command mp4 command
+  :command mp3! command
+  :command mp4? command
+  " bad
+  :command mp command
+  :command mp44 command
+  " good
+  :command mp4c command
+.EE
+
 .br
 User commands are run in a shell by default (see below for syntax of other
 options).  To run a command in the background you must mark it as a background
@@ -1680,9 +1713,9 @@ equals
 .TP
 .BI ":compare [byname | bysize | bycontents | listall | listunique | listdups |\
  ofboth | ofone | groupids | grouppaths | skipempty]..."
-compare files in one or two views according the arguments.  The default
+compare files in one or two views according to the arguments.  The default
 is "bycontents listall ofboth grouppaths".  See "Compare views" section below
-for details.  Tree structure is incompatible with alternative representations,
+for details.  Diff structure is incompatible with alternative representations,
 so values of 'lsview' and 'millerview' options are ignored.
 .TP
 .BI "                                         :copen"
@@ -1949,7 +1982,7 @@ of vifm after pressing "e" or running :view command.  When the command doesn't
 contain any of vifm macros, name of current file is appended as if command
 ended with %c macro.  Comma escaping and missing commands processing rules as
 for :filetype apply to this command.  See "Patterns" section below for pattern
-definition.
+definition.  Supports Lua handlers.
 
 Example for zip archives:
 .EX
@@ -2074,10 +2107,11 @@ remove specified rule.
 display information on given highlight group or file name pattern of color
 scheme used in the active view.
 .TP
-.BI ":hi[ghlight] ( group\-name | {pat1,pat2,...} | /regexp/[iI] ) cterm=style | ctermfg=color | ctermbg=color"
-set style (cterm), foreground (ctermfg) or/and background (ctermbg) parameters
-of highlight group or file name pattern for color scheme used in the active
-view.
+.BI ":hi[ghlight] ( group\-name | {pat1,pat2,...} | /regexp/[iI] ) cterm=style \
+| ctermfg=color | ctermbg=color | gui=style | guifg=color | guibg=color"
+set style (cterm, gui), foreground (ctermfg, guifg) and/or background (ctermbg,
+guibg) parameters of highlight group or file name pattern for color scheme used
+in the active view.
 .LP
 All style values as well as color names are case insensitive.
 .LP
@@ -2087,6 +2121,8 @@ Available style values (some of them can be combined):
  \- reverse or inverse
  \- standout
  \- italic (on unsupported systems becomes reverse)
+ \- combine \- add attributes of current group to attributes of the parent in \
+group hierarchy (see below) instead of replacing them
  \- none
 
 Available group-name values:
@@ -2131,16 +2167,21 @@ Available colors:
  \- magenta and lightmagenta
  \- cyan    and lightcyan
  \- white   and lightwhite
- \- 0-255 \- corresponding colors from 256-color palette
+ \- 0-255 \- corresponding colors from 256-color palette (for ctermfg and \
+ctermbg)
+ \- #rrggbb \- direct ("gui", "true", 24-bit) color in hex-notation, each of \
+the three compontents are in the range 0x00 to 0xff (for guifg and guibg)
 
-Light versions of colors are regular colors with bold attribute set.  So order
-of arguments of :highlight command is important and it's better to put "cterm"
-in front of others to prevent it from overwriting attributes set by "ctermfg" or
-"ctermbg" arguments.
+Light versions of colors are regular colors with bold attribute set
+automatically in terminals that have less than 16 colors.  So order of arguments
+of :highlight command is important and it's better to put "cterm" in front of
+others to prevent it from overwriting attributes set by "ctermfg" or "ctermbg"
+arguments.
 
 For convenience of color scheme authors xterm-like names for 256 color palette
 is also supported.  The mapping is taken from
 http://vim.wikia.com/wiki/Xterm256_color_names_for_console_Vim
+.br
 Duplicated entries were altered by adding an underscore followed by numerical
 suffix.
 
@@ -2246,6 +2287,13 @@ also be set via X resources), e.g. xterm-256color.  One can find list of
 available terminal names by listing /usr/lib/terminfo/.  Number of colors
 supported by terminal with current settings can be checked via "tput colors"
 command.
+
+In order to use 24-bit colors one needs a terminal that supports them,
+corresponding terminfo record (probably ends in "\-direct" like in
+"xterm-direct") and $TERM pointing to it.  When vifm detects direct color
+support "cterm*" values are ignored for groups which have at least one of
+"gui*" values set, otherwise they are used after translating via a builtin
+palette.
 
 Here is the hierarchy of highlight groups, which you need to know for using
 transparency:
@@ -2492,6 +2540,21 @@ space, so put a count of 1 (one) before it.
 .BI :on[ly]
 switch to a one window view.
 .TP
+.BI "                                         :plugin"
+.TP
+.BI ":plugin load"
+loads all plugins.  To be used in configuration file to manually load
+plugins at an earlier point.  The plugins can be loaded only once,
+additional calls will do nothing.
+.TP
+.TP
+.BI ":plugin blacklist {plugin}"
+adds {plugin} to the list of plugins to be ignored.
+.TP
+.BI ":plugin whitelist {plugin}"
+adds {plugin} to the list of plugins to be loaded while ignoring all other
+plugins.  This list should normally be empty.
+.TP
 .BI "                                         :plugins"
 .TP
 .BI :plugins
@@ -2559,7 +2622,8 @@ switch to regular view leaving custom view.
 .BI "                                         :rename"
 .TP
 .BI :[range]rename[!]
-rename files using vi to edit names. ! means go recursively through directories.
+rename files by editing their names in an editor.  "!" renames files
+recursively in subdirectories.  See "External Renaming" section.
 .TP
 .BI ":[range]rename name1 name2..."
 rename each of selected files to a corresponding name.
@@ -2656,6 +2720,10 @@ create or load and switch to a session with the specified name.  Name
 can't contain slashes.  Session active at the moment is saved before the
 switch.  Session is also automatically saved when quiting the application in
 usual ways.  Sets v:session.
+.TP
+.BI ":session -"
+switch to a previous session if it still exists (wasn't removed or
+detached from without saving).
 .TP
 .BI "                                         :set"
 .TP
@@ -2770,6 +2838,13 @@ toggle horizontal window splitting.
 .BI ":sp[lit] path"
 splits the window horizontally to show both file directories.  Also changes
 other pane to path (absolute or relative to current directory of active pane).
+.TP
+.BI "                                         :stop"
+.TP
+.BI :st[op]
+suspend vifm (same as pressing Ctrl-Z).  Does nothing if this instance isn't
+running in a shell.  The command exists to allow mapping to the action of
+Ctrl-Z.
 .TP
 .BI "                                         :substitute"
 .TP
@@ -2918,6 +2993,9 @@ command that changes directory will also do, in particular, `:cd ..`.
 
 Tree structure is incompatible with alternative representations, so values
 of 'lsview' and 'millerview' options are ignored.
+
+The "depth" argument specifies nesting level on which loading of
+subdirectories won't happen (they will be folded).  Values start at 1.
 .TP
 .BI :tree!
 toggle current view in and out of tree mode.
@@ -3114,33 +3192,38 @@ list all maps in visual mode that start with the beginning.
 .BI "                                         :noremap"
 .TP
 .BI ":no[remap] lhs rhs"
-map the key sequence lhs to rhs for normal and visual modes, but disallow
-mapping of rhs.
+map the key sequence lhs to rhs for normal and visual modes, but don't expand
+user mappings in rhs.
 .TP
 .BI ":no[remap]! lhs rhs"
-map the key sequence lhs to rhs for command line mode, but disallow mapping of
-rhs.
+map the key sequence lhs to rhs for command line mode, but don't expand user
+mappings in rhs.
 .TP
 .BI "               :cnoremap :dnoremap :mnoremap :nnoremap :qnoremap :vnoremap"
 .TP
 .BI ":cno[remap] lhs rhs"
-map the key sequence lhs to rhs for command line mode, but disallow mapping of
-rhs.
+map the key sequence lhs to rhs for command line mode, but don't expand user
+mappings in rhs.
 .TP
 .BI ":dn[oremap] lhs rhs"
-map the key sequence lhs to rhs for dialog modes, but disallow mapping of rhs.
+map the key sequence lhs to rhs for dialog modes, but don't expand user mappings
+in rhs.
 .TP
 .BI ":mn[oremap] lhs rhs"
-map the key sequence lhs to rhs for menu mode, but disallow mapping of rhs.
+map the key sequence lhs to rhs for menu mode, but don't expand user mappings in
+rhs.
 .TP
 .BI ":nn[oremap] lhs rhs"
-map the key sequence lhs to rhs for normal mode, but disallow mapping of rhs.
+map the key sequence lhs to rhs for normal mode, but don't expand user mappings
+in rhs.
 .TP
 .BI ":qn[oremap] lhs rhs"
-map the key sequence lhs to rhs for view mode, but disallow mapping of rhs.
+map the key sequence lhs to rhs for view mode, but don't expand user mappings in
+rhs.
 .TP
 .BI ":vn[oremap] lhs rhs"
-map the key sequence lhs to rhs for visual mode, but disallow mapping of rhs.
+map the key sequence lhs to rhs for visual mode, but don't expand user mappings
+in rhs.
 .TP
 .BI "                                         :unmap"
 .TP
@@ -3259,27 +3342,39 @@ Same as %u, but implies less list updates inside vifm, which is absence of
 sorting at the moment.
 .TP
 .BI %Iu
-same as %u, but gives up terminal before running external command.
+Same as %u, but gives up terminal before running external command.
 .TP
 .BI %IU
-same as %U, but gives up terminal before running external command.
+Same as %U, but gives up terminal before running external command.
 .TP
 .BI %S
 Show command output in the status bar.
 .TP
 .BI %q
-redirect command output to quick view, which is activated if disabled.
+Redirect command output to quick view, which is activated if disabled.
 .TP
 .BI %s
-Execute command in split window of active terminal multiplexer (ignored if not
-running inside one).
+Execute command in horizontally split window of active terminal multiplexer
+(ignored if not running inside one).
+.TP
+.BI %v
+Same as %s, but splits vertically.
 .TP
 .BI %n
-Forbid using of terminal multiplexer to run the command.
+Forbid use of terminal multiplexer to run the command.
+.TP
+.BI %N
+Do not detach viewer from terminal session (leaves `/dev/tty` available).
 .TP
 .BI %i
 Completely ignore command output.  For background jobs this suppresses error
 dialogs, while still storing errors internally for viewing via :jobs menu.
+.TP
+.BI %Pl
+Pipe list of files to standard input of a command.
+.TP
+.BI %Pz
+Same as %Pl, but separates paths by null ('\\0') character.
 .TP
 .BI %pc
 Marks the end of the main command and the beginning of the clear command for
@@ -3290,6 +3385,10 @@ Marks a preview command as one that directly communicates with the terminal.
 Beware that this is for things like sixel which are self-contained sequences
 that depend only on current cursor position, using this with anything else is
 likely to mangle terminal state.
+.TP
+.BI %pu
+Uncached preview.  Intended to be used for commands that just send file path
+somewhere for preview.
 .LP
 The following dimensions and coordinates are in characters:
 .TP
@@ -3308,8 +3407,12 @@ height of preview area.
 .LP
 Use %% if you need to put a percent sign in your command.
 
-Note that %m, %M, %s, %S, %i, %u and %U macros are mutually exclusive.  Only
-the last one of them on the command will take effect.
+Note that %i, %Iu, %IU, %m, %M, %n, %q, %s, %S, %u, %U and %v macros are
+mutually exclusive.  Only the last one of them on the command will take
+effect.
+
+Note that %Pl and %Pz are mutually exclusive.  Only the last one of them on
+the command will take effect.
 
 You can use file name modifiers after %c, %C, %f, %F, %b, %d and %D macros.
 Supported modifiers are:
@@ -3427,7 +3530,7 @@ files), further operations are cancelled too.  In this case undo history will
 contain only actually performed operations.
 
 Cancelled operations are indicated by "(cancelled)" suffix appended to
-information message on statusbar.
+information message on status bar.
 
 .B File system operations
 
@@ -3685,6 +3788,15 @@ and %% sequence for inserting percent sign literally.  This option should
 include the %a macro to specify placement of arguments passed to the :apropos
 command.  If the macro is not used, it will be implicitly added after a space to
 the value of this option.
+.TP
+.BI 'autocd'
+type: boolean
+.br
+default: false
+.br
+When enabled unknown command-line commands are interpreted as implicit
+invocation of :cd with one argument and no escaping.  Tilde is
+expanded, but not macros or environment variables.
 .TP
 .BI 'autochpos'
 type: boolean
@@ -4257,6 +4369,7 @@ view mode).
   item               default  meaning
   graphicsdelay:num  0        delay before drawing graphics (microseconds)
   hardgraphicsclear  unset    redraw screen to get rid of graphics
+  toptreestats       unset    show file counts before the tree
 
 graphicsdelay is needed if terminal requires some timeout before it can
 draw graphics (otherwise it gets lost).
@@ -4433,7 +4546,7 @@ of some message displayed by vifm in the TUI.  Flags:
  - M \- shorten titles in windows of terminal multiplexers created by vifm \
 down to file name instead of using full path.
 .br
- - T \- truncate status-bar messages in the middle if they are too long to fit \
+ - T \- truncate status bar messages in the middle if they are too long to fit \
 on the command line.  "..." will appear in the middle.
 .br
  - p \- use tilde shortening in view titles.
@@ -4539,8 +4652,8 @@ etc.):
    [+\-]nitems  \- number of items in a directory (zero for files)
    [+\-]groups  \- groups extracted via regexps from 'sortgroups'
    [+\-]target  \- symbolic link target (empty for other file types)
-   [+\-]atime   \- time accessed (e.g. read, executed)
-   [+\-]ctime   \- time changed (changes in metadata, e.g. mode)
+   [+\-]atime   \- time accessed (e.g., read, executed)
+   [+\-]ctime   \- time changed (changes in metadata, like mode)
    [+\-]mtime   \- time modified (when file contents is changed)
 
 Note: look for st_atime, st_ctime and st_mtime in "man 2 stat" for more
@@ -4638,6 +4751,9 @@ Empty string means use same format like in previous versions.  Following macros
 are supported:
 .RS
 .IP \- 2
+%N \- line break (increases height of the status line accordingly), ignores
+%[ %] blocks
+.IP \- 2
 %t \- file name (considering value of the 'classify' option)
 .IP \- 2
 %T - symbolic link target (empty for other filetypes)
@@ -4660,7 +4776,9 @@ since it cannot be selected
 .IP \- 2
 %D \- path of the other pane for single-pane layout
 .IP \- 2
-%a - amount of free space available at current partition
+%a - amount of free space available on current FS
+.IP \- 2
+%c - size of current FS
 .IP \- 2
 %z - short tips/tricks/hints that chosen randomly after one minute period
 .IP \- 2
@@ -4740,9 +4858,9 @@ specifies the delay in ms (500 by default), 'timeoutlen' at most;
 .BI 'syncregs'
 type: string
 .br
-default:
+default: ""
 .br
-Specifies identifier of group of instances that share registers between each
+Specifies identifier of group of instances that share registers among each
 other.  When several instances of vifm have this option set to identical
 value, they automatically synchronize contents of their registers on
 operations which use them.
@@ -4939,6 +5057,14 @@ are visible.
 u \- use Unicode characters in the TUI (Unicode ellipsis instead of "...").
 .br
 v \- vary width of middle border to equalize view sizes.
+
+Each pane title contains the path of the listed directory.  If too large, the
+path is truncated on the left for the active pane and on the right for the other
+pane.  This can be modified with:
+
+l \- truncation is always on the left.
+.br
+r \- truncation is always on the right.
 .TP
 .BI "'undolevels' 'ul'"
 type: integer
@@ -5198,7 +5324,7 @@ might be mapped to single key code, for example:
 .IP \- 2
 <tab> and <c-i>;
 .IP \- 2
-<c-h> and <bs>;
+<c-h> and <bs> and <del>;
 .IP \- 2
 etc.
 .RE
@@ -5216,6 +5342,9 @@ Alternatively, provide your mapping in one form and add one of the following:
   " if mappings with <bs> in the LHS work
   map <bs> <c-h>
 .EE
+
+Also sometimes neither of them might work and it's <del> key which corresponds
+to your backspace (don't mind the name).
 
 .B Whitespace
 
@@ -5700,6 +5829,7 @@ true/present, otherwise 0 is returned.  Currently the following properties
 are supported (anything else will yield 0):
     unix  runs in *nix-like environment (including Cygwin)
     win   runs on Windows
+    #*    whether particular Lua handler exists
 .br
 
 Usage example:
@@ -5973,6 +6103,16 @@ One shortcut per sorting key (see the dialog).
 h, Space \- check/uncheck.
 .br
 q \- close dialog
+.br
+r \- (*nix only) (un)set all read bits
+.br
+w \- (*nix only) (un)set all write bits
+.br
+x \- (*nix only) (un)set all execute bits
+.br
+s \- (*nix only) (un)set all special (SetUID, SetGID, Sticky) bits
+.br
+e \- (*nix only) (un)set recursion (for directories only)
 
 Item states:
 .IP \- 2
@@ -6218,7 +6358,8 @@ pane).
 
 Files are gathered in this way:
  \- recursively starting at current location of the view;
- \- dot files are excluded if view hides them at the moment of comparison;
+ \- dot files are excluded if view hides them at the moment of comparison, file
+name filters are obeyed as well so you end up comparing what you see;
  \- directories are not taken into account;
  \- symbolic links to directories are ignored.
 .\" ---------------------------------------------------------------------------
@@ -6511,9 +6652,11 @@ Note that tree-view and compare view inhibit ls-like view.
 .\" ---------------------------------------------------------------------------
 View columns are described by a comma-separated list of column descriptions,
 each of which has the following format
-    [ '\-' ] [ fw ( [ '.' tw ] | '%' ) ] '{' type '}' '.'{0,3}
+    [ '\-' | '*' ] [ fw ( [ '.' tw ] | '%' ) ] '{' type | literal '}' '.'{0,3}
 .br
-where fw stands for full width and tw stands for text width.
+where fw stands for full width, tw stands for text width, bar is logical or,
+square brackets denote optional parts and curly braces define range of
+repetitions for a symbol that precedes them.
 
 So it basically consists of four parts:
  1. Optional alignment specifier
@@ -6585,18 +6728,18 @@ Columns of different sizing types can be freely mixed in one view. Though
 sometimes some of columns can be seen partly or be completely invisible if
 there is not enough space to display them.
 .LP
-.B Column name
+.B Column contents
 
-This is just a sort key surrounded with curly braces or {root}, e.g.
+This is usually a sorting key surrounded with curly braces, e.g.
 
 .EX
   {name},{ext},{mtime}
 .EE
 
-{name} and {iname} keys are the same and present both for consistency with
+{name} and {iname} types are the same and present both for consistency with
 \(aqsort\(aq option.
 
-Following keys don't have corresponding sorting keys:
+Following types don't have corresponding sorting keys:
 .RS 2
 .IP \- 2
 {root}     \- display name without extension (as a complement for {ext})
@@ -6611,6 +6754,21 @@ if 'viewcolumns' is empty, but adding ellipsis for long file names:
 
 .EX
   set viewcolumns=\-{name}..,6{}.
+.EE
+
+The last kind of column value is a string literal.  The literal is used as a
+column value for every row.  The syntax is "{#literal}", for example:
+
+.EX
+  3{#},{#|},{# | }
+.EE
+
+This can be used to draw column separators.  Mind that for convenience
+literals have different defaults: truncation and automatically determined
+absolute size, which is what you usually want for them.  Example:
+
+.EX
+  set viewcolumns=*{name}..,{#|},6{}.
 .EE
 .LP
 .B Cropping specifier
@@ -6806,6 +6964,37 @@ Name of the current one is available via v:servername.
 .BI "v:servername"
 server name of the running vifm instance.  Empty if client-server feature is
 disabled.
+.\" ---------------------------------------------------------------------------
+.SH External Renaming
+.\" ---------------------------------------------------------------------------
+When an editor is run to edit list of file names, contents of the temporary file
+has the following format:
+.RS 2
+.IP 1. 3
+Order of lines correspond to the order of files in a view.
+.IP 2. 3
+Lines that start with a "#" are comments and are ignored.
+.IP 3. 3
+Single backslash at the beginning of a line is ignored, so that a file
+starting with a backslash will appear like "\\#name".
+.RE
+
+If an operation was rejected due to issues with file names, next time you'll see
+the following in this order:
+.RS 2
+.IP 1. 3
+Last error (in comments).
+.IP 2. 3
+Original file names (in comments).
+.IP 3. 3
+Failed list of new names.
+.RE
+
+Mind that Vim plugin will extract list of original names and show them in a
+vertical split.
+
+You can cancel renaming by removing all non-comments from the buffer.  This
+also erases information about previous edits.
 .\" ---------------------------------------------------------------------------
 .SH Plugin
 .\" ---------------------------------------------------------------------------

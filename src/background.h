@@ -51,7 +51,10 @@ typedef enum
 	BJF_NONE            = 0,      /* No flags set. */
 	BJF_JOB_BAR_VISIBLE = 1 << 0, /* Makes the job appear on the job bar. */
 	BJF_MENU_VISIBLE    = 1 << 1, /* Makes the job appear in :jobs menu. */
-	BJF_MERGE_STREAMS   = 1 << 2, /* Merge error stream into output stream. */
+	BJF_SUPPLY_INPUT    = 1 << 2, /* Open a pipe for standard input stream. */
+	BJF_CAPTURE_OUT     = 1 << 3, /* Capture output stream(s). */
+	BJF_MERGE_STREAMS   = 1 << 4, /* Merge error stream into output stream. */
+	BJF_KEEP_SESSION    = 1 << 5, /* Do not detach from terminal session. */
 }
 BgJobFlags;
 
@@ -91,6 +94,7 @@ typedef struct bg_job_t
 	int use_count; /* Count of uses of this job entry. */
 	int exit_code; /* Exit code of external command. */
 
+	FILE *input;  /* File stream of standard input or NULL. */
 	FILE *output; /* File stream of standard output or NULL. */
 
 	int with_bg_op;                /* Whether bg_op* fields are active. */
@@ -126,8 +130,11 @@ extern bg_job_t *bg_jobs;
 void bg_init(void);
 
 /* Creates background job running external command.  Returns zero on success,
- * otherwise non-zero is returned. */
-int bg_run_external(const char cmd[], int skip_errors, ShellRequester by);
+ * otherwise non-zero is returned.  If *input is not NULL, it's set to input
+ * pipe of the background process.  The caller becomes responsible for the
+ * stream. */
+int bg_run_external(const char cmd[], int skip_errors, ShellRequester by,
+		FILE **input);
 
 /* Creates background job running external command which does not interact with
  * the user and is detached from controlling terminal.  Upon creation the job
@@ -144,9 +151,12 @@ int bg_and_wait_for_errors(char cmd[],
 		const struct cancellation_t *cancellation);
 
 /* Runs command in a background and redirects its stdout and stderr streams to
- * file streams which are set.  Returns id of background process ((pid_t)0 for
- * non-*nix like systems) or (pid_t)-1 on error. */
-pid_t bg_run_and_capture(char cmd[], int user_sh, FILE **out, FILE **err);
+ * file streams which are set.  Input is redirected only if in parameter isn't
+ * NULL.  Don't pass pipe for input, it can cause deadlock.  Returns id of
+ * background process ((pid_t)0 for non-*nix like systems) or (pid_t)-1 on
+ * error. */
+pid_t bg_run_and_capture(char cmd[], int user_sh, FILE *in, FILE **out,
+		FILE **err);
 
 /* Checks status of background jobs (their streams and state).  Removes finished
  * ones from the list, displays any pending error messages, corrects job bar if
@@ -177,6 +187,10 @@ void bg_job_terminate(bg_job_t *job);
 /* Checks whether the job is still running.  Returns non-zero if so, otherwise
  * zero is returned. */
 int bg_job_is_running(bg_job_t *job);
+
+/* Checks whether the job was killed.  Returns non-zero if so, otherwise zero is
+ * returned. */
+int bg_job_was_killed(bg_job_t *job);
 
 /* Waits for external command to finish (don't pass any other kind of job).
  * Returns zero on success, otherwise non-zero is returned. */

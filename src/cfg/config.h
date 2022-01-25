@@ -264,8 +264,17 @@ typedef struct config_t
 	/* Comma-separated list of file system types which are slow to respond. */
 	char *slow_fs_list;
 
-	/* Coma separated list of places to look for relative path to directories. */
+	/* Comma-separated list of places to look for relative path to directories. */
 	char *cd_path;
+
+	/* Interpret unknown command-line commands as implicit argument to directory
+	 * change command. */
+	int auto_cd;
+
+	/* < 0 - always show ellipsis on the left of the pane title,
+	 * = 0 - show ellipsis on the left for current pane, on the right for other,
+	 * > 0 - always show ellipsis on the right of the pane title. */
+	int ellipsis_position;
 
 	/* Whether there should be reserved single character width space before and
 	 * after file list column inside a view and first and last columns and lines
@@ -283,7 +292,7 @@ typedef struct config_t
 	 * sizes. */
 	int flexible_splitter;
 
-	/* Whether statusline is visible. */
+	/* Whether displaying status line is enabled. */
 	int display_statusline;
 
 	/* Per line pattern for borders. */
@@ -300,6 +309,8 @@ typedef struct config_t
 	int graphics_delay;
 	/* Redraw screen to get rid of graphics. */
 	int hard_graphics_clear;
+	/* Show file counts on top of the tree. */
+	int top_tree_stats;
 
 	int timeout_len;     /* Maximum period on waiting for the input. */
 	int min_timeout_len; /* Minimum period on waiting for the input. */

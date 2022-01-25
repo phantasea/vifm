@@ -27,6 +27,7 @@
 static void
 setup_lwin(void)
 {
+	view_setup(&lwin);
 	strcpy(lwin.curr_dir, "/lwin");
 
 	lwin.list_rows = 4;
@@ -50,6 +51,7 @@ setup_lwin(void)
 static void
 setup_rwin(void)
 {
+	view_setup(&rwin);
 	strcpy(rwin.curr_dir, "/rwin");
 
 	rwin.list_rows = 7;
@@ -94,15 +96,8 @@ SETUP()
 
 TEARDOWN()
 {
-	int i;
-
-	for(i = 0; i < lwin.list_rows; i++)
-		free(lwin.dir_entry[i].name);
-	dynarray_free(lwin.dir_entry);
-
-	for(i = 0; i < rwin.list_rows; i++)
-		free(rwin.dir_entry[i].name);
-	dynarray_free(rwin.dir_entry);
+	view_teardown(&lwin);
+	view_teardown(&rwin);
 }
 
 TEST(literal_percent)
@@ -284,14 +279,70 @@ TEST(good_flag_macros)
 	assert_string_equal(" echo log", expanded);
 	assert_int_equal(MF_VERYCUSTOMVIEW_OUTPUT, flags);
 	free(expanded);
+
+	expanded = ma_expand("%v echo log", "", &flags, 0);
+	assert_string_equal(" echo log", expanded);
+	assert_int_equal(MF_SPLIT_VERT, flags);
+	free(expanded);
+
+	expanded = ma_expand("%N echo log", "", &flags, 0);
+	assert_string_equal(" echo log", expanded);
+	assert_int_equal(MF_KEEP_SESSION, flags);
+	free(expanded);
+
+	expanded = ma_expand("%Pl echo log", "", &flags, 0);
+	assert_string_equal(" echo log", expanded);
+	assert_int_equal(MF_PIPE_FILE_LIST, flags);
+	free(expanded);
+
+	expanded = ma_expand("%Pz echo log", "", &flags, 0);
+	assert_string_equal(" echo log", expanded);
+	assert_int_equal(MF_PIPE_FILE_LIST_Z, flags);
+	free(expanded);
+
+	expanded = ma_expand("%pu echo log", "", &flags, 0);
+	assert_string_equal(" echo log", expanded);
+	assert_int_equal(MF_NO_CACHE, flags);
+	free(expanded);
 }
 
 TEST(bad_flag_macros)
 {
 	MacroFlags flags;
-	char *expanded = ma_expand("%IX echo log", "", &flags, 0);
+	char *expanded;
+
+	expanded = ma_expand("%IX echo log", "", &flags, 0);
 	assert_string_equal("X echo log", expanded);
 	assert_int_equal(MF_NONE, flags);
+	free(expanded);
+
+	expanded = ma_expand("%PX echo log", "", &flags, 0);
+	assert_string_equal("X echo log", expanded);
+	assert_int_equal(MF_NONE, flags);
+	free(expanded);
+}
+
+TEST(flags_from_different_sets)
+{
+	MacroFlags flags;
+	char *expanded;
+
+	expanded = ma_expand("echo%Pl%S", "", &flags, 0);
+	assert_string_equal("echo", expanded);
+	assert_int_equal(MF_PIPE_FILE_LIST | MF_STATUSBAR_OUTPUT, flags);
+	free(expanded);
+
+	expanded = ma_expand("echo%q%Pz", "", &flags, 0);
+	assert_string_equal("echo", expanded);
+	assert_int_equal(MF_PIPE_FILE_LIST_Z | MF_PREVIEW_OUTPUT, flags);
+	free(expanded);
+
+	expanded = ma_expand("echo%m%pu%Pz", "", &flags, 0);
+	assert_string_equal("echo", expanded);
+	assert_int_equal(MF_PIPE_FILE_LIST_Z | MF_MENU_OUTPUT | MF_NO_CACHE, flags);
+	assert_true(ma_flags_present(flags, MF_PIPE_FILE_LIST_Z));
+	assert_true(ma_flags_present(flags, MF_MENU_OUTPUT));
+	assert_true(ma_flags_present(flags, MF_NO_CACHE));
 	free(expanded);
 }
 
@@ -653,7 +704,7 @@ TEST(preview_clear_cmd_gets_cut_off)
 
 TEST(preview_clear_cmd_is_extracted)
 {
-	assert_string_equal(" clear", ma_get_clear_cmd("draw %pw %ph %pc clear"));
+	assert_string_equal("clear", ma_get_clear_cmd("draw %pw %ph %pc clear"));
 }
 
 TEST(preview_clear_cmd_is_optional)
@@ -682,8 +733,16 @@ TEST(flags_to_str)
 	assert_string_equal("%IU", ma_flags_to_str(MF_VERYCUSTOMVIEW_IOUTPUT));
 
 	assert_string_equal("%s", ma_flags_to_str(MF_SPLIT));
+	assert_string_equal("%v", ma_flags_to_str(MF_SPLIT_VERT));
 	assert_string_equal("%i", ma_flags_to_str(MF_IGNORE));
 	assert_string_equal("%n", ma_flags_to_str(MF_NO_TERM_MUX));
+
+	assert_string_equal("%N", ma_flags_to_str(MF_KEEP_SESSION));
+
+	assert_string_equal("%Pl", ma_flags_to_str(MF_PIPE_FILE_LIST));
+	assert_string_equal("%Pz", ma_flags_to_str(MF_PIPE_FILE_LIST_Z));
+
+	assert_string_equal("%pu", ma_flags_to_str(MF_NO_CACHE));
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

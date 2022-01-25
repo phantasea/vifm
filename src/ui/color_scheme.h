@@ -20,6 +20,7 @@
 #ifndef VIFM__UI__COLOR_SCHEME_H__
 #define VIFM__UI__COLOR_SCHEME_H__
 
+#include <curses.h> /* cchar_t */
 #include <regex.h> /* regex_t */
 
 #include <stddef.h> /* size_t */
@@ -120,7 +121,7 @@ void cs_complete(const char name[]);
 
 /* Converts set of attributes into a string.  Returns pointer to a statically
  * allocated buffer. */
-const char * cs_attrs_to_str(int attrs);
+const char * cs_attrs_to_str(const col_attr_t *color, int gui_part);
 
 /* Associates color scheme specified by its name with the given path. */
 void cs_assoc_dir(const char name[], const char dir[]);
@@ -129,13 +130,17 @@ void cs_assoc_dir(const char name[], const char dir[]);
  * containing "Default" color scheme. */
 void cs_write(void);
 
-/* Converts color specified by an integer to a string and writes result in a
+/* Converts color specified by an integer to a string and writes result to a
  * buffer of length buf_len pointed to by str_buf. */
-void cs_color_to_str(int color, size_t buf_len, char str_buf[]);
+void cs_color_to_str(int color, size_t buf_len, char str_buf[], int is_gui);
 
-/* Mixes colors of *mixup into the base color.  Non-transparent properties of
- * *mixup are transferred onto *base. */
-void cs_mix_colors(col_attr_t *base, const col_attr_t *mixup);
+/* Mixes colors of *admixture into the *color.  Non-transparent properties of
+ * *admixture are transferred onto *color. */
+void cs_mix_colors(col_attr_t *color, const col_attr_t *admixture);
+
+/* Overlaps colors of *admixture into the *color.  Non-transparent properties of
+ * *admixture are transferred onto *color.  Attributes are never combined. */
+void cs_overlap_colors(col_attr_t *color, const col_attr_t *admixture);
 
 /* Registers pattern-highlight pair for active color scheme.  Reports memory
  * error to the user. */
@@ -154,6 +159,26 @@ int cs_del_file_hi(const char matchers_expr[]);
 /* Checks that color is non-empty (i.e. has at least one property set).  Returns
  * non-zero if so, otherwise zero is returned. */
 int cs_is_color_set(const col_attr_t *color);
+
+/* Loads a color into a color pair.  Returns the pair (falls back to pair 0 in
+ * case of failure). */
+int cs_load_color(const col_attr_t *color);
+
+/* Retrieves correct attributes of the color (its cterm or gui version).
+ * Returns the attribute. */
+int cs_color_get_attr(const col_attr_t *color);
+
+/* Produces a cchar for a specified color.  Allocates pair if passed in pair
+ * number is negative.  Returns the cchar. */
+cchar_t cs_color_to_cchar(const col_attr_t *color, int pair);
+
+/* Enables gui part of the color unless it's already enabled.  During enabling
+ * gui part is initialized. */
+void cs_color_enable_gui(col_attr_t *color);
+
+/* Turns a direct RGB color into an index of a 256-color palette.  Returns the
+ * index. */
+int cs_downscale_color(int direct_color);
 
 #endif /* VIFM__UI__COLOR_SCHEME_H__ */
 

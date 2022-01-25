@@ -21,8 +21,11 @@
 
 /* This unit caches output of external viewers. */
 
+#include <stddef.h> /* size_t */
+
 #include "utils/test_helpers.h"
 #include "filetype.h"
+#include "macros.h"
 
 /* Named boolean values of "sync" parameter of vcache_lookup() for better
  * readability. */
@@ -43,6 +46,9 @@ struct strlist_t;
 /* Kills all asynchronous viewers. */
 void vcache_finish(void);
 
+/* Retrieves size of the cache (lower bound).  Returns the size. */
+size_t vcache_size(void);
+
 /* Checks updates of asynchronous viewers.  Returns non-zero is screen needs to
  * be updated, otherwise zero is returned. */
 int vcache_check(vcache_is_previewed_cb is_previewed);
@@ -52,11 +58,13 @@ int vcache_check(vcache_is_previewed_cb is_previewed);
  * failure.  Returns list of strings owned and managed by the unit, don't store
  * or free it. */
 struct strlist_t vcache_lookup(const char full_path[], const char viewer[],
-		ViewerKind kind, int max_lines, int sync, const char **error);
+		MacroFlags flags, ViewerKind kind, int max_lines, int sync,
+		const char **error);
 
 TSTATIC_DEFS(
 	struct strlist_t read_lines(FILE *fp, int max_lines, int *complete);
-	void vcache_reset(int max_size);
+	void vcache_reset(size_t max_size);
+	size_t vcache_entry_size(void);
 )
 
 #endif /* VIFM__VCACHE_H__ */

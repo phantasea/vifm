@@ -1,6 +1,6 @@
 " vifm syntax file
 " Maintainer:  xaizek <xaizek@posteo.net>
-" Last Change: December 6, 2020
+" Last Change: October 5, 2021
 " Inspired By: Vim syntax file by Dr. Charles E. Campbell, Jr.
 
 if exists('b:current_syntax')
@@ -18,12 +18,13 @@ syntax keyword vifmCommand contained
 		\ cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession di[splay]
 		\ dirs e[dit] el[se] empty en[dif] exi[t] file fin[d] fini[sh] go[to] gr[ep]
 		\ h[elp] hideui histnext his[tory] histprev jobs locate ls lstrash marks
-		\ media mes[sages] mkdir m[ove] noh[lsearch] on[ly] plugins popd pushd pu[t]
-		\ pw[d] qa[ll] q[uit] redr[aw] reg[isters] regular rename restart restore
-		\ rlink screen sh[ell] siblnext siblprev sor[t] sp[lit] s[ubstitute]
-		\ tabc[lose] tabm[ove] tabname tabnew tabn[ext] tabo[nly] tabp[revious]
-		\ touch tr trashes tree session sync undol[ist] ve[rsion] vie[w] vifm
-		\ vs[plit] winc[md] w[rite] wq wqa[ll] xa[ll] x[it] y[ank]
+		\ media mes[sages] mkdir m[ove] noh[lsearch] on[ly] plugin plugins popd
+		\ pushd pu[t] pw[d] qa[ll] q[uit] redr[aw] reg[isters] regular rename
+		\ restart restore rlink screen sh[ell] siblnext siblprev sor[t] sp[lit]
+		\ st[op] s[ubstitute] tabc[lose] tabm[ove] tabname tabnew tabn[ext]
+		\ tabo[nly] tabp[revious] touch tr trashes tree session sync undol[ist]
+		\ ve[rsion] vie[w] vifm vs[plit] winc[md] w[rite] wq wqa[ll] xa[ll] x[it]
+		\ y[ank]
 		\ nextgroup=vifmArgs
 syntax keyword vifmCommandCN contained
 		\ alink apropos bmark bmarks bmgo cds change chmod chown clone compare
@@ -82,7 +83,7 @@ syntax match vifmBuiltinFunction
 syntax match vifmOperator "\(==\|!=\|>=\?\|<=\?\|\.\|-\|+\|&&\|||\)" skipwhite
 
 " Highlight groups
-syntax keyword vifmHiArgs contained cterm ctermfg ctermbg
+syntax keyword vifmHiArgs contained cterm ctermfg ctermbg gui guifg guibg
 syntax case ignore
 syntax keyword vifmHiGroups contained WildMenu Border Win CmdLine CurrLine
 		\ OtherLine Directory Link Socket Device Executable Selected BrokenLink
@@ -90,7 +91,7 @@ syntax keyword vifmHiGroups contained WildMenu Border Win CmdLine CurrLine
 		\ AuxWin OtherWin TabLine TabLineSel HardLink LineNr OddLine
 		\ User1 User2 User3 User4 User5 User6 User7 User8 User9
 syntax keyword vifmHiStyles contained
-		\ bold underline reverse inverse standout italic none
+		\ bold underline reverse inverse standout italic combine none
 syntax keyword vifmHiColors contained black red green yellow blue magenta cyan
 		\ white default lightblack lightred lightgreen lightyellow lightblue
 		\ lightmagenta lightcyan lightwhite Grey0 NavyBlue DarkBlue Blue3 Blue3_2
@@ -135,9 +136,9 @@ syntax keyword vifmHiColors contained black red green yellow blue magenta cyan
 syntax case match
 
 " Options
-syntax keyword vifmOption contained aproposprg autochpos caseoptions cdpath cd
-		\ chaselinks classify columns co confirm cf cpoptions cpo cvoptions
-		\ deleteprg dotdirs dotfiles dirsize fastrun fillchars fcs findprg
+syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
+		\ cdpath cd chaselinks classify columns co confirm cf cpoptions cpo
+		\ cvoptions deleteprg dotdirs dotfiles dirsize fastrun fillchars fcs findprg
 		\ followlinks fusehome gdefault grepprg histcursor history hi hlsearch hls
 		\ iec ignorecase ic iooptions incsearch is laststatus lines locateprg ls
 		\ lsoptions lsview mediaprg milleroptions millerview mintimeoutlen number nu
@@ -151,20 +152,21 @@ syntax keyword vifmOption contained aproposprg autochpos caseoptions cdpath cd
 		\ wildstyle wordchars wrap wrapscan ws
 
 " Disabled boolean options
-syntax keyword vifmOption contained noautochpos nocf nochaselinks nodotfiles
-		\ nofastrun nofollowlinks nohlsearch nohls noiec noignorecase noic
-		\ noincsearch nois nolaststatus nols nolsview nomillerview nonumber nonu
-		\ noquickview norelativenumber nornu noscrollbind noscb norunexec
+syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
+		\ nodotfiles nofastrun nofollowlinks nohlsearch nohls noiec noignorecase
+		\ noic noincsearch nois nolaststatus nols nolsview nomillerview nonumber
+		\ nonu noquickview norelativenumber nornu noscrollbind noscb norunexec
 		\ nosmartcase noscs nosortnumbers nosyscalls notitle notrash novimhelp
 		\ nowildmenu nowmnu nowrap nowrapscan nows
 
 " Inverted boolean options
-syntax keyword vifmOption contained invautochpos invcf invchaselinks invdotfiles
-		\ invfastrun invfollowlinks invhlsearch invhls inviec invignorecase invic
-		\ invincsearch invis invlaststatus invls invlsview invmillerview invnumber
-		\ invnu invquickview invrelativenumber invrnu invscrollbind invscb
-		\ invrunexec invsmartcase invscs invsortnumbers invsyscalls invtitle
-		\ invtrash invvimhelp invwildmenu invwmnu invwrap invwrapscan invws
+syntax keyword vifmOption contained invautocd invautochpos invcf invchaselinks
+		\ invdotfiles invfastrun invfollowlinks invhlsearch invhls inviec
+		\ invignorecase invic invincsearch invis invlaststatus invls invlsview
+		\ invmillerview invnumber invnu invquickview invrelativenumber invrnu
+		\ invscrollbind invscb invrunexec invsmartcase invscs invsortnumbers
+		\ invsyscalls invtitle invtrash invvimhelp invwildmenu invwmnu invwrap
+		\ invwrapscan invws
 
 " Expressions
 syntax region vifmStatement start='^\(\s\|:\)*'
@@ -317,7 +319,7 @@ syntax region vifmHi
 		\ end='$' keepend
 		\ contains=vifmHiCommand,vifmHiArgs,vifmHiGroups,vifmHiStyles,vifmHiColors
 		\,vifmNumber,vifmComment,vifmInlineComment,vifmNotComment,vifmHiClear
-		\,vifmPatterns
+		\,vifmPatterns,vifmHexColor
 syntax region vifmFtBeginning contained
 		\ start='\<\(filet\%[ype]\|filext\%[ype]\|filev\%[iewer]\)\>\s\+\S'
 		\ skip='\(\n\s*\\\)\|\(\n\s*".*$\)'
@@ -417,6 +419,7 @@ syntax region vifmArgument contained start=+"+ skip=+\\\\\|\\"+  end=+"+
 syntax region vifmArgument contained start=+'+ skip=+\\\\\|\\'\|''+  end=+'+
 syntax match vifmEnvVar contained /\$[0-9a-zA-Z_]\+/
 syntax match vifmNumber contained /\d\+/
+syntax match vifmHexColor contained /#[0-9a-fA-F]\{6}/
 
 " Optional map arguments right after command name
 syntax match vifmMapArgList '\(<\(silent\|wait\)>\s*\)*' contained
@@ -483,6 +486,7 @@ highlight link vifmString String
 highlight link vifmStringInExpr String
 highlight link vifmEnvVar PreProc
 highlight link vifmNumber Number
+highlight link vifmHexColor Number
 
 let &cpo = s:cpo_save
 unlet s:cpo_save

@@ -3,6 +3,7 @@
 #include <sys/stat.h> /* chmod() */
 #include <unistd.h> /* F_OK access() chdir() rmdir() symlink() unlink() */
 
+#include <limits.h> /* INT_MAX */
 #include <stdio.h> /* FILE fclose() fopen() fprintf() remove() */
 #include <string.h> /* strcpy() strdup() */
 
@@ -13,18 +14,22 @@
 #include "../../src/compat/os.h"
 #include "../../src/engine/keys.h"
 #include "../../src/engine/functions.h"
+#include "../../src/lua/vlua.h"
 #include "../../src/modes/modes.h"
 #include "../../src/ui/statusbar.h"
 #include "../../src/ui/ui.h"
 #include "../../src/utils/dynarray.h"
 #include "../../src/utils/env.h"
 #include "../../src/utils/fs.h"
+#include "../../src/utils/macros.h"
 #include "../../src/utils/path.h"
 #include "../../src/utils/str.h"
+#include "../../src/utils/string_array.h"
 #include "../../src/builtin_functions.h"
 #include "../../src/cmd_core.h"
 #include "../../src/filelist.h"
 #include "../../src/flist_hist.h"
+#include "../../src/plugins.h"
 #include "../../src/registers.h"
 
 static char *saved_cwd;
@@ -32,6 +37,8 @@ static char *saved_cwd;
 static char cwd[PATH_MAX + 1];
 static char sandbox[PATH_MAX + 1];
 static char test_data[PATH_MAX + 1];
+
+static void strings_list_is(const strlist_t expected, const strlist_t actual);
 
 SETUP_ONCE()
 {
@@ -362,7 +369,7 @@ TEST(putting_files_works)
 	regs_init();
 
 	assert_success(os_mkdir(SANDBOX_PATH "/empty-dir", 0700));
-	assert_success(flist_load_tree(&lwin, sandbox));
+	assert_success(flist_load_tree(&lwin, sandbox, INT_MAX));
 
 	make_abs_path(path, sizeof(path), TEST_DATA_PATH, "read/binary-data", cwd);
 	assert_success(regs_append(DEFAULT_REG_NAME, path));
@@ -651,11 +658,10 @@ TEST(normal_command_does_not_reset_selection)
 
 TEST(goto_command)
 {
-	char cmd[PATH_MAX*2];
-
 	assert_failure(exec_commands("goto /", &lwin, CIT_COMMAND));
 	assert_failure(exec_commands("goto /no-such-path", &lwin, CIT_COMMAND));
 
+	char cmd[PATH_MAX*2];
 	snprintf(cmd, sizeof(cmd), "goto %s/compare", test_data);
 	assert_success(exec_commands(cmd, &lwin, CIT_COMMAND));
 	assert_true(paths_are_same(lwin.curr_dir, test_data));
@@ -664,6 +670,15 @@ TEST(goto_command)
 	assert_success(exec_commands("goto tree", &lwin, CIT_COMMAND));
 	assert_true(paths_are_same(lwin.curr_dir, test_data));
 	assert_string_equal("tree", get_current_file_name(&lwin));
+}
+
+TEST(goto_normalizes_slashes, IF(windows))
+{
+	char cmd[PATH_MAX*2];
+	snprintf(cmd, sizeof(cmd), "goto %s\\\\compare", test_data);
+	assert_success(exec_commands(cmd, &lwin, CIT_COMMAND));
+	assert_true(paths_are_same(lwin.curr_dir, test_data));
+	assert_string_equal("compare", get_current_file_name(&lwin));
 }
 
 TEST(echo_reports_all_errors)
@@ -710,6 +725,14 @@ TEST(tree_command)
 {
 	strcpy(lwin.curr_dir, sandbox);
 
+	/* Invalid input. */
+	assert_failure(exec_commands("tree nesting=0", &lwin, CIT_COMMAND));
+	assert_false(flist_custom_active(&lwin));
+	assert_string_equal("Invalid argument: nesting=0", ui_sb_last());
+	assert_failure(exec_commands("tree depth=0", &lwin, CIT_COMMAND));
+	assert_false(flist_custom_active(&lwin));
+	assert_string_equal("Invalid depth: 0", ui_sb_last());
+
 	/* :tree enters tree mode. */
 	assert_success(exec_commands("tree", &lwin, CIT_COMMAND));
 	assert_true(flist_custom_active(&lwin));
@@ -728,6 +751,24 @@ TEST(tree_command)
 	assert_success(exec_commands("tree!", &lwin, CIT_COMMAND));
 	assert_true(flist_custom_active(&lwin));
 	assert_true(cv_tree(lwin.custom.type));
+
+	/* Limited nesting. */
+
+	char sub_path[PATH_MAX + 1];
+	snprintf(sub_path, sizeof(sub_path), "%s/sub", sandbox);
+	create_dir(sub_path);
+
+	char sub_sub_path[PATH_MAX + 1];
+	snprintf(sub_sub_path, sizeof(sub_sub_path), "%s/sub/sub", sandbox);
+	create_dir(sub_sub_path);
+
+	assert_success(exec_commands("tree depth=1", &lwin, CIT_COMMAND));
+	assert_true(flist_custom_active(&lwin));
+	assert_true(cv_tree(lwin.custom.type));
+	assert_int_equal(1, lwin.list_rows);
+
+	remove_dir(sub_sub_path);
+	remove_dir(sub_path);
 }
 
 TEST(regular_command)
@@ -746,6 +787,58 @@ TEST(regular_command)
 	/* Repeated :regular does nothing. */
 	assert_success(exec_commands("regular", &lwin, CIT_COMMAND));
 	assert_false(flist_custom_active(&lwin));
+}
+
+TEST(plugin_command)
+{
+	curr_stats.vlua = vlua_init();
+	curr_stats.plugs = plugs_create(curr_stats.vlua);
+
+	ui_sb_msg("");
+	assert_failure(exec_commands("plugin load all", &lwin, CIT_COMMAND));
+	assert_string_equal("Trailing characters", ui_sb_last());
+	assert_failure(exec_commands("plugin wrong arg", &lwin, CIT_COMMAND));
+	assert_string_equal("Unknown subcommand: wrong", ui_sb_last());
+	assert_failure(exec_commands("plugin args-count", &lwin, CIT_COMMAND));
+	assert_string_equal("Too few arguments", ui_sb_last());
+
+	assert_success(exec_commands("plugin load", &lwin, CIT_COMMAND));
+
+	strlist_t empty_list = {};
+	char *plug_items[] = { "plug" };
+	strlist_t plug_list = { .items = plug_items, .nitems = 1 };
+
+	ui_sb_msg("");
+	assert_success(exec_commands("plugin blacklist plug", &lwin, CIT_COMMAND));
+	assert_string_equal("", ui_sb_last());
+
+	strings_list_is(plug_list, plugs_get_blacklist(curr_stats.plugs));
+	strings_list_is(empty_list, plugs_get_whitelist(curr_stats.plugs));
+
+	ui_sb_msg("");
+	assert_success(exec_commands("plugin whitelist plug", &lwin, CIT_COMMAND));
+	assert_success(exec_commands("plugin whitelist plug", &lwin, CIT_COMMAND));
+	assert_string_equal("", ui_sb_last());
+
+	strings_list_is(plug_list, plugs_get_blacklist(curr_stats.plugs));
+	strings_list_is(plug_list, plugs_get_whitelist(curr_stats.plugs));
+
+	plugs_free(curr_stats.plugs);
+	curr_stats.plugs = NULL;
+	vlua_finish(curr_stats.vlua);
+	curr_stats.vlua = NULL;
+}
+
+static void
+strings_list_is(const strlist_t expected, const strlist_t actual)
+{
+	assert_int_equal(expected.nitems, actual.nitems);
+
+	int i;
+	for(i = 0; i < MIN(expected.nitems, actual.nitems); ++i)
+	{
+		assert_string_equal(expected.items[i], actual.items[i]);
+	}
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

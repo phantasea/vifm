@@ -28,12 +28,13 @@
 #include <assert.h> /* assert() */
 #include <ctype.h> /* isdigit() */
 #include <errno.h>
+#include <limits.h> /* INT_MAX */
 #include <signal.h>
 #include <stddef.h> /* NULL size_t */
 #include <stdio.h> /* snprintf() */
 #include <stdlib.h> /* EXIT_SUCCESS atoi() free() realloc() */
 #include <string.h> /* strchr() strcmp() strcspn() strcasecmp() strcpy()
-                       strdup() strlen() strrchr() */
+                       strdup() strlen() strrchr() strspn() */
 #include <wctype.h> /* iswspace() */
 #include <wchar.h> /* wcslen() wcsncmp() */
 
@@ -61,7 +62,6 @@
 #include "menus/menus.h"
 #include "modes/modes.h"
 #include "modes/wk.h"
-#include "ui/color_manager.h"
 #include "ui/color_scheme.h"
 #include "ui/colors.h"
 #include "ui/fileview.h"
@@ -82,6 +82,7 @@
 #include "utils/string_array.h"
 #include "utils/test_helpers.h"
 #include "utils/trie.h"
+#include "utils/utf8.h"
 #include "utils/utils.h"
 #include "background.h"
 #include "bmarks.h"
@@ -105,6 +106,7 @@
 #include "marks.h"
 #include "ops.h"
 #include "opt_handlers.h"
+#include "plugins.h"
 #include "registers.h"
 #include "running.h"
 #include "trash.h"
@@ -205,10 +207,12 @@ static const char * get_file_hi_str(const matchers_t *matchers,
 static const char * get_hi_str(const char title[], const col_attr_t *col);
 static int parse_file_highlight(const cmd_info_t *cmd_info,
 		col_attr_t *color);
-static int try_parse_color_name_value(const char str[], int fg,
+static int try_parse_cterm_color(const char str[], int is_fg,
 		col_attr_t *color);
+static int try_parse_gui_color(const char str[], int *color);
 static int parse_color_name_value(const char str[], int fg, int *attr);
-static int get_attrs(const char *text);
+static int is_default_color(const char str[]);
+static int get_attrs(const char text[], int *combine_attrs);
 static int history_cmd(const cmd_info_t *cmd_info);
 static int histnext_cmd(const cmd_info_t *cmd_info);
 static int histprev_cmd(const cmd_info_t *cmd_info);
@@ -243,6 +247,7 @@ static int map_or_remap(const cmd_info_t *cmd_info, int no_remap);
 static int normal_cmd(const cmd_info_t *cmd_info);
 static int nunmap_cmd(const cmd_info_t *cmd_info);
 static int only_cmd(const cmd_info_t *cmd_info);
+static int plugin_cmd(const cmd_info_t *cmd_info);
 static int plugins_cmd(const cmd_info_t *cmd_info);
 static int popd_cmd(const cmd_info_t *cmd_info);
 static int pushd_cmd(const cmd_info_t *cmd_info);
@@ -262,6 +267,7 @@ static int link_cmd(const cmd_info_t *cmd_info, int absolute);
 static int screen_cmd(const cmd_info_t *cmd_info);
 static int select_cmd(const cmd_info_t *cmd_info);
 static int session_cmd(const cmd_info_t *cmd_info);
+static int switch_to_a_session(const char session_name[]);
 static int restart_into_session(const char session[], int full);
 static int set_cmd(const cmd_info_t *cmd_info);
 static int setlocal_cmd(const cmd_info_t *cmd_info);
@@ -272,6 +278,7 @@ static int siblprev_cmd(const cmd_info_t *cmd_info);
 static int sort_cmd(const cmd_info_t *cmd_info);
 static int source_cmd(const cmd_info_t *cmd_info);
 static int split_cmd(const cmd_info_t *cmd_info);
+static int stop_cmd(const cmd_info_t *cmd_info);
 static int substitute_cmd(const cmd_info_t *cmd_info);
 static int sync_cmd(const cmd_info_t *cmd_info);
 static int sync_selectively(const cmd_info_t *cmd_info);
@@ -294,6 +301,7 @@ static int get_at(const view_t *view, const cmd_info_t *cmd_info);
 static int tr_cmd(const cmd_info_t *cmd_info);
 static int trashes_cmd(const cmd_info_t *cmd_info);
 static int tree_cmd(const cmd_info_t *cmd_info);
+static int parse_tree_properties(const cmd_info_t *cmd_info, int *depth);
 static int undolist_cmd(const cmd_info_t *cmd_info);
 static int unlet_cmd(const cmd_info_t *cmd_info);
 static int unmap_cmd(const cmd_info_t *cmd_info);
@@ -572,7 +580,7 @@ const cmd_add_t cmds_list[] = {
 	{ .name = "highlight",         .abbr = "hi",    .id = COM_HIGHLIGHT,
 	  .descr = "display/define TUI highlighting",
 	  .flags = HAS_COMMENT,
-	  .handler = &highlight_cmd,   .min_args = 0,   .max_args = 4, },
+	  .handler = &highlight_cmd,   .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "history",           .abbr = "his",   .id = COM_HISTORY,
 	  .descr = "display/use history items",
 	  .flags = HAS_QUOTED_ARGS | HAS_COMMENT,
@@ -688,6 +696,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "switch to single-view mode",
 	  .flags = HAS_COMMENT,
 	  .handler = &only_cmd,        .min_args = 0,   .max_args = 0, },
+	{ .name = "plugin",            .abbr = NULL,    .id = COM_PLUGIN,
+	  .descr = "manage plugins",
+	  .flags = HAS_COMMENT,
+	  .handler = &plugin_cmd,      .min_args = 1,   .max_args = 2, },
 	{ .name = "plugins",           .abbr = NULL,    .id = -1,
 	  .descr = "display plugins menu",
 	  .flags = HAS_COMMENT,
@@ -813,6 +825,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "horizontal split layout",
 	  .flags = HAS_EMARK | HAS_COMMENT,
 	  .handler = &split_cmd,       .min_args = 0,   .max_args = 1, },
+	{ .name = "stop",              .abbr = "st",    .id = -1,
+	  .descr = "suspend the process (same as pressing Ctrl-Z)",
+	  .flags = HAS_COMMENT,
+	  .handler = &stop_cmd,        .min_args = 0,   .max_args = 0, },
 	{ .name = "substitute",        .abbr = "s",     .id = COM_SUBSTITUTE,
 	  .descr = "perform substitutions in file names",
 	  .flags = HAS_RANGE | HAS_REGEXP_ARGS | HAS_COMMENT | HAS_CUST_SEP
@@ -869,10 +885,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "display trash directories",
 	  .flags = HAS_COMMENT | HAS_QMARK_NO_ARGS,
 	  .handler = &trashes_cmd,     .min_args = 0,   .max_args = 0, },
-	{ .name = "tree",              .abbr = NULL,    .id = -1,
+	{ .name = "tree",              .abbr = NULL,    .id = COM_TREE,
 	  .descr = "display filesystem as a tree",
 	  .flags = HAS_EMARK | HAS_COMMENT,
-	  .handler = &tree_cmd,        .min_args = 0,   .max_args = 0, },
+	  .handler = &tree_cmd,        .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "undolist",          .abbr = "undol", .id = -1,
 	  .descr = "display list of operations",
 	  .flags = HAS_EMARK | HAS_COMMENT,
@@ -1025,7 +1041,7 @@ emark_cmd(const cmd_info_t *cmd_info)
 
 	MacroFlags flags = (MacroFlags)cmd_info->usr1;
 	char *title = format_str("!%s", cmd_info->raw_args);
-	int handled = rn_ext(com, title, flags, cmd_info->bg, &save_msg);
+	int handled = rn_ext(curr_view, com, title, flags, cmd_info->bg, &save_msg);
 	free(title);
 
 	if(handled > 0)
@@ -1038,28 +1054,38 @@ emark_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(cmd_info->bg)
 	{
-		bg_run_external(com, 0, SHELL_BY_USER);
+		rn_start_bg_command(curr_view, com, flags);
 	}
 	else
 	{
-		const int use_term_mux = flags != MF_NO_TERM_MUX;
+		const int use_term_mux = ma_flags_missing(flags, MF_NO_TERM_MUX);
+		const ShellPause pause = (cmd_info->emark ? PAUSE_ALWAYS : PAUSE_ON_ERROR);
 
 		flist_sel_stash(curr_view);
+
+		const char *cmd_to_run = com;
+		char *expanded_cmd = NULL;
+
 		if(cfg.fast_run)
 		{
-			char *const buf = fast_run_complete(com);
-			if(buf != NULL)
+			expanded_cmd = fast_run_complete(com);
+			if(expanded_cmd != NULL)
 			{
-				(void)rn_shell(buf, cmd_info->emark ? PAUSE_ALWAYS : PAUSE_ON_ERROR,
-						use_term_mux, SHELL_BY_USER);
-				free(buf);
+				cmd_to_run = expanded_cmd;
 			}
+		}
+
+		if(ma_flags_present(flags, MF_PIPE_FILE_LIST) ||
+				ma_flags_present(flags, MF_PIPE_FILE_LIST_Z))
+		{
+			(void)rn_pipe(cmd_to_run, curr_view, flags, pause);
 		}
 		else
 		{
-			(void)rn_shell(com, cmd_info->emark ? PAUSE_ALWAYS : PAUSE_ON_ERROR,
-					use_term_mux, SHELL_BY_USER);
+			(void)rn_shell(cmd_to_run, pause, use_term_mux, SHELL_BY_USER);
 		}
+
+		free(expanded_cmd);
 	}
 
 	snprintf(buf, sizeof(buf), "in %s: !%s",
@@ -1581,7 +1607,12 @@ chmod_cmd(const cmd_info_t *cmd_info)
 
 	flist_set_marking(curr_view, 0);
 	files_chmod(curr_view, cmd_info->args, cmd_info->emark);
+
+	/* Reload metadata because attribute change might not be detected. */
+	ui_view_schedule_reload(curr_view);
+	ui_view_schedule_reload(other_view);
 #endif
+
 	return 0;
 }
 
@@ -2006,7 +2037,7 @@ compare_cmd(const cmd_info_t *cmd_info)
 	if(parse_compare_properties(cmd_info, &ct, &lt, &single_pane,
 				&group_ids, &skip_empty) != 0)
 	{
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	return single_pane
@@ -2128,7 +2159,7 @@ dunmap_cmd(const cmd_info_t *cmd_info)
 	return result != 0;
 }
 
-/* Evaluates arguments as expression and outputs result to statusbar. */
+/* Evaluates arguments as expression and outputs result to status bar. */
 static int
 echo_cmd(const cmd_info_t *cmd_info)
 {
@@ -2488,7 +2519,7 @@ get_filter_inversion_state(const cmd_info_t *cmd_info)
 
 /* Tries to update filter of the view rejecting incorrect regular expression.
  * On empty pattern fallback is used.  Returns non-zero if message on the
- * statusbar should be saved, otherwise zero is returned. */
+ * status bar should be saved, otherwise zero is returned. */
 static int
 set_view_filter(view_t *view, const char filter[], const char fallback[],
 		int invert)
@@ -2638,7 +2669,7 @@ help_cmd(const cmd_info_t *cmd_info)
 
 	if(bg)
 	{
-		bg_run_external(cmd, 0, SHELL_BY_APP);
+		bg_run_external(cmd, 0, SHELL_BY_APP, NULL);
 	}
 	else
 	{
@@ -2722,6 +2753,7 @@ static int
 highlight_file(const cmd_info_t *cmd_info)
 {
 	char pattern[strlen(cmd_info->args) + 1];
+	/* XXX: start with an existing value, if present? */
 	col_attr_t color = { .fg = -1, .bg = -1, .attr = 0, };
 	int result;
 	matchers_t *matchers;
@@ -2823,7 +2855,7 @@ highlight_group(const cmd_info_t *cmd_info)
 	}
 
 	*color = tmp_color;
-	curr_stats.cs->pair[group_id] = colmgr_get_pair(color->fg, color->bg);
+	curr_stats.cs->pair[group_id] = cs_load_color(color);
 
 	/* Other highlight commands might have finished successfully, so update TUI.
 	 * Request full update instead of redraw to force recalculation of mixed
@@ -2895,16 +2927,29 @@ static const char *
 get_hi_str(const char title[], const col_attr_t *col)
 {
 	static char buf[256];
+	static char gui_buf[2*sizeof(buf)];
 
 	char fg_buf[16], bg_buf[16];
 
-	cs_color_to_str(col->fg, sizeof(fg_buf), fg_buf);
-	cs_color_to_str(col->bg, sizeof(bg_buf), bg_buf);
+	cs_color_to_str(col->fg, sizeof(fg_buf), fg_buf, /*is_gui=*/0);
+	cs_color_to_str(col->bg, sizeof(bg_buf), bg_buf, /*is_gui=*/0);
 
-	snprintf(buf, sizeof(buf), "%-10s cterm=%s ctermfg=%-7s ctermbg=%-7s", title,
-			cs_attrs_to_str(col->attr), fg_buf, bg_buf);
+	snprintf(buf, sizeof(buf), "%-10s cterm=%s ctermfg=%-7s ctermbg=%-7s",
+			title, cs_attrs_to_str(col, /*gui_part=*/0), fg_buf, bg_buf);
 
-	return buf;
+	if(!col->gui_set)
+	{
+		return buf;
+	}
+
+	cs_color_to_str(col->gui_fg, sizeof(fg_buf), fg_buf, /*is_gui=*/1);
+	cs_color_to_str(col->gui_bg, sizeof(bg_buf), bg_buf, /*is_gui=*/1);
+
+	snprintf(gui_buf, sizeof(gui_buf), "%s\n%*s gui=%-6s guifg=%-9s guibg=%-7s",
+			buf, (int)MAX(utf8_strsw(title), 10U), "",
+			cs_attrs_to_str(col, /*gui_part=*/1), fg_buf, bg_buf);
+
+	return gui_buf;
 }
 
 /* Parses arguments of :highlight command.  Returns non-zero in case of error
@@ -2935,31 +2980,66 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 
 		if(strcmp(arg_name, "ctermbg") == 0)
 		{
-			if(try_parse_color_name_value(equal + 1, 0, color) != 0)
+			if(try_parse_cterm_color(equal + 1, 0, color) != 0)
 			{
 				return 1;
 			}
 		}
 		else if(strcmp(arg_name, "ctermfg") == 0)
 		{
-			if(try_parse_color_name_value(equal + 1, 1, color) != 0)
+			if(try_parse_cterm_color(equal + 1, 1, color) != 0)
 			{
 				return 1;
 			}
 		}
-		else if(strcmp(arg_name, "cterm") == 0)
+		else if(strcmp(arg_name, "guibg") == 0)
+		{
+			int value;
+			if(try_parse_gui_color(equal + 1, &value) != 0)
+			{
+				return 1;
+			}
+
+			cs_color_enable_gui(color);
+			color->gui_bg = value;
+		}
+		else if(strcmp(arg_name, "guifg") == 0)
+		{
+			int value;
+			if(try_parse_gui_color(equal + 1, &value) != 0)
+			{
+				return 1;
+			}
+
+			cs_color_enable_gui(color);
+			color->gui_fg = value;
+		}
+		else if(strcmp(arg_name, "cterm") == 0 || strcmp(arg_name, "gui") == 0)
 		{
 			int attrs;
-			if((attrs = get_attrs(equal + 1)) == -1)
+			int combine_attrs;
+			if((attrs = get_attrs(equal + 1, &combine_attrs)) == -1)
 			{
 				ui_sb_errf("Illegal argument: %s", equal + 1);
 				return 1;
 			}
-			color->attr = attrs;
-			if(curr_stats.exec_env_type == EET_LINUX_NATIVE &&
-					(attrs & (A_BOLD | A_REVERSE)) == (A_BOLD | A_REVERSE))
+
+			if(strcmp(arg_name, "cterm") == 0)
 			{
-				color->attr |= A_BLINK;
+				color->attr = attrs;
+				color->combine_attrs = combine_attrs;
+
+				if(curr_stats.exec_env_type == EET_LINUX_NATIVE &&
+						(attrs & (A_BOLD | A_REVERSE)) == (A_BOLD | A_REVERSE))
+				{
+					color->attr |= A_BLINK;
+				}
+			}
+			else
+			{
+				cs_color_enable_gui(color);
+				color->gui_attr = attrs;
+				color->combine_gui_attrs = combine_attrs;
 			}
 		}
 		else
@@ -2972,13 +3052,13 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 	return 0;
 }
 
-/* Tries to parse color name value into a number.  Returns non-zero if status
- * bar message should be preserved, otherwise zero is returned. */
+/* Tries to parse color number or color name.  Returns non-zero if status bar
+ * message should be preserved, otherwise zero is returned. */
 static int
-try_parse_color_name_value(const char str[], int fg, col_attr_t *color)
+try_parse_cterm_color(const char str[], int is_fg, col_attr_t *color)
 {
 	col_scheme_t *const cs = curr_stats.cs;
-	const int col_num = parse_color_name_value(str, fg, &color->attr);
+	const int col_num = parse_color_name_value(str, is_fg, &color->attr);
 
 	if(col_num < -1)
 	{
@@ -2991,7 +3071,7 @@ try_parse_color_name_value(const char str[], int fg, col_attr_t *color)
 		return 1;
 	}
 
-	if(fg)
+	if(is_fg)
 	{
 		color->fg = col_num;
 	}
@@ -3000,6 +3080,43 @@ try_parse_color_name_value(const char str[], int fg, col_attr_t *color)
 		color->bg = col_num;
 	}
 
+	return 0;
+}
+
+/* Tries to parse a direct color.  Returns non-zero if status bar message should
+ * be preserved, otherwise zero is returned. */
+static int
+try_parse_gui_color(const char str[], int *color)
+{
+	const char *hex_digits = "0123456789abcdefABCDEF";
+
+	if(is_default_color(str))
+	{
+		*color = -1;
+		return 0;
+	}
+
+	*color = string_array_pos_case(XTERM256_COLOR_NAMES,
+			ARRAY_LEN(XTERM256_COLOR_NAMES), str);
+	if(*color >= 0 && *color < 8)
+	{
+		return 0;
+	}
+
+	if(str[0] != '#' || strlen(str) != 7 || strspn(str + 1, hex_digits) != 6)
+	{
+		ui_sb_errf("Unrecognized color value format: %s", str);
+		if(curr_stats.cs->state == CSS_LOADING)
+		{
+			curr_stats.cs->state = CSS_BROKEN;
+		}
+		return 1;
+	}
+
+	unsigned int value;
+	(void)sscanf(str, "#%x", &value);
+
+	*color = value;
 	return 0;
 }
 
@@ -3012,15 +3129,14 @@ parse_color_name_value(const char str[], int fg, int *attr)
 	int light_col_pos;
 	int col_num;
 
-	if(strcmp(str, "-1") == 0 || strcasecmp(str, "default") == 0 ||
-			strcasecmp(str, "none") == 0)
+	if(is_default_color(str))
 	{
 		return -1;
 	}
 
 	light_col_pos = string_array_pos_case(LIGHT_COLOR_NAMES,
 			ARRAY_LEN(LIGHT_COLOR_NAMES), str);
-	if(light_col_pos >= 0)
+	if(light_col_pos >= 0 && COLORS < 16)
 	{
 		*attr |= (!fg && curr_stats.exec_env_type == EET_LINUX_NATIVE) ?
 				A_BLINK : A_BOLD;
@@ -3048,8 +3164,20 @@ parse_color_name_value(const char str[], int fg, int *attr)
 	return -2;
 }
 
+/* Checks whether a string signifies a default color.  Returns non-zero if so,
+ * otherwise zero is returned. */
 static int
-get_attrs(const char *text)
+is_default_color(const char str[])
+{
+	return (strcmp(str, "-1") == 0)
+	    || (strcasecmp(str, "default") == 0)
+	    || (strcasecmp(str, "none") == 0);
+}
+
+/* Parses comma-separated list of attributes.  Returns parsed result or -1 on
+ * error.  *combine_attrs is always assigned to. */
+static int
+get_attrs(const char text[], int *combine_attrs)
 {
 #ifdef HAVE_A_ITALIC_DECL
 	const int italic_attr = A_ITALIC;
@@ -3057,6 +3185,8 @@ get_attrs(const char *text)
 	/* If A_ITALIC is missing (it's an extension), use A_REVERSE instead. */
 	const int italic_attr = A_REVERSE;
 #endif
+
+	*combine_attrs = 0;
 
 	int result = 0;
 	while(*text != '\0')
@@ -3079,6 +3209,8 @@ get_attrs(const char *text)
 			result |= italic_attr;
 		else if(strcasecmp(buf, "none") == 0)
 			result = 0;
+		else if(strcasecmp(buf, "combine") == 0)
+			*combine_attrs = 1;
 		else
 			return -1;
 
@@ -3632,6 +3764,41 @@ only_cmd(const cmd_info_t *cmd_info)
 	return 0;
 }
 
+/* Manages plugins. */
+static int
+plugin_cmd(const cmd_info_t *cmd_info)
+{
+	if(strcmp(cmd_info->argv[0], "load") == 0)
+	{
+		if(cmd_info->argc != 1)
+		{
+			return CMDS_ERR_TRAILING_CHARS;
+		}
+
+		plugs_load(curr_stats.plugs, cfg.config_dir);
+		return 0;
+	}
+
+	if(cmd_info->argc != 2)
+	{
+		return CMDS_ERR_TOO_FEW_ARGS;
+	}
+
+	if(strcmp(cmd_info->argv[0], "blacklist") == 0)
+	{
+		plugs_blacklist(curr_stats.plugs, cmd_info->argv[1]);
+		return 0;
+	}
+	if(strcmp(cmd_info->argv[0], "whitelist") == 0)
+	{
+		plugs_whitelist(curr_stats.plugs, cmd_info->argv[1]);
+		return 0;
+	}
+
+	ui_sb_errf("Unknown subcommand: %s", cmd_info->argv[0]);
+	return CMDS_ERR_CUSTOM;
+}
+
 /* Displays plugins menu. */
 static int
 plugins_cmd(const cmd_info_t *cmd_info)
@@ -3936,7 +4103,7 @@ session_cmd(const cmd_info_t *cmd_info)
 		if(sessions_stop() == 0)
 		{
 			ui_sb_msgf("Detached from session without saving: %s", current);
-			free(current);
+			put_string(&curr_stats.last_session, current);
 			return 1;
 		}
 		ui_sb_msg("No active session");
@@ -3951,6 +4118,39 @@ session_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
+	if(strcmp(session_name, "-") == 0)
+	{
+		if(is_null_or_empty(curr_stats.last_session))
+		{
+			ui_sb_err("No previous session");
+			return 1;
+		}
+		if(!sessions_exists(curr_stats.last_session))
+		{
+			ui_sb_err("Previous session doesn't exist");
+			return 1;
+		}
+
+		session_name = curr_stats.last_session;
+	}
+
+	char *old_current_session = NULL;
+	update_string(&old_current_session, sessions_current());
+
+	if(switch_to_a_session(session_name) == 0)
+	{
+		update_string(&curr_stats.last_session, old_current_session);
+	}
+
+	free(old_current_session);
+	return 1;
+}
+
+/* Performs switch to a session by its name.  Always prints status bar message.
+ * Returns zero on success, otherwise non-zero is returned. */
+static int
+switch_to_a_session(const char session_name[])
+{
 	if(sessions_active())
 	{
 		if(sessions_current_is(session_name))
@@ -3965,7 +4165,7 @@ session_cmd(const cmd_info_t *cmd_info)
 	if(sessions_create(session_name) == 0)
 	{
 		ui_sb_msgf("Switched to a new session: %s", sessions_current());
-		return 1;
+		return 0;
 	}
 
 	if(restart_into_session(session_name, 0) != 0)
@@ -3983,7 +4183,7 @@ session_cmd(const cmd_info_t *cmd_info)
 	}
 
 	ui_sb_msgf("Loaded session: %s", sessions_current());
-	return 1;
+	return 0;
 }
 
 /* Performs restart and optional (re)loading of a session.  Returns zero on
@@ -4096,6 +4296,14 @@ static int
 split_cmd(const cmd_info_t *cmd_info)
 {
 	return do_split(cmd_info, HSPLIT);
+}
+
+/* Stops the process by send itself SIGSTOP. */
+static int
+stop_cmd(const cmd_info_t *cmd_info)
+{
+	instance_stop();
+	return 0;
 }
 
 /* :s[ubstitute]/[pat]/[subs]/[flags].  Replaces matches of regular expression
@@ -4588,11 +4796,50 @@ tree_cmd(const cmd_info_t *cmd_info)
 	if(cmd_info->emark && in_tree)
 	{
 		rn_leave(curr_view, 1);
+		return 0;
 	}
-	else
+
+	int depth;
+	if(parse_tree_properties(cmd_info, &depth) != 0)
 	{
-		(void)flist_load_tree(curr_view, flist_get_dir(curr_view));
+			return CMDS_ERR_CUSTOM;
 	}
+
+	(void)flist_load_tree(curr_view, flist_get_dir(curr_view), depth);
+	return 0;
+}
+
+/* Parses properties of atree.  Default values are set by the function.  Returns
+ * zero on success, otherwise non-zero is returned and error message is
+ * displayed on the status bar. */
+static int
+parse_tree_properties(const cmd_info_t *cmd_info, int *depth)
+{
+	*depth = INT_MAX;
+
+	int i;
+	for(i = 0; i < cmd_info->argc; ++i)
+	{
+		const char *arg = cmd_info->argv[i];
+		if(skip_prefix(&arg, "depth="))
+		{
+			char *endptr;
+			const long value = strtol(arg, &endptr, 10);
+			if(*endptr != '\0' || value < 1)
+			{
+				ui_sb_errf("Invalid depth: %s", arg);
+				return 1;
+			}
+
+			*depth = value - 1;
+		}
+		else
+		{
+			ui_sb_errf("Invalid argument: %s", arg);
+			return 1;
+		}
+	}
+
 	return 0;
 }
 
@@ -4855,7 +5102,7 @@ vunmap_cmd(const cmd_info_t *cmd_info)
 }
 
 /* Unmaps keys for the specified mode.  Returns zero on success, otherwise
- * non-zero is returned and message is printed on the statusbar. */
+ * non-zero is returned and message is printed on the status bar. */
 static int
 do_unmap(const char keys[], int mode)
 {
@@ -5156,8 +5403,10 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 
 	char *title = format_str(":%s%s%s", cmd_info->user_cmd,
 			(cmd_info->raw_args[0] == '\0' ? "" : " "), cmd_info->raw_args);
-	int handled = rn_ext(expanded_com, title, flags, bg, &save_msg);
+	int handled = rn_ext(curr_view, expanded_com, title, flags, bg, &save_msg);
 	free(title);
+
+	const int use_term_multiplexer = ma_flags_missing(flags, MF_NO_TERM_MUX);
 
 	if(handled > 0)
 	{
@@ -5189,12 +5438,12 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 
 		if(*com_beginning != '\0' && bg)
 		{
-			bg_run_external(com_beginning, 0, SHELL_BY_USER);
+			bg_run_external(com_beginning, 0, SHELL_BY_USER, NULL);
 		}
 		else if(strlen(com_beginning) > 0)
 		{
 			rn_shell(com_beginning, pause ? PAUSE_ALWAYS : PAUSE_ON_ERROR,
-					flags != MF_NO_TERM_MUX, SHELL_BY_USER);
+					use_term_multiplexer, SHELL_BY_USER);
 		}
 	}
 	else if(expanded_com[0] == '/')
@@ -5212,11 +5461,16 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(bg)
 	{
-		bg_run_external(expanded_com, 0, SHELL_BY_USER);
+		rn_start_bg_command(curr_view, expanded_com, flags);
+	}
+	else if(ma_flags_present(flags, MF_PIPE_FILE_LIST) ||
+			ma_flags_present(flags, MF_PIPE_FILE_LIST_Z))
+	{
+		(void)rn_pipe(expanded_com, curr_view, flags, PAUSE_ON_ERROR);
 	}
 	else
 	{
-		rn_shell(expanded_com, PAUSE_ON_ERROR, flags != MF_NO_TERM_MUX,
+		(void)rn_shell(expanded_com, PAUSE_ON_ERROR, use_term_multiplexer,
 				SHELL_BY_USER);
 	}
 

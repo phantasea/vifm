@@ -22,6 +22,8 @@
 
 #include <stddef.h> /* wchar_t */
 
+#include "../macros.h"
+
 struct view_t;
 
 /* Result of handling key sequence by menu-specific shortcut handler. */
@@ -115,7 +117,7 @@ int menus_to_custom_view(menu_state_t *m, struct view_t *view, int very);
 /* Either makes a menu or custom view out of command output.  Returns non-zero
  * if status bar message should be saved. */
 int menus_capture(struct view_t *view, const char cmd[], int user_sh,
-		menu_data_t *m, int custom_view, int very_custom_view);
+		menu_data_t *m, MacroFlags flags);
 
 /* Menu drawing. */
 
@@ -165,7 +167,7 @@ void menus_search_reset_hilight(menu_state_t *m);
 void menus_search_repeat(menu_state_t *m, int backward);
 
 /* Prints results or error message about search operation to the user. */
-void menus_search_print_msg(const menu_state_t *m);
+void menus_search_print_msg(const menu_data_t *m);
 
 /* Retrieves number of search matches in the menu.  Returns the number. */
 int menus_search_matched(menu_state_t *m);

@@ -35,6 +35,7 @@
 #include "../engine/mode.h"
 #include "../engine/parsing.h"
 #include "../engine/var.h"
+#include "../lua/vlua.h"
 #include "../modes/modes.h"
 #include "../utils/fs.h"
 #include "../utils/log.h"
@@ -47,11 +48,11 @@
 #include "../utils/utils.h"
 #include "../background.h"
 #include "../filelist.h"
-#include "color_manager.h"
 #include "color_scheme.h"
 #include "colored_line.h"
 #include "ui.h"
 
+static void split_and_print_status_line(view_t *view, int width);
 static void update_stat_window_old(view_t *view, int lazy_redraw);
 static void refresh_window(WINDOW *win, int lazily);
 TSTATIC cline_t expand_status_line_macros(view_t *view, const char format[]);
@@ -60,11 +61,17 @@ static cline_t parse_view_macros(view_t *view, const char **format,
 static int expand_num(char buf[], size_t buf_len, int val);
 static const char * get_tip(void);
 static void check_expanded_str(const char buf[], int skip, int *nexpansions);
+static char * fetch_status_line(view_t *view, int width);
+TSTATIC char * find_view_macro(const char **format, const char macros[],
+		char macro, int opt);
 static pthread_spinlock_t * get_job_bar_changed_lock(void);
 static void init_job_bar_changed_lock(void);
 static int is_job_bar_visible(void);
 static const char * format_job_bar(void);
 static char ** take_job_descr_snapshot(void);
+
+/* List of macros that are expanded in the status line. */
+static const char STATUS_LINE_MACROS[] = "nrtTfacAugsEdD-xlLPSz%[]{*";  //mod by sim1: adding nr
 
 /* Number of background jobs. */
 static size_t nbar_jobs;
@@ -78,7 +85,8 @@ static pthread_spinlock_t job_bar_changed_lock;
 void
 ui_stat_update(view_t *view, int lazy_redraw)
 {
-	if(!cfg.display_statusline || view != curr_view)
+	if(!cfg.display_statusline || curr_stats.reusing_statusline ||
+			view != curr_view)
 	{
 		return;
 	}
@@ -99,20 +107,44 @@ ui_stat_update(view_t *view, int lazy_redraw)
 
 	const int width = getmaxx(stdscr);
 
-	wresize(stat_win, 1, width);
+	wresize(stat_win, ui_stat_height(), width);
 	ui_set_bg(stat_win, &cfg.cs.color[STATUS_LINE_COLOR],
 			cfg.cs.pair[STATUS_LINE_COLOR]);
 	werase(stat_win);
 	checked_wmove(stat_win, 0, 0);
 
-	cline_t result = expand_status_line_macros(view, cfg.status_line);
-	assert(strlen(result.attrs) == utf8_strsw(result.line) && "Broken attrs!");
-	result.line = break_in_two(result.line, width, "%=");
-	result.attrs = break_in_two(result.attrs, width, "=");
-	cline_print(&result, stat_win, &cfg.cs.color[STATUS_LINE_COLOR]);
-	cline_dispose(&result);
-
+	split_and_print_status_line(view, width);
 	refresh_window(stat_win, lazy_redraw);
+}
+
+/* Splits status line format by %N macros and prints each on a separate line
+ * respecting %=. */
+static void
+split_and_print_status_line(view_t *view, int width)
+{
+	char *status_line = fetch_status_line(view, width);
+
+	const char *part = status_line;
+	int line = 0;
+	while(*part != '\0')
+	{
+		const char *current = part;
+		char *next = find_view_macro(&part, STATUS_LINE_MACROS, 'N', 0);
+		if(next != NULL)
+		{
+			*next = '\0';
+		}
+
+		cline_t result = expand_status_line_macros(view, current);
+		assert(strlen(result.attrs) == utf8_strsw(result.line) && "Broken attrs!");
+		result.line = break_in_two(result.line, width, "%=");
+		result.attrs = break_in_two(result.attrs, width, "=");
+		checked_wmove(stat_win, line++, 0);
+		cline_print(&result, stat_win, &cfg.cs.color[STATUS_LINE_COLOR]);
+		cline_dispose(&result);
+	}
+
+	free(status_line);
 }
 
 /* Formats status line in the "old way" (before introduction of 'statusline'
@@ -211,7 +243,7 @@ expand_status_line_macros(view_t *view, const char format[])
 		return cline_make();
 	}
 
-	return parse_view_macros(view, &format, "nrtTfaAugsEdD-xlLPSz%[]{*", 0);  //mod by sim1
+	return parse_view_macros(view, &format, STATUS_LINE_MACROS, 0);
 }
 
 /* Expands possibly limited set of view macros.  Returns newly allocated string,
@@ -231,6 +263,8 @@ static cline_t
 parse_view_macros(view_t *view, const char **format, const char macros[],
 		int opt)
 {
+	/* Mind that find_view_macro() needs to be in sync with this function. */
+
 	const dir_entry_t *const curr = get_current_entry(view);
 	cline_t result = cline_make();
 	char c;
@@ -287,6 +321,11 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 		}
 		c = *(*format)++;
 
+		/* Query drive information at most once. */
+		uint64_t free_space;
+		uint64_t total_space;
+		int have_drive_info = 0;
+
 		skip = 0;
 		ok = 1;
 		buf[0] = '\0';
@@ -296,7 +335,20 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 			char *escaped;
 
 			case 'a':
-				friendly_size_notation(get_free_space(curr_view->curr_dir), sizeof(buf), buf, 0);
+				have_drive_info = have_drive_info ||
+					(get_drive_info(curr_view->curr_dir, &total_space, &free_space) == 0);
+				if(have_drive_info)
+				{
+					friendly_size_notation(free_space, sizeof(buf), buf, 0);  //mod by sim1
+				}
+				break;
+			case 'c':
+				have_drive_info = have_drive_info ||
+					(get_drive_info(curr_view->curr_dir, &total_space, &free_space) == 0);
+				if(have_drive_info)
+				{
+					friendly_size_notation(total_space, sizeof(buf), buf, 0);  //mod by sim1
+				}
 				break;
 			case 't':
 			case 'f':
@@ -615,11 +667,14 @@ check_expanded_str(const char buf[], int skip, int *nexpansions)
 }
 
 int
-ui_stat_reposition(int statusbar_height, int force_stat_win)
+ui_stat_reposition(int statusbar_height, int stat_height)
 {
-	const int stat_line_height = (force_stat_win || cfg.display_statusline)
-	                           ? getmaxy(stat_win)
-	                           : 0;
+	int stat_line_height = stat_height;
+	if(stat_line_height == 0 && cfg.display_statusline)
+	{
+		stat_line_height = getmaxy(stat_win);
+	}
+
 	const int job_bar_height = ui_stat_job_bar_height();
 	const int y = getmaxy(stdscr)
 	            - statusbar_height
@@ -632,7 +687,8 @@ ui_stat_reposition(int statusbar_height, int force_stat_win)
 		wresize(job_bar, job_bar_height, getmaxx(job_bar));
 	}
 
-	if(force_stat_win || cfg.display_statusline)
+	if(stat_height > 0 ||
+			(cfg.display_statusline && !curr_stats.reusing_statusline))
 	{
 		mvwin(stat_win, y + job_bar_height, 0);
 		return 1;
@@ -640,13 +696,140 @@ ui_stat_reposition(int statusbar_height, int force_stat_win)
 	return 0;
 }
 
+int
+ui_stat_height(void)
+{
+	if(!cfg.display_statusline)
+	{
+		return 0;
+	}
+
+	char *status_line = fetch_status_line(curr_view, getmaxx(stdscr));
+	const char *part = status_line;
+
+	int height = 0;
+	do
+	{
+		++height;
+	}
+	while(find_view_macro(&part, STATUS_LINE_MACROS, 'N', 0) != NULL);
+
+	free(status_line);
+
+	if(curr_stats.reusing_statusline)
+	{
+		return MIN(getmaxy(stat_win), height);
+	}
+	return height;
+}
+
+/* Retrieves status line format.  Returns newly allocated string. */
+static char *
+fetch_status_line(view_t *view, int width)
+{
+	if(vlua_handler_cmd(curr_stats.vlua, cfg.status_line))
+	{
+		return vlua_make_status_line(curr_stats.vlua, cfg.status_line, view, width);
+	}
+
+	return strdup(cfg.status_line);
+}
+
+/* strstr() for format line.  Basically parse_view_macros() in dry mode.
+ * Returns position of a particular macro or NULL.  *format is updated to keep
+ * the state between successive calls. */
+TSTATIC char *
+find_view_macro(const char **format, const char macros[], char macro, int opt)
+{
+	/* Mind that parse_view_macros() needs to be in sync with this function. */
+
+	char c;
+	while((c = **format) != '\0')
+	{
+		const char *const next = ++*format;
+
+		if(c != '%' ||
+				(!char_is_one_of(macros, *next) && !isdigit(*next) &&
+				 *next != '=' && *next != 'N'))
+		{
+			continue;
+		}
+
+		if(*next == macro)
+		{
+			++*format;
+			return (char *)next - 1;
+		}
+
+		if(*next == '=' || *next == 'N')
+		{
+			++*format;
+			continue;
+		}
+
+		if(*next == '-')
+		{
+			++*format;
+		}
+
+		while(isdigit(**format))
+		{
+			++*format;
+		}
+		c = *(*format)++;
+
+		int ok = 1;
+
+		if(c == '[')
+		{
+			char *ptr = find_view_macro(format, macros, macro, 1);
+			if(ptr != NULL)
+			{
+				return ptr;
+			}
+		}
+		else if(c == ']')
+		{
+			if(opt)
+			{
+				return NULL;
+			}
+
+			/* Unmatched %]. */
+			ok = 0;
+		}
+		else if(c == '{')
+		{
+			const char *e = strchr(*format, '}');
+			if(e == NULL)
+			{
+				ok = 0;
+				break;
+			}
+
+			*format = e + 1;
+		}
+		else if(!char_is_one_of(macros, c))
+		{
+			ok = 0;
+		}
+
+		if(!ok)
+		{
+			*format = next;
+		}
+	}
+
+	return NULL;
+}
+
 void
 ui_stat_refresh(void)
 {
 	ui_stat_job_bar_check_for_updates();
 
-	ui_refresh_win(job_bar);
-	ui_refresh_win(stat_win);
+	wnoutrefresh(job_bar);
+	wnoutrefresh(stat_win);
 }
 
 int

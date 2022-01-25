@@ -2,7 +2,7 @@
 
 #include <stddef.h> /* NULL size_t */
 #include <stdio.h> /* snprintf() */
-#include <string.h>
+#include <string.h> /* memcpy() */
 
 #include "../../src/ui/column_view.h"
 #include "../../src/utils/macros.h"
@@ -14,10 +14,12 @@ static char print_buffer[40 + 1];
 
 static void column_line_print(const void *data, int column_id, const char buf[],
 		size_t offset, AlignType align);
-static void column1_func(int id, const void *data, size_t buf_len, char *buf);
-static void column2_func(int id, const void *data, size_t buf_len, char *buf);
-static void column2_short_func(int id, const void *data, size_t buf_len,
-		char *buf);
+static void column1_func(void *data, size_t buf_len, char buf[],
+		const format_info_t *info);
+static void column2_func(void *data, size_t buf_len, char buf[],
+		const format_info_t *info);
+static void column2_short_func(void *data, size_t buf_len, char buf[],
+		const format_info_t *info);
 
 SETUP()
 {
@@ -37,23 +39,24 @@ static void
 column_line_print(const void *data, int column_id, const char buf[],
 		size_t offset, AlignType align)
 {
-	strncpy(print_buffer + offset, buf, strlen(buf));
+	memcpy(print_buffer + offset, buf, strlen(buf));
 }
 
 static void
-column1_func(int id, const void *data, size_t buf_len, char *buf)
+column1_func(void *data, size_t buf_len, char buf[], const format_info_t *info)
 {
 	snprintf(buf, buf_len + 1, "%s", "aaaaaaaaaaaaaaazzzzzzzzzzzzzzz");
 }
 
 static void
-column2_func(int id, const void *data, size_t buf_len, char *buf)
+column2_func(void *data, size_t buf_len, char buf[], const format_info_t *info)
 {
 	snprintf(buf, buf_len + 1, "%s", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 }
 
 static void
-column2_short_func(int id, const void *data, size_t buf_len, char *buf)
+column2_short_func(void *data, size_t buf_len, char buf[],
+		const format_info_t *info)
 {
 	snprintf(buf, buf_len + 1, "%s", "xxxxx");
 }

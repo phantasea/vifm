@@ -8,7 +8,8 @@
 
 static void column_line_print(const void *data, int column_id, const char buf[],
 		size_t offset, AlignType align);
-static void columns_func(int id, const void *data, size_t buf_len, char *buf);
+static void columns_func(void *data, size_t buf_len, char buf[],
+		const format_info_t *info);
 
 static const size_t MAX_WIDTH = 80;
 
@@ -17,6 +18,7 @@ static columns_t *columns;
 static int print_counter;
 static int column1_counter;
 static int column2_counter;
+static int column_width;
 
 SETUP()
 {
@@ -34,6 +36,7 @@ SETUP()
 	print_counter = 0;
 	column1_counter = 0;
 	column2_counter = 0;
+	column_width = 0;
 
 	columns = columns_create();
 	columns_add_column(columns, column_infos[0]);
@@ -57,9 +60,9 @@ column_line_print(const void *data, int column_id, const char buf[],
 }
 
 static void
-columns_func(int id, const void *data, size_t buf_len, char buf[])
+columns_func(void *data, size_t buf_len, char buf[], const format_info_t *info)
 {
-	if(id == COL1_ID)
+	if(info->id == COL1_ID)
 	{
 		++column1_counter;
 	}
@@ -67,6 +70,7 @@ columns_func(int id, const void *data, size_t buf_len, char buf[])
 	{
 		++column2_counter;
 	}
+	column_width = info->width;
 	buf[0] = '\0';
 }
 
@@ -102,6 +106,13 @@ TEST(number_of_calls_to_format_functions)
 
 	assert_int_equal(1, column1_counter);
 	assert_int_equal(1, column2_counter);
+}
+
+TEST(passed_in_width)
+{
+	columns_format_line(columns, NULL, MAX_WIDTH);
+
+	assert_int_equal(MAX_WIDTH/2, column_width);
 }
 
 TEST(number_of_calls_to_print_function)

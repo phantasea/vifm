@@ -50,7 +50,6 @@
 #include "modes/normal.h"
 #include "modes/view.h"
 #include "modes/visual.h"
-#include "ui/color_manager.h"
 #include "ui/color_scheme.h"
 #include "ui/colors.h"
 #include "ui/fileview.h"
@@ -116,6 +115,7 @@ static int skip_at_beginning(int id, const char args[]);
 static void create_builtin_vars(void);
 static void session_changed_callback(const char new_session[]);
 static char * pattern_expand_hook(const char pattern[]);
+static int is_implicit_cd(view_t *view, const char cmd[], int cmd_error);
 static int cmd_should_be_processed(int cmd_id);
 TSTATIC char ** break_cmdline(const char cmdline[], int for_menu);
 static int is_out_of_arg(const char cmd[], const char pos[]);
@@ -129,6 +129,7 @@ TSTATIC char * eval_arglist(const char args[], const char **stop_ptr);
 
 /* Settings for the cmds unit. */
 static cmds_conf_t cmds_conf = {
+	.complete_line = &complete_line,
 	.complete_args = &complete_args,
 	.swap_range = &swap_range,
 	.resolve_mark = &resolve_mark,
@@ -551,6 +552,11 @@ execute_command(view_t *view, const char command[], int menu)
 	if(result >= 0)
 		return result;
 
+	if(is_implicit_cd(view, command, result))
+	{
+		return cd(view, flist_get_dir(view), command);
+	}
+
 	switch(result)
 	{
 		case CMDS_ERR_LOOP:
@@ -612,6 +618,27 @@ execute_command(view_t *view, const char command[], int menu)
 	}
 
 	return -1;
+}
+
+/* Whether need to process command-line command as implicit :cd.  Returns
+ * non-zero if so, otherwise zero is returned. */
+static int
+is_implicit_cd(view_t *view, const char cmd[], int cmd_error)
+{
+	if(!cfg.auto_cd)
+	{
+		return 0;
+	}
+
+	if(cmd_error != CMDS_ERR_INVALID_CMD && cmd_error != CMDS_ERR_TRAILING_CHARS)
+	{
+		return 0;
+	}
+
+	char *expanded = expand_tilde(cmd);
+	int exists = path_exists_at(flist_get_dir(view), expanded, NODEREF);
+	free(expanded);
+	return exists;
 }
 
 /* Decides whether next command with id cmd_id should be processed or not,
@@ -955,7 +982,7 @@ is_out_of_arg(const char cmd[], const char pos[])
 			return 1;
 		}
 		if(get_cmd_args_type(cmd) == CAT_EXPR &&
-				pos != cmd && *pos == '|' && pos[-1] != '|' && pos[1] != '|')
+				pos != cmd && pos[0] == '|' && pos[-1] != '|' && pos[1] != '|')
 		{
 			/* For "*[^|]|[^|]*" report that we're out of argument. */
 			return 1;

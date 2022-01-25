@@ -27,6 +27,7 @@
 #include "compat/fs_limits.h"
 #include "ui/color_scheme.h"
 #include "utils/hist.h"
+#include "utils/test_helpers.h"
 #include "filetype.h"
 
 /* Special value foe dcache fields meaning that it wasn't set. */
@@ -135,6 +136,8 @@ typedef struct
 
 	preview_t preview; /* State of preview (quickview). */
 
+	/* Type of the terminal. */
+	char *term_name;
 	/* Describes terminal state with regard to its dimensions. */
 	TermState term_state;
 
@@ -155,6 +158,8 @@ typedef struct
 	col_scheme_t *cs;
 	/* Name of the color scheme loaded from vifminfo. */
 	char color_scheme[NAME_MAX + 1];
+	/* Whether terminal uses direct colors. */
+	int direct_color;
 
 	int msg_head, msg_tail;
 	char *msgs[51];
@@ -175,6 +180,9 @@ typedef struct
 
 	/* Set while executing :restart command to prevent excess screen updates. */
 	int restart_in_progress;
+
+	/* Status line is enabled, but is being reused for wild menu completion. */
+	int reusing_statusline;
 
 	ExecEnvType exec_env_type; /* Specifies execution environment type. */
 
@@ -202,6 +210,8 @@ typedef struct
 	char *output_delimiter; /* Delimiter for writing out list of paths. */
 
 	char *on_choose; /* Command to execute on picking files. */
+
+	char *last_session; /* Name of the previously used session. */
 
 	const void *preview_hint; /* Hint on which view is used for preview. */
 
@@ -350,6 +360,11 @@ void dcache_update_parent_sizes(const char path[], uint64_t by);
  * non-zero is returned. */
 int dcache_set_at(const char path[], uint64_t inode, uint64_t size,
 		uint64_t nitems);
+
+TSTATIC_DEFS(
+	time_t dcache_get_size_timestamp(const char path[]);
+	void dcache_set_size_timestamp(const char path[], time_t ts);
+)
 
 #endif /* VIFM__STATUS_H__ */
 

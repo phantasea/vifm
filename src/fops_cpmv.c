@@ -39,16 +39,27 @@
 #include "trash.h"
 #include "undo.h"
 
+/* Arguments pack for fops_query_list() verification function. */
+typedef struct
+{
+	view_t *view;         /* Source view. */
+	const char *dst_path; /* Destination directory. */
+	int force;            /* Whether operation should be forced. */
+	CopyMoveLikeOp op;    /* Operation. */
+}
+verify_args_t;
+
 static int cp_file(const char src_dir[], const char dst_dir[], const char src[],
 		const char dst[], CopyMoveLikeOp op, int cancellable, ops_t *ops,
 		int force);
+static int is_erroneous(view_t *view, const char dst_dir[], int force);
 static int cpmv_prepare(view_t *view, char ***list, int *nlines,
 		CopyMoveLikeOp op, int force, char undo_msg[], size_t undo_msg_len,
 		char dst_path[], size_t dst_path_len, int *from_file);
-static int is_copy_list_ok(const char dst[], int count, char *list[],
-		int force);
-static int check_for_clashes(view_t *view, CopyMoveLikeOp op,
-		const char dst_path[], char *list[], char *marked[], int nlines);
+static int verify_list(char *files[], int nfiles, char *names[], int nnames,
+		char **error, void *data);
+static int check_for_clashes(verify_args_t *args, char *list[], char *marked[],
+		int nlines, char **error);
 static const char * cmlo_to_str(CopyMoveLikeOp op);
 static void cpmv_files_in_bg(bg_op_t *bg_op, void *arg);
 static void cpmv_file_in_bg(ops_t *ops, const char src[], const char dst[],
@@ -83,12 +94,8 @@ fops_cpmv(view_t *view, char *list[], int nlines, CopyMoveLikeOp op, int force)
 		return err > 0;
 	}
 
-	const int same_dir = pane_in_dir(view, dst_dir);
-	if(same_dir && force)
+	if(is_erroneous(view, dst_dir, force))
 	{
-		show_error_msg("Operation Error",
-				"Forcing overwrite when destination and source is same directory will "
-				"lead to losing data");
 		return 0;
 	}
 
@@ -171,7 +178,7 @@ fops_cpmv(view_t *view, char *list[], int nlines, CopyMoveLikeOp op, int force)
 	}
 	un_group_close();
 
-	if(same_dir || flist_custom_active(view))
+	if(flist_custom_active(view) || pane_in_dir(view, dst_dir))
 	{
 		ui_view_schedule_reload(view);
 	}
@@ -282,6 +289,12 @@ fops_cpmv_bg(view_t *view, char *list[], int nlines, int move, int force)
 		return err > 0;
 	}
 
+	if(is_erroneous(view, args->path, force))
+	{
+		fops_free_bg_args(args);
+		return 0;
+	}
+
 	args->list = args->from_file ? list :
 	             args->nlines > 0 ? copy_string_array(list, nlines) : NULL;
 
@@ -320,6 +333,22 @@ fops_cpmv_bg(view_t *view, char *list[], int nlines, int move, int force)
 	return 0;
 }
 
+/* Checks operation for adequacy.  Displays error message in case of issues.
+ * Returns non-zero if operation must be aborted, otherwise zero is returned. */
+static int
+is_erroneous(view_t *view, const char dst_dir[], int force)
+{
+	const int same_dir = pane_in_dir(view, dst_dir);
+	if(same_dir && force)
+	{
+		show_error_msg("Operation Aborted",
+				"Forcing overwrite when destination and source is the same directory "
+				"will lead to losing data.");
+		return 1;
+	}
+	return 0;
+}
+
 /* Performs general preparations for file copy/move-like operations: resolving
  * destination path, validating names, checking for conflicts, formatting undo
  * message.  Returns zero on success, otherwise positive number for status bar
@@ -330,10 +359,6 @@ cpmv_prepare(view_t *view, char ***list, int *nlines, CopyMoveLikeOp op,
 		size_t dst_path_len, int *from_file)
 {
 	view_t *const other = (view == curr_view) ? other_view : curr_view;
-
-	char **marked;
-	size_t nmarked;
-	int error = 0;
 
 	if(op == CMLO_MOVE)
 	{
@@ -365,12 +390,36 @@ cpmv_prepare(view_t *view, char ***list, int *nlines, CopyMoveLikeOp op,
 		return -1;
 	}
 
-	marked = fops_grab_marked_files(view, &nmarked);
+	size_t nmarked;
+	char **marked = fops_grab_marked_files(view, &nmarked);
 
-	*from_file = *nlines < 0;
+	/* Custom views can contain several files with the same name. */
+	if(*nlines == 0 && flist_custom_active(view))
+	{
+		size_t i;
+		for(i = 0U; i < nmarked; ++i)
+		{
+			if(is_in_string_array(marked, i, marked[i]))
+			{
+				ui_sb_errf("Source name \"%s\" duplicates", marked[i]);
+				free_string_array(marked, nmarked);
+				return 1;
+			}
+		}
+	}
+
+	verify_args_t verify_args = {
+		.view = view,
+		.dst_path = dst_path,
+		.force = force,
+		.op = op,
+	};
+
+	*from_file = (*nlines < 0);
 	if(*from_file)
 	{
-		*list = fops_edit_list(nmarked, marked, nlines, 1);
+		*list = fops_query_list(nmarked, marked, nlines, 1, &verify_list,
+				&verify_args);
 		if(*list == NULL)
 		{
 			free_string_array(marked, nmarked);
@@ -378,41 +427,20 @@ cpmv_prepare(view_t *view, char ***list, int *nlines, CopyMoveLikeOp op,
 		}
 	}
 
-	if(*nlines > 0 &&
-			(!fops_is_name_list_ok(nmarked, *nlines, *list, NULL) ||
-			!is_copy_list_ok(dst_path, *nlines, *list, force)))
-	{
-		error = 1;
-	}
-	if(*nlines == 0 && !is_copy_list_ok(dst_path, nmarked, marked, force))
-	{
-		error = 1;
-	}
-
-	/* Custom views can contain several files with the same name. */
-	if(flist_custom_active(view))
-	{
-		size_t i;
-		for(i = 0U; i < nmarked && !error; ++i)
-		{
-			if(is_in_string_array(marked, i, marked[i]))
-			{
-				ui_sb_errf("Source name \"%s\" duplicates", marked[i]);
-				curr_stats.save_msg = 1;
-				error = 1;
-			}
-		}
-	}
-
-	if(check_for_clashes(view, op, dst_path, *list, marked, *nlines) != 0)
-	{
-		error = 1;
-	}
+	char *error_str = NULL;
+	int error = !verify_list(marked, nmarked, *list, *nlines, &error_str,
+			&verify_args);
 
 	free_string_array(marked, nmarked);
 
 	if(error)
 	{
+		if(error_str != NULL)
+		{
+			ui_sb_err(error_str);
+			free(error_str);
+		}
+
 		redraw_view(view);
 		if(*from_file)
 		{
@@ -430,39 +458,49 @@ cpmv_prepare(view_t *view, char ***list, int *nlines, CopyMoveLikeOp op,
 	return 0;
 }
 
-/* Checks whether list of files doesn't mention any existing files.  Returns
- * non-zero if everything is fine, otherwise zero is returned. */
+/* Checks that operation can be performed.  Returns non-zero if so, otherwise
+ * zero is returned along with setting *error. */
 static int
-is_copy_list_ok(const char dst[], int count, char *list[], int force)
+verify_list(char *files[], int nfiles, char *names[], int nnames, char **error,
+		void *data)
 {
-	int i;
+	verify_args_t *args = data;
 
-	if(force)
+	int ok = 1;
+
+	if(nnames > 0 &&
+			(!fops_is_name_list_ok(nfiles, nnames, names, NULL, error) ||
+			!fops_is_copy_list_ok(args->dst_path, nnames, names, args->force, error)))
 	{
-		return 1;
+		ok = 0;
+	}
+	else if(nnames == 0 &&
+			!fops_is_copy_list_ok(args->dst_path, nfiles, files, args->force, error))
+	{
+		ok = 0;
 	}
 
-	for(i = 0; i < count; ++i)
+	if(ok && check_for_clashes(args, names, files, nnames, error) != 0)
 	{
-		if(path_exists_at(dst, list[i], DEREF))
-		{
-			ui_sb_errf("File \"%s\" already exists", list[i]);
-			return 0;
-		}
+		ok = 0;
 	}
-	return 1;
+
+	return ok;
 }
 
 /* Checks whether operation is OK from the point of view of losing files due to
- * tree clashes (child move over parent or vice versa).  Returns zero if
- * everything is fine, otherwise non-zero is returned. */
+ * tree clashes (child move over parent or vice versa).  Reallocates *error to
+ * provide error message.  Returns zero if everything is fine, otherwise
+ * non-zero is returned. */
 static int
-check_for_clashes(view_t *view, CopyMoveLikeOp op, const char dst_path[],
-		char *list[], char *marked[], int nlines)
+check_for_clashes(verify_args_t *args, char *list[], char *marked[], int nlines,
+		char **error)
 {
+	const int is_cpmv = ONE_OF(args->op, CMLO_MOVE, CMLO_COPY);
+
 	dir_entry_t *entry = NULL;
 	int i = 0;
-	while(iter_marked_entries(view, &entry))
+	while(iter_marked_entries(args->view, &entry))
 	{
 		char src_full[PATH_MAX + 1], dst_full[PATH_MAX + 1];
 		const char *const dst_name = (nlines > 0) ? list[i] : marked[i];
@@ -470,22 +508,21 @@ check_for_clashes(view_t *view, CopyMoveLikeOp op, const char dst_path[],
 
 		get_full_path_of(entry, sizeof(src_full), src_full);
 
-		snprintf(dst_full, sizeof(dst_full), "%s/%s", dst_path, dst_name);
+		snprintf(dst_full, sizeof(dst_full), "%s/%s", args->dst_path, dst_name);
 		chosp(dst_full);
 
-		if(ONE_OF(op, CMLO_MOVE, CMLO_COPY) && is_in_subtree(dst_full, src_full, 0))
+		if(is_cpmv && is_in_subtree(dst_full, src_full, 0))
 		{
-			ui_sb_errf("Can't move/copy parent inside itself: %s",
-					replace_home_part(src_full));
-			curr_stats.save_msg = 1;
+			put_string(error, format_str("Can't move/copy parent inside itself: %s",
+						replace_home_part(src_full)));
 			return 1;
 		}
 
 		if(is_in_subtree(src_full, dst_full, 0))
 		{
-			ui_sb_errf("Operation would result in loss contents of %s",
-					replace_home_part(src_full));
-			curr_stats.save_msg = 1;
+			put_string(error,
+					format_str("Operation would result in losing contents of %s",
+						replace_home_part(src_full)));
 			return 1;
 		}
 	}

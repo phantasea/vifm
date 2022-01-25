@@ -93,30 +93,41 @@ PromptState;
 /* Holds state of the command-line editing mode. */
 typedef struct
 {
-	wchar_t *line;                /* the line reading */
-	wchar_t *initial_line;        /* initial state of the line */
-	int index;                    /* index of the current character in cmdline */
-	int curs_pos;                 /* position of the cursor in status bar*/
-	int len;                      /* length of the string */
-	int cmd_pos;                  /* position in the history */
-	wchar_t prompt[NAME_MAX + 1]; /* prompt */
-	int prompt_wid;               /* width of prompt */
-	int complete_continue;        /* if non-zero, continue previous completion */
-	int dot_pos;                  /* history pos for dot completion, or < 0 */
-	size_t dot_index;             /* dot completion line index */
-	size_t dot_len;               /* dot completion previous completion len */
-	HIST history_search;          /* HIST_* */
-	int hist_search_len;          /* length of history search pattern */
-	wchar_t *line_buf;            /* content of line before using history */
-	int reverse_completion;
-	complete_cmd_func complete;
-	int search_mode;
-	int old_top;              /* for search_mode */
-	int old_pos;              /* for search_mode */
-	int line_edited;          /* Cache for whether input line changed flag. */
-	int enter_mapping_state;  /* The mapping state at entering the mode. */
-	int expanding_abbrev;     /* Abbreviation expansion is in progress. */
-	PromptState state;        /* Prompt state with regard to current input. */
+	/* Line editing state. */
+	wchar_t *line;                /* The line reading. */
+	wchar_t *initial_line;        /* Initial state of the line. */
+	int index;                    /* Index of the current character in cmdline. */
+	int curs_pos;                 /* Position of the cursor in status bar. */
+	int len;                      /* Length of the string. */
+	int cmd_pos;                  /* Position in the history. */
+	wchar_t prompt[NAME_MAX + 1]; /* Prompt message. */
+	int prompt_wid;               /* Width of the prompt. */
+
+	/* Dot completion. */
+	int dot_pos;      /* History position or < 0 if it's not active. */
+	size_t dot_index; /* Line index. */
+	size_t dot_len;   /* Previous completion length. */
+
+	/* Command completion. */
+	int complete_continue;      /* If non-zero, continue previous completion. */
+	int reverse_completion;     /* Completion in the opposite direction. */
+	complete_cmd_func complete; /* Completion function. */
+
+	/* History completion. */
+	HIST history_search; /* One of the HIST_* constants. */
+	int hist_search_len; /* Length of history search pattern. */
+	wchar_t *line_buf;   /* Content of line before using history. */
+
+	/* For search prompt. */
+	int search_mode; /* If it's a search prompt. */
+	int old_top;     /* Saved top for interactive searching. */
+	int old_pos;     /* Saved position for interactive searching. */
+
+	/* Other state. */
+	int line_edited;         /* Cache for whether input line changed flag. */
+	int enter_mapping_state; /* The mapping state at entering the mode. */
+	int expanding_abbrev;    /* Abbreviation expansion is in progress. */
+	PromptState state;       /* Prompt state with regard to current input. */
 }
 line_stats_t;
 
@@ -158,6 +169,7 @@ static void do_completion(void);
 static void draw_wild_menu(int op);
 static int draw_wild_bar(int *last_pos, int *pos, int *len);
 static int draw_wild_popup(int *last_pos, int *pos, int *len);
+static int compute_wild_menu_height(void);
 static void cmd_ctrl_k(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_return(key_info_t key_info, keys_info_t *keys_info);
 static int is_input_line_empty(void);
@@ -391,22 +403,24 @@ draw_cmdline_text(line_stats_t *stat)
 		return;
 	}
 
-	int pair = -1;
+	int group = -1;
 	col_attr_t prompt_col = {};
 
 	werase(status_bar);
 
 	switch(input_stat.state)
 	{
-		case PS_NORMAL:        pair = CMD_LINE_COLOR; break;
-		case PS_WRONG_PATTERN: pair = ERROR_MSG_COLOR; break;
-		case PS_NO_MATCH:      pair = CMD_LINE_COLOR;
+		case PS_NORMAL:        group = CMD_LINE_COLOR; break;
+		case PS_WRONG_PATTERN: group = ERROR_MSG_COLOR; break;
+		case PS_NO_MATCH:      group = CMD_LINE_COLOR;
 		                       prompt_col.attr = A_REVERSE;
+		                       prompt_col.gui_attr = A_REVERSE;
 		                       break;
 	}
-	prompt_col.attr ^= cfg.cs.color[pair].attr;
+	prompt_col.attr ^= cfg.cs.color[group].attr;
+	prompt_col.gui_attr ^= cfg.cs.color[group].gui_attr;
 
-	ui_set_attr(status_bar, &prompt_col, cfg.cs.pair[pair]);
+	ui_set_attr(status_bar, &prompt_col, cfg.cs.pair[group]);
 	compat_mvwaddwstr(status_bar, 0, 0, stat->prompt);
 
 	ui_set_attr(status_bar, &cfg.cs.color[CMD_LINE_COLOR],
@@ -430,7 +444,7 @@ input_line_changed(void)
 	}
 
 	/* Hide cursor during view update, otherwise user might notice it blinking in
-	 * wrong place. */
+	 * wrong places. */
 	curs_set(0);
 
 	/* set_view_port() should not be called if none of the conditions are true. */
@@ -460,7 +474,7 @@ input_line_changed(void)
 	}
 	else if(prev_mode == MENU_MODE)
 	{
-		modmenu_full_redraw();
+		modmenu_partial_redraw();
 	}
 
 	/* Hardware cursor is moved on the screen only on refresh, so refresh status
@@ -668,13 +682,17 @@ modcline_prompt(const char prompt[], const char cmd[], prompt_cb cb,
 void
 modcline_redraw(void)
 {
+	/* Hide cursor during redraw, otherwise user might notice it blinking in wrong
+	 * places. */
+	curs_set(0);
+
 	if(prev_mode == MENU_MODE)
 	{
 		modmenu_full_redraw();
 	}
 	else
 	{
-		update_screen(UT_REDRAW);
+		ui_redraw_as_background();
 		if(prev_mode == SORT_MODE)
 		{
 			redraw_sort_dialog();
@@ -688,12 +706,19 @@ modcline_redraw(void)
 	line_width = getmaxx(stdscr);
 	update_cmdline_size();
 	draw_cmdline_text(&input_stat);
-	curs_set(1);
 
 	if(input_stat.complete_continue && cfg.wild_menu)
 	{
 		draw_wild_menu(-1);
 	}
+
+	if(prev_mode != MENU_MODE)
+	{
+		update_all_windows();
+	}
+
+	/* Make cursor visible after all redraws. */
+	curs_set(1);
 }
 
 /* Performs all necessary preparations for command-line mode to start
@@ -742,15 +767,17 @@ prepare_cmdline_mode(const wchar_t prompt[], const wchar_t cmd[],
 
 	update_cmdline_size();
 	update_cmdline_text(&input_stat);
-	if(curr_stats.load_stage > 0)
-	{
-		curs_set(1);
-	}
 
 	curr_stats.save_msg = 1;
 
 	if(prev_mode == NORMAL_MODE)
 		init_commands();
+
+	/* Make cursor visible only after all initial draws. */
+	if(curr_stats.load_stage > 0)
+	{
+		curs_set(1);
+	}
 }
 
 /* Stores view port parameters (top line, current position). */
@@ -812,6 +839,12 @@ is_line_edited(void)
 static void
 leave_cmdline_mode(void)
 {
+	/* Hide the cursor first. */
+	if(curr_stats.load_stage > 0)
+	{
+		curs_set(0);
+	}
+
 	const int multiline_status_bar = (getmaxy(status_bar) > 1);
 
 	wresize(status_bar, 1, getmaxx(stdscr) - FIELDS_WIDTH());
@@ -833,10 +866,6 @@ leave_cmdline_mode(void)
 	input_stat.initial_line = NULL;
 	input_stat.line_buf = NULL;
 
-	if(curr_stats.load_stage > 0)
-	{
-		curs_set(0);
-	}
 	curr_stats.save_msg = 0;
 	ui_sb_unlock();
 	ui_sb_clear();
@@ -1076,6 +1105,16 @@ do_completion(void)
 
 	update_cmdline_size();
 	update_cmdline_text(&input_stat);
+
+	/* Indicate that status line is being reused for wild menu and there is a
+	 * potential usage conflict due to size differences. */
+	if(cfg.display_statusline && !curr_stats.reusing_statusline &&
+			cfg.wild_menu && vle_compl_get_count() > 2 && getmaxy(stat_win) > 1)
+	{
+		curr_stats.reusing_statusline = 1;
+		wresize(stat_win, compute_wild_menu_height(), getmaxx(stdscr));
+		modcline_redraw();
+	}
 }
 
 /*
@@ -1137,8 +1176,10 @@ draw_wild_bar(int *last_pos, int *pos, int *len)
 	const vle_compl_t *const items = vle_compl_get_items();
 	const int count = vle_compl_get_count() - 1;
 
+	wresize(stat_win, compute_wild_menu_height(), getmaxx(stdscr));
 	checked_wmove(stat_win, 0, 0);
 	werase(stat_win);
+	ui_stat_reposition(getmaxy(status_bar), 1);
 
 	if(*pos < *last_pos)
 	{
@@ -1198,9 +1239,7 @@ draw_wild_popup(int *last_pos, int *pos, int *len)
 {
 	const vle_compl_t *const items = vle_compl_get_items();
 	const int count = vle_compl_get_count() - 1;
-	const int max_height = getmaxy(stdscr) - getmaxy(status_bar)
-	                     - ui_stat_job_bar_height() - 1;
-	const int height = MIN(count, MIN(10, max_height));
+	const int height = compute_wild_menu_height();
 	size_t max_title_width;
 	int i, j;
 
@@ -1209,9 +1248,11 @@ draw_wild_popup(int *last_pos, int *pos, int *len)
 		*last_pos = MAX(0, *last_pos - height);
 	}
 
+	ui_stat_reposition(getmaxy(status_bar), height);
 	wresize(stat_win, height, getmaxx(stdscr));
+	ui_set_attr(stat_win, &cfg.cs.color[STATUS_LINE_COLOR],
+			cfg.cs.pair[STATUS_LINE_COLOR]);
 	werase(stat_win);
-	ui_stat_reposition(getmaxy(status_bar), 1);
 
 	max_title_width = 0U;
 	for(i = *last_pos, j = 0; i < count && j < height; ++i, ++j)
@@ -1245,6 +1286,21 @@ draw_wild_popup(int *last_pos, int *pos, int *len)
 	}
 
 	return i;
+}
+
+/* Computes height needed for wild menu (bar or popup).  Returns the height. */
+static int
+compute_wild_menu_height(void)
+{
+	if(!cfg.wild_popup)
+	{
+		return 1;
+	}
+
+	const int count = vle_compl_get_count() - 1;
+	const int max_height = getmaxy(stdscr) - getmaxy(status_bar)
+	                     - ui_stat_job_bar_height() - 1;
+	return MIN(count, MIN(10, max_height));
 }
 
 static void
@@ -1367,6 +1423,7 @@ cmd_return(key_info_t key_info, keys_info_t *keys_info)
 	{
 		if(prev_mode == MENU_MODE)
 		{
+			modmenu_partial_redraw();
 			menus_search_print_msg(sub_mode_ptr);
 			curr_stats.save_msg = 1;
 		}
@@ -2490,8 +2547,10 @@ update_cmdline_size(void)
 
 	if(prev_mode != MENU_MODE)
 	{
-		if(ui_stat_reposition(required_height,
-					cfg.wild_menu && cfg.wild_popup && input_stat.complete_continue))
+		int stat_height = cfg.wild_menu
+		               && cfg.wild_popup
+		               && input_stat.complete_continue;
+		if(ui_stat_reposition(required_height, stat_height ? getmaxy(stat_win) : 0))
 		{
 			ui_stat_refresh();
 		}
@@ -2560,7 +2619,10 @@ line_completion(line_stats_t *stat)
 		}
 
 		const int offset = stat->complete(line_mb_cmd, (void *)compl_func_arg);
-		line_mb[line_mb_cmd + offset - line_mb] = '\0';
+		if(offset >= 0 && offset < (int)strlen(line_mb_cmd))
+		{
+			line_mb[line_mb_cmd - line_mb + offset] = '\0';
+		}
 		prefix_len = wide_len(line_mb);
 		free(line_mb);
 
@@ -2669,21 +2731,16 @@ stop_regular_completion(void)
 		return;
 	}
 
+	if(curr_stats.reusing_statusline)
+	{
+		curr_stats.reusing_statusline = 0;
+	}
+
 	input_stat.complete_continue = 0;
 	vle_compl_reset();
 	if(cfg.wild_menu && input_stat.complete != NULL)
 	{
-		if(sub_mode == CLS_MENU_COMMAND)
-		{
-			modmenu_full_redraw();
-		}
-		else
-		{
-			update_screen(UT_REDRAW);
-		}
-		update_cmdline_size();
-		update_cmdline_text(&input_stat);
-		curs_set(1);
+		modcline_redraw();
 	}
 }
 

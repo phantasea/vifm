@@ -2,6 +2,7 @@
 
 #include <sys/stat.h> /* chmod() */
 
+#include <limits.h> /* INT_MAX */
 #include <string.h> /* memset() strcpy() */
 #include <time.h> /* time() */
 
@@ -10,6 +11,7 @@
 #include "../../src/cfg/config.h"
 #include "../../src/compat/fs_limits.h"
 #include "../../src/compat/os.h"
+#include "../../src/ui/column_view.h"
 #include "../../src/ui/fileview.h"
 #include "../../src/ui/ui.h"
 #include "../../src/utils/cancellation.h"
@@ -143,7 +145,7 @@ TEST(find_first_and_last_siblings)
 {
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "tree",
 			cwd);
-	assert_success(flist_load_tree(&lwin, lwin.curr_dir));
+	assert_success(flist_load_tree(&lwin, lwin.curr_dir, INT_MAX));
 	assert_int_equal(12, lwin.list_rows);
 
 	assert_int_equal(0, fpos_first_sibling(&lwin));
@@ -157,13 +159,17 @@ TEST(find_first_and_last_siblings)
 	lwin.list_pos = 11;
 	assert_int_equal(0, fpos_first_sibling(&lwin));
 	assert_int_equal(11, fpos_last_sibling(&lwin));
+
+	lwin.list_pos = 1;
+	assert_int_equal(1, fpos_first_sibling(&lwin));
+	assert_int_equal(7, fpos_last_sibling(&lwin));
 }
 
 TEST(find_next_and_prev_dir_sibling)
 {
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "tree",
 			cwd);
-	assert_success(flist_load_tree(&lwin, lwin.curr_dir));
+	assert_success(flist_load_tree(&lwin, lwin.curr_dir, INT_MAX));
 	assert_int_equal(12, lwin.list_rows);
 
 	assert_int_equal(0, fpos_prev_dir_sibling(&lwin));
@@ -178,6 +184,19 @@ TEST(find_next_and_prev_dir_sibling)
 
 	assert_int_equal(8, fpos_prev_dir_sibling(&lwin));
 	assert_int_equal(11, fpos_next_dir_sibling(&lwin));
+
+	/* When last sibling is an empty dir. */
+
+	cfg.dot_dirs &= ~DD_TREE_LEAFS_PARENT;
+	lwin.dir_entry[6].selected = 1;
+	lwin.selected_files = 1;
+	flist_custom_exclude(&lwin, 1);
+	assert_int_equal(11, lwin.list_rows);
+
+	lwin.list_pos = 5;
+	assert_int_equal(2, fpos_prev_dir_sibling(&lwin));
+	lwin.list_pos = 2;
+	assert_int_equal(5, fpos_next_dir_sibling(&lwin));
 }
 
 TEST(find_next_and_prev_mismatches)
@@ -428,7 +447,7 @@ TEST(duplicated_entries_detected)
 	assert_true(lwin.has_dups);
 }
 
-TEST(cache_handles_noexec_dirs, IF(not_windows))
+TEST(cache_handles_noexec_dirs, IF(regular_unix_user))
 {
 	assert_success(os_mkdir(SANDBOX_PATH "/dir", 0700));
 	create_file(SANDBOX_PATH "/dir/file");
@@ -455,6 +474,7 @@ TEST(filename_is_formatted_according_to_column_and_filetype)
 	};
 
 	column_data_t cdt = { .view = &lwin };
+	format_info_t info = { .data = &cdt };
 	char name[16];
 
 	memset(&cfg.type_decs, '\0', sizeof(cfg.type_decs));
@@ -462,30 +482,38 @@ TEST(filename_is_formatted_according_to_column_and_filetype)
 
 	cdt.entry = &dir_entry;
 
-	format_name(SK_BY_INAME, &cdt, sizeof(name), name);
+	info.id = SK_BY_INAME;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b.c/", name);
 
-	format_name(SK_BY_NAME, &cdt, sizeof(name), name);
+	info.id = SK_BY_NAME;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b.c/", name);
 
-	format_name(SK_BY_FILEROOT, &cdt, sizeof(name), name);
+	info.id = SK_BY_FILEROOT;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b.c/", name);
 
-	format_name(SK_BY_ROOT, &cdt, sizeof(name), name);
+	info.id = SK_BY_ROOT;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b/", name);
 
 	cdt.entry = &file_entry;
 
-	format_name(SK_BY_INAME, &cdt, sizeof(name), name);
+	info.id = SK_BY_INAME;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b.c", name);
 
-	format_name(SK_BY_NAME, &cdt, sizeof(name), name);
+	info.id = SK_BY_NAME;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b.c", name);
 
-	format_name(SK_BY_FILEROOT, &cdt, sizeof(name), name);
+	info.id = SK_BY_FILEROOT;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b", name);
 
-	format_name(SK_BY_ROOT, &cdt, sizeof(name), name);
+	info.id = SK_BY_ROOT;
+	format_name(NULL, sizeof(name), name, &info);
 	assert_string_equal("a.b", name);
 }
 

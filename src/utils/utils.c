@@ -37,6 +37,7 @@
 #include <stdio.h> /* snprintf() */
 #include <stdlib.h> /* free() malloc() qsort() */
 #include <string.h> /* memcpy() strdup() strchr() strlen() strpbrk() strtol() */
+#include <time.h> /* tm localtime() strftime() */
 #include <wchar.h> /* wcwidth() */
 
 #include "../cfg/config.h"
@@ -49,6 +50,7 @@
 #include "../ui/cancellation.h"
 #include "../ui/ui.h"
 #include "../background.h"
+#include "../filelist.h"
 #include "../registers.h"
 #include "../status.h"
 #include "env.h"
@@ -59,6 +61,7 @@
 #include "path.h"
 #include "str.h"
 #include "string_array.h"
+#include "utf8.h"
 
 static void show_progress_cb(const void *descr);
 static const char ** get_size_suffixes(void);
@@ -97,8 +100,22 @@ vifm_system(char command[], ShellRequester by)
 }
 
 int
-process_cmd_output(const char descr[], const char cmd[], int user_sh,
-		int interactive, cmd_output_handler handler, void *arg)
+vifm_system_input(char command[], FILE *input, ShellRequester by)
+{
+#ifdef _WIN32
+	/* The check is primarily for tests, otherwise screen is reset. */
+	if(curr_stats.load_stage != 0)
+	{
+		system("cls");
+	}
+#endif
+	LOG_INFO_MSG("Shell command with custom input: %s", command);
+	return run_with_input(command, input, by);
+}
+
+int
+process_cmd_output(const char descr[], const char cmd[], FILE *input,
+		int user_sh, int interactive, cmd_output_handler handler, void *arg)
 {
 	FILE *file, *err;
 	pid_t pid;
@@ -108,7 +125,7 @@ process_cmd_output(const char descr[], const char cmd[], int user_sh,
 
 	LOG_INFO_MSG("Capturing output of the command: %s", cmd);
 
-	pid = bg_run_and_capture((char *)cmd, user_sh, &file, &err);
+	pid = bg_run_and_capture((char *)cmd, user_sh, input, &file, &err);
 	if(pid == (pid_t)-1)
 	{
 		return 1;
@@ -546,21 +563,27 @@ escape_for_dquotes(const char string[], size_t offset)
 char *
 escape_unreadable(const char str[])
 {
-	char *escaped = malloc(strlen(str)*2 + 1);
+	int str_len = strlen(str);
+	char *escaped = malloc(str_len*2 + 1);
 
 	char *out = escaped;
-	while(*str != '\0')
+	while(str_len > 0)
 	{
-		if(iscntrl((unsigned char)*str))
+		const size_t char_len = utf8_chrw(str);
+
+		if(char_len == 1 && iscntrl((unsigned char)*str))
 		{
 			*out++ = '^';
 			*out++ = *str ^ 64;
 		}
 		else
 		{
-			*out++ = *str;
+			memcpy(out, str, char_len);
+			out += char_len;
 		}
-		++str;
+
+		str += char_len;
+		str_len -= char_len;
 	}
 	*out = '\0';
 
@@ -795,6 +818,46 @@ format_position(char buf[], size_t buf_len, int top, int total, int visible)
 	{
 		snprintf(buf, buf_len, "%2d%%", (top*100)/(total - visible));
 	}
+}
+
+FILE *
+make_in_file(view_t *view, MacroFlags flags)
+{
+	if(ma_flags_missing(flags, MF_PIPE_FILE_LIST) &&
+			ma_flags_missing(flags, MF_PIPE_FILE_LIST_Z))
+	{
+		return NULL;
+	}
+
+	FILE *input_tmp = os_tmpfile();
+	const int null_sep = ma_flags_present(flags, MF_PIPE_FILE_LIST_Z);
+	write_marked_paths(input_tmp, view, null_sep);
+	return input_tmp;
+}
+
+void
+write_marked_paths(FILE *file, view_t *view, int null_sep)
+{
+	const char separator = (null_sep ? '\0' : '\n');
+	dir_entry_t *entry = NULL;
+	while(iter_marked_entries(view, &entry))
+	{
+		const char *const sep = (ends_with_slash(entry->origin) ? "" : "/");
+		fprintf(file, "%s%s%s%c", entry->origin, sep, entry->name, separator);
+	}
+}
+
+void
+format_iso_time(time_t t, char buf[], size_t buf_size)
+{
+	struct tm *const tm = localtime(&t);
+	if(tm == NULL)
+	{
+		copy_str(buf, buf_size, "");
+		return;
+	}
+
+	strftime(buf, buf_size, "%a, %d %b %Y %H:%M:%S", tm);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

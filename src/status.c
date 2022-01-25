@@ -47,6 +47,7 @@
 #include "utils/macros.h"
 #include "utils/path.h"
 #include "utils/str.h"
+#include "utils/test_helpers.h"
 #include "utils/utils.h"
 #include "cmd_completion.h"
 #include "cmd_core.h"
@@ -78,6 +79,8 @@ static void set_last_cmdline_command(const char cmd[]);
 static void dcache_get(const char path[], time_t mtime, uint64_t inode,
 		dcache_result_t *size, dcache_result_t *nitems);
 static void size_updater(void *data, void *arg);
+TSTATIC time_t dcache_get_size_timestamp(const char path[]);
+TSTATIC void dcache_set_size_timestamp(const char path[], time_t ts);
 
 status_t curr_stats;
 
@@ -115,6 +118,8 @@ stats_init(config_t *config)
 	curr_stats.exec_env_type = get_exec_env_type();
 	stats_update_shell_type(config->shell);
 
+	update_string(&curr_stats.term_name, env_get("TERM"));
+
 	(void)hist_init(&curr_stats.cmd_hist, config->history_len);
 	(void)hist_init(&curr_stats.search_hist, config->history_len);
 	(void)hist_init(&curr_stats.prompt_hist, config->history_len);
@@ -142,6 +147,7 @@ load_def_values(status_t *stats, config_t *config)
 	stats->use_input_bar = 1;
 	stats->drop_new_dir_hist = 0;
 	stats->load_stage = 0;
+	update_string(&stats->term_name, NULL);
 	stats->term_state = TS_NORMAL;
 	stats->ch_pos = 1;
 	stats->confirmed = 0;
@@ -153,6 +159,8 @@ load_def_values(status_t *stats, config_t *config)
 	stats->preview.kind = VK_TEXTUAL;
 	update_string(&stats->preview.cleanup_cmd, NULL);
 	stats->preview.clearing = 0;
+
+	stats->direct_color = 0;
 
 	stats->msg_head = 0;
 	stats->msg_tail = 0;
@@ -172,6 +180,8 @@ load_def_values(status_t *stats, config_t *config)
 	stats->sourcing_state = SOURCING_NONE;
 
 	stats->restart_in_progress = 0;
+
+	stats->reusing_statusline = 0;
 
 	stats->exec_env_type = EET_EMULATOR;
 
@@ -193,6 +203,8 @@ load_def_values(status_t *stats, config_t *config)
 	(void)replace_string(&stats->output_delimiter, "\n");
 
 	update_string(&stats->on_choose, NULL);
+
+	update_string(&stats->last_session, NULL);
 
 	stats->preview_hint = NULL;
 
@@ -675,6 +687,29 @@ dcache_set_at(const char path[], uint64_t inode, uint64_t size, uint64_t nitems)
 	}
 
 	return ret;
+}
+
+TSTATIC time_t
+dcache_get_size_timestamp(const char path[])
+{
+	dcache_data_t size_data;
+	if(fsdata_get(dcache_size, path, &size_data, sizeof(size_data)) == 0)
+	{
+		return size_data.timestamp;
+	}
+
+	return -1;
+}
+
+TSTATIC void
+dcache_set_size_timestamp(const char path[], time_t ts)
+{
+	dcache_data_t size_data;
+	if(fsdata_get(dcache_size, path, &size_data, sizeof(size_data)) == 0)
+	{
+		size_data.timestamp = ts;
+		(void)fsdata_set(dcache_size, path, &size_data, sizeof(size_data));
+	}
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

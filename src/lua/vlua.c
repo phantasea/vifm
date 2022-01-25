@@ -19,23 +19,23 @@
 #include "vlua.h"
 
 #include <assert.h> /* assert() */
-#include <stddef.h> /* NULL */
-#include <stdlib.h> /* calloc() free() */
+#include <stddef.h> /* NULL size_t */
+#include <stdlib.h> /* free() */
+#include <string.h> /* strdup() */
 
 #include "../cfg/config.h"
+#include "../cfg/info.h"
 #include "../compat/dtype.h"
 #include "../compat/fs_limits.h"
-#include "../compat/pthread.h"
-#include "../engine/cmds.h"
+#include "../engine/options.h"
 #include "../modes/dialogs/msg_dialog.h"
 #include "../ui/statusbar.h"
 #include "../ui/ui.h"
-#include "../utils/darray.h"
 #include "../utils/fs.h"
 #include "../utils/path.h"
 #include "../utils/str.h"
 #include "../utils/string_array.h"
-#include "../background.h"
+#include "../utils/utils.h"
 #include "../cmd_core.h"
 #include "../filelist.h"
 #include "../filename_modifiers.h"
@@ -44,185 +44,137 @@
 #include "../status.h"
 #include "lua/lauxlib.h"
 #include "lua/lua.h"
-#include "lua/lualib.h"
+#include "api.h"
+#include "common.h"
+#include "vifm_cmds.h"
+#include "vifm_handlers.h"
+#include "vifm_keys.h"
+#include "vifm_tabs.h"
+#include "vifm_viewcolumns.h"
+#include "vifmjob.h"
+#include "vifmview.h"
+#include "vlua_state.h"
 
-/* Helper structure that bundles arbitrary pointer and state pointer . */
-typedef struct
-{
-	vlua_t *vlua;
-	void *ptr;
-}
-state_ptr_t;
-
-/* State of the unit. */
-struct vlua_t
-{
-	lua_State *lua; /* Lua state. */
-
-	state_ptr_t **ptrs;      /* Pointers. */
-	DA_INSTANCE_FIELD(ptrs); /* Declarations to enable use of DA_* on ptrs. */
-
-	strlist_t strings; /* Interned strings. */
-};
-
-/* User data of file stream associated with job's output stream. */
-typedef struct
-{
-	luaL_Stream lua_stream; /* Standard Lua structure. */
-	bg_job_t *job;          /* Link to the owning job. */
-	void *obj;              /* Handle to Lua object of this user data. */
-}
-job_stream_t;
-
-/* User data of job object. */
-typedef struct
-{
-	bg_job_t *job;        /* Link to the native job. */
-	job_stream_t *output; /* Cached output stream or NULL. */
-}
-vifm_job_t;
-
+static void patch_env(lua_State *lua);
 static void load_api(lua_State *lua);
-static int print(lua_State *lua);
-static int vifm_errordialog(lua_State *lua);
-static int vifm_fnamemodify(lua_State *lua);
-static int vifm_exists(lua_State *lua);
-static int vifm_makepath(lua_State *lua);
-static int vifm_startjob(lua_State *lua);
-static int cmds_add(lua_State *lua);
-static int cmds_command(lua_State *lua);
-static int cmds_delcommand(lua_State *lua);
-static void * to_pointer(lua_State *lua);
-static void from_pointer(lua_State *lua, void *ptr);
-static void drop_pointer(lua_State *lua, void *ptr);
-static int lua_cmd_handler(const cmd_info_t *cmd_info);
-static int vifm_expand(lua_State *lua);
-static int vifm_change_dir(lua_State *lua);
-static int vifmjob_gc(lua_State *lua);
-static int vifmjob_wait(lua_State *lua);
-static int vifmjob_exitcode(lua_State *lua);
-static int vifmjob_stdout(lua_State *lua);
-static int vifmjob_errors(lua_State *lua);
-static int sb_info(lua_State *lua);
-static int sb_error(lua_State *lua);
-static int sb_quick(lua_State *lua);
-static int jobstream_close(lua_State *lua);
+static int VLUA_API(api_is_at_least)(lua_State *lua);
+static int VLUA_API(api_has)(lua_State *lua);
+static int VLUA_API(print)(lua_State *lua);
+static int VLUA_API(opts_global_index)(lua_State *lua);
+static int VLUA_API(opts_global_newindex)(lua_State *lua);
+static int VLUA_API(vifm_errordialog)(lua_State *lua);
+static int VLUA_API(vifm_fnamemodify)(lua_State *lua);
+static int VLUA_API(vifm_exists)(lua_State *lua);
+static int VLUA_API(vifm_makepath)(lua_State *lua);
+static int VLUA_API(vifm_expand)(lua_State *lua);
+static int VLUA_API(vifm_sessions_current)(lua_State *lua);
+static int VLUA_API(vifm_plugin_require)(lua_State *lua);
+static int VLUA_IMPL(require_plugin_module)(lua_State *lua);
+static int VLUA_API(sb_info)(lua_State *lua);
+static int VLUA_API(sb_error)(lua_State *lua);
+static int VLUA_API(sb_quick)(lua_State *lua);
 static int load_plugin(lua_State *lua, const char name[], plug_t *plug);
 static void setup_plugin_env(lua_State *lua, plug_t *plug);
-static state_ptr_t * state_store_pointer(vlua_t *vlua, void *ptr);
-static const char * state_store_string(vlua_t *vlua, const char str[]);
-static void set_state(lua_State *lua, vlua_t *vlua);
-static vlua_t * get_state(lua_State *lua);
-static void check_field(lua_State *lua, int table_idx, const char name[],
-		int lua_type);
-static int check_opt_field(lua_State *lua, int table_idx, const char name[],
-		int lua_type);
+
+VLUA_DECLARE_SAFE(api_is_at_least);
+VLUA_DECLARE_SAFE(api_has);
+VLUA_DECLARE_SAFE(print);
+VLUA_DECLARE_SAFE(opts_global_index);
+VLUA_DECLARE_UNSAFE(opts_global_newindex);
+VLUA_DECLARE_SAFE(vifm_errordialog);
+VLUA_DECLARE_SAFE(vifm_fnamemodify);
+VLUA_DECLARE_SAFE(vifm_exists);
+VLUA_DECLARE_SAFE(vifm_makepath);
+VLUA_DECLARE_SAFE(vifm_expand);
+VLUA_DECLARE_SAFE(vifm_sessions_current);
+VLUA_DECLARE_UNSAFE(vifm_plugin_require);
+VLUA_DECLARE_SAFE(sb_info);
+VLUA_DECLARE_SAFE(sb_error);
+VLUA_DECLARE_SAFE(sb_quick);
+
+/* These are defined in other units. */
+VLUA_DECLARE_SAFE(vifmjob_new);
+VLUA_DECLARE_SAFE(vifmview_currview);
+VLUA_DECLARE_SAFE(vifmview_otherview);
+VLUA_DECLARE_UNSAFE(vifm_addcolumntype);
+VLUA_DECLARE_SAFE(vifm_addhandler);
 
 /* Functions of `vifm` global table. */
 static const struct luaL_Reg vifm_methods[] = {
-	{ "errordialog", &vifm_errordialog },
-	{ "fnamemodify", &vifm_fnamemodify },
-	{ "exists",      &vifm_exists      },
-	{ "makepath",    &vifm_makepath    },
-	{ "startjob",    &vifm_startjob    },
-	{ "expand",      &vifm_expand      },
-	{ "cd",          &vifm_change_dir  },
-	{ NULL,          NULL              }
-};
-
-/* Functions of `vifm.cmds` table. */
-static const struct luaL_Reg cmds_methods[] = {
-	{ "add",        &cmds_add        },
-	{ "command",    &cmds_command    },
-	{ "delcommand", &cmds_delcommand },
-	{ NULL,         NULL             }
+	{ "errordialog",   VLUA_REF(vifm_errordialog)   },
+	{ "fnamemodify",   VLUA_REF(vifm_fnamemodify)   },
+	{ "exists",        VLUA_REF(vifm_exists)        },
+	{ "makepath",      VLUA_REF(vifm_makepath)      },
+	{ "startjob",      VLUA_REF(vifmjob_new)        },
+	{ "expand",        VLUA_REF(vifm_expand)        },
+	{ "currview",      VLUA_REF(vifmview_currview)  },
+	{ "otherview",     VLUA_REF(vifmview_otherview) },
+	{ "addcolumntype", VLUA_REF(vifm_addcolumntype) },
+	{ "addhandler",    VLUA_REF(vifm_addhandler)    },
+	{ NULL,            NULL                         }
 };
 
 /* Functions of `vifm.sb` table. */
 static const struct luaL_Reg sb_methods[] = {
-	{ "info",   &sb_info  },
-	{ "error",  &sb_error },
-	{ "quick",  &sb_quick },
-	{ NULL,     NULL      }
+	{ "info",   VLUA_REF(sb_info)  },
+	{ "error",  VLUA_REF(sb_error) },
+	{ "quick",  VLUA_REF(sb_quick) },
+	{ NULL,     NULL               }
 };
-
-/* Methods of VifmJob type. */
-static const struct luaL_Reg job_methods[] = {
-	{ "__gc",     &vifmjob_gc       },
-	{ "wait",     &vifmjob_wait     },
-	{ "exitcode", &vifmjob_exitcode },
-	{ "stdout",   &vifmjob_stdout   },
-	{ "errors",   &vifmjob_errors   },
-	{ NULL,       NULL              }
-};
-
-/* Address of this variable serves as a key in Lua table. */
-static char vlua_state_key;
 
 vlua_t *
 vlua_init(void)
 {
-	vlua_t *vlua = calloc(1, sizeof(*vlua));
-	if(vlua == NULL)
+	vlua_t *vlua = vlua_state_alloc();
+	if(vlua != NULL)
 	{
-		return NULL;
+		patch_env(vlua->lua);
+		load_api(vlua->lua);
+
+		vifm_viewcolumns_init(vlua);
+		vifm_handlers_init(vlua);
 	}
-
-	vlua->lua = luaL_newstate();
-	set_state(vlua->lua, vlua);
-
-	luaL_requiref(vlua->lua, "base", &luaopen_base, 1);
-	lua_pop(vlua->lua, 1);
-	luaL_requiref(vlua->lua, LUA_TABLIBNAME, &luaopen_table, 1);
-	lua_pop(vlua->lua, 1);
-	luaL_requiref(vlua->lua, LUA_IOLIBNAME, &luaopen_io, 1);
-	lua_pop(vlua->lua, 1);
-	luaL_requiref(vlua->lua, LUA_STRLIBNAME, &luaopen_string, 1);
-	lua_pop(vlua->lua, 1);
-	luaL_requiref(vlua->lua, LUA_MATHLIBNAME, &luaopen_math, 1);
-	lua_pop(vlua->lua, 1);
-
-	load_api(vlua->lua);
-
 	return vlua;
 }
 
 void
 vlua_finish(vlua_t *vlua)
 {
-	if(vlua != NULL)
-	{
-		size_t i;
-		for(i = 0U; i < DA_SIZE(vlua->ptrs); ++i)
-		{
-			free(vlua->ptrs[i]);
-		}
-		DA_REMOVE_ALL(vlua->ptrs);
+	vlua_state_free(vlua);
+}
 
-		free_string_array(vlua->strings.items, vlua->strings.nitems);
+/* Adjusts standard libraries. */
+static void
+patch_env(lua_State *lua)
+{
+	lua_pushcfunction(lua, VLUA_REF(print));
+	lua_setglobal(lua, "print");
 
-		lua_close(vlua->lua);
-		free(vlua);
-	}
+	lua_getglobal(lua, "os");
+	lua_newtable(lua);
+	lua_getfield(lua, -2, "clock");
+	lua_setfield(lua, -2, "clock");
+	lua_getfield(lua, -2, "date");
+	lua_setfield(lua, -2, "date");
+	lua_getfield(lua, -2, "difftime");
+	lua_setfield(lua, -2, "difftime");
+	lua_getfield(lua, -2, "time");
+	lua_setfield(lua, -2, "time");
+	lua_setglobal(lua, "os");
+	lua_pop(lua, 1);
 }
 
 /* Fills Lua state with application-specific API. */
 static void
 load_api(lua_State *lua)
 {
-	luaL_newmetatable(lua, "VifmJob");
-	lua_pushvalue(lua, -1);
-	lua_setfield(lua, -2, "__index");
-	luaL_setfuncs(lua, job_methods, 0);
-	lua_pop(lua, 1);
+	vifmjob_init(lua);
+	vifmview_init(lua);
 
 	luaL_newmetatable(lua, "VifmPluginEnv");
 	lua_pushglobaltable(lua);
 	lua_setfield(lua, -2, "__index");
 	lua_pop(lua, 1);
-
-	lua_pushcfunction(lua, &print);
-	lua_setglobal(lua, "print");
 
 	luaL_newlib(lua, vifm_methods);
 
@@ -230,8 +182,30 @@ load_api(lua_State *lua)
 	lua_setglobal(lua, "vifm");
 
 	/* Setup vifm.cmds. */
-	luaL_newlib(lua, cmds_methods);
+	vifm_cmds_init(lua);
 	lua_setfield(lua, -2, "cmds");
+
+	/* Setup vifm.keys. */
+	vifm_keys_init(lua);
+	lua_setfield(lua, -2, "keys");
+
+	/* Setup vifm.tabs. */
+	vifm_tabs_init(lua);
+	lua_setfield(lua, -2, "tabs");
+
+	/* Setup vifm.opts. */
+	lua_newtable(lua);
+	lua_pushvalue(lua, -1);
+	lua_setfield(lua, -3, "opts");
+	lua_newtable(lua);
+	lua_newtable(lua);
+	lua_pushcfunction(lua, VLUA_REF(opts_global_index));
+	lua_setfield(lua, -2, "__index");
+	lua_pushcfunction(lua, VLUA_REF(opts_global_newindex));
+	lua_setfield(lua, -2, "__newindex");
+	lua_setmetatable(lua, -2);
+	lua_setfield(lua, -2, "global");
+	lua_pop(lua, 1);
 
 	/* Setup vifm.plugins. */
 	lua_newtable(lua);
@@ -239,20 +213,67 @@ load_api(lua_State *lua)
 	lua_setfield(lua, -2, "all");
 	lua_setfield(lua, -2, "plugins");
 
+	/* Setup vifm.version. */
+	lua_newtable(lua);
+	lua_newtable(lua);
+	lua_pushstring(lua, VERSION);
+	lua_setfield(lua, -2, "str");
+	lua_setfield(lua, -2, "app");
+	lua_newtable(lua);
+	lua_pushinteger(lua, 0);
+	lua_setfield(lua, -2, "major");
+	lua_pushinteger(lua, 0);
+	lua_setfield(lua, -2, "minor");
+	lua_pushinteger(lua, 0);
+	lua_setfield(lua, -2, "patch");
+	lua_pushcfunction(lua, VLUA_REF(api_has));
+	lua_setfield(lua, -2, "has");
+	lua_pushcfunction(lua, VLUA_REF(api_is_at_least));
+	lua_setfield(lua, -2, "atleast");
+	lua_setfield(lua, -2, "api");
+	lua_setfield(lua, -2, "version");
+
 	/* Setup vifm.sb. */
 	luaL_newlib(lua, sb_methods);
 	lua_setfield(lua, -2, "sb");
+
+	/* Setup vifm.sessions. */
+	lua_newtable(lua);
+	lua_pushcfunction(lua, VLUA_REF(vifm_sessions_current));
+	lua_setfield(lua, -2, "current");
+	lua_setfield(lua, -2, "sessions");
 
 	/* vifm. */
 	lua_pop(lua, 1);
 }
 
-/* Replacement of standard global `print` function.  Outputs to statusbar.
- * Doesn't return anything. */
+/* Checks version of the API.  Returns a boolean. */
 static int
-print(lua_State *lua)
+VLUA_API(api_is_at_least)(lua_State *lua)
 {
-	char *msg = NULL;
+	const int major = luaL_checkinteger(lua, 1);
+	const int minor = luaL_optinteger(lua, 2, 0);
+	const int patch = luaL_optinteger(lua, 3, 0);
+	lua_pushboolean(lua, (major == 0 && minor == 0 && patch == 0));
+	return 1;
+}
+
+/* Performs tests for API features.  Returns a boolean. */
+static int
+VLUA_API(api_has)(lua_State *lua)
+{
+	(void)luaL_checkstring(lua, 1);
+	lua_pushboolean(lua, 0);
+	return 1;
+}
+
+/* Replacement of standard global `print` function.  If plugin is present,
+ * outputs to a plugin log, otherwise outputs to status bar.  Doesn't return
+ * anything. */
+static int
+VLUA_API(print)(lua_State *lua)
+{
+	char *msg = strdup("");
 	size_t msg_len = 0U;
 
 	int nargs = lua_gettop(lua);
@@ -283,9 +304,41 @@ print(lua_State *lua)
 	return 0;
 }
 
+/* Provides read access to global options by their name as
+ * `vifm.opts.global[name]`. */
+static int
+VLUA_API(opts_global_index)(lua_State *lua)
+{
+	const char *opt_name = luaL_checkstring(lua, 2);
+
+	opt_t *opt = vle_opts_find(opt_name, OPT_ANY);
+	if(opt == NULL || opt->scope == OPT_LOCAL)
+	{
+		return 0;
+	}
+
+	return get_opt(lua, opt);
+}
+
+/* Provides write access to global options by their name as
+ * `vifm.opts.global[name] = value`. */
+static int
+VLUA_API(opts_global_newindex)(lua_State *lua)
+{
+	const char *opt_name = luaL_checkstring(lua, 2);
+
+	opt_t *opt = vle_opts_find(opt_name, OPT_ANY);
+	if(opt == NULL || opt->scope == OPT_LOCAL)
+	{
+		return 0;
+	}
+
+	return set_opt(lua, opt);
+}
+
 /* Member of `vifm` that displays an error dialog.  Doesn't return anything. */
 static int
-vifm_errordialog(lua_State *lua)
+VLUA_API(vifm_errordialog)(lua_State *lua)
 {
 	const char *title = luaL_checkstring(lua, 1);
 	const char *msg = luaL_checkstring(lua, 2);
@@ -296,7 +349,7 @@ vifm_errordialog(lua_State *lua)
 /* Member of `vifm` that modifies path according to specifiers.  Returns
  * modified path. */
 static int
-vifm_fnamemodify(lua_State *lua)
+VLUA_API(vifm_fnamemodify)(lua_State *lua)
 {
 	const char *path = luaL_checkstring(lua, 1);
 	const char *modifiers = luaL_checkstring(lua, 2);
@@ -308,7 +361,7 @@ vifm_fnamemodify(lua_State *lua)
 /* Member of `vifm` that checks whether specified path exists without resolving
  * symbolic links.  Returns a boolean, which is true when path does exist. */
 static int
-vifm_exists(lua_State *lua)
+VLUA_API(vifm_exists)(lua_State *lua)
 {
 	const char *path = luaL_checkstring(lua, 1);
 	lua_pushboolean(lua, path_exists(path, NODEREF));
@@ -318,227 +371,17 @@ vifm_exists(lua_State *lua)
 /* Member of `vifm` that creates a directory and all of its missing parent
  * directories.  Returns a boolean, which is true on success. */
 static int
-vifm_makepath(lua_State *lua)
+VLUA_API(vifm_makepath)(lua_State *lua)
 {
 	const char *path = luaL_checkstring(lua, 1);
 	lua_pushboolean(lua, make_path(path, 0755) == 0);
 	return 1;
 }
 
-/* Member of `vifm` that starts an external application as detached from a
- * terminal.  Returns object of VifmJob type or raises an error. */
-static int
-vifm_startjob(lua_State *lua)
-{
-	luaL_checktype(lua, 1, LUA_TTABLE);
-
-	check_field(lua, 1, "cmd", LUA_TSTRING);
-	const char *cmd = lua_tostring(lua, -1);
-
-	BgJobFlags flags = BJF_MENU_VISIBLE;
-	if(check_opt_field(lua, 1, "visible", LUA_TBOOLEAN))
-	{
-		flags |= (lua_toboolean(lua, -1) ? BJF_JOB_BAR_VISIBLE : BJF_NONE);
-	}
-	if(check_opt_field(lua, 1, "mergestreams", LUA_TBOOLEAN))
-	{
-		flags |= (lua_toboolean(lua, -1) ? BJF_MERGE_STREAMS : BJF_NONE);
-	}
-
-	const char *descr = NULL;
-	if(check_opt_field(lua, 1, "description", LUA_TSTRING))
-	{
-		descr = lua_tostring(lua, -1);
-	}
-
-	bg_job_t *job = bg_run_external_job(cmd, flags);
-	if(job == NULL)
-	{
-		return luaL_error(lua, "%s", "Failed to start a job");
-	}
-
-	if((flags & BJF_JOB_BAR_VISIBLE) && descr != NULL)
-	{
-		bg_op_set_descr(&job->bg_op, descr);
-	}
-
-	vifm_job_t *data = lua_newuserdata(lua, sizeof(*data));
-
-	luaL_getmetatable(lua, "VifmJob");
-	lua_setmetatable(lua, -2);
-
-	data->job = job;
-	data->output = NULL;
-	return 1;
-}
-
-/* Member of `vifm.cmds` that registers a new :command or raises an error.
- * Returns boolean, which is true on success. */
-static int
-cmds_add(lua_State *lua)
-{
-	vlua_t *vlua = get_state(lua);
-
-	luaL_checktype(lua, 1, LUA_TTABLE);
-
-	check_field(lua, 1, "name", LUA_TSTRING);
-	const char *name = lua_tostring(lua, -1);
-
-	const char *descr = "";
-	if(check_opt_field(lua, 1, "description", LUA_TSTRING))
-	{
-		descr = state_store_string(vlua, lua_tostring(lua, -1));
-	}
-
-	check_field(lua, 1, "handler", LUA_TFUNCTION);
-	void *handler = to_pointer(lua);
-
-	cmd_add_t cmd = {
-	  .name = name,
-	  .abbr = NULL,
-	  .id = -1,
-	  .descr = descr,
-	  .flags = 0,
-	  .handler = &lua_cmd_handler,
-	  .user_data = NULL,
-	  .min_args = 0,
-	  .max_args = 0,
-	};
-
-	if(check_opt_field(lua, 1, "minargs", LUA_TNUMBER))
-	{
-		cmd.min_args = lua_tointeger(lua, -1);
-	}
-	if(check_opt_field(lua, 1, "maxargs", LUA_TNUMBER))
-	{
-		cmd.max_args = lua_tointeger(lua, -1);
-		if(cmd.max_args < 0)
-		{
-			cmd.max_args = NOT_DEF;
-		}
-	}
-	else
-	{
-		cmd.max_args = cmd.min_args;
-	}
-
-	cmd.user_data = state_store_pointer(vlua, handler);
-	if(cmd.user_data == NULL)
-	{
-		return luaL_error(lua, "%s", "Failed to store handler data");
-	}
-
-	lua_pushboolean(lua, vle_cmds_add_foreign(&cmd) == 0);
-	return 1;
-}
-
-/* Member of `vifm.command` that registers a new user-defined :command or raises
- * an error.  Returns boolean, which is true on success. */
-static int
-cmds_command(lua_State *lua)
-{
-	vlua_t *vlua = get_state(lua);
-
-	luaL_checktype(lua, 1, LUA_TTABLE);
-
-	check_field(lua, 1, "name", LUA_TSTRING);
-	const char *name = lua_tostring(lua, -1);
-
-	check_field(lua, 1, "action", LUA_TSTRING);
-	const char *action = skip_whitespace(lua_tostring(lua, -1));
-	if(action[0] == '\0')
-	{
-		return luaL_error(lua, "%s", "Action can't be empty");
-	}
-
-	const char *descr = NULL;
-	if(check_opt_field(lua, 1, "description", LUA_TSTRING))
-	{
-		descr = state_store_string(vlua, lua_tostring(lua, -1));
-	}
-
-	int overwrite = 0;
-	if(check_opt_field(lua, 1, "overwrite", LUA_TBOOLEAN))
-	{
-		overwrite = lua_toboolean(lua, -1);
-	}
-
-	int success = (vle_cmds_add_user(name, action, descr, overwrite) == 0);
-	lua_pushboolean(lua, success);
-	return 1;
-}
-
-/* Member of `vifm.command` that unregisters a user-defined :command.  Returns
- * boolean, which is true on success. */
-static int
-cmds_delcommand(lua_State *lua)
-{
-	const char *name = luaL_checkstring(lua, 1);
-
-	int success = (vle_cmds_del_user(name) == 0);
-	lua_pushboolean(lua, success);
-	return 1;
-}
-
-/* Converts Lua value at the top of the stack into a C pointer without popping
- * it.  Returns the pointer. */
-static void *
-to_pointer(lua_State *lua)
-{
-	void *ptr = (void *)lua_topointer(lua, -1);
-	lua_pushlightuserdata(lua, ptr);
-	lua_pushvalue(lua, -2);
-	lua_settable(lua, LUA_REGISTRYINDEX);
-	return ptr;
-}
-
-/* Converts C pointer to a Lua value and pushes it on top of the stack. */
-static void
-from_pointer(lua_State *lua, void *ptr)
-{
-	lua_pushlightuserdata(lua, ptr);
-	lua_gettable(lua, LUA_REGISTRYINDEX);
-}
-
-/* Removes pointer stored by to_pointer(). */
-static void
-drop_pointer(lua_State *lua, void *ptr)
-{
-	lua_pushlightuserdata(lua, ptr);
-	lua_pushnil(lua);
-	lua_settable(lua, LUA_REGISTRYINDEX);
-}
-
-/* Handler of all foreign :commands registered from Lua. */
-static int
-lua_cmd_handler(const cmd_info_t *cmd_info)
-{
-	state_ptr_t *p = cmd_info->user_data;
-	lua_State *lua = p->vlua->lua;
-
-	from_pointer(lua, p->ptr);
-
-	lua_newtable(lua);
-	lua_pushstring(lua, cmd_info->args);
-	lua_setfield(lua, -2, "args");
-
-	curr_stats.save_msg = 0;
-
-	if(lua_pcall(lua, 1, 0, 0) != LUA_OK)
-	{
-		const char *error = lua_tostring(lua, -1);
-		ui_sb_err(error);
-		lua_pop(lua, 1);
-		return CMDS_ERR_CUSTOM;
-	}
-
-	return curr_stats.save_msg;
-}
-
 /* Member of `vifm` that expands macros and environment variables.  Returns the
  * expanded string. */
 static int
-vifm_expand(lua_State *lua)
+VLUA_API(vifm_expand)(lua_State *lua)
 {
 	const char *str = luaL_checkstring(lua, 1);
 
@@ -551,21 +394,10 @@ vifm_expand(lua_State *lua)
 	return 1;
 }
 
-/* Member of `vifm` that changes directory of current view.  Returns boolean,
- * which is true if location change was successful. */
-static int
-vifm_change_dir(lua_State *lua)
-{
-	const char *path = luaL_checkstring(lua, 1);
-	int success = (change_directory(curr_view, path) >= 0);
-	lua_pushboolean(lua, success);
-	return 1;
-}
-
-/* Member of `vifm.sb` that prints a normal message on the statusbar.  Doesn't
+/* Member of `vifm.sb` that prints a normal message on the status bar.  Doesn't
  * return anything. */
 static int
-sb_info(lua_State *lua)
+VLUA_API(sb_info)(lua_State *lua)
 {
 	const char *msg = luaL_checkstring(lua, 1);
 	ui_sb_msg(msg);
@@ -573,10 +405,10 @@ sb_info(lua_State *lua)
 	return 0;
 }
 
-/* Member of `vifm.sb` that prints an error message on the statusbar.  Doesn't
+/* Member of `vifm.sb` that prints an error message on the status bar.  Doesn't
  * return anything. */
 static int
-sb_error(lua_State *lua)
+VLUA_API(sb_error)(lua_State *lua)
 {
 	const char *msg = luaL_checkstring(lua, 1);
 	ui_sb_err(msg);
@@ -584,132 +416,14 @@ sb_error(lua_State *lua)
 	return 0;
 }
 
-/* Member of `vifm.sb` that prints statusbar message that's not stored in
+/* Member of `vifm.sb` that prints status bar message that's not stored in
  * history.  Doesn't return anything. */
 static int
-sb_quick(lua_State *lua)
+VLUA_API(sb_quick)(lua_State *lua)
 {
 	const char *msg = luaL_checkstring(lua, 1);
 	ui_sb_quick_msgf("%s", msg);
 	return 0;
-}
-
-/* Method of of VifmJob that frees associated resources.  Doesn't return
- * anything. */
-static int
-vifmjob_gc(lua_State *lua)
-{
-	vifm_job_t *vifm_job = luaL_checkudata(lua, 1, "VifmJob");
-	bg_job_decref(vifm_job->job);
-	return 0;
-}
-
-/* Method of of VifmJob that waits for the job to finish.  Raises an error if
- * waiting has failed.  Doesn't return anything. */
-static int
-vifmjob_wait(lua_State *lua)
-{
-	vifm_job_t *vifm_job = luaL_checkudata(lua, 1, "VifmJob");
-
-	if(bg_job_wait(vifm_job->job) != 0)
-	{
-		return luaL_error(lua, "%s", "Waiting for job has failed");
-	}
-
-	return 0;
-}
-
-/* Method of of VifmJob that retrieves exit code of the job.  Waits for the job
- * to finish if it hasn't already.  Raises an error if waiting has failed.
- * Returns an integer representing the exit code. */
-static int
-vifmjob_exitcode(lua_State *lua)
-{
-	vifm_job_t *vifm_job = luaL_checkudata(lua, 1, "VifmJob");
-
-	vifmjob_wait(lua);
-
-	pthread_spin_lock(&vifm_job->job->status_lock);
-	int running = vifm_job->job->running;
-	int exit_code = vifm_job->job->exit_code;
-	pthread_spin_unlock(&vifm_job->job->status_lock);
-
-	if(running)
-	{
-		return luaL_error(lua, "%s", "Waited, but the job is still running");
-	}
-
-	lua_pushinteger(lua, exit_code);
-	return 1;
-}
-
-/* Method of VifmJob that retrieves stream associated with output stream of
- * the job.  Returns file stream object compatible with I/O library. */
-static int
-vifmjob_stdout(lua_State *lua)
-{
-	vifm_job_t *vifm_job = luaL_checkudata(lua, 1, "VifmJob");
-
-	/* We return the same Lua object on every call. */
-	if(vifm_job->output == NULL)
-	{
-		job_stream_t *js = lua_newuserdata(lua, sizeof(*js));
-		js->lua_stream.closef = NULL;
-		luaL_setmetatable(lua, LUA_FILEHANDLE);
-
-		js->lua_stream.f = vifm_job->job->output;
-		js->lua_stream.closef = &jobstream_close;
-		js->job = vifm_job->job;
-		bg_job_incref(vifm_job->job);
-
-		js->obj = to_pointer(lua);
-		vifm_job->output = js;
-	}
-	else
-	{
-		from_pointer(lua, vifm_job->output->obj);
-	}
-
-	return 1;
-}
-
-/* Method of VifmJob that retrieves errors produces by the job.  Returns string
- * with the errors. */
-static int
-vifmjob_errors(lua_State *lua)
-{
-	vifm_job_t *vifm_job = luaL_checkudata(lua, 1, "VifmJob");
-
-	char *errors = NULL;
-	pthread_spin_lock(&vifm_job->job->errors_lock);
-	update_string(&errors, vifm_job->job->errors);
-	pthread_spin_unlock(&vifm_job->job->errors_lock);
-
-	if(errors == NULL)
-	{
-		lua_pushstring(lua, "");
-	}
-	else
-	{
-		lua_pushstring(lua, errors);
-		free(errors);
-	}
-	return 1;
-}
-
-/* Custom destructor for luaL_Stream that decrements use counter of the job.
- * Returns status. */
-static int
-jobstream_close(lua_State *lua)
-{
-	job_stream_t *js = luaL_checkudata(lua, 1, LUA_FILEHANDLE);
-	bg_job_decref(js->job);
-	drop_pointer(lua, js->obj);
-
-	int stat = (fclose(js->job->output) == 0);
-	js->job->output = NULL;
-
-	return luaL_fileresult(lua, stat, NULL);
 }
 
 int
@@ -738,7 +452,7 @@ load_plugin(lua_State *lua, const char name[], plug_t *plug)
 	snprintf(full_path, sizeof(full_path), "%s/plugins/%s/init.lua",
 			cfg.config_dir, name);
 
-	if(luaL_loadfile(lua, full_path))
+	if(luaL_loadfile(lua, full_path) != LUA_OK)
 	{
 		const char *error = lua_tostring(lua, -1);
 		plug_log(plug, error);
@@ -748,7 +462,7 @@ load_plugin(lua_State *lua, const char name[], plug_t *plug)
 	}
 
 	setup_plugin_env(lua, plug);
-	if(lua_pcall(lua, 0, 1, 0))
+	if(lua_pcall(lua, 0, 1, 0) != LUA_OK)
 	{
 		const char *error = lua_tostring(lua, -1);
 		plug_log(plug, error);
@@ -771,21 +485,107 @@ load_plugin(lua_State *lua, const char name[], plug_t *plug)
 	return 0;
 }
 
-/* Sets upvalue #1 to a plugin-specific version environment. */
+/* Sets upvalue #1 to a plugin-specific version of environment. */
 static void
 setup_plugin_env(lua_State *lua, plug_t *plug)
 {
+	/* Global environment table. */
 	lua_newtable(lua);
-	lua_pushlightuserdata(lua, plug);
-	lua_pushcclosure(lua, &print, 1);
-	lua_setfield(lua, -2, "print");
 	luaL_getmetatable(lua, "VifmPluginEnv");
 	lua_setmetatable(lua, -2);
+
+	/* Plugin-specific `vifm` table. */
+	lua_newtable(lua);
+	/* Meta-table for it. */
+	lua_newtable(lua);
+	lua_getglobal(lua, "vifm");
+	lua_setfield(lua, -2, "__index");
+	lua_setmetatable(lua, -2);
+
+	/* Plugin-specific `vifm.plugin` table. */
+	lua_newtable(lua);
+	lua_pushstring(lua, plug->name);
+	lua_setfield(lua, -2, "name");
+	lua_pushstring(lua, plug->path);
+	lua_setfield(lua, -2, "path");
+	/* Plugin-specific `vifm.plugin.require`. */
+	lua_pushlightuserdata(lua, plug);
+	lua_pushcclosure(lua, VLUA_REF(vifm_plugin_require), 1);
+	lua_setfield(lua, -2, "require");
+	lua_setfield(lua, -2, "plugin");
+
+	/* Plugin-specific `vifm.addhandler()`. */
+	lua_pushlightuserdata(lua, plug);
+	lua_pushcclosure(lua, VLUA_REF(vifm_addhandler), 1);
+	lua_setfield(lua, -2, "addhandler");
+
+	/* Assign `vifm` as a plugin-specific global. */
+	lua_setfield(lua, -2, "vifm");
+
+	/* Plugin-specific `print()`. */
+	lua_pushlightuserdata(lua, plug);
+	lua_pushcclosure(lua, VLUA_REF(print), 1);
+	lua_setfield(lua, -2, "print");
 
 	if(lua_setupvalue(lua, -2, 1) == NULL)
 	{
 		lua_pop(lua, 1);
 	}
+}
+
+/* Member of `vifm.sessions` that retrieves name of the current session.
+ * Returns string or nil. */
+static int
+VLUA_API(vifm_sessions_current)(lua_State *lua)
+{
+	if(sessions_active())
+	{
+		lua_pushstring(lua, sessions_current());
+	}
+	else
+	{
+		lua_pushnil(lua);
+	}
+	return 1;
+}
+
+/* Member of `vifm.plugin` that loads a module relative to the plugin's root.
+ * Returns module's return. */
+static int
+VLUA_API(vifm_plugin_require)(lua_State *lua)
+{
+	const char *mod_name = luaL_checkstring(lua, 1);
+
+	plug_t *plug = lua_touserdata(lua, lua_upvalueindex(1));
+	if(plug == NULL)
+	{
+		assert(false && "vifm.plugin.require() called outside a plugin?");
+		return 0;
+	}
+
+	char full_path[PATH_MAX + 1];
+	snprintf(full_path, sizeof(full_path), "%s/%s.lua", plug->path, mod_name);
+	if(!path_exists(full_path, DEREF))
+	{
+		snprintf(full_path, sizeof(full_path), "%s/%s/init.lua", plug->path,
+				mod_name);
+	}
+
+	luaL_requiref(lua, full_path, VLUA_IREF(require_plugin_module), 1);
+	return 1;
+}
+
+/* Helper that loads a module.  Returns module's return. */
+static int
+VLUA_IMPL(require_plugin_module)(lua_State *lua)
+{
+	const char *mod = luaL_checkstring(lua, 1);
+	if(luaL_loadfile(lua, mod) != LUA_OK || lua_pcall(lua, 0, 1, 0) != LUA_OK)
+	{
+		const char *error = lua_tostring(lua, -1);
+		return luaL_error(lua, "vifm.plugin.require('%s'): %s", mod, error);
+	}
+	return 1;
 }
 
 int
@@ -803,98 +603,54 @@ vlua_run_string(vlua_t *vlua, const char str[])
 	return errored;
 }
 
-/* Stores pointer within the state. */
-static state_ptr_t *
-state_store_pointer(vlua_t *vlua, void *ptr)
+int
+vlua_complete_cmd(vlua_t *vlua, const struct cmd_info_t *cmd_info, int arg_pos)
 {
-	state_ptr_t **p = DA_EXTEND(vlua->ptrs);
-	if(p == NULL)
-	{
-		return NULL;
-	}
-
-	*p = malloc(sizeof(**p));
-	if(*p == NULL)
-	{
-		return NULL;
-	}
-
-	(*p)->vlua = vlua;
-	(*p)->ptr = ptr;
-	DA_COMMIT(vlua->ptrs);
-	return *p;
+	return vifm_cmds_complete(vlua->lua, cmd_info, arg_pos);
 }
 
-/* Stores a string within the state.  Returns pointer to the interned string or
- * pointer to "" on error. */
-static const char *
-state_store_string(vlua_t *vlua, const char str[])
+int
+vlua_viewcolumn_map(vlua_t *vlua, const char name[])
 {
-	int n = add_to_string_array(&vlua->strings.items, vlua->strings.nitems, str);
-	if(n == vlua->strings.nitems)
-	{
-		return "";
-	}
-
-	vlua->strings.nitems = n;
-	return vlua->strings.items[n - 1];
+	return vifm_viewcolumns_map(vlua, name);
 }
 
-/* Stores pointer to vlua inside Lua state. */
-static void
-set_state(lua_State *lua, vlua_t *vlua)
+int
+vlua_viewcolumn_is_primary(vlua_t *vlua, int column_id)
 {
-	lua_pushlightuserdata(lua, &vlua_state_key);
-	lua_pushlightuserdata(lua, vlua);
-	lua_settable(lua, LUA_REGISTRYINDEX);
+	return vifm_viewcolumns_is_primary(vlua, column_id);
 }
 
-/* Retrieves pointer to vlua from Lua state. */
-static vlua_t *
-get_state(lua_State *lua)
+int
+vlua_handler_cmd(vlua_t *vlua, const char cmd[])
 {
-	lua_pushlightuserdata(lua, &vlua_state_key);
-	lua_gettable(lua, LUA_REGISTRYINDEX);
-	vlua_t *vlua = lua_touserdata(lua, -1);
-	lua_pop(lua, 1);
-	return vlua;
+	return vifm_handlers_check(vlua, cmd);
 }
 
-/* Retrieves mandatory field of a table while checking its type and aborting
- * (Lua does longjmp()) if it's missing or doesn't match. */
-static void
-check_field(lua_State *lua, int table_idx, const char name[], int lua_type)
+int
+vlua_handler_present(vlua_t *vlua, const char cmd[])
 {
-	int type = lua_getfield(lua, 1, name);
-	if(type == LUA_TNIL)
-	{
-		luaL_error(lua, "`%s` key is mandatory", name);
-	}
-	if(type != lua_type)
-	{
-		luaL_error(lua, "`%s` value must be a %s", name,
-				lua_typename(lua, lua_type));
-	}
+	return vifm_handlers_present(vlua, cmd);
 }
 
-/* Retrieves optional field of a table while checking its type and aborting (Lua
- * does longjmp()) if it doesn't match.  Returns non-zero if the field is
- * present and is of correct type. */
-static int
-check_opt_field(lua_State *lua, int table_idx, const char name[], int lua_type)
+strlist_t
+vlua_view_file(vlua_t *vlua, const char viewer[], const char path[],
+		const struct preview_area_t *parea)
 {
-	int type = lua_getfield(lua, 1, name);
-	if(type == LUA_TNIL)
-	{
-		return 0;
-	}
+	return vifm_handlers_view(vlua, viewer, path, parea);
+}
 
-	if(type != lua_type)
-	{
-		return luaL_error(lua, "`%s` value must be a %s",name,
-				lua_typename(lua, lua_type));
-	}
-	return 1;
+void
+vlua_open_file(vlua_t *vlua, const char prog[], const struct dir_entry_t *entry)
+{
+	return vifm_handlers_open(vlua, prog, entry);
+}
+
+char *
+vlua_make_status_line(struct vlua_t *vlua, const char format[],
+		struct view_t *view, int width)
+{
+	return vifm_handlers_make_status_line(vlua, format, view, width);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

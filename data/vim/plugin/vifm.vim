@@ -1,8 +1,8 @@
-" Maintainer: Ken Steen <ksteen@users.sourceforge.net>
-" Last Change: 2001 November 29
-
 " Maintainer: xaizek <xaizek@posteo.net>
-" Last Change: 2020 December 10
+" Last Change: 2021 December 28
+
+" Author: Ken Steen <ksteen@users.sourceforge.net>
+" Last Change: 2001 November 29
 
 " vifm and vifm.vim can be found at https://vifm.info/
 
@@ -78,6 +78,18 @@ if !has('nvim') && exists('*term_start')
 	endfunction
 endif
 
+function s:DetermineTermEnv() abort
+	if !has('gui_running')
+		return (&term =~ 256 ? 'xterm-256color' : &term)
+	endif
+
+	if empty($TERM) || $TERM == 'dumb'
+		return 'xterm-256color'
+	endif
+
+	return $TERM
+endfunction
+
 function! s:StartVifm(mods, count, editcmd, ...) abort
 	if a:0 > 2
 		echoerr 'Too many arguments'
@@ -125,8 +137,7 @@ function! s:StartVifm(mods, count, editcmd, ...) abort
 					\ 'cwdjob' : cwdjob, 'split': get(g:, 'vifm_embed_split', 0) }
 
 		if !has('nvim')
-			let env = { 'TERM' : has('gui_running') ? $TERM :
-			          \          &term =~ 256 ? 'xterm-256color' : &term }
+			let env = { 'TERM' : s:DetermineTermEnv() }
 			let options = { 'term_name' : 'vifm: '.a:editcmd, 'curwin' : 1,
 			              \ 'exit_cb': funcref('VifmExitCb', [data]), 'env' : env }
 		else
@@ -167,7 +178,8 @@ function! s:StartVifm(mods, count, editcmd, ...) abort
 
 			let oldbuf = bufname('%')
 			execute 'keepalt file' escape('vifm: '.a:editcmd, ' |')
-			setlocal nonumber norelativenumber
+			" This is for Neovim, which uses these options even in terminal mode
+			setlocal nonumber norelativenumber nospell
 			execute bufnr(oldbuf).'bwipeout'
 			" Use execute to not break highlighting.
 			execute 'startinsert'
@@ -275,6 +287,9 @@ function! s:HandleRunResults(exitcode, listf, typef, editcmd) abort
 	if empty(expand('%')) && editcmd =~ '^v\?split$'
 		execute 'edit' fnamemodify(flist[0], ':.')
 		let flist = flist[1:-1]
+		if len(flist) == 0
+			return
+		endif
 	endif
 
 	" We emulate :args to not leave unnamed buffer around after we open our
@@ -289,6 +304,12 @@ function! s:HandleRunResults(exitcode, listf, typef, editcmd) abort
 			execute 'argadd' fnamemodify(file, ':.')
 		endif
 	endfor
+
+	" When we open a single file, there is no need to navigate to its window,
+	" because we're already there
+	if len(flist) == 1
+		return
+	endif
 
 	" Go to the first file working around possibility that :drop command is not
 	" evailable, if possible

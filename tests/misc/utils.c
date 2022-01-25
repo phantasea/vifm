@@ -2,6 +2,8 @@
 
 #include <stic.h>
 
+#include <limits.h> /* INT_MAX */
+
 #include <test-utils.h>
 
 #include "../../src/compat/fs_limits.h"
@@ -11,9 +13,15 @@
 int
 load_tree(view_t *view, const char path[], const char cwd[])
 {
+	return load_limited_tree(view, path, cwd, INT_MAX);
+}
+
+int
+load_limited_tree(view_t *view, const char path[], const char cwd[], int depth)
+{
 	char abs_path[PATH_MAX + 1];
 	make_abs_path(abs_path, sizeof(abs_path), path, "", cwd);
-	return flist_load_tree(view, abs_path);
+	return flist_load_tree(view, abs_path, depth);
 }
 
 void

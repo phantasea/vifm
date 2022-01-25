@@ -6,6 +6,7 @@
 #include <test-utils.h>
 
 #include "../../src/cfg/config.h"
+#include "../../src/ui/color_scheme.h"
 #include "../../src/ui/colored_line.h"
 #include "../../src/ui/tabs.h"
 #include "../../src/ui/statusline.h"
@@ -32,6 +33,176 @@ TEARDOWN()
 {
 	conf_teardown();
 	view_teardown(&lwin);
+}
+
+TEST(cterm_color_overlapping)
+{
+	col_attr_t color = {
+		.fg = -1,
+		.bg = -1,
+		.attr = -1,
+		.combine_attrs = 0
+	};
+
+	col_attr_t admixture1 = {
+		.fg = 10,
+		.bg = 11,
+		.attr = A_BOLD,
+		.combine_attrs = 1
+	};
+	cs_overlap_colors(&color, &admixture1);
+	assert_int_equal(10, color.fg);
+	assert_int_equal(11, color.bg);
+	assert_int_equal(A_BOLD, color.attr);
+
+	col_attr_t admixture2 = {
+		.fg = 20,
+		.bg = 22,
+		.attr = A_REVERSE,
+		.combine_attrs = 1
+	};
+	cs_overlap_colors(&color, &admixture2);
+	assert_int_equal(20, color.fg);
+	assert_int_equal(22, color.bg);
+	assert_int_equal(A_REVERSE, color.attr);
+}
+
+TEST(cterm_color_mixing)
+{
+	col_attr_t color = {
+		.fg = -1,
+		.bg = -1,
+		.attr = -1,
+		.combine_attrs = 0
+	};
+
+	col_attr_t admixture1 = {
+		.fg = 10,
+		.bg = 11,
+		.attr = A_BOLD,
+		.combine_attrs = 1
+	};
+	cs_mix_colors(&color, &admixture1);
+	assert_int_equal(10, color.fg);
+	assert_int_equal(11, color.bg);
+	assert_int_equal(A_BOLD, color.attr);
+
+	col_attr_t admixture2 = {
+		.fg = 20,
+		.bg = 22,
+		.attr = A_REVERSE,
+		.combine_attrs = 1
+	};
+	cs_mix_colors(&color, &admixture2);
+	assert_int_equal(20, color.fg);
+	assert_int_equal(22, color.bg);
+	assert_int_equal(A_BOLD | A_REVERSE, color.attr);
+}
+
+TEST(gui_color_overlapping)
+{
+	curr_stats.direct_color = 1;
+
+	col_attr_t color = {
+		.fg = -1,
+		.bg = -1,
+		.attr = -1,
+		.combine_attrs = 0
+	};
+
+	col_attr_t admixture1 = {
+		.gui_set = 1,
+		.gui_fg = 0xabcdef,
+		.gui_bg = 0x123456,
+		.gui_attr = A_BOLD,
+		.combine_gui_attrs = 1
+	};
+	cs_overlap_colors(&color, &admixture1);
+	assert_true(color.gui_set);
+	assert_int_equal(0xabcdef, color.gui_fg);
+	assert_int_equal(0x123456, color.gui_bg);
+	assert_int_equal(A_BOLD, color.gui_attr);
+
+	col_attr_t admixture2 = {
+		.gui_set = 1,
+		.gui_fg = 0xfedcba,
+		.gui_bg = 0x654321,
+		.gui_attr = A_REVERSE,
+		.combine_gui_attrs = 1
+	};
+	cs_overlap_colors(&color, &admixture2);
+	assert_true(color.gui_set);
+	assert_int_equal(0xfedcba, color.gui_fg);
+	assert_int_equal(0x654321, color.gui_bg);
+	assert_int_equal(A_REVERSE, color.gui_attr);
+
+	curr_stats.direct_color = 0;
+}
+
+TEST(gui_color_mixing)
+{
+	curr_stats.direct_color = 1;
+
+	col_attr_t color = {
+		.fg = -1,
+		.bg = -1,
+		.attr = -1,
+		.combine_attrs = 0
+	};
+
+	col_attr_t admixture1 = {
+		.gui_set = 1,
+		.gui_fg = 0xabcdef,
+		.gui_bg = 0x123456,
+		.gui_attr = A_BOLD,
+		.combine_gui_attrs = 1
+	};
+	cs_mix_colors(&color, &admixture1);
+	assert_true(color.gui_set);
+	assert_int_equal(0xabcdef, color.gui_fg);
+	assert_int_equal(0x123456, color.gui_bg);
+	assert_int_equal(A_BOLD, color.gui_attr);
+
+	col_attr_t admixture2 = {
+		.gui_set = 1,
+		.gui_fg = 0xfedcba,
+		.gui_bg = 0x654321,
+		.gui_attr = A_REVERSE,
+		.combine_gui_attrs = 1
+	};
+	cs_mix_colors(&color, &admixture2);
+	assert_true(color.gui_set);
+	assert_int_equal(0xfedcba, color.gui_fg);
+	assert_int_equal(0x654321, color.gui_bg);
+	assert_int_equal(A_BOLD | A_REVERSE, color.gui_attr);
+
+	curr_stats.direct_color = 0;
+}
+
+TEST(cterm_to_gui_color)
+{
+	curr_stats.direct_color = 1;
+
+	col_attr_t color = {
+		.fg = 8,
+		.bg = 9,
+		.attr = -1,
+		.combine_attrs = 0
+	};
+
+	/* Mixing is done just to trigger the conversion. */
+	col_attr_t admixture = {
+		.fg = -1,
+		.bg = -1,
+		.attr = -1,
+		.combine_attrs = 0
+	};
+	cs_mix_colors(&color, &admixture);
+
+	assert_true(color.gui_set);
+	assert_int_equal(0x808080, color.gui_fg);
+	assert_int_equal(0xff0000, color.gui_bg);
+	assert_int_equal(-1, color.gui_attr);
 }
 
 TEST(make_tab_title_uses_name_if_present_and_no_format)
@@ -75,7 +246,7 @@ TEST(make_tab_title_uses_format_after_custom_view)
 	flist_custom_start(&lwin, "test");
 	flist_custom_add(&lwin, "existing-files/a");
 	assert_true(flist_custom_finish(&lwin, CV_REGULAR, 0) == 0);
-	navigate_to(&lwin, TEST_DATA_PATH);
+	assert_success(navigate_to(&lwin, TEST_DATA_PATH));
 
 	update_string(&cfg.tab_label, "!%c!");
 	tab_info_t tab_info = { .view = &lwin, .name = NULL, };
@@ -163,6 +334,43 @@ TEST(ui_stat_job_bar_remove_can_be_called_with_unknown_pointer)
 	{
 		ui_stat_job_bar_remove(NULL);
 	}
+}
+
+TEST(find_view_macro_works)
+{
+	const char *format = "%[%]%=%1*%{ignored %N}%[%-1t%N%N*%t%]%3*%{";
+	const char *macros = "[]{t-";
+
+	assert_string_equal("%N%N*%t%]%3*%{",
+			find_view_macro(&format, macros, 'N', 0));
+	assert_string_equal("%N*%t%]%3*%{", format);
+
+	assert_string_equal("%N*%t%]%3*%{", find_view_macro(&format, macros, 'N', 0));
+	assert_string_equal("*%t%]%3*%{", format);
+
+	assert_string_equal(NULL, find_view_macro(&format, macros, 'N', 0));
+	assert_string_equal("", format);
+
+	assert_string_equal(NULL, find_view_macro(&format, macros, 'N', 0));
+	assert_string_equal("", format);
+}
+
+TEST(ui_stat_height_works)
+{
+	cfg.display_statusline = 0;
+
+	update_string(&cfg.status_line, "");
+	assert_int_equal(0, ui_stat_height());
+
+	cfg.display_statusline = 1;
+
+	assert_int_equal(1, ui_stat_height());
+
+	update_string(&cfg.status_line, "some %N stuff");
+	assert_int_equal(2, ui_stat_height());
+
+	update_string(&cfg.status_line, NULL);
+	cfg.display_statusline = 0;
 }
 
 static void

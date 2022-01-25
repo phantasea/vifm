@@ -180,6 +180,9 @@ cfg_init(void)
 	cfg.cd_path = strdup(env_get_def("CDPATH", DEFAULT_CD_PATH));
 	replace_char(cfg.cd_path, ':', ',');
 
+	cfg.auto_cd = 0;
+
+	cfg.ellipsis_position = 0;
 	cfg.extra_padding = 1;
 	cfg.side_borders_visible = 1;
 	cfg.use_unicode_characters = 0;
@@ -194,6 +197,7 @@ cfg_init(void)
 
 	cfg.graphics_delay = 50000;
 	cfg.hard_graphics_clear = 0;
+	cfg.top_tree_stats = 0;
 
 	cfg.timeout_len = 1000;
 	cfg.min_timeout_len = 150;

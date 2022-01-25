@@ -21,6 +21,7 @@
 #define VIFM__FOPS_COMMON_H__
 
 #include "compat/fs_limits.h"
+#include "utils/test_helpers.h"
 #include "background.h"
 #include "ops.h"
 
@@ -34,15 +35,6 @@ typedef enum
 	DR_DESTINATION, /* Destination path. */
 }
 DirRole;
-
-/* Type of reaction on an error. */
-typedef enum
-{
-	ST_NONE,       /* Ignore message. */
-	ST_STATUS_BAR, /* Show message in the status bar. */
-	ST_DIALOG,     /* Shows error dialog. */
-}
-SignalType;
 
 /* Pack of arguments supplied to procedures implementing file operations in
  * background. */
@@ -82,6 +74,12 @@ typedef void (*line_prompt_func)(const char prompt[], const char filename[],
 typedef char (*options_prompt_func)(const char title[], const char message[],
 		const struct response_variant *variants);
 
+/* Function invoked to check whether edited list is OK.  Should return non-zero
+ * if so and zero otherwise.  Should reallocate *error on error.  *data is the
+ * one passed to fops_query_list(). */
+typedef int (*fops_query_verify_func)(char *files[], int nfiles, char *names[],
+		int nnames, char **error, void *data);
+
 /* Filename editing function. */
 extern line_prompt_func fops_line_prompt;
 /* Function to choose from one of options. */
@@ -94,19 +92,29 @@ void fops_init(line_prompt_func line_func, options_prompt_func options_func);
  * Returns non-zero if so, otherwise zero is returned. */
 int fops_view_can_be_changed(const struct view_t *view);
 
-/* Checks if name list is consistent.  Returns non-zero is so, otherwise zero is
- * returned. */
-int fops_is_name_list_ok(int count, int nlines, char *list[], char *files[]);
+/* Checks if name list is consistent.  Reallocates *error to provide error
+ * message.  Returns non-zero is so, otherwise zero is returned. */
+int fops_is_name_list_ok(int count, int nlines, char *list[], char *files[],
+		char **error);
+
+/* Checks whether list of files doesn't mention any existing files.  Reallocates
+ * *error to provide error message.  Returns non-zero if everything is fine,
+ * otherwise zero is returned. */
+int fops_is_copy_list_ok(const char dst[], int count, char *list[], int force,
+		char **error);
 
 /* Checks rename correctness and forms an array of duplication marks.
- * Directory names in files array should be without trailing slash. */
-int fops_is_rename_list_ok(char *files[], char is_dup[], int len, char *list[]);
+ * Reallocates *error to provide error message.  Directory names in files array
+ * should be without trailing slash.  Returns non-zero if everything is fine,
+ * otherwise zero is returned. */
+int fops_is_rename_list_ok(char *files[], char is_dup[], int len, char *list[],
+		char **error);
 
-/* Returns value > 0 if rename is correct, < 0 if rename isn't needed and 0
- * when rename operation should be aborted.  silent parameter controls whether
- * error dialog or status bar message should be shown, 0 means dialog. */
+/* Checks single file rename for correctness.  Reallocates *error to provide
+ * error message.  Returns value > 0 if rename is correct, < 0 if rename isn't
+ * needed and 0 when rename operation should be aborted. */
 int fops_check_file_rename(const char dir[], const char old[], const char new[],
-		SignalType signal_type);
+		char **error);
 
 /* Makes list of marked filenames.  *nmarked is always set (0 for empty list).
  * Returns pointer to the list, NULL for empty list. */
@@ -143,11 +151,12 @@ int fops_can_read_marked_files(struct view_t *view);
 int fops_check_dir_path(const struct view_t *view, const char path[],
 		char buf[], size_t buf_len);
 
-/* Prompts user with a file containing lines from orig array of length count and
- * returns modified list of strings of length *nlines or NULL on error or
- * unchanged list unless load_always is non-zero. */
-char ** fops_edit_list(size_t count, char *orig[], int *nlines,
-		int load_always);
+/* Prompts user with a file containing lines from orig array of length orig_len
+ * and returns modified list of strings of length *edited_len or NULL on error
+ * or unchanged list unless load_always is non-zero.  Can ask user to re-edit
+ * file list. */
+char ** fops_query_list(size_t orig_len, char *orig[], int *edited_len,
+		int load_always, fops_query_verify_func verify, void *verify_data);
 
 /* Finishes initialization of ops for background processes. */
 void fops_bg_ops_init(ops_t *ops, bg_op_t *bg_op);
@@ -202,6 +211,12 @@ const char * fops_get_dst_dir(const struct view_t *view, int at);
  * dialogs.  Returns non-zero if directory can be changed, otherwise zero is
  * returned. */
 int fops_is_dir_writable(DirRole dir_role, const char path[]);
+
+TSTATIC_DEFS(
+	struct ext_edit_t;
+	char ** edit_list(struct ext_edit_t *ext_edit, size_t orig_len, char *orig[],
+		int *edited_len, int load_always);
+)
 
 #endif /* VIFM__FOPS_COMMON_H__ */
 

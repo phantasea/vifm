@@ -42,6 +42,7 @@
 #include "utils/trie.h"
 #include "utils/utils.h"
 #include "filelist.h"
+#include "filtering.h"
 #include "fops_cpmv.h"
 #include "fops_misc.h"
 #include "running.h"
@@ -76,8 +77,8 @@ static entries_t make_diff_list(trie_t *trie, view_t *view, int *next_id,
 static void list_view_entries(const view_t *view, strlist_t *list);
 static int append_valid_nodes(const char name[], int valid,
 		const void *parent_data, void *data, void *arg);
-static void list_files_recursively(const char path[], int skip_dot_files,
-		strlist_t *list);
+static void list_files_recursively(const view_t *view, const char path[],
+		int skip_dot_files, strlist_t *list);
 static char * get_file_fingerprint(const char path[], const dir_entry_t *entry,
 		CompareType ct);
 static char * get_contents_fingerprint(const char path[],
@@ -104,7 +105,7 @@ compare_two_panes(CompareType ct, ListType lt, int group_paths, int skip_empty)
 	int next_id = 1;
 	entries_t curr, other;
 
-	trie_t *const trie = trie_create();
+	trie_t *const trie = trie_create(&free_compare_records);
 	ui_cancellation_push_on();
 
 	curr = make_diff_list(trie, curr_view, &next_id, ct, skip_empty, 0);
@@ -112,7 +113,7 @@ compare_two_panes(CompareType ct, ListType lt, int group_paths, int skip_empty)
 			lt == LT_DUPS);
 
 	ui_cancellation_pop();
-	trie_free_with_data(trie, &free_compare_records);
+	trie_free(trie);
 
 	/* Clear progress message displayed by make_diff_list(). */
 	ui_sb_quick_msg_clear();
@@ -385,13 +386,13 @@ compare_one_pane(view_t *view, CompareType ct, ListType lt, int skip_empty)
 	int next_id = 1;
 	entries_t curr;
 
-	trie_t *trie = trie_create();
+	trie_t *trie = trie_create(&free_compare_records);
 	ui_cancellation_push_on();
 
 	curr = make_diff_list(trie, view, &next_id, ct, skip_empty, 0);
 
 	ui_cancellation_pop();
-	trie_free_with_data(trie, &free_compare_records);
+	trie_free(trie);
 
 	/* Clear progress message displayed by make_diff_list(). */
 	ui_sb_quick_msg_clear();
@@ -507,7 +508,7 @@ make_diff_list(trie_t *trie, view_t *view, int *next_id, CompareType ct,
 	}
 	else
 	{
-		list_files_recursively(flist_get_dir(view), view->hide_dot, &files);
+		list_files_recursively(view, flist_get_dir(view), view->hide_dot, &files);
 	}
 
 	show_progress("Querying...", 0);
@@ -617,7 +618,8 @@ append_valid_nodes(const char name[], int valid, const void *parent_data,
 
 /* Collects files under specified file system tree. */
 static void
-list_files_recursively(const char path[], int skip_dot_files, strlist_t *list)
+list_files_recursively(const view_t *view, const char path[],
+		int skip_dot_files, strlist_t *list)
 {
 	int i;
 
@@ -632,19 +634,26 @@ list_files_recursively(const char path[], int skip_dot_files, strlist_t *list)
 	/* Visit all subdirectories ignoring symbolic links to directories. */
 	for(i = 0; i < len && !ui_cancellation_requested(); ++i)
 	{
-		char *full_path;
 		if(skip_dot_files && lst[i][0] == '.')
 		{
 			update_string(&lst[i], NULL);
 			continue;
 		}
 
-		full_path = join_paths(path, lst[i]);
-		if(is_dir(full_path))
+		char *full_path = join_paths(path, lst[i]);
+		const int dir = is_dir(full_path);
+		if(!filters_file_is_visible(view, path, lst[i], dir, 1))
+		{
+			free(full_path);
+			update_string(&lst[i], NULL);
+			continue;
+		}
+
+		if(dir)
 		{
 			if(!is_symlink(full_path))
 			{
-				list_files_recursively(full_path, skip_dot_files, list);
+				list_files_recursively(view, full_path, skip_dot_files, list);
 			}
 			free(full_path);
 			update_string(&lst[i], NULL);
@@ -702,16 +711,6 @@ get_file_fingerprint(const char path[], const dir_entry_t *entry,
 static char *
 get_contents_fingerprint(const char path[], const dir_entry_t *entry)
 {
-#if INTPTR_MAX == INT64_MAX
-#define XX_BITS 64
-#else
-#define XX_BITS 32
-#endif
-#define XX__(name, bits) XXH ## bits ## _ ## name
-#define XX_(name, bits) XX__(name, bits)
-#define XX(name) XX_(name, XX_BITS)
-
-	XX(state_t) st;
 	char block[BLOCK_SIZE];
 	size_t to_read = PREFIX_SIZE;
 	FILE *in = os_fopen(path, "rb");
@@ -720,7 +719,20 @@ get_contents_fingerprint(const char path[], const dir_entry_t *entry)
 		return strdup("");
 	}
 
-	XX(reset)(&st, 0U);
+	XXH3_state_t *st = XXH3_createState();
+	if(st == NULL)
+	{
+		fclose(in);
+		return strdup("");
+	}
+
+	if(XXH3_64bits_reset(st) == XXH_ERROR)
+	{
+		fclose(in);
+		XXH3_freeState(st);
+		return strdup("");
+	}
+
 	while(to_read != 0U)
 	{
 		const size_t portion = MIN(sizeof(block), to_read);
@@ -730,18 +742,16 @@ get_contents_fingerprint(const char path[], const dir_entry_t *entry)
 			break;
 		}
 
-		XX(update)(&st, block, nread);
+		XXH3_64bits_update(st, block, nread);
 		to_read -= nread;
 	}
 	fclose(in);
 
-	return format_str("%" PRINTF_ULL "|%" PRINTF_ULL,
-			(unsigned long long)entry->size, (unsigned long long)XX(digest)(&st));
+	const unsigned long long digest = XXH3_64bits_digest(st);
+	XXH3_freeState(st);
 
-#undef XX_BITS
-#undef XX__
-#undef XX_
-#undef XX
+	return format_str("%" PRINTF_ULL "|%" PRINTF_ULL,
+			(unsigned long long)entry->size, digest);
 }
 
 /* Retrieves file from the trie by its fingerprint.  Returns non-zero if it was

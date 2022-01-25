@@ -53,7 +53,7 @@
 
 /* Menus don't look like menus as all if height is less than 5. */
 #define MIN_TERM_HEIGHT 5
-/* There is a lower limit on statusbar width. */
+/* There is a lower limit on status bar width. */
 #define MIN_TERM_WIDTH (INPUT_WIN_WIDTH + 1 + POS_WIN_MIN_WIDTH)
 
 /* Width of the ruler and input windows. */
@@ -209,9 +209,9 @@ typedef struct dir_entry_t dir_entry_t;
 struct dir_entry_t
 {
 	char *name;       /* File name. */
-	char *origin;     /* Location where this file comes from.  Points to
-	                     view::curr_dir for non-cv views, otherwise allocated on
-	                     a heap. */
+	char *origin;     /* Location where this file comes from.  Either points to
+	                     view_t::curr_dir for non-cv views or is allocated on
+	                     a heap depending on owns_origin field. */
 	uint64_t size;    /* File size in bytes. */
 #ifndef _WIN32
 	uid_t uid;        /* Owning user id. */
@@ -235,7 +235,7 @@ struct dir_entry_t
 	int hi_num;       /* File highlighting parameters cache.  Initially -1.
 	                     INT_MAX signifies absence of a match. */
 	int name_dec_num; /* File decoration parameters cache (initially -1).  The
-	                     value is shifted by one, 0 means type decoration. */
+	                     value is shifted by one, 0 means no type decoration. */
 
 	int child_count; /* Number of child entries (all, not just direct). */
 	int child_pos;   /* Position of this entry in among children of its parent.
@@ -252,6 +252,8 @@ struct dir_entry_t
 	unsigned int marked : 1;       /* Whether file should be processed. */
 	unsigned int temporary : 1;    /* Whether this is temporary node. */
 	unsigned int dir_link : 1;     /* Whether this is symlink to a directory. */
+	unsigned int owns_origin : 1;  /* Whether this entry is custom one. */
+	unsigned int folded : 1;       /* Whether this entry is folded. */
 };
 
 /* List of entries bundled with its size. */
@@ -277,6 +279,9 @@ struct cv_data_t
 	dir_entry_t *entries; /* File entries. */
 	int entry_count;      /* Number of file entries. */
 
+	/* Full custom list saved on reducing it by folding or filtering. */
+	entries_t full;
+
 	/* Title of the custom view being constructed.  Discarded if finishing
 	 * fails. */
 	char *next_title;
@@ -293,6 +298,9 @@ struct cv_data_t
 	 * by tree-view. */
 	struct trie_t *excluded_paths;
 
+	/* List of paths to directories that are folded.  Used by tree-view. */
+	struct trie_t *folded_paths;
+
 	/* Names of files in custom view while it's being composed.  Used for
 	 * duplicate elimination during construction of custom list. */
 	struct trie_t *paths_cache;
@@ -301,10 +309,6 @@ struct cv_data_t
 /* Various parameters related to local filter. */
 struct local_filter_t
 {
-	/* Original list of custom entries saved because otherwise we lose it. */
-	dir_entry_t *entries; /* File entries. */
-	int entry_count;      /* Number of file entries. */
-
 	/* Local filename filter. */
 	filter_t filter;
 	/* Whether interactive filtering in progress. */
@@ -347,6 +351,8 @@ struct view_t
 	/* Directory we're currently in. */
 	char curr_dir[PATH_MAX + 1];
 
+	unsigned int id; /* Unique during the session id of the view. */
+
 	/* Data related to custom filling. */
 	struct cv_data_t custom;
 
@@ -362,6 +368,8 @@ struct view_t
 	/* Caches of file lists for miller mode. */
 	cached_entries_t left_column;
 	cached_entries_t right_column;
+	/* Clear command for last file preview or NULL. */
+	char *file_preview_clear_cmd;
 
 	fswatch_t *watch;  /* Monitor that checks for directory changes. */
 	char *watched_dir; /* Path for which the monitor was created. */
@@ -470,6 +478,9 @@ struct view_t
 	int displays_graphics; /* Whether window of the view contains graphics. */
 };
 
+/* Id number to use on creation of new view_t. */
+extern unsigned int ui_next_view_id;
+
 extern view_t lwin;
 extern view_t rwin;
 extern view_t *other_view;
@@ -530,6 +541,10 @@ void ui_resize_all(void);
 /* Redraws whole screen with possible reloading of file lists (depends on
  * argument). */
 void update_screen(UpdateType update_kind);
+
+/* Like `update_screen(UT_REDRAW)`, but postpones final screen update to be done
+ * by the caller after drawing something else on the screen. */
+void ui_redraw_as_background(void);
 
 /* Swaps curr_view and other_view pointers (active and inactive panes).  Also
  * updates things (including UI) that are bound to views. */
@@ -713,6 +728,9 @@ int ui_qv_width(const view_t *view);
 /* If active preview needs special cleanup (i.e., simply redrawing a window
  * isn't enough. */
 void ui_qv_cleanup_if_needed(void);
+
+/* Hides any visible graphics. */
+void ui_hide_graphics(void);
 
 /* Invalidates views-specific knowledge about given color scheme. */
 void ui_invalidate_cs(const col_scheme_t *cs);

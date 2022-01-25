@@ -48,7 +48,8 @@ static void parse_path(const char dir[], const char path[], char buf[]);
 static void process_general_args(args_t *args);
 static void show_help_msg(const char wrong_arg[]);
 static void show_version_msg(void);
-static void process_non_general_args(args_t *args);
+static void process_ipc_args(args_t *args, ipc_t *ipc);
+static void process_other_args(args_t *args);
 static void quit_on_arg_parsing(int code);
 
 /* Command line arguments definition for getopt_long(). */
@@ -334,15 +335,19 @@ parse_path(const char dir[], const char path[], char buf[])
 }
 
 void
-args_process(args_t *args, int general)
+args_process(args_t *args, ArgsSubset subset, ipc_t *ipc)
 {
-	if(general)
+	switch(subset)
 	{
-		process_general_args(args);
-	}
-	else
-	{
-		process_non_general_args(args);
+		case AS_GENERAL: /* --help, --version */
+			process_general_args(args);
+			break;
+		case AS_IPC:     /* --remote, --remote-expr */
+			process_ipc_args(args, ipc);
+			break;
+		case AS_OTHER:   /* All other options. */
+			process_other_args(args);
+			break;
 	}
 }
 
@@ -434,8 +439,9 @@ show_version_msg(void)
 	int i, len;
 	char **list;
 
-	list = reallocarray(NULL, fill_version_info(NULL), sizeof(char *));
-	len = fill_version_info(list);
+	list = reallocarray(NULL, fill_version_info(NULL, /*include_stats=*/0),
+			sizeof(char *));
+	len = fill_version_info(list, /*include_stats=*/0);
 
 	for(i = 0; i < len; ++i)
 	{
@@ -445,32 +451,27 @@ show_version_msg(void)
 	free_string_array(list, len);
 }
 
-/* Processes all non-general command-line arguments. */
+/* Processes options related to IPC client functionality. */
 static void
-process_non_general_args(args_t *args)
+process_ipc_args(args_t *args, ipc_t *ipc)
 {
 	if(args->remote_cmds != NULL && args->remote_expr != NULL)
 	{
 		fprintf(stderr, "%s\n", "--remote and --remote-expr can't be combined.");
 		quit_on_arg_parsing(EXIT_FAILURE);
-		return;
 	}
-
-	if(args->remote_cmds != NULL)
+	else if(args->remote_cmds != NULL)
 	{
-		if(ipc_send(curr_stats.ipc, args->target_name, args->remote_cmds) != 0)
+		if(ipc_send(ipc, args->target_name, args->remote_cmds) != 0)
 		{
 			fprintf(stderr, "%s\n", "Sending remote commands failed.");
 			quit_on_arg_parsing(EXIT_FAILURE);
 		}
 		quit_on_arg_parsing(EXIT_SUCCESS);
-		return;
 	}
-
-	if(args->remote_expr != NULL)
+	else if(args->remote_expr != NULL)
 	{
-		char *const result = ipc_eval(curr_stats.ipc, args->target_name,
-				args->remote_expr);
+		char *const result = ipc_eval(ipc, args->target_name, args->remote_expr);
 		if(result == NULL)
 		{
 			fprintf(stderr, "%s\n", "Evaluating expression remotely failed.");
@@ -478,9 +479,13 @@ process_non_general_args(args_t *args)
 		}
 		fprintf(stdout, "%s\n", result);
 		quit_on_arg_parsing(EXIT_SUCCESS);
-		return;
 	}
+}
 
+/* Processes all non-general command-line arguments except for IPC ones. */
+static void
+process_other_args(args_t *args)
+{
 	if(args->file_picker)
 	{
 		vim_get_list_file_path(args->chosen_files_out,

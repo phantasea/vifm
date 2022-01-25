@@ -57,6 +57,7 @@ enum
 	COM_LET,
 	COM_MKDIR,
 	COM_MOVE,
+	COM_PLUGIN,
 	COM_PUSHD,
 	COM_RENAME,
 	COM_RLINK,
@@ -69,6 +70,7 @@ enum
 	COM_SYNC,
 	COM_TABNEW,
 	COM_TOUCH,
+	COM_TREE,
 	COM_UNLET,
 	COM_VSPLIT,
 	COM_WINCMD,
@@ -76,6 +78,10 @@ enum
 	COM_WINRUN,
 
 	COM_MENU_WRITE,
+
+	/* Single ID for all foreign commands, which are disambiguated by user
+	 * data. */
+	COM_FOREIGN,
 };
 
 /* Values of type argument for filename_completion() function. */
@@ -104,11 +110,15 @@ CompletionPreProcessing;
 
 struct cmd_info_t;
 
+/* Completes whole command-line.  Returns completion offset. */
+int complete_line(const char cmd_line[], void *extra_arg);
+
+/* Completes arguments of a command.  Returns completion offset. */
 int complete_args(int id, const struct cmd_info_t *cmd_info, int arg_pos,
 		void *extra_arg);
 
 /* Completes name of an executable after extracting it from the cmd.  Returns
- * NULL and sets statusbar error message when command is ambiguous, otherwise
+ * NULL and sets status bar error message when command is ambiguous, otherwise
  * newly allocated string, which should be returned by caller, is returned. */
 char * fast_run_complete(const char cmd[]);
 

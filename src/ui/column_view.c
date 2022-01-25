@@ -22,7 +22,7 @@
 #include <assert.h> /* assert() */
 #include <stddef.h> /* NULL size_t */
 #include <stdlib.h> /* malloc() free() */
-#include <string.h> /* memmove() memset() strcpy() strlen() */
+#include <string.h> /* memmove() memset() strcpy() strdup() strlen() */
 
 #include "../compat/reallocarray.h"
 #include "../utils/macros.h"
@@ -38,6 +38,7 @@ typedef struct
 {
 	int column_id;    /* Unique column id. */
 	column_func func; /* Function, which prints column value. */
+	void *data;       /* Data to be passed to the function. */
 }
 column_desc_t;
 
@@ -48,7 +49,7 @@ typedef struct
 	size_t start;       /* Start position of the column. */
 	size_t width;       /* Calculated width of the column. */
 	size_t print_width; /* Print width (less or equal to the width field). */
-	column_func func;   /* Cached column print function of column_desc_t. */
+	column_desc_t desc; /* Column description. */
 }
 column_t;
 
@@ -62,19 +63,19 @@ struct columns_t
 
 static int extend_column_desc_list(void);
 static void init_new_column_desc(column_desc_t *desc, int column_id,
-		column_func func);
+		column_func func, void *data);
 static int column_id_present(int column_id);
 static int extend_column_list(columns_t *cols);
 static void init_new_column(column_t *col, column_info_t info);
 static void mark_for_recalculation(columns_t *cols);
-static column_func get_column_func(int column_id);
+static const column_desc_t * get_column_func(int column_id);
 static AlignType decorate_output(const column_t *col, char buf[],
 		size_t buf_len, size_t max_line_width);
 static size_t calculate_max_width(const column_t *col, size_t len,
 		size_t max_line_width);
 static size_t calculate_start_pos(const column_t *col, const char buf[],
 		AlignType align);
-static void fill_gap_pos(const void *data, size_t from, size_t to);
+static void fill_gap_pos(void *format_data, size_t from, size_t to);
 static size_t get_width_on_screen(const char str[]);
 static void recalculate_if_needed(columns_t *cols, size_t max_width);
 static void recalculate(columns_t *cols, size_t max_width);
@@ -106,11 +107,11 @@ columns_set_ellipsis(const char ell[])
 }
 
 int
-columns_add_column_desc(int column_id, column_func func)
+columns_add_column_desc(int column_id, column_func func, void *data)
 {
 	if(!column_id_present(column_id) && extend_column_desc_list() == 0)
 	{
-		init_new_column_desc(&col_descs[col_desc_count - 1], column_id, func);
+		init_new_column_desc(&col_descs[col_desc_count - 1], column_id, func, data);
 		return 0;
 	}
 	return 1;
@@ -134,10 +135,12 @@ extend_column_desc_list(void)
 
 /* Fills column description structure with initial values. */
 static void
-init_new_column_desc(column_desc_t *desc, int column_id, column_func func)
+init_new_column_desc(column_desc_t *desc, int column_id, column_func func,
+		void *data)
 {
 	desc->column_id = column_id;
 	desc->func = func;
+	desc->data = data;
 }
 
 columns_t *
@@ -167,6 +170,12 @@ columns_free(columns_t *cols)
 void
 columns_clear(columns_t *cols)
 {
+	size_t i;
+	for(i = 0U; i < cols->count; ++i)
+	{
+		free(cols->list[i].info.literal);
+	}
+
 	free(cols->list);
 	cols->list = NULL;
 	cols->count = 0;
@@ -198,6 +207,12 @@ columns_add_column(columns_t *cols, column_info_t info)
 static int
 column_id_present(int column_id)
 {
+	if(column_id == FILL_COLUMN_ID)
+	{
+		/* This pseudo-column is always "present". */
+		return 1;
+	}
+
 	size_t i;
 	/* Validate column_id. */
 	for(i = 0; i < col_desc_count; i++)
@@ -238,15 +253,25 @@ static void
 init_new_column(column_t *col, column_info_t info)
 {
 	col->info = info;
+	if(info.literal != NULL)
+	{
+		col->info.literal = strdup(info.literal);
+	}
+
 	col->start = -1UL;
 	col->width = -1UL;
 	col->print_width = -1UL;
-	col->func = get_column_func(info.column_id);
+
+	const column_desc_t *desc = get_column_func(info.column_id);
+	if(desc != NULL)
+	{
+		col->desc = *desc;
+	}
 }
 
 /* Returns a pointer to column formatting function by the column id or NULL on
  * unknown column_id. */
-static column_func
+static const column_desc_t *
 get_column_func(int column_id)
 {
 	size_t i;
@@ -255,15 +280,16 @@ get_column_func(int column_id)
 		column_desc_t *col_desc = &col_descs[i];
 		if(col_desc->column_id == column_id)
 		{
-			return col_desc->func;
+			return col_desc;
 		}
 	}
-	assert(0 && "Unknown column id");
+
+	assert((column_id == FILL_COLUMN_ID) && "Unknown column id");
 	return NULL;
 }
 
 void
-columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
+columns_format_line(columns_t *cols, void *format_data, size_t max_line_width)
 {
 	char prev_col_buf[1024 + 1];
 	size_t prev_col_start = 0UL;
@@ -283,6 +309,20 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 		size_t cur_col_start;
 		AlignType align;
 		const column_t *const col = &cols->list[i];
+		const format_info_t info = {
+			.data = format_data,
+			.id = col->info.column_id,
+			.width = col->print_width,
+		};
+
+		if(col->info.literal == NULL)
+		{
+			col->desc.func(col->desc.data, sizeof(col_buffer), col_buffer, &info);
+		}
+		else
+		{
+			copy_str(col_buffer, sizeof(col_buffer), col->info.literal);
+		}
 
 		//add by sim1 ***************************************
 		if ((curr_stats.number_of_windows > 1) && (curr_stats.split == VSPLIT))
@@ -296,7 +336,6 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 		}
 		//add by sim1 ***************************************
 
-		col->func(col->info.column_id, data, sizeof(col_buffer), col_buffer);
 		strcpy(full_column, col_buffer);
 		align = decorate_output(col, col_buffer, sizeof(col_buffer),
 				max_line_width);
@@ -312,16 +351,15 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 			const size_t break_point = utf8_strsnlen(prev_col_buf,
 					prev_col_max_width);
 			prev_col_buf[break_point] = '\0';
-			fill_gap_pos(data, prev_col_start + get_width_on_screen(prev_col_buf),
-					cur_col_start);
+			fill_gap_pos(format_data,
+					prev_col_start + get_width_on_screen(prev_col_buf), cur_col_start);
 		}
 		else
 		{
-			fill_gap_pos(data, prev_col_end, cur_col_start);
+			fill_gap_pos(format_data, prev_col_end, cur_col_start);
 		}
 
-		print_func(data, col->info.column_id, col_buffer, cur_col_start, align,
-				full_column);
+		print_func(col_buffer, cur_col_start, align, full_column, &info);
 
 		prev_col_end = cur_col_start + get_width_on_screen(col_buffer);
 
@@ -331,7 +369,7 @@ columns_format_line(columns_t *cols, const void *data, size_t max_line_width)
 		prev_col_start = cur_col_start;
 	}
 
-	fill_gap_pos(data, prev_col_end, max_line_width);
+	fill_gap_pos(format_data, prev_col_end, max_line_width);
 }
 
 /* Adds decorations like ellipsis to the output.  Returns actual align type used
@@ -405,14 +443,19 @@ calculate_start_pos(const column_t *col, const char buf[], AlignType align)
 /* Prints gap filler (GAP_FILL_CHAR) in place of gaps.  Does nothing if to less
  * or equal to from. */
 static void
-fill_gap_pos(const void *data, size_t from, size_t to)
+fill_gap_pos(void *format_data, size_t from, size_t to)
 {
 	if(to > from)
 	{
 		char gap[to - from + 1];
 		memset(gap, GAP_FILL_CHAR, to - from);
 		gap[to - from] = '\0';
-		print_func(data, FILL_COLUMN_ID, gap, from, AT_LEFT, gap);
+
+		const format_info_t info = {
+			.data = format_data,
+			.id = FILL_COLUMN_ID
+		};
+		print_func(gap, from, AT_LEFT, gap, &info);
 	}
 }
 

@@ -225,6 +225,7 @@ static void cmd_zf(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zm(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zo(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zr(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zX(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_left_paren(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_right_paren(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_z_k(key_info_t key_info, keys_info_t *keys_info);
@@ -422,8 +423,9 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_z WK_m,        {{&cmd_zm}, .descr = "hide dot files"}},
 	{WK_z WK_o,        {{&cmd_zo}, .descr = "show dot files"}},
 	{WK_z WK_r,        {{&cmd_zr}, .descr = "clear local filter"}},
+	{WK_z WK_x,        {{&cmd_zx}, .descr = "toggle directory fold"}},
 	{WK_z WK_t,        {{&modnorm_zt},      .descr = "push cursor to the top"}},
-	{WK_z WK_x,        {{&cmd_zx},          .descr = "exclude custom view entry"}},  //add by sim1
+	{WK_z WK_x,        {{&cmd_zX},          .descr = "exclude custom view entry"}},  //add by sim1
 	{WK_z WK_z,        {{&modnorm_zz},      .descr = "center cursor position"}},
 	{WK_LP,            {{&cmd_left_paren},  .descr = "go to previous group of files"}},
 	{WK_RP,            {{&cmd_right_paren}, .descr = "go to next group of files"}},
@@ -1624,10 +1626,15 @@ cmd_cg(key_info_t key_info, keys_info_t *keys_info)
 }
 #endif
 
-/* Change symbolic link. */
+/* Change symbolic link(s). */
 static void
 cmd_cl(key_info_t key_info, keys_info_t *keys_info)
 {
+	if(curr_view->selected_files > 1)
+	{
+		flist_set_marking(curr_view, 0);
+	}
+
 	curr_stats.save_msg = fops_retarget(curr_view);
 }
 
@@ -2186,7 +2193,7 @@ cmd_zd(key_info_t key_info, keys_info_t *keys_info)
 }
 
 static void
-cmd_zx(key_info_t key_info, keys_info_t *keys_info)
+cmd_zX(key_info_t key_info, keys_info_t *keys_info)
 {
 	flist_custom_exclude(curr_view, key_info.count == 1);
 }
@@ -2211,7 +2218,7 @@ cmd_zf(key_info_t key_info, keys_info_t *keys_info)
 }
 
 //mod by sim1 -------------------------------------
-/* Hide dot files. */
+/* Hides dot files. */
 static void
 cmd_zm(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -2241,7 +2248,7 @@ cmd_zI(key_info_t key_info, keys_info_t *keys_info)
 	local_filter_restore(curr_view);
 }
 
-/* Show all the dot files. */
+/* Shows all the dot files. */
 static void
 cmd_zo(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -2257,7 +2264,7 @@ cmd_zO(key_info_t key_info, keys_info_t *keys_info)
 	local_filter_remove(curr_view);    //add by sim1
 }
 
-/* Reset local filter. */
+/* Resets local filter. */
 static void
 cmd_zr(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -2273,6 +2280,19 @@ cmd_zR(key_info_t key_info, keys_info_t *keys_info)
 	//dot_filter_set(curr_view, 1);  //del by sim1
 }
 //mod by sim1 -------------------------------------
+
+/* Toggles fold under the cursor if any. */
+static void
+cmd_zx(key_info_t key_info, keys_info_t *keys_info)
+{
+	dir_entry_t *curr = get_current_entry(curr_view);
+	if(curr->type != FT_DIR && curr->child_pos != 0)
+	{
+		fpos_set_pos(curr_view, curr_view->list_pos - curr->child_pos);
+	}
+
+	flist_toggle_fold(curr_view);
+}
 
 /* Moves cursor to the beginning of the previous group of files defined by the
  * primary sorting key. */

@@ -1,4 +1,4 @@
-*vifm-lua.txt*    For Vifm version 1.0  Last change: 2020 Dec 14
+*vifm-lua.txt*    For Vifm version 1.0  Last change: 2022 Jan 16
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -7,14 +7,28 @@ complete removal of this interface (that's an unlikely scenario though).
 
 |vifm-lua-status|      Status of plugins.
 |vifm-lua-plugins|     Sample plugins.
+|vifm-lua-lua|         Generic reasoning behind this API.
 |vifm-lua-design|      Generic ideas about the design.
+|vifm-lua-evolution|   Plans on Lua API.
+|vifm-lua-loading|     Which plugins get loaded.
 |vifm-lua-libs|        What Lua libraries are available.
+|vifm-lua-handlers|    Lua handlers concept.
+|vifm-lua-caps|        What using Lua in Vifm buys you.
 |vifm-lua-api|         Root-level API.
 |vifm-l_vifm|          `vifm` global table.
 |vifm-l_vifm.cmds|     `vifm.cmds` global table.
+|vifm-l_vifm.keys|     `vifm.keys` global table.
+|vifm-l_vifm.opts|     `vifm.opts` global table.
+|vifm-l_vifm.plugin|   `vifm.plugin` global table.
 |vifm-l_vifm.plugins|  `vifm.plugins` global table.
 |vifm-l_vifm.sb|       `vifm.sb` global table.
+|vifm-l_vifm.sessions| `vifm.sessions` global table.
+|vifm-l_vifm.tabs|     `vifm.tabs` global table.
+|vifm-l_vifm.version|  `vifm.version` global table.
+|vifm-l_VifmEntry|     `VifmEntry` type.
 |vifm-l_VifmJob|       `VifmJob` type.
+|vifm-l_VifmTab|       `VifmTab` type.
+|vifm-l_VifmView|      `VifmView` type.
 
 --------------------------------------------------------------------------------
 *vifm-lua-status*
@@ -34,37 +48,118 @@ Since API is not stable at all, example plugins are stored in code repository
 of Vifm and are thus bound to corresponding revision of the application.
 
 --------------------------------------------------------------------------------
+*vifm-lua-why*
+
+Think of Lua API as a way to reach deeper into the internals of Vifm.  This
+isn't a replacement of existing functionality, but a richer way of interacting
+with the core behind it.
+
+One of the primary motivations were deficiencies in integrations with external
+applications.  Communicating results of calling them back to Vifm was
+problematic, there was simply no good way of doing it reliably.
+
+Regular :commands are a form of user-interface by design, which has various
+implications that limit their abilities.  For example, you can't reliably check
+if a command succeeded and different commands treat same arguments differently
+for the purpose of ease of use, which however makes automation harder.  When
+things like that start to get in the way, it's a good idea to reimplement
+relevant functionality in Lua.
+
+On top of that users' preferences differ and contradict each other, this can
+lead to proliferation of options to account for very fine-grained details.
+It's better to let users implement their wild and highly specific ideas on their
+own rather than trying to squeeze all possible use case into the application.
+The useful functionality developed on the side can eventually make its way to
+the code base.
+
+--------------------------------------------------------------------------------
 *vifm-lua-design*
 
 The intent is for Lua to be a way of extending the core.  It's not meant
 neither as a replacement of :commands nor as a continuation of it.  Instead
-it's supposed to be a more low-level way of interacting with the core.
+it's supposed to be a more low-level way of interacting with the core and
+extending it.
 
-One implication is that there is no way of calling Lua from :commands or vice
-versa.  This gets too ugly too quickly, hence they are separated except for
-certain well-defined extension points where Lua parts integrate with
+One implication is that there is no builtin way of calling Lua from :commands
+or vice versa.  This gets too ugly too quickly, hence they are separated except
+for certain well-defined extension points where Lua parts integrate with
 :commands.
 
 Therefore one should think of :commands as a user-facing interface and Lua
 part as an internal extension language with wider range of possibilities.
 
-The API is synchronous.  Asynchronous API has some inherent issues due to
-invariant invalidation (by the time callback is executed everything might have
-changed), which is quite dangerous when dealing with file systems.  That said,
-some safe version of asynchronous execution might be made available if safe
-way of implementing it exists (need to sandbox callbacks somehow).  All
-callback-based mechanisms are susceptible to this issue, but asynchronous API
-makes it much worse because these callbacks are created all the time.
+Callback safety~
+
+Whenever Vifm invokes a Lua function from C code, there is a danger that Lua
+will break some invariant.  To account for this, all API calls (including
+things like table indexing) are classified as either "safe" or "unsafe".
+Safe ones can be called from anywhere, but unsafe API is not always
+accessible.  As an example, you can't change directory of any view or add a
+view column from a view column handler.
+
+Unsafe API is marked with {unsafe} in its description.
+
+--------------------------------------------------------------------------------
+*vifm-lua-evolution*
+
+Lua version is fixed at 5.4 and is bundled as part of Vifm to avoid plugin
+compatibility issues.
+
+At the moment API can change, but the idea is to figure out key principles of
+organization, kinds of entities, naming strategy, ways to extend, etc. and
+fix them.  Initial stable version of the API doesn't need to be exhaustive,
+just sensible and relatively future proof.  Future releases should extend
+functionality rather than change it (unless absolutely necessary).  Doing this
+needs usage cases along with success and failure stories, so feedback is
+welcome.
+
+Current design principles:
+ 1. Callbacks in Lua accept a table and return one (if they return anything).
+    This allows adding new fields to both input and output while staying
+    backward compatible and readable.
+
+Random ideas~
+
+Use camelCase?
+Use tables more often?  Supposed to be more extensible.
+Make "description" a required argument?
+
+Add VifmJob:succeeded() ?
+Add VifmJob:haserrors() ?
+
+Map options to arrays when possible, like for set options ?
+Forbid use of option abbreviations ?
+Technically options are also part of user-interface and maybe shouldn't be
+exposed in this way.
+
+--------------------------------------------------------------------------------
+*vifm-lua-loading*
+
+There are two lists of plugins that affect plugin loading: whitelist and
+blacklist.  Here's how they function:
+ 1. If whitelist isn't empty, only plugins in the list can be loaded.  Trying to
+    load any other plugin fails.  Contents of blacklist is ignored.
+ 2. If whitelist is empty and blacklist isn't, loading anything that's not in
+    the blacklist is allowed.
+
+The whitelist is meant to help testing plugins in isolation for debugging
+purposes.
+
+The blacklist can be used to temporarily disable broken or just unused plugins
+as well as for debugging.
 
 --------------------------------------------------------------------------------
 *vifm-lua-libs*
 
 The following standard libraries are enabled:
- * basic
- * table manipulation
- * string manipulation
- * input and output
- * mathematical functions
+ * basic (core global functions)
+ * table manipulation (`tbl` table)
+ * package library (`require` global and `package` table)
+ * string manipulation (`string` table)
+ * input and output (`io` table)
+ * mathematical functions (`math` table)
+ * time subset of OS facilities (`clock`, `date`, `difftime` and `time`
+   elements of `os` table)
 
 --------------------------------------------------------------------------------
 *vifm-plugins*
@@ -73,10 +168,14 @@ After processing of |vifm-vifmrc| contents of the $VIFM/plugins/ directory is
 enumerated in search of plugins.  Directories or symbolic links to directories
 are considered as candidates.
 
-Implications of the (current) order of initialization:
+Implications of the default order of initialization:
  * :commands defined in configuration have precedence over :commands defined by
    plugins
  * :commands from plugins can't be used during startup
+
+You can load plugins explicitly by calling `:plugin load` command inside
+|vifm-vifmrc|.  From then on things defined by plugins can be used in
+configuration.
 
 All plugins are required to contain `init.lua` file at their root.  This file
 gets processed and its return value is interpreted as plugin data.  The return
@@ -88,24 +187,67 @@ Global variables created by one plugin are local to that plugin and won't
 affect or be visible to other plugins.
 
 --------------------------------------------------------------------------------
+*vifm-lua-handlers*
+
+Lua handlers are extension points within existing command-system of Vifm
+which enable invoking plugin functionality in a well-defined manner.
+
+A handler is a named Lua function, which is registered via a call to
+|vifm-l_vifm.addhandler()|.  The call specifies "partial name" which is
+prepended with a namespace ("`#pluginname#`" string) behind the scenes to form
+a full name.  This is done to avoid conflicts between plugins.
+
+The scope of handlers is limited to extensions that accept and return all
+relevant information on each invocation.  Things like keys or commands can't
+be handled this way because they need to communicate metadata about how to
+call them.
+
+A handler can be used in place of an external program in |vifm-:filetype| or
+|vifm-:filextype| commands like this: >
+  filetype {*.png} #pluginname#open
+
+A handler can be used in place of an external viewer in |vifm-:fileviewer|
+command like this: >
+  fileviewer {*.vim} #pluginname#view --strip-comments %c
+
+A viewer can also be called through |vifm-%q|: >
+  :!#pluginname#something %q
+
+A handler can be used to generate |vifm-:'statusline'| value like this: >
+  set statusline=#pluginname#statusline
+
+--------------------------------------------------------------------------------
+*vifm-lua-caps*
+
+This is what one can do by using Lua at the moment:
+ * :commands in Lua with completion (|vifm-l_vifm.cmds|)
+ * save and reset options (e.g., some kind of presets) (|vifm-l_vifm.opts|)
+ * custom columns (|vifm-l_vifm.addcolumntype()|)
+ * :filetype/:filextype/:fileviewer/%q handlers in Lua (|vifm-lua-handlers|)
+ * 'statusline' generator in Lua (|vifm-lua-handlers|)
+ * starting background jobs that appear on a job bar (|vifm-l_vifm.startjob()|)
+
+--------------------------------------------------------------------------------
 *vifm-lua-api*
 
 Builtin `print()` function puts messages to plugin's log (see |vifm-:plugins|
 menu).
 
-All API calls can raise errors on generic internal issues or when argument
-are missing or have wrong type, table keys are missing or have wrong type.
+All API calls can raise errors:
+ * on generic internal issues (like out of memory)
+ * when argument is missing
+ * when argument has wrong type
+ * when required table key is missing
+ * when table key has wrong type
+ * if the API call is unsafe and is disallowed in current environment
+
+Indices passed in or returned by the API start at 1 as arrays do in Lua.
+
+The following callbacks can perform only safe API calls:
+ * all Lua handlers (|vifm-lua-handlers|)
+ * view column handlers (|vifm-l_vifm.addcolumntype()|)
 
 Interaction with the host happens through `vifm` global table.  See |vifm-l_vifm|.
-
-Some ideas~
-
-Use camelCase?
-Use tables more often?  Supposed to be more extensible.
-Make "description" a mandatory argument?
-
-Add VifmJob:succeeded() ?
-Add VifmJob:haserrors() ?
 
 --------------------------------------------------------------------------------
 *vifm-l_vifm*
@@ -115,11 +257,133 @@ Global `vifm` table is the entry-point to the API.
 vifm.cmds
 Table for managing command-line commands.  See |vifm-l_vifm.cmds|.
 
+vifm.opts
+Table for managing options.  See |vifm-l_vifm.opts|.
+
+vifm.plugin
+Table that provides API service for this plugin.  See |vifm-l_vifm.plugin|.
+
 vifm.plugins
 Table for managing plugins.  See |vifm-l_vifm.plugins|.
 
 vifm.sb
-Table for managing statusbar.  See |vifm-l_vifm.sb|.
+Table for managing status bar.  See |vifm-l_vifm.sb|.
+
+vifm.sessions
+Table for managing sessions.  See |vifm-l_vifm.sessions|.
+
+vifm.tabs
+Table for managing tabs.  See |vifm-l_vifm.tabs|.
+
+vifm.version
+Table with version information.  See |vifm-l_vifm.version|.
+
+vifm.addcolumntype({column})                   *vifm-l_vifm.addcolumntype()*
+Registers a new view column type to be used in |vifm-'viewcolumns'| option.
+
+Possible fields of {column}:
+ - "name" (string)
+   Name of the command.  Must consist of Latin characters and not start with
+   the lower case one (those are reserved for builtin columns).
+ - "handler" (function)
+   Handler which accepts {info} and returns a table.  See below.
+ - "isprimary" (boolean) (default: false)
+   Whether this column is highlighted with file color and search match
+   is highlighted as well.
+
+Fields of {info} argument for {column}.handler:
+ - "entry" (table)
+   Information about a file list entry as an instance of |vifm-l_VifmEntry|.
+ - "width" (table)
+   Calculated width of the column.
+
+Fields of table returned by {column}.handler:
+ - "text" (string)
+    Table cell's value as a string or convertible to it.
+ - "matchstart" (integer) (default: 0)
+    For a search match this is the end position of a substring found in
+    entry's name, zero otherwise.
+ - "matchend" (integer) (default: 0)
+    For a search match this is the end position of a substring found in
+    entry's name, zero otherwise.
+
+Return:~
+  `true` if column was added.
+
+Raises an error:~
+  If {column}.name has incorrect value.
+
+vifm.addhandler({handler})                     *vifm-l_vifm.addhandler()*
+Registers a new handler that will be accessible in viewers.  See
+|vifm-lua-handlers|.
+
+Possible fields of {handler}:
+ - "name" (string)
+   Partial name of the handler.  Must not contain any spaces.  Can be
+   #-separated list of names, e.g. "view#pdf".
+ - "handler" (function)
+   Handler which accepts {info} and returns a table.  See below.
+
+:filetype or :filextype handler~
+
+Fields of {info} argument for {handler}.handler for :file[x]type:
+ - "command" (string)
+   Command which handles the file.
+ - "entry" (table)
+   Information about a file list entry as an instance of |vifm-l_VifmEntry|.
+
+There is no return value.
+
+:fileviewer handler~
+
+Fields of {info} argument:
+ - "command" (string)
+   Command with which the viewer was invoked.
+ - "path" (string)
+   Path to the file which is being viewed.
+ - "x" (integer)
+   X coordinate of the preview area in characters.
+ - "y" (integer)
+   Y coordinate of the preview area in characters.
+ - "width" (integer)
+   Width of the preview area in characters.
+ - "height" (integer)
+   Height of the preview area in characters.
+
+Fields of returned table:
+ - "lines" (array of strings)
+   Preview text.
+
+'statusline' handler~
+
+Fields of {info} argument:
+ - "view" (|vifm-l_VifmView|)
+   Current view.
+ - "width" (integer)
+   Width of the status line.
+
+Fields of returned table:
+ - "format" (string)
+   Value for |vifm-'statusline'|.
+
+Return:~
+  `true` if handler was added, `false` if a handler with such name already
+  exists.
+
+Raises an error:~
+  If {handler}.name has incorrect value.
+
+vifm.currview()                                *vifm-l_vifm.currview()*
+Retrives a reference to current view.
+
+Return:~
+  Returns an instance of |vifm-l_VifmView|.
+
+vifm.otherview()                               *vifm-l_vifm.otherview()*
+Retrives a reference to current view.
+
+Return:~
+  Returns an instance of |vifm-l_VifmView|.
 
 vifm.errordialog({title}, {msg})               *vifm-l_vifm.errordialog()*
 Displays error dialog.
@@ -165,7 +429,8 @@ Parameters:~
   {path}  Path to create.
 
 Return:~
-  `true` on success.
+  `true` on success.  Trying to create path that already exists is not
+  considered to be an error.
 
 vifm.startjob({job})                           *vifm-l_vifm.startjob()*
 Launches an external command.  Returns without waiting for it to finish.
@@ -179,6 +444,11 @@ Possible fields of {job}:
  - "description" (string) (default: "")
    Description of the job to be displayed on the job bar (when "visible" key
    is set to true).
+ - "iomode" (string) (default: "r")
+   Specififes mode of interaction with the job:
+    - "r" - reading output of the process (see |vifm-l_VifmJob:stdout()|)
+    - "w" - providing input to the process (see |vifm-l_VifmJob:stdin()|)
+    - ""  - no I/O interaction
  - "mergestreams" (boolean) (default: false)
    Whether to merge error streams of the command with output stream.
  - "visible" (boolean) (default: false)
@@ -190,20 +460,19 @@ Parameters:~
 Return:~
   Returns an instance of |vifm-l_VifmJob|.
 
-vifm.cd({path})                                *vifm-l_vifm.cd()*
-Changes location of current pane.
-
-Parameters:~
-  {path}  Path to visit.
-
-Return:~
-  `true` on success.
+Raises an error:~
+  If "iomode" has incorrect value.
 
 --------------------------------------------------------------------------------
 *vifm-l_vifm.cmds*
 
+This global `vifm.cmds` table provides means of managing command-line commands.
+
 vifm.cmds.add({cmd})                           *vifm-l_vifm.cmds.add()*
 Registers a new :command of a kind that's equivalent to builtin commands.
+
+The word "parsing" below refers to processing of command-line arguments like
+removal of slashes used for escaping and skipping whitespace.
 
 Possible fields of {cmd}:
  - "name" (string)
@@ -212,14 +481,35 @@ Possible fields of {cmd}:
    Description of the command.
  - "handler" (function)
    Handler which accepts {info}.
+ - "complete" (function)
+   Completion function which accepts {info} and returns {results}.
  - "minargs" (integer) (default: 0)
    Minimal number of arguments.
  - "maxargs" (integer) (default: minargs)
    Maximal number of arguments.  Negative number means "indefinite".
 
-Fields of {info} (argument of a handler):
+Fields of {info} argument for "handler":
  - "args" (string)
    All arguments passed to the command.
+ - "argv" (array of strings)
+   Set of parsed arguments of the command.
+
+Fields of {info} argument for "complete":
+ - "arg" (string)
+   Argument being completed.
+ - "args" (string)
+   Command-line up to cursor position (for cases when completion depends on
+   what comes before current argument).
+ - "argv" (array of strings)
+   Same as "args", but parsed into an array.
+
+Fields of {results} return value of "complete":
+ - "offset" (integer) (default: 0)
+   Offset from beginning of the argument.  This is useful to avoid prepending
+   prefix that's common to all matches, thus completing only essential part.
+   For example, in case of "var=val" use offset=4 to complete part after "=".
+ - "matches" (table)
+   List of matches in values of the table (keys are ignored).
 
 Parameters:~
   {cmd}  Table with information about a command.
@@ -256,9 +546,84 @@ Return:~
   `true` on success.
 
 --------------------------------------------------------------------------------
+*vifm-l_vifm.keys*
+
+This global `vifm.keys` table provides means of managing key bindings.
+
+vifm.keys.add({key})                           *vifm-l_vifm.keys.add()*
+Registers a new user-defined key in one or several modes or replaces an
+existing one.
+
+Possible fields of {key}:
+ - "shortcut" (string)
+   Left-hand side of the mapping.
+ - "description" (string) (default: "")
+   Description of the key.
+ - "modes" (array of strings)
+   List of modes to register the key in.  Supported values: cmdline, normal,
+   visual, menus, view and dialogs (sort, attributes, change and file info).
+   Unsupported values are ignored.
+ - "handler" (function)
+   Handler which accepts {info}.
+
+Fields of {info} argument for "handler":
+ - "count" (integer)
+   Count preceding the key or nil if none.
+ - "register" (string)
+   Register name or nil if none was specified.
+
+Parameters:~
+  {cmd}  Table with information about a key.
+
+Return:~
+  `true` on success.
+
+--------------------------------------------------------------------------------
+*vifm-l_vifm.opts*
+
+This global `vifm.opts` table groups items related to options in general.
+
+opts.global (table)                            *vifm-l_vifm.opts.global*
+Table that provides access to global options.  The mapping between option
+types and Lua types is quite obvious:
+ - boolean option   -> boolean type
+ - integer option   -> number type
+ - any other option -> string type
+ - bad option       -> nil type
+
+Assigning global options is {unsafe}.
+
+--------------------------------------------------------------------------------
+*vifm-l_vifm.plugin*
+
+Table with information about current plugin and operations for it.
+
+plugin.name (string)                           *vifm-l_vifm.plugin.name*
+Name of the plugin.
+
+plugin.path (string)                           *vifm-l_vifm.plugin.path*
+Full path to plugin's root directory.
+
+plugin.require({modname})                      *vifm-l_vifm.plugin.require()*
+Plugin-specific `require`, which loads Lua modules relative to plugin's root.
+
+This function is {unsafe}.
+
+Parameters:~
+  {modname}  Name of the module, similar to the argument for `require`.
+
+Return:~
+  Return value of the module or `nil` on error.
+
+Raises an error:~
+  On issues with finding or running the module.
+
+--------------------------------------------------------------------------------
 *vifm-l_vifm.plugins*
 
-plugins.all                                    *vifm-l_vifm.plugins.all*
+This global `vifm.plugins` table groups items related to plugins.
+
+plugins.all (table)                            *vifm-l_vifm.plugins.all*
 Table that contains all plugins indexed by their names.
 
 --------------------------------------------------------------------------------
@@ -268,28 +633,191 @@ This global `vifm.sb` table groups functions for managing status bar.  It
 contains the following items:
 
 sb.info({msg})                                 *vifm-l_vifm.sb.info()*
-Displays a regular message on statusbar.
+Displays a regular message on status bar.
 
 Parameters:~
   {msg}  Message to display.
 
 sb.error({msg})                                *vifm-l_vifm.sb.error()*
-Displays an error message on statusbar.
+Displays an error message on status bar.
 
 Parameters:~
   {msg}  Message to display.
 
 sb.quick({msg})                                *vifm-l_vifm.sb.quick()*
-Displays a quick message on statusbar.  It's discarded on first redraw and
+Displays a quick message on status bar.  It's discarded on first redraw and
 isn't stored in the history of messages.
 
 Parameters:~
   {msg}  Message to display.
 
 --------------------------------------------------------------------------------
+*vifm-l_vifm.sessions*
+
+This global `vifm.sessions` table provides means for inspecting and
+controlling sessions.
+
+sessions.current()                             *vifm-l_vifm.sessions.current*
+Retrives name of the current session.
+
+Return:~
+  `nil` if there is no active session or its name as a string otherwise.
+
+--------------------------------------------------------------------------------
+*vifm-l_vifm.tabs*
+
+This global `vifm.tabs` table provides means for inspecting and controlling
+tabs.
+
+tabs.get({query})                              *vifm-l_vifm.tabs.get()*
+Retrives a tab.
+
+Possible fields of {query}:
+ - "index" (integer)
+   Index of the tab.
+ - "other" (boolean) (default: false)
+   Whether to get a pane tab from inactive view.  Ignored if global tabs are
+   active.
+
+Return:~
+  Returns an instance of |vifm-l_VifmTab| or `nil` if index is out of range.
+
+Raises an error:~
+  If tab index is out of range.
+
+tabs.getcount([{query}])                       *vifm-l_vifm.tabs.getcount()*
+Retrieves number of open tabs.
+
+Possible fields of {query}:
+ - "other" (boolean) (default: false)
+   Whether to operate on tab from inactive view.  Ignored if global tabs are
+   active.
+
+Return:~
+  Returns the count as an integer.
+
+tabs.getcurrent([{query}])                     *vifm-l_vifm.tabs.getcurrent()*
+Retrieves index of current tab.
+
+Possible fields of {query}:
+ - "other" (boolean) (default: false)
+   Whether to operate on tab from inactive view.  Ignored if global tabs are
+   active.
+
+Return:~
+  Returns the index as an integer.
+
+--------------------------------------------------------------------------------
+*vifm-l_vifm.version*
+
+This global `vifm.version` table provides information about Vifm and Lua API.
+It contains the following items:
+
+version.app.str (string)                       *vifm-l_vifm.version.app.str*
+Version of Vifm as a string.
+
+version.api.major (integer)                    *vifm-l_vifm.version.api.major*
+Major version of Lua API.  0 now, should become 1 when API design settles and
+remain at 1.
+
+version.api.minor (integer)                    *vifm-l_vifm.version.api.minor*
+Minor version of Lua API.  0 now.
+
+version.api.patch (integer)                    *vifm-l_vifm.version.api.patch*
+Patch version of Lua API.  0 now.
+
+version.api.has({feature})                     *vifm-l_vifm.version.api.has()*
+Checks presence of a feature.  There are no features to test yet.
+
+Parameters:~
+  {feature}  Name of the feature
+
+Return:~
+  `true` if the feature is present and `false` otherwise.
+
+                                             *vifm-l_vifm.version.api.atleast()*
+version.api.atleast({major}, {minor}, {patch})
+Checks version of Lua API.
+
+Parameters:~
+  {major}  Value to check `version.api.major` against.
+  {minor}  Value to check `version.api.minor` against. (default: 0)
+  {patch}  Value to check `version.api.patch` against. (default: 0)
+
+Return:~
+  `true` if the version is equal or more recent than the specified one.
+
+--------------------------------------------------------------------------------
+*vifm-l_VifmEntry*
+
+Instances of this type are used in filetype |vifm-lua-handlers| and in
+callbacks of |vifm-l_vifm.addcolumntype()|.  They are also returned by
+|vifm-l_VifmView:entry()|.
+
+Fields of this table are just copies, changing their values won't affect state
+of the application.
+
+VifmEntry.classify (table)                     *vifm-l_VifmEntry.classify*
+Table that describes name decorations.  Its fields:
+ - "prefix" (string)
+   File name prefix.
+ - "suffix" (string)
+   File name suffix.
+
+VifmEntry.name (string)                        *vifm-l_VifmEntry.name*
+Name of the file.
+
+VifmEntry.location (string)                    *vifm-l_VifmEntry.location*
+Location of the file.
+
+VifmEntry.size (integer)                       *vifm-l_VifmEntry.size*
+Size of the file in bytes.
+
+VifmEntry.atime (integer)                      *vifm-l_VifmEntry.atime*
+File access time (e.g., read, executed).  In seconds since the Unix epoch.
+
+VifmEntry.ctime (integer)                      *vifm-l_VifmEntry.ctime*
+File change time (changes in metadata, like mode).  In seconds since the
+Unix epoch.
+
+VifmEntry.mtime (integer)                      *vifm-l_VifmEntry.mtime*
+File modification time (when file contents is changed).  In seconds since
+the Unix epoch.
+
+VifmEntry.type (string)                        *vifm-l_VifmEntry.type*
+Type of the entry.  See |vifm-filetype()| for the list of values.
+
+VifmEntry.folded (boolean)                     *vifm-l_VifmEntry.folded*
+Whether this entry is folded.
+
+VifmEntry.selected (boolean)                   *vifm-l_VifmEntry.selected*
+Whether this entry is selected.
+
+VifmEntry.match (boolean)                      *vifm-l_VifmEntry.match*
+Whether this entry is a search match.
+
+VifmEntry.matchstart (integer)                 *vifm-l_VifmEntry.matchstart*
+For a search match this is the start position of a substring found in name,
+zero otherwise.
+
+VifmEntry.matchend (integer)                   *vifm-l_VifmEntry.matchend*
+For a search match this is the end position of a substring found in name,
+zero otherwise.
+
+VifmEntry:gettarget()                          *vifm-l_VifmEntry.gettarget()*
+Gets target of a symbolic link (not to be confused with real path resolution).
+
+Return:~
+  Returns target as a string.
+
+Raises an error:~
+  If entry doesn't correspond to a symbolic link.
+  If resolving symbolic link has failed.
+
+--------------------------------------------------------------------------------
 *vifm-l_VifmJob*
 
-Instances of this type are returned by `vifm.startjob()`.
+Instances of this type are returned by |vifm-l_vifm.startjob()|.
 
 VifmJob:wait()                                 *vifm-l_VifmJob:wait()*
 Waits for the job to finish.
@@ -303,11 +831,22 @@ Retrieves exit code of the application.
 Waits for the job to finish.
 
 Return:~
-  Returns an integer number that represents exit code.  The value is `-1`
-  if the application didn't exit normally.
+  Returns an integer number that represents exit code.  The value is `-x` if
+  the application was killed by signal `x`.  `-127` or `-128` means that
+  tracking the application has failed in some way.
 
 Raises an error:~
   If waiting has failed.
+
+VifmJob:stdin()                                *vifm-l_VifmJob:stdin()*
+Retrieves stream associated with standard input of a job.
+
+Return:~
+  Returns file stream from standard I/O library of Lua.
+
+Raises an error:~
+  If the job wasn't started with "w" I/O mode (see |vifm-l_vifm.startjob()|).
+  If input stream object is already closed.
 
 VifmJob:stdout()                               *vifm-l_VifmJob:stdout()*
 Retrieves stream associated with standard output of a job.  Includes error
@@ -316,6 +855,10 @@ stream if `mergestreams` was set to `true`.
 Return:~
   Returns file stream from standard I/O library of Lua.
 
+Raises an error:~
+  If the job wasn't started with "r" I/O mode (see |vifm-l_vifm.startjob()|).
+  If output stream object is already closed.
+
 VifmJob:errors()                               *vifm-l_VifmJob:errors()*
 Retrieves data collected from error stream of the job.  It's accumulated
 automatically in background and contains all data collected so far, the call
@@ -323,6 +866,82 @@ doesn't wait for arrival of data.  Empty if `mergestreams` was set to `true`.
 
 Return:~
   Returns a string.
+
+--------------------------------------------------------------------------------
+*vifm-l_VifmTab*
+
+Instances of this type are returned by |vifm-l_vifm.tabs.get()|.
+
+The corresponding tab exists independently of this type and once the tab is
+closed accessing bound instance raises an error.
+
+VifmTab:getname()                              *vifm-l_VifmTab:getname()*
+
+Return:~
+  Returns name of the tab as a string, which is empty if unset.
+
+VifmTab:getview([{query}])                     *vifm-l_VifmTab:getview()*
+
+Possible fields of {query}:
+ - "pane" (integer) (default: 1)
+   Which view to get from a global tab.  1 is left/top pane, 2 is right/bottom
+   one.  Ignored for a pane tab.
+
+Return:~
+  Returns an instance of |vifm-l_VifmView|.
+
+--------------------------------------------------------------------------------
+*vifm-l_VifmView*
+
+Instances of this type are returned by:
+ * |vifm-l_vifm.currview()|
+ * |vifm-l_vifm.otherview()|
+ * |vifm-l_VifmTab:getview()|
+
+The corresponding view exists independently of this type and once the view is
+gone (e.g., its tab is closed) accessing bound instance raises an error.
+
+VifmView.locopts (table)                       *vifm-l_VifmView.viewopts*
+Equivalent of |vifm-l_vifm.opts.global| for location-specific values of
+view-specific options.  These are "local" values of view-specific options,
+which are reset to "global" ones on file list change.
+
+Assigning local options is {unsafe}.
+
+VifmView.viewopts (table)                      *vifm-l_VifmView.locopts*
+Equivalent of |vifm-l_vifm.opts.global| for view-specific options, see there
+for details.  These are "global" values of view-specific options.
+
+Assigning view options is {unsafe}.
+
+VifmView.currententry (integer)                *vifm-l_VifmView.currententry*
+Index of the current entry.
+
+VifmView.cwd (string)                          *vifm-l_VifmView.cwd*
+Location of the current view.
+
+VifmView.entrycount (integer)                  *vifm-l_VifmView.entrycount*
+Number of entries in the view.
+
+VifmView:cd({path})                            *vifm-l_VifmView:cd()*
+Changes location of the view.  {path} isn't expanded in any way.
+
+This function is {unsafe}.
+
+Parameters:~
+  {path}  Path to visit.
+
+Return:~
+  `true` on success.
+
+VifmView:entry({index})                        *vifm-l_VifmView:entry()*
+Retrieves an entry by index.
+
+Parameters:~
+  {index}  Value in the range from `1` to `VifmEntry.entrycount` inclusive.
+
+Return:~
+  |vifm-l_VifmEntry| on success and `nil` on wrong index.
 
 --------------------------------------------------------------------------------
  vim:tw=78:fo=tcq2:isk=!-~,^*,^\|,^\":ts=8:ft=help:norl:

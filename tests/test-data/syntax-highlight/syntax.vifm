@@ -292,7 +292,13 @@ highlight {*.djvu, "not comment
           \*.xml} cterm=underline ctermfg=188 ctermbg=default
 
 " "italic" should be highlighted
+" "combine" should be highlighted
 highlight Win cterm=italic
+highlight Win cterm=combine
+
+" "guifg", "guibg" and "gui" should be highlighted
+" "#14fd14" should be highlighted
+highlight Win guifg=yellow guibg=#14fd14 gui=combine
 
 " patterns here should NOT be highlighted
 highlight // cterm=bold ctermfg=yellow
@@ -361,18 +367,18 @@ filextype /reg\/ex/,{*.pdf}
 filetype {*.spx,*.opus},
         \<audio/mpeg,audio/x-wav>
        \ {Play using ffplay}
-       \ ffplay -nodisp -autoexit %c
+       \ ffplay -nodisp -hide_banner -autoexit %c
 
 filetype {*.wav}
         \<audio/mpeg,audio/x-wav>
        \ {Play using ffplay}
-       \ ffplay -nodisp -autoexit %c
+       \ ffplay -nodisp -hide_banner -autoexit %c
 
 filextype {*.avi,*.mp4,*.wmv,*.dat,*.3gp,*.ogv,*.mkv,*.mpg,*.mpeg,*.vob,
           \*.fl[icv],*.m2v,*.mov,*.webm,*.ts,*.mts,*.m4v,*.r[am],*.qt,*.divx,
           \*.as[fx]}
         \ {View using ffplay}
-        \ ffplay -fs -autoexit %f
+        \ ffplay -fs -hide_banner -autoexit %f
 
 if $sort_type == 'size'
     set sort=+mtime
@@ -476,6 +482,10 @@ hideui
 session
 delsession
 plugins
+plugin
+st
+sto
+stop
 
 " the words following ":" should be highlighted as :commands
 nnoremap lhs :session
@@ -522,6 +532,7 @@ hi OddLine
 " "tabprefix" should be highlighted as 'option'
 " "tabsuffix" should be highlighted as 'option'
 " "previewoptions" should be highlighted as 'option'
+" "autocd" should be highlighted as 'option'
 set dotfiles nodotfiles invdotfiles dotfiles!
 set caseoptions
 set sizefmt
@@ -541,6 +552,7 @@ set sessionoptions ssop
 set tabprefix
 set tabsuffix
 set previewoptions
+set autocd noautocd invautocd autocd!
 
 " "term" should be highlighted as a function()
 echo term('cmd')

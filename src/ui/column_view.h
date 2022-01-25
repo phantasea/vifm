@@ -55,18 +55,28 @@ CropType;
 /* Opaque columns handle. */
 typedef struct columns_t columns_t;
 
+/* Structure containing column data passed to handlers. */
+typedef struct format_info_t format_info_t;
+struct format_info_t
+{
+	void *data; /* User data passed to columns_format_line(). */
+	int id;     /* Id of the column. */
+	int width;  /* Calculated width of the column. */
+};
+
 /* A column callback function, which should fill the buf with column text. */
-typedef void (*column_func)(int id, const void *data, size_t buf_len,
-		char buf[]);
+typedef void (*column_func)(void *data, size_t buf_len, char buf[],
+		const format_info_t *info);
 
 /* A callback function, for displaying column contents.  Alignment specifies
  * actual alignment of current column (AT_DYN won't appear here). */
-typedef void (*column_line_print_func)(const void *data, int column_id,
-		const char buf[], size_t offset, AlignType align, const char full_column[]);
+typedef void (*column_line_print_func)(const char buf[], size_t offset,
+		AlignType align, const char full_column[], const format_info_t *info);
 
 /* Structure containing various column display properties. */
 typedef struct
 {
+	char *literal;     /* Fixed contents of the column. */
 	int column_id;     /* Unique id of existing column. */
 	size_t full_width; /* Full width of the column, units depend on size type. */
 	size_t text_width; /* Text width, ignored unless size type is ST_ABSOLUTE. */
@@ -85,7 +95,7 @@ void columns_set_ellipsis(const char ell[]);
 
 /* Registers column func by its unique column_id.
  * Returns zero on success and non-zero otherwise. */
-int columns_add_column_desc(int column_id, column_func func);
+int columns_add_column_desc(int column_id, column_func func, void *data);
 
 /* Unregisters all column functions. */
 void columns_clear_column_descs(void);
@@ -104,7 +114,7 @@ void columns_add_column(columns_t *cols, column_info_t info);
 void columns_clear(columns_t *cols);
 
 /* Performs actual formatting of columns. */
-void columns_format_line(columns_t *cols, const void *data,
+void columns_format_line(columns_t *cols, void *format_data,
 		size_t max_line_width);
 
 /* Checks if recalculation is needed.  Returns non-zero if so, otherwise zero is

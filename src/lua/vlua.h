@@ -19,12 +19,19 @@
 #ifndef VIFM__LUA__VLUA_H__
 #define VIFM__LUA__VLUA_H__
 
-/* This unit implements Lua interface. */
+/* This unit implements Lua interface.  It provides API for the rest of the
+ * application and thus this is the only header that needs to be included from
+ * the outside. */
 
 /* Declaration of opaque state of the unit. */
 typedef struct vlua_t vlua_t;
 
+struct cmd_info_t;
+struct dir_entry_t;
 struct plug_t;
+struct preview_area_t;
+struct strlist_t;
+struct view_t;
 
 /* Creates new instance of the unit.  Returns the instance or NULL. */
 vlua_t * vlua_init(void);
@@ -32,12 +39,45 @@ vlua_t * vlua_init(void);
 /* Loads a single plugin on request.  Returns zero on success. */
 int vlua_load_plugin(vlua_t *vlua, const char plugin[], struct plug_t *plug);
 
-/* Frees resources of the unit. */
+/* Frees resources of the unit.  The parameter can be NULL. */
 void vlua_finish(vlua_t *vlua);
 
 /* Executes a Lua string.  Returns non-zero on error, otherwise zero is
  * returned. */
 int vlua_run_string(vlua_t *vlua, const char str[]);
+
+/* Performs completion of a command.  Returns offset of completion matches. */
+int vlua_complete_cmd(vlua_t *vlua, const struct cmd_info_t *cmd_info,
+		int arg_pos);
+
+/* Maps column name to column id.  Returns column id or -1 on error. */
+int vlua_viewcolumn_map(vlua_t *vlua, const char name[]);
+
+/* Checks whether specified view column should be considered a primary one.
+ * Returns non-zero if so, otherwise zero is returned. */
+int vlua_viewcolumn_is_primary(vlua_t *vlua, int column_id);
+
+/* Checks command for a Lua handler.  Returns non-zero if it's present and zero
+ * otherwise. */
+int vlua_handler_cmd(vlua_t *vlua, const char cmd[]);
+
+/* Parses command for a handler name and checks for its presence.  Returns
+ * non-zero if handler exists otherwise zero is returned. */
+int vlua_handler_present(vlua_t *vlua, const char cmd[]);
+
+/* Invokes a viewer handler.  Returns list of strings for preview, which should
+ * be freed by the caller. */
+struct strlist_t vlua_view_file(vlua_t *vlua, const char viewer[],
+		const char path[], const struct preview_area_t *parea);
+
+/* Invokes a file handler. */
+void vlua_open_file(vlua_t *vlua, const char prog[],
+		const struct dir_entry_t *entry);
+
+/* Invokes status line formatting handler.  Returns newly allocated string with
+ * status line format. */
+char * vlua_make_status_line(struct vlua_t *vlua, const char format[],
+		struct view_t *view, int width);
 
 #endif /* VIFM__LUA__VLUA_H__ */
 

@@ -34,6 +34,7 @@
 #include "engine/options.h"
 #include "engine/text_buffer.h"
 #include "int/term_title.h"
+#include "lua/vlua.h"
 #include "ui/fileview.h"
 #include "ui/quickview.h"
 #include "ui/statusbar.h"
@@ -108,6 +109,7 @@ static void load_options_defaults(void);
 static void add_options(void);
 static void load_sort_option_inner(view_t *view, signed char sort_keys[]);
 static void aproposprg_handler(OPT_OP op, optval_t val);
+static void autocd_handler(OPT_OP op, optval_t val);
 static void autochpos_handler(OPT_OP op, optval_t val);
 static void caseoptions_handler(OPT_OP op, optval_t val);
 static void cdpath_handler(OPT_OP op, optval_t val);
@@ -345,6 +347,7 @@ static const char *lsoptions_enum[][2] = {
 static const char *previewoptions_vals[][2] = {
 	{ "graphicsdelay:",    "delay before drawing graphics" },
 	{ "hardgraphicsclear", "redraw screen to get rid of graphics" },
+	{ "toptreestats",      "show file counts on top of the tree" },
 };
 
 /* Possible values of 'suggestoptions'. */
@@ -399,11 +402,13 @@ static const char *tabscope_vals[][2] = {
 
 /* Possible flags of 'tuioptions' and their count. */
 static const char *tuioptions_vals[][2] = {
-	{ "psuv", "all tuioptions values" },
-	{ "p",    "use padding in views and preview" },
-	{ "s",    "display side borders" },
-	{ "u",    "use Unicode characters in the TUI" },
-	{ "v",    "vary width of middle border to equalize view sizes" },
+	{ "lprsuv", "all tuioptions values" },
+	{ "l",      "always show pane title ellipsis on the left" },
+	{ "p",      "use padding in views and preview" },
+	{ "r",      "always show pane title ellipsis on the right" },
+	{ "s",      "display side borders" },
+	{ "u",      "use Unicode characters in the TUI" },
+	{ "v",      "vary width of middle border to equalize view sizes" },
 };
 
 /* Possible values of 'dirsize' option. */
@@ -591,6 +596,10 @@ options[] = {
 	{ "aproposprg", "", ":apropos invocation format",
 	  OPT_STR, 0, NULL, &aproposprg_handler, NULL,
 	  { .ref.str_val = &cfg.apropos_prg },
+	},
+	{ "autocd", "", "interpret invalid :commands as directory change command",
+	  OPT_BOOL, 0, NULL, &autocd_handler, NULL,
+	  { .ref.bool_val = &cfg.auto_cd },
 	},
 	{ "autochpos", "", "restore cursor after cd",
 	  OPT_BOOL, 0, NULL, &autochpos_handler, NULL,
@@ -1220,18 +1229,22 @@ init_millerview(optval_t *val)
 static void
 init_previewoptions(optval_t *val)
 {
-	static char buf[64];
+	static char buf[128];
 
 	size_t len = 0U;
 	buf[0] = '\0';
 
 	if(cfg.hard_graphics_clear)
 	{
-		(void)sstrappend(buf, &len, sizeof(buf), "hardgraphicsclear");
+		(void)sstrappend(buf, &len, sizeof(buf), "hardgraphicsclear,");
+	}
+	if(cfg.top_tree_stats)
+	{
+		(void)sstrappend(buf, &len, sizeof(buf), "toptreestats,");
 	}
 	if(cfg.graphics_delay != 0)
 	{
-		snprintf(buf + len, sizeof(buf) - len, "graphicsdelay:%d",
+		snprintf(buf + len, sizeof(buf) - len, "graphicsdelay:%d,",
 				cfg.graphics_delay);
 	}
 
@@ -1311,8 +1324,10 @@ static void
 init_tuioptions(optval_t *val)
 {
 	static char buf[32];
-	snprintf(buf, sizeof(buf), "%s%s%s%s",
+	snprintf(buf, sizeof(buf), "%s%s%s%s%s%s",
+			cfg.ellipsis_position < 0 ? "l" : "",
 			cfg.extra_padding ? "p" : "",
+			cfg.ellipsis_position > 0 ? "r" : "",
 			cfg.side_borders_visible ? "s" : "",
 			cfg.use_unicode_characters ? "u" : "",
 			cfg.flexible_splitter ? "v" : "");
@@ -1682,6 +1697,13 @@ aproposprg_handler(OPT_OP op, optval_t val)
 	(void)replace_string(&cfg.apropos_prg, val.str_val);
 }
 
+/* Handles changes of 'autocd' option. */
+static void
+autocd_handler(OPT_OP op, optval_t val)
+{
+	cfg.auto_cd = val.bool_val;
+}
+
 static void
 autochpos_handler(OPT_OP op, optval_t val)
 {
@@ -1769,13 +1791,14 @@ classify_handler(OPT_OP op, optval_t val)
 		assert(sizeof(cfg.type_decs) == sizeof(type_decs) && "Arrays diverged");
 		memcpy(&cfg.type_decs, &type_decs, sizeof(cfg.type_decs));
 
-		ui_view_reset_decor_cache(&lwin);
-		ui_view_reset_decor_cache(&rwin);
-
-		/* 'classify' option affects columns layout, hence views must be reloaded as
-		 * loading list of files performs calculation of filename properties. */
-		ui_view_schedule_reload(curr_view);
-		ui_view_schedule_reload(other_view);
+		int i;
+		tab_info_t tab_info;
+		for(i = 0; tabs_enum_all(i, &tab_info); ++i)
+		{
+			ui_view_reset_decor_cache(tab_info.view);
+			fview_decors_updated(tab_info.view);
+			ui_view_schedule_redraw(tab_info.view);
+		}
 	}
 	else
 	{
@@ -2328,6 +2351,7 @@ previewoptions_handler(OPT_OP op, optval_t val)
 
 	int graphics_delay = 0;
 	int hard_graphics_clear = 0;
+	int top_tree_stats = 0;
 
 	while((part = split_and_get(part, ',', &state)) != NULL)
 	{
@@ -2351,6 +2375,10 @@ previewoptions_handler(OPT_OP op, optval_t val)
 		{
 			hard_graphics_clear = 1;
 		}
+		else if(strcmp(part, "toptreestats") == 0)
+		{
+			top_tree_stats = 1;
+		}
 		else
 		{
 			break_at(part, ':');
@@ -2365,6 +2393,11 @@ previewoptions_handler(OPT_OP op, optval_t val)
 	{
 		cfg.graphics_delay = graphics_delay;
 		cfg.hard_graphics_clear = hard_graphics_clear;
+		if(top_tree_stats != cfg.top_tree_stats)
+		{
+			text_option_changed();
+		}
+		cfg.top_tree_stats = top_tree_stats;
 	}
 
 	/* In case of error, restore previous value, otherwise reload it anyway to
@@ -3192,12 +3225,10 @@ add_column(columns_t *columns, column_info_t column_info)
 	}
 }
 
-/* Maps column name to column id.  Returns column id. */
+/* Maps column name to column id.  Returns column id or -1 on error. */
 static int
 map_name(const char name[], void *arg)
 {
-	int pos;
-
 	/* Handle secondary key (designated by {}). */
 	if(*name == '\0')
 	{
@@ -3206,9 +3237,14 @@ map_name(const char name[], void *arg)
 		return (int)get_secondary_key((SortingKey)abs(sort[0]));
 	}
 
-	pos = string_array_pos((char **)&sort_enum[1], ARRAY_LEN(sort_enum) - 1,
+	int pos = string_array_pos((char **)&sort_enum[1], ARRAY_LEN(sort_enum) - 1,
 			name);
-	return (pos >= 0) ? (pos + 1) : -1;
+	if(pos >= 0)
+	{
+		return (pos + 1);
+	}
+
+	return vlua_viewcolumn_map(curr_stats.vlua, name);
 }
 
 void
@@ -3254,6 +3290,7 @@ static void
 statusline_handler(OPT_OP op, optval_t val)
 {
 	(void)replace_string(&cfg.status_line, val.str_val);
+	stats_redraw_later();
 }
 
 /* Sets when to display key suggestions. */
@@ -3532,6 +3569,7 @@ tuioptions_handler(OPT_OP op, optval_t val)
 	cfg.side_borders_visible = 0;
 	cfg.use_unicode_characters = 0;
 	cfg.flexible_splitter = 0;
+	cfg.ellipsis_position = 0;
 
 	/* And set the ones present in the value. */
 	p = val.str_val;
@@ -3539,8 +3577,14 @@ tuioptions_handler(OPT_OP op, optval_t val)
 	{
 		switch(*p)
 		{
+			case 'l':
+				cfg.ellipsis_position = -1;
+				break;
 			case 'p':
 				cfg.extra_padding = 1;
+				break;
+			case 'r':
+				cfg.ellipsis_position = 1;
 				break;
 			case 's':
 				cfg.side_borders_visible = 1;
@@ -3558,6 +3602,10 @@ tuioptions_handler(OPT_OP op, optval_t val)
 		}
 		++p;
 	}
+
+	/* Make sure "r" and "l" flags don't appear at the same time. */
+	init_tuioptions(&val);
+	vle_opts_assign("tuioptions", val, OPT_GLOBAL);
 
 	curr_stats.ellipsis = (cfg.use_unicode_characters ? "…" : "...");
 	columns_set_ellipsis(curr_stats.ellipsis);

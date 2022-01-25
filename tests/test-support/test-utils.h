@@ -55,7 +55,7 @@ void columns_setup_column(int id);
 void columns_teardown(void);
 
 /* Initializes engine/cmds unit. */
-void engine_cmds_setup(void);
+void engine_cmds_setup(int real_completion);
 
 /* Uninitializes engine/cmds unit. */
 void engine_cmds_teardown(void);
@@ -115,6 +115,14 @@ void try_enable_utf8_locale(void);
  * returned. */
 int utf8_locale(void);
 
+/* Whether running as a regular user under Unix and can therefore force
+ * errors via chmod().  Returns non-zero if so, otherwise zero is returned. */
+int regular_unix_user(void);
+
+/* Whether cat program is available somewhere in the $PATH.  Returns non-zero if
+ * so, otherwise zero is returned. */
+int have_cat(void);
+
 struct matcher_t;
 
 /* Changes *matcher to have the value of the expr.  The operation is assumed to
@@ -123,10 +131,10 @@ int replace_matcher(struct matcher_t **matcher, const char expr[]);
 
 struct view_t;
 
-/* Setups a grid of specified dimentions for the view. */
+/* Setups a grid of specified dimensions for the view. */
 void setup_grid(struct view_t *view, int column_count, int list_rows, int init);
 
-/* Setups transposed grid of specified dimentions for the view. */
+/* Setups transposed grid of specified dimensions for the view. */
 void setup_transposed_grid(struct view_t *view, int column_count, int list_rows,
 		int init);
 
@@ -134,8 +142,14 @@ void setup_transposed_grid(struct view_t *view, int column_count, int list_rows,
  * entry. */
 void init_view_list(struct view_t *view);
 
+/* Checks state of two-pane compare for sanity. */
+void check_compare_invariants(int expected_len);
+
 /* Waits termination of all background tasks. */
 void wait_for_bg(void);
+
+/* Waits termination of all background jobs including external applications. */
+void wait_for_all_bg(void);
 
 /* Verifies that file at specified path consists of specified list of lines. */
 void file_is(const char path[], const char *lines[], int nlines);

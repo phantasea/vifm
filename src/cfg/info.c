@@ -1672,7 +1672,7 @@ merge_dhistory(int session_load, JSON_Object *current,
 	JSON_Array *merged = json_array(merged_value);
 
 	int i;
-	int lower_limit = (session_load ? 0 : total - cfg.history_len);
+	int lower_limit = total - cfg.history_len;
 	for(i = MAX(0, lower_limit); i < total; ++i)
 	{
 		JSON_Value *value = json_object_get_wrapping_value(combined[i]);
@@ -1916,7 +1916,7 @@ merge_history(int session_load, JSON_Object *current,
 		return;
 	}
 
-	trie_t *trie = trie_create();
+	trie_t *trie = trie_create(/*free_func=*/NULL);
 	int i, n;
 
 	JSON_Value *combined_value = json_value_init_array();
@@ -1960,7 +1960,7 @@ merge_history(int session_load, JSON_Object *current,
 	JSON_Value *merged_value = json_value_init_array();
 	JSON_Array *merged = json_array(merged_value);
 
-	int lower_limit = (session_load ? 0 : n - cfg.history_len);
+	int lower_limit = n - cfg.history_len;
 	for(n = json_array_get_count(combined), i = MAX(0, lower_limit); i < n; ++i)
 	{
 		JSON_Value *entry = json_object_get_wrapping_value(entries_sorted[i]);
@@ -1983,7 +1983,7 @@ merge_history_by_order(JSON_Object *current, const JSON_Object *admixture,
 	JSON_Array *updated = json_object_get_array(admixture, node);
 
 	int i, n;
-	trie_t *trie = trie_create();
+	trie_t *trie = trie_create(/*free_func=*/NULL);
 
 	JSON_Value *merged_value = json_value_init_array();
 	JSON_Array *merged = json_array(merged_value);
@@ -2238,6 +2238,7 @@ store_global_options(JSON_Object *root)
 				escape_spaces(cfg.apropos_prg)));
 	append_dstr(options, format_str("%sautochpos", cfg.auto_ch_pos ? "" : "no"));
 	append_dstr(options, format_str("cdpath=%s", cfg.cd_path));
+	append_dstr(options, format_str("%sautocd", cfg.auto_cd ? "" : "no"));
 	append_dstr(options, format_str("%schaselinks", cfg.chase_links ? "" : "no"));
 	append_dstr(options, format_str("columns=%d", cfg.columns));
 	append_dstr(options, format_str("cpoptions=%s",
@@ -2248,7 +2249,7 @@ store_global_options(JSON_Object *root)
 	if(strcmp(cfg.border_filler, " ") != 0)
 	{
 		append_dstr(options, format_str("fillchars+=vborder:%s",
-					cfg.border_filler));
+					escape_spaces(cfg.border_filler)));
 	}
 	append_dstr(options, format_str("findprg=%s", escape_spaces(cfg.find_prg)));
 	append_dstr(options, format_str("%sfollowlinks",

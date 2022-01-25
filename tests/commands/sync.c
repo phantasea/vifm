@@ -2,6 +2,7 @@
 
 #include <unistd.h> /* chdir() rmdir() symlink() */
 
+#include <limits.h> /* INT_MAX */
 #include <stdio.h> /* remove() */
 #include <stdlib.h> /* free() */
 #include <string.h> /* strdup() */
@@ -19,8 +20,8 @@
 #include "../../src/filelist.h"
 #include "../../src/filtering.h"
 
-static void column_line_print(const void *data, int column_id, const char buf[],
-		size_t offset, AlignType align, const char full_column[]);
+static void column_line_print(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info);
 
 static char *saved_cwd;
 
@@ -110,7 +111,7 @@ TEST(sync_removes_leafs_and_tree_data_on_converting_tree_to_cv)
 	assert_success(os_mkdir(SANDBOX_PATH "/dir", 0700));
 
 	assert_non_null(get_cwd(curr_view->curr_dir, sizeof(curr_view->curr_dir)));
-	assert_success(flist_load_tree(curr_view, SANDBOX_PATH));
+	assert_success(flist_load_tree(curr_view, SANDBOX_PATH, INT_MAX));
 	assert_int_equal(2, curr_view->list_rows);
 
 	assert_success(exec_commands("sync! filelist", curr_view, CIT_COMMAND));
@@ -139,7 +140,7 @@ TEST(sync_syncs_trees)
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
 			TEST_DATA_PATH, "..", cwd);
 
-	assert_success(flist_load_tree(curr_view, TEST_DATA_PATH "/tree"));
+	assert_success(flist_load_tree(curr_view, TEST_DATA_PATH "/tree", INT_MAX));
 
 	curr_view->dir_entry[0].selected = 1;
 	curr_view->selected_files = 1;
@@ -229,16 +230,24 @@ TEST(tree_syncing_applies_properties_of_destination_view)
 	make_abs_path(curr_view->curr_dir, sizeof(curr_view->curr_dir),
 			TEST_DATA_PATH, "..", cwd);
 
-	assert_success(flist_load_tree(curr_view, TEST_DATA_PATH "/tree"));
+	assert_success(flist_load_tree(curr_view, TEST_DATA_PATH "/tree", INT_MAX));
 
+	/* Exclusion. */
 	curr_view->dir_entry[0].selected = 1;
 	curr_view->selected_files = 1;
 	flist_custom_exclude(curr_view, 1);
 	assert_int_equal(0, curr_view->selected_files);
 
+	/* Folding. */
+	curr_view->list_pos = 0;
+	flist_toggle_fold(curr_view);
+
+	/* Local filter (ignored here because we change directory of the other view,
+	 * is this a bug?). */
 	local_filter_apply(other_view, "d");
+
 	assert_success(exec_commands("sync! tree", curr_view, CIT_COMMAND));
-	assert_int_equal(4, other_view->list_rows);
+	assert_int_equal(2, other_view->list_rows);
 	assert_string_equal("", other_view->local_filter.filter.raw);
 
 	assert_true(flist_custom_active(other_view));
@@ -246,7 +255,7 @@ TEST(tree_syncing_applies_properties_of_destination_view)
 	load_saving_pos(other_view);
 	curr_stats.load_stage = 0;
 
-	assert_int_equal(4, other_view->list_rows);
+	assert_int_equal(2, other_view->list_rows);
 	assert_string_equal("", other_view->local_filter.filter.raw);
 
 	columns_free(other_view->columns);
@@ -256,8 +265,8 @@ TEST(tree_syncing_applies_properties_of_destination_view)
 }
 
 static void
-column_line_print(const void *data, int column_id, const char buf[],
-		size_t offset, AlignType align, const char full_column[])
+column_line_print(const char buf[], size_t offset, AlignType align,
+		const char full_column[], const format_info_t *info)
 {
 	/* Do nothing. */
 }
@@ -323,7 +332,7 @@ TEST(sync_syncs_custom_trees)
 	flist_custom_add(curr_view, path);
 	assert_true(flist_custom_finish(curr_view, CV_REGULAR, 0) == 0);
 
-	assert_success(flist_load_tree(curr_view, test_data));
+	assert_success(flist_load_tree(curr_view, test_data, INT_MAX));
 
 	curr_view->dir_entry[0].selected = 1;
 	curr_view->selected_files = 1;

@@ -33,6 +33,8 @@
 #include <stdio.h> /* popen() */
 #include <string.h> /* strdup() */
 
+#include "../cfg/config.h"
+#include "../compat/fs_limits.h"
 #include "../compat/os.h"
 #include "../utils/filemon.h"
 #include "../utils/fsddata.h"
@@ -278,6 +280,19 @@ get_handlers(const char mime_type[])
 #if !defined(_WIN32) && defined(ENABLE_DESKTOP_FILES)
 	parse_app_dir("/usr/share/applications", mime_type, &handlers);
 	parse_app_dir("/usr/local/share/applications", mime_type, &handlers);
+
+	char local_dir[PATH_MAX + 1];
+	const char *xdg_data_home = getenv("XDG_DATA_HOME");
+	if(is_null_or_empty(xdg_data_home))
+	{
+		build_path(local_dir, sizeof(local_dir), cfg.home_dir,
+				".local/share/applications");
+	}
+	else
+	{
+		build_path(local_dir, sizeof(local_dir), xdg_data_home, "applications");
+	}
+	parse_app_dir(local_dir, mime_type, &handlers);
 #endif
 
 	return handlers;
