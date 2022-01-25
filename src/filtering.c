@@ -257,10 +257,12 @@ filter_files(view_t *view, iter_view_entry iter)
 			&is_newly_filtered, &filter, 0, 1);
 	if(flist_custom_active(view))
 	{
-		(void)zap_entries(view, view->local_filter.entries,
-				&view->local_filter.entry_count, &is_newly_filtered, &filter, 1, 1);
+		/* Name exclusion from a custom filter is not reversible. */
+		(void)zap_entries(view, view->custom.full.entries,
+				&view->custom.full.nentries, &is_newly_filtered, &filter, 1, 1);
 	}
-	else
+
+	if(flist_is_fs_backed(view))
 	{
 		view->filtered += filtered;
 	}

@@ -109,7 +109,7 @@ fill_version_info(char **list, int include_stats)
 	if(include_stats)
 	{
 		char size[64];
-		(void)friendly_size_notation(vcache_size(), sizeof(size), size);
+		(void)friendly_size_notation(vcache_size(), sizeof(size), size, 0);  //mod by sim1
 
 		list[x++] = strdup("");
 #ifndef _WIN32

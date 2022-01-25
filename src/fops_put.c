@@ -1197,7 +1197,7 @@ compare_files(const char dst_path[], const char src_path[], struct stat *dst,
 	}
 
 	vle_tb_append_line(text, " ");
-	(void)friendly_size_notation(dst->st_size, sizeof(buf), buf);
+	(void)friendly_size_notation(dst->st_size, sizeof(buf), buf, 0);  //mod by sim1
 	if(dst->st_size == src->st_size)
 	{
 		vle_tb_append_linef(text, "Same size: %s (%llu)", buf,
@@ -1209,7 +1209,7 @@ compare_files(const char dst_path[], const char src_path[], struct stat *dst,
 		vle_tb_append_linef(text, "%s (%llu)", buf,
 				(unsigned long long)dst->st_size);
 
-		(void)friendly_size_notation(src->st_size, sizeof(buf), buf);
+		(void)friendly_size_notation(src->st_size, sizeof(buf), buf, 0);  //mod by sim1
 		vle_tb_append_linef(text, "%s (%llu)", buf,
 				(unsigned long long)src->st_size);
 	}
