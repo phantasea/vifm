@@ -47,6 +47,17 @@ typedef enum
 }
 ShellRequester;
 
+/* Fine tuning of expand_envvars() behaviour. */
+typedef enum
+{
+	EEF_NONE            = 0x00, /* None of the other options. */
+	EEF_ESCAPE_VALS     = 0x01, /* Escape value suitable for internal use. */
+	EEF_KEEP_ESCAPES    = 0x02, /* Only remove \ in front of $ and keep others. */
+	EEF_DOUBLE_PERCENTS = 0x04, /* Double percents to make the resulting string
+	                               suitable for further macro expansion. */
+}
+ExpandEnvFlags;
+
 /* Forward declarations. */
 struct dir_entry_t;
 struct view_t;
@@ -112,10 +123,10 @@ int vifm_chdir(const char path[]);
  * memory, that should be freed by the caller. */
 char * expand_path(const char path[]);
 
-/* Expands all environment variables in the str of form "$envvar".  Non-zero
- * escape_vals means escaping suitable for internal use.  Allocates and returns
- * memory that should be freed by the caller. */
-char * expand_envvars(const char str[], int escape_vals);
+/* Expands all environment variables in the str of the form "$envvar".  Flags is
+ * a combination of EEF_* values.  Allocates and returns memory that should be
+ * freed by the caller. */
+char * expand_envvars(const char str[], int flags);
 
 /* Makes filename unique by adding an unique suffix to it.
  * Returns pointer to a statically allocated buffer */

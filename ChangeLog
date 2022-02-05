@@ -34,6 +34,8 @@
 
 	Document that <del> key might correspond to <bs>.  Thanks to dalvand.
 
+	Don't expand() macros in environment variables.  Patch by filterfalse.
+
 	Fixed cursor appearing at random places on entering command-line mode.
 
 	Fixed flicker and loosing parts of input on incremental search in menus.
@@ -65,6 +67,16 @@
 	lost due to the use of expand() builtin function in 'statusline'.  It was
 	fixed previously, but the fix got undone prior to the release.  Thanks
 	to dalvand.
+
+	Fixed expand() requiring backslashes to be escaped twice (once for
+	environment variable expansion and once for macro expansion), which isn't
+	convenient nor intuitive.
+
+	Fixed truncation of the dollar sign during expansion of non-existent
+	environment variables.  Patch by filterfalse.
+
+	Fixed assertion failure on processing mappings with RHS of the form
+	"{mapping with selector}{something else}".  Thanks to dalvand.
 
 0.12-beta to 0.12 (2021-09-29)
 

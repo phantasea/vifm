@@ -179,14 +179,18 @@ vifm_chdir(const char path[])
 char *
 expand_path(const char path[])
 {
-	char *const expanded_envvars = expand_envvars(path, 0);
-	/* replace_tilde() frees memory pointed to by expand_envvars. */
+	char *const expanded_envvars = expand_envvars(path, EEF_NONE);
+	/* replace_tilde() frees memory returned by expand_envvars. */
 	return replace_tilde(expanded_envvars);
 }
 
 char *
-expand_envvars(const char str[], int escape_vals)
+expand_envvars(const char str[], int flags)
 {
+	const int escape_vals = (flags & EEF_ESCAPE_VALS);
+	const int keep_escapes = (flags & EEF_KEEP_ESCAPES);
+	const int double_percents = (flags & EEF_DOUBLE_PERCENTS);
+
 	char *result = NULL;
 	size_t len = 0;
 	int prev_slash = 0;
@@ -210,19 +214,29 @@ expand_envvars(const char str[], int escape_vals)
 			if(!is_null_or_empty(var_value))
 			{
 				char *escaped_var_value = NULL;
+				char *doubled_percents_var_value = NULL;
+
 				if(escape_vals)
 				{
 					escaped_var_value = shell_like_escape(var_value, 2);
 					var_value = escaped_var_value;
 				}
 
+				if(double_percents)
+				{
+					doubled_percents_var_value = double_char(var_value, '%');
+					var_value = doubled_percents_var_value;
+				}
+
 				result = extend_string(result, var_value, &len);
 				free(escaped_var_value);
+				free(doubled_percents_var_value);
 
 				str = p;
 			}
 			else
 			{
+				result = extend_string(result, "$", &len);
 				str++;
 			}
 		}
@@ -230,7 +244,7 @@ expand_envvars(const char str[], int escape_vals)
 		{
 			prev_slash = (*str == '\\') ? !prev_slash : 0;
 
-			if(!prev_slash || escape_vals)
+			if(!prev_slash || (keep_escapes && (str[1] != '$' || !isalpha(str[2]))))
 			{
 				const char single_char[] = { *str, '\0' };
 				result = extend_string(result, single_char, &len);
