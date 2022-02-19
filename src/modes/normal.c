@@ -1532,6 +1532,13 @@ cmd_comma(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_dot(key_info_t key_info, keys_info_t *keys_info)
 {
+	//add by sim1: whether confirm before redo last change
+	if (cfg.redo_last_cmd_cfm)
+	{
+		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command, NULL);
+		return;
+	}
+
 	curr_stats.save_msg = exec_commands(curr_stats.last_cmdline_command,
 			curr_view, CIT_COMMAND);
 }

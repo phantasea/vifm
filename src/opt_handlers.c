@@ -250,6 +250,7 @@ static void maxratingstars_handler(OPT_OP op, optval_t val);
 static void maxratingstars_handler(OPT_OP op, optval_t val);
 static void filenamedisplen_handler(OPT_OP op, optval_t val);
 static void filenamedispall_handler(OPT_OP op, optval_t val);
+static void redolastcmdcfm_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 static const char *sort_enum[] = {
@@ -761,6 +762,10 @@ options[] = {
 	{ "topmidfiller", "tmf", "top middle border filler",
 	  OPT_STR, 0, NULL, &topmidfiller_handler, NULL,
 	  { .ref.str_val = &cfg.top_mid_filler },
+	},
+	{ "redolastcmdcfm", "rlcc", "confirm before redo last cmd",
+	  OPT_BOOL, 0, NULL, &redolastcmdcfm_handler, NULL,
+	  { .ref.bool_val = &cfg.redo_last_cmd_cfm },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "previewoptions", "", "tweaks for how preview is done",
@@ -3866,6 +3871,12 @@ static void
 filenamedispall_handler(OPT_OP op, optval_t val)
 {
 	cfg.file_name_disp_all = val.bool_val;
+}
+
+static void
+redolastcmdcfm_handler(OPT_OP op, optval_t val)
+{
+	cfg.redo_last_cmd_cfm = val.bool_val;
 }
 //add by sim1 *******************************************************************************
 
