@@ -275,6 +275,11 @@ filter_files(view_t *view, iter_view_entry iter)
 	return;
 }
 
+void filter_nonsymlinks(view_t *view)
+{
+	filter_files(view, iter_nonsymlink_entries);
+}
+
 void filter_nondotfiles(view_t *view)
 {
 	filter_files(view, iter_nondotfile_entries);

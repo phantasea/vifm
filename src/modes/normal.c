@@ -216,16 +216,17 @@ static void free_list_of_file_indexes(keys_info_t *keys_info);
 static void cmd_zM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zO(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zR(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zX(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_za(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zA(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zd(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zD(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_zx(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zf(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zl(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_zm(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zo(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zr(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_zX(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
+static void cmd_zx(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_left_paren(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_right_paren(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_z_k(key_info_t key_info, keys_info_t *keys_info);
@@ -410,6 +411,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_y,             {{&cmd_y_selector}, FOLLOWED_BY_SELECTOR, .descr = "yank files"}},
 	{WK_v,             {{&cmd_v},  .descr = "go to view mode"}},       //mod by sim1
 	{WK_z WK_i,        {{&cmd_zi}, .descr = "restore name filter"}},   //add by sim1
+	{WK_z WK_l,        {{&cmd_zl}, .descr = "show only symlinks"}},    //add by sim1
 	{WK_z WK_I,        {{&cmd_zI}, .descr = "restore local filter"}},  //add by sim1
 	{WK_z WK_A,        {{&cmd_zA}, .descr = "show only dot files"}},
 	{WK_z WK_D,        {{&cmd_zD}, .descr = "show only directorys"}},
@@ -2183,6 +2185,12 @@ static void
 cmd_zA(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_nondotfiles(curr_view);
+}
+
+static void
+cmd_zl(key_info_t key_info, keys_info_t *keys_info)
+{
+	filter_nonsymlinks(curr_view);
 }
 //add by sim1 -------------------------------------
 

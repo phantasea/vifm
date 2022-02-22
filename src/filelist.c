@@ -3491,6 +3491,17 @@ fentry_get_size(const view_t *view, const dir_entry_t *entry)
 
 //add by sim1
 int
+fentry_is_nonsymlink(const dir_entry_t *entry)
+{
+	if(entry->type == FT_LINK)
+	{
+		return 0;
+	}
+
+	return 1;
+}
+
+int
 fentry_is_nondirectory(const dir_entry_t *entry)
 {
 	/* If node has child nodes, it must be a directory. */
@@ -3518,6 +3529,12 @@ fentry_is_nondotfile(const dir_entry_t *entry)
 	}
 
 	return 0;
+}
+
+int
+iter_nonsymlink_entries(view_t *view, dir_entry_t **entry)
+{
+	return iter_entries(view, entry, &fentry_is_nonsymlink);
 }
 
 int
