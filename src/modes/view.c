@@ -193,6 +193,7 @@ static void cmd_u(key_info_t key_info, keys_info_t *keys_info);
 static void update_with_half_win(key_info_t *key_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_w(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_W(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_z(key_info_t key_info, keys_info_t *keys_info);
 static void update_with_win(key_info_t *key_info);
 static int is_trying_the_same_file(void);
@@ -296,6 +297,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_v,             {{&cmd_v},       .descr = "edit file at current line"}},
 	{WK_y,             {{&cmd_k},       .descr = "scroll one line up"}},
 	{WK_w,             {{&cmd_w},       .descr = "scroll backward one window"}},
+	{WK_W,             {{&cmd_W},       .descr = "toggle quickview wrap"}},  //add by sim1
 	{WK_z,             {{&cmd_z},       .descr = "scroll forward one window"}},
 #ifndef __PDCURSES__
 	{WK_ALT WK_v,      {{&cmd_b}, .descr = "scroll page up"}},
@@ -1586,6 +1588,15 @@ cmd_w(key_info_t key_info, keys_info_t *keys_info)
 	update_with_win(&key_info);
 	cmd_k(key_info, keys_info);
 }
+
+//add by sim1 ++++++++++++++++++++++++++++++++++++
+static void
+cmd_W(key_info_t key_info, keys_info_t *keys_info)
+{
+	cfg.wrap_quick_view = (cfg.wrap_quick_view ? 0 : 1);
+	modview_redraw();
+}
+//add by sim1 ------------------------------------
 
 static void
 cmd_z(key_info_t key_info, keys_info_t *keys_info)
