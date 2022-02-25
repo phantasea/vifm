@@ -178,6 +178,8 @@ static void cmd_gh(key_info_t key_info, keys_info_t *keys_info);
 #ifdef _WIN32
 static void cmd_gr(key_info_t key_info, keys_info_t *keys_info);
 #endif
+static void cmd_gp(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
+static void cmd_gP(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_gs(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
@@ -379,6 +381,8 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_g WK_j,        {{&cmd_j},  .descr = "go to item below"}},
 	{WK_g WK_k,        {{&cmd_k},  .descr = "go to item above"}},
 	{WK_g WK_l,        {{&cmd_return}, .descr = "open current item(s)"}},
+	{WK_g WK_p,        {{&cmd_gp}, .descr = "paste with overwrite"}},          //add by sim1
+	{WK_g WK_P,        {{&cmd_gP}, .descr = "paste with move and overwrite"}}, //add by sim1
 	{WK_g WK_s,        {{&cmd_gs}, .descr = "restore/make selection"}},
 	{WK_g WK_t,        {{&cmd_gt}, .descr = "next or n-th tab"}},
 	{WK_g WK_M,        {{&cmd_gM}, .descr = "jump to middle position depends on mode"}},
@@ -1961,6 +1965,25 @@ cmd_p(key_info_t key_info, keys_info_t *keys_info)
 {
 	call_put_files(key_info, 0);
 }
+
+//add by sim1 ++++++++++++++++++++++++++++++++++++
+int resp_overwrite = 0;
+static void
+cmd_gp(key_info_t key_info, keys_info_t *keys_info)
+{
+	resp_overwrite = 1;
+	call_put_files(key_info, 0);
+	resp_overwrite = 0;
+}
+
+static void
+cmd_gP(key_info_t key_info, keys_info_t *keys_info)
+{
+	resp_overwrite = 1;
+	call_put_files(key_info, 1);
+	resp_overwrite = 0;
+}
+//add by sim1 ------------------------------------
 
 /* Invokes file putting procedure. */
 static void

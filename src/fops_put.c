@@ -1011,7 +1011,16 @@ prompt_what_to_do(const char fname[], const char caused_by[])
 				"Name conflict for %s.  Caused by:\n%s\nWhat to do?", fname,
 				replace_home_part(caused_by));
 	}
-	response = fops_options_prompt("File Conflict", msg, responses);
+	//mod by sim1: gp/gP for paste with overwrite
+	extern int resp_overwrite;
+	if (resp_overwrite == 0)
+	{
+		response = fops_options_prompt("File Conflict", msg, responses);
+	}
+	else
+	{
+		response = 'o';
+	}
 	handle_prompt_response(fname, caused_by, response);
 }
 
