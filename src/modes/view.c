@@ -1541,7 +1541,14 @@ display_error(const char error_msg[])
 static void
 cmd_q(key_info_t key_info, keys_info_t *keys_info)
 {
+	int old_expmode = curr_view->explore_mode;  //add by sim1
+
 	modview_leave();
+
+	//add by sim1: smart quit quick view without explore mode
+	if (!old_expmode) {
+		qv_hide();
+	}
 }
 
 static void
