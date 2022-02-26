@@ -148,6 +148,7 @@ static void cmd_ctrl_wk(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wl(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wo(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_ws(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ctrl_wt(key_info_t key_info, keys_info_t *keys_info);
 static int is_right_or_bottom(void);
 static int is_top_or_left(void);
@@ -253,6 +254,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_w WK_z,      {{&cmd_ctrl_wz}, .descr = "exit preview/view modes"}},
 	{WK_C_w WK_C_s,    {{&cmd_ctrl_ws}, .descr = "horizontal split layout"}},
 	{WK_C_w WK_s,      {{&cmd_ctrl_ws}, .descr = "horizontal split layout"}},
+	{WK_C_w WK_S,      {{&cmd_ctrl_wS}, .descr = "smart toggle split"}},  //add by sim1
 	{WK_C_w WK_C_v,    {{&cmd_ctrl_wv}, .descr = "vertical split layout"}},
 	{WK_C_w WK_v,      {{&cmd_ctrl_wv}, .descr = "vertical split layout"}},
 	{WK_C_w WK_EQUALS, {{&modnorm_ctrl_wequal},   .nim = 1, .descr = "size panes equally"}},
@@ -1595,6 +1597,44 @@ cmd_W(key_info_t key_info, keys_info_t *keys_info)
 {
 	cfg.wrap_quick_view = (cfg.wrap_quick_view ? 0 : 1);
 	modview_redraw();
+}
+
+//smart toggle split&only layout under view/explore mode
+extern void set_millerview(int mv);  //defined in normal.c
+static void
+cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
+{
+	int old_expmode = 0;
+	if (curr_stats.number_of_windows != 1)
+	{
+		old_expmode = curr_view->explore_mode;
+		if (!old_expmode) {
+			modview_leave();
+			qv_hide();
+		}
+
+		set_millerview(TRUE);
+		only();
+
+		if (!old_expmode) {
+			modview_enter(curr_view, 1);
+		}
+		return;
+	}
+
+	if (cfg.prefer_vsplit)
+	{
+		set_millerview(FALSE);
+		split_view(VSPLIT);
+	}
+	else
+	{
+		set_millerview(TRUE);
+		split_view(HSPLIT);
+	}
+
+	modview_redraw();
+	return;
 }
 //add by sim1 ------------------------------------
 

@@ -291,7 +291,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_w WK_J,      {{&cmd_ctrl_wJ}, .descr = "move window to the bottom"}},
 	{WK_C_w WK_K,      {{&cmd_ctrl_wK}, .descr = "move window to the top"}},
 	{WK_C_w WK_L,      {{&cmd_ctrl_wL}, .descr = "move window to the right"}},
-	{WK_C_w WK_S,      {{&cmd_ctrl_wS}, .descr = "toggle split"}},  //add by sim1
+	{WK_C_w WK_S,      {{&cmd_ctrl_wS}, .descr = "smart toggle split"}},  //add by sim1
 	{WK_C_w WK_C_b,    {{&cmd_ctrl_wb}, .descr = "go to bottom-right window"}},
 	{WK_C_w WK_b,      {{&cmd_ctrl_wb}, .descr = "go to bottom-right window"}},
 	{WK_C_w WK_C_h,    {{&cmd_ctrl_wh}, .descr = "go to left window"}},
@@ -894,7 +894,7 @@ set_millerview(int mv)
 	return;
 }
 
-/* toggle split and only mode. */
+/* smart toggle split and only mode. */
 static void
 cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 {
