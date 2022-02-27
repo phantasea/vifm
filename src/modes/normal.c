@@ -1442,7 +1442,7 @@ cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
 	//add by sim1 +++++++++++++++++++++++++++++
 	if (flist_custom_active(curr_view))
 	{
-		cmd_h(key_info, keys_info);
+		cmd_gh(key_info, keys_info);
 		return;
 	}
 	//add by sim1 -----------------------------
