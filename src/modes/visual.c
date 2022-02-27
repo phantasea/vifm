@@ -89,6 +89,7 @@ static void sug_quote(vle_keys_list_cb cb);
 static void cmd_dollar(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_percent(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_comma(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_dot(key_info_t key_info, keys_info_t *keys_info);    //add by sim1
 static void cmd_zero(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_colon(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_semicolon(key_info_t key_info, keys_info_t *keys_info);
@@ -209,6 +210,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_DOLLAR,     {{&cmd_dollar},    .descr = "go to last column"}},
 	{WK_PERCENT,    {{&cmd_percent},   .descr = "go to [count]% position"}},
 	{WK_COMMA,      {{&cmd_comma},     .descr = "repeat char-search backward"}},
+	{WK_DOT,        {{&cmd_dot},       .descr = "repeat last cmdline command"}},  //add by sim1
 	{WK_ZERO,       {{&cmd_zero},      .descr = "go to first column"}},
 	{WK_COLON,      {{&cmd_colon},     .descr = "go to cmdline mode"}},
 	{WK_SCOLON,     {{&cmd_semicolon}, .descr = "repeat char-search forward"}},
@@ -653,6 +655,21 @@ cmd_comma(key_info_t key_info, keys_info_t *keys_info)
 				!last_fast_search_backward);
 	}
 }
+
+//add by sim1 ++++++++++++++++++++++++++++++++++++++
+static void
+cmd_dot(key_info_t key_info, keys_info_t *keys_info)
+{
+	update_marks(view);
+	cmds_vars_set_count(key_info.count);
+
+	if (cfg.redo_last_cmd_cfm) {
+		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command, NULL);
+	} else {
+		curr_stats.save_msg = exec_commands(curr_stats.last_cmdline_command, curr_view, CIT_COMMAND);
+	}
+}
+//add by sim1 --------------------------------------
 
 /* Move cursor to the first column in ls-view sub-mode selecting or unselecting
  * files while moving. */
