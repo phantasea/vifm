@@ -667,6 +667,7 @@ cmd_dot(key_info_t key_info, keys_info_t *keys_info)
 		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command, NULL);
 	} else {
 		curr_stats.save_msg = exec_commands(curr_stats.last_cmdline_command, curr_view, CIT_COMMAND);
+		reject_and_leave();
 	}
 }
 //add by sim1 --------------------------------------
