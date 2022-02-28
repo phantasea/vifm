@@ -251,6 +251,7 @@ static void maxratingstars_handler(OPT_OP op, optval_t val);
 static void filenamedisplen_handler(OPT_OP op, optval_t val);
 static void filenamedispall_handler(OPT_OP op, optval_t val);
 static void redolastcmdcfm_handler(OPT_OP op, optval_t val);
+static void clipboardprg_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 static const char *sort_enum[] = {
@@ -766,6 +767,10 @@ options[] = {
 	{ "redolastcmdcfm", "rlcc", "confirm before redo last cmd",
 	  OPT_BOOL, 0, NULL, &redolastcmdcfm_handler, NULL,
 	  { .ref.bool_val = &cfg.redo_last_cmd_cfm },
+	},
+	{ "clipboardprg", "", "clipboard program",
+	  OPT_STR, 0, NULL, &clipboardprg_handler, NULL,
+	  { .ref.str_val = &cfg.clipboard_prg },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "previewoptions", "", "tweaks for how preview is done",
@@ -3877,6 +3882,12 @@ static void
 redolastcmdcfm_handler(OPT_OP op, optval_t val)
 {
 	cfg.redo_last_cmd_cfm = val.bool_val;
+}
+
+static void
+clipboardprg_handler(OPT_OP op, optval_t val)
+{
+	(void)replace_string(&cfg.clipboard_prg, val.str_val);
 }
 //add by sim1 *******************************************************************************
 

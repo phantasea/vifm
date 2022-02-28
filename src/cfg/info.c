@@ -2357,6 +2357,7 @@ store_global_options(JSON_Object *root)
 	append_dstr(options, format_str("filenamedisplen=%d", cfg.file_name_disp_len));
 	append_dstr(options, format_str("%sfilenamedispall", cfg.file_name_disp_all ? "" : "no"));
 	append_dstr(options, format_str("%sredolastcmdcfm", cfg.redo_last_cmd_cfm ? "" : "no"));
+	append_dstr(options, format_str("clipboardprg=%s", cfg.clipboard_prg));
 	//add by sim1 **************************************************
 
 	append_dstr(options, format_str("%svimhelp", cfg.use_vim_help ? "" : "no"));

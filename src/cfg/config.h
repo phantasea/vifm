@@ -340,6 +340,7 @@ typedef struct config_t
 	int file_name_disp_all;  /* file name with prefix&suffix */
 	int redo_last_cmd_cfm;   /* if confirm before redo last cmd */
 	char *top_mid_filler;    /* top middle border filler */
+	char *clipboard_prg;     /* how to obtain the clipboard */
 	//add by sim1 **********************************************
 
 	/* Settings of size formatting. */

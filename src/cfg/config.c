@@ -237,6 +237,7 @@ cfg_init(void)
 	cfg.file_name_disp_all = 1;
 	cfg.redo_last_cmd_cfm = 0;
 	cfg.top_mid_filler = strdup(" ");
+	cfg.clipboard_prg = strdup("");
 	//add by sim1 *******************
 
 	cfg.sizefmt.base = 1024;

@@ -1920,10 +1920,15 @@ extern var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);
 static void
 cmd_ctrl_xs(key_info_t key_info, keys_info_t *keys_info)
 {
-	char cmd[32] = "xsel -o";
+	if (cfg.clipboard_prg[0] == '\0')
+	{
+		show_error_msg("Paste from clipboard", "'clipboardprg' option must NOT be empty");
+		return;
+	}
+
 	var_t cmd_arg;
 	cmd_arg.type = VTYPE_STRING;
-	cmd_arg.value.string = strdup(cmd);
+	cmd_arg.value.string = strdup(cfg.clipboard_prg);
 
 	var_t output_var = execute_cmd(cmd_arg, 0, 0);
 	char *output_str = var_to_str(output_var);
