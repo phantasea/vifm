@@ -194,9 +194,7 @@ static void cmd_ctrl_w(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xslash(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xa(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xc(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_ctrl_xf(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ctrl_xxc(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_ctrl_xxf(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void paste_short_path(view_t *view);
 static void cmd_ctrl_xd(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xxd(key_info_t key_info, keys_info_t *keys_info);
@@ -276,14 +274,14 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_x WK_SLASH,    {{&cmd_ctrl_xslash}, .descr = "insert last search pattern"}},
 	{WK_C_x WK_a,        {{&cmd_ctrl_xa}, .descr = "insert implicit permanent filter value"}},
 	{WK_C_x WK_c,        {{&cmd_ctrl_xc}, .descr = "insert current file name"}},
-	{WK_C_x WK_c,        {{&cmd_ctrl_xf}, .descr = "insert current file name"}},  //add by sim1
+	{WK_C_x WK_f,        {{&cmd_ctrl_xc}, .descr = "insert current file name"}},  //add by sim1
 	{WK_C_x WK_d,        {{&cmd_ctrl_xd}, .descr = "insert current directory path"}},
 	{WK_C_x WK_e,        {{&cmd_ctrl_xe}, .descr = "insert current file extension"}},
 	{WK_C_x WK_m,        {{&cmd_ctrl_xm}, .descr = "insert explicit permanent filter value"}},
 	{WK_C_x WK_r,        {{&cmd_ctrl_xr}, .descr = "insert root of current file name"}},
 	{WK_C_x WK_t,        {{&cmd_ctrl_xt}, .descr = "insert name of current directory"}},
 	{WK_C_x WK_C_x WK_c, {{&cmd_ctrl_xxc}, .descr = "insert other file name"}},
-	{WK_C_x WK_C_x WK_c, {{&cmd_ctrl_xxf}, .descr = "insert other file name"}},  //add by sim1
+	{WK_C_x WK_C_x WK_f, {{&cmd_ctrl_xxc}, .descr = "insert other file name"}},   //add by sim1
 	{WK_C_x WK_C_x WK_d, {{&cmd_ctrl_xxd}, .descr = "insert other directory path"}},
 	{WK_C_x WK_C_x WK_e, {{&cmd_ctrl_xxe}, .descr = "insert other file extension"}},
 	{WK_C_x WK_C_x WK_r, {{&cmd_ctrl_xxr}, .descr = "insert root of other file name"}},
@@ -1822,24 +1820,10 @@ cmd_ctrl_xc(key_info_t key_info, keys_info_t *keys_info)
 	paste_short_path(curr_view);
 }
 
-//add by sim1
-static void
-cmd_ctrl_xf(key_info_t key_info, keys_info_t *keys_info)
-{
-	paste_short_path(curr_view);
-}
-
 /* Inserts name of the current file of inactive pane into current cursor
  * position. */
 static void
 cmd_ctrl_xxc(key_info_t key_info, keys_info_t *keys_info)
-{
-	paste_short_path(other_view);
-}
-
-//add by sim1
-static void
-cmd_ctrl_xxf(key_info_t key_info, keys_info_t *keys_info)
 {
 	paste_short_path(other_view);
 }
