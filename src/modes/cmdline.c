@@ -39,6 +39,7 @@
 #include "../engine/completion.h"
 #include "../engine/keys.h"
 #include "../engine/mode.h"
+#include "../engine/var.h"  //add by sim1
 #include "../modes/dialogs/msg_dialog.h"
 #include "../ui/color_scheme.h"
 #include "../ui/colors.h"
@@ -204,6 +205,7 @@ static void cmd_ctrl_xm(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xr(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xxr(key_info_t key_info, keys_info_t *keys_info);
 static void paste_short_path_root(view_t *view);
+static void cmd_ctrl_xs(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ctrl_xt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xxt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_xequals(key_info_t key_info, keys_info_t *keys_info);
@@ -279,6 +281,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_x WK_e,        {{&cmd_ctrl_xe}, .descr = "insert current file extension"}},
 	{WK_C_x WK_m,        {{&cmd_ctrl_xm}, .descr = "insert explicit permanent filter value"}},
 	{WK_C_x WK_r,        {{&cmd_ctrl_xr}, .descr = "insert root of current file name"}},
+	{WK_C_x WK_s,        {{&cmd_ctrl_xs}, .descr = "insert clipboard selection"}},  //add by sim1
 	{WK_C_x WK_t,        {{&cmd_ctrl_xt}, .descr = "insert name of current directory"}},
 	{WK_C_x WK_C_x WK_c, {{&cmd_ctrl_xxc}, .descr = "insert other file name"}},
 	{WK_C_x WK_C_x WK_f, {{&cmd_ctrl_xxc}, .descr = "insert other file name"}},   //add by sim1
@@ -1911,6 +1914,25 @@ paste_short_path_root(view_t *view)
 			sizeof(short_path), short_path);
 	paste_name_part(short_path, 1);
 }
+
+//add by sim1 ------------------------------------------
+extern var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);
+static void
+cmd_ctrl_xs(key_info_t key_info, keys_info_t *keys_info)
+{
+	char cmd[32] = "xsel -o";
+	var_t cmd_arg;
+	cmd_arg.type = VTYPE_STRING;
+	cmd_arg.value.string = strdup(cmd);
+
+	var_t output_var = execute_cmd(cmd_arg, 0, 0);
+	char *output_str = var_to_str(output_var);
+	paste_str(output_str, 0);
+
+	free(output_str);
+	var_free(cmd_arg);
+}
+//add by sim1 ++++++++++++++++++++++++++++++++++++++++++
 
 /* Inserts last component of path to the current directory of active pane into
  * current cursor position. */

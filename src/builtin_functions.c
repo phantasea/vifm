@@ -80,7 +80,7 @@ static var_t toggle_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
 static var_t tabpagenr_builtin(const call_info_t *call_info);
 static var_t term_builtin(const call_info_t *call_info);
-static var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);
+var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);  //mod by sim1
 
 /* Function descriptions. */
 static const function_t functions[] = {
@@ -631,7 +631,8 @@ term_builtin(const call_info_t *call_info)
 /* Runs interactive command in a shell and returns its output (joined standard
  * output and standard error streams).  All trailing newline characters are
  * stripped to allow easy appending to command output.  Returns the output. */
-static var_t
+//mod by sim1: make this function to be used in cmdline.c
+var_t
 execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin)
 {
 	var_t result;
