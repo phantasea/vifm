@@ -145,6 +145,7 @@ static void pick_or_move(keys_info_t *keys_info, int new_pos);
 static void cmd_N(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_P(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_V(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ZT(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ZQ(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ZZ(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_al(key_info_t key_info, keys_info_t *keys_info);
@@ -181,6 +182,7 @@ static void cmd_gr(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gp(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_gP(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_gs(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gS(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gU(key_info_t key_info, keys_info_t *keys_info);
@@ -253,6 +255,7 @@ static void selector_a(key_info_t key_info, keys_info_t *keys_info);
 static void selector_s(key_info_t key_info, keys_info_t *keys_info);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+static int  g_seltype = 0;
 static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
@@ -356,6 +359,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_U,             {{&cmd_U}, .descr = "undo tab close"}},  //add by sim1
 	{WK_V,             {{&cmd_V}, .descr = "go to visual mode"}},
 	{WK_Y,             {{&cmd_yy}, .descr = "yank files"}},
+	{WK_Z WK_T,        {{&cmd_ZT}, .descr = "test to show something"}},  //add by sim1
 	{WK_Z WK_Q,        {{&cmd_ZQ}, .descr = "exit without saving state"}},
 	{WK_Z WK_Z,        {{&cmd_ZZ}, .descr = "exit the application"}},
 	{WK_a WK_l,        {{&cmd_al}, .descr = "put files creating absolute symlinks"}},
@@ -384,6 +388,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_g WK_p,        {{&cmd_gp}, .descr = "paste with overwrite"}},          //add by sim1
 	{WK_g WK_P,        {{&cmd_gP}, .descr = "paste with move and overwrite"}}, //add by sim1
 	{WK_g WK_s,        {{&cmd_gs}, .descr = "restore/make selection"}},
+	{WK_g WK_S,        {{&cmd_gS}, .descr = "smart restore selection"}},       //add by sim1
 	{WK_g WK_t,        {{&cmd_gt}, .descr = "next or n-th tab"}},
 	{WK_g WK_M,        {{&cmd_gM}, .descr = "jump to middle position depends on mode"}},
 	{WK_g WK_T,        {{&cmd_gT}, .descr = "n-th previous tab"}},
@@ -1241,6 +1246,20 @@ cmd_gs(key_info_t key_info, keys_info_t *keys_info)
 	flist_sel_restore(curr_view, reg);
 }
 
+//add by sim1: smart restore tag-selection or visual-selection
+static void
+cmd_gS(key_info_t key_info, keys_info_t *keys_info)
+{
+	if (g_seltype == 0)
+	{
+		cmd_gs(key_info, keys_info);
+	}
+	else
+	{
+		cmd_gv(key_info, keys_info);
+	}
+}
+
 /* Switches either to the next tab or to tab specified by its number [count]. */
 static void
 cmd_gt(key_info_t key_info, keys_info_t *keys_info)
@@ -1425,6 +1444,19 @@ static void
 cmd_V(key_info_t key_info, keys_info_t *keys_info)
 {
 	modvis_enter(VS_NORMAL);
+
+	//add by sim1: smart restore tag-selection or visual-selection
+	if (g_seltype != 1) {
+		g_seltype = 1;
+	}
+}
+
+//add by sim1: test to show something on statusline
+static void
+cmd_ZT(key_info_t key_info, keys_info_t *keys_info)
+{
+	ui_sb_msgf("matches=%d, saved=%d", curr_view->selected_files, curr_view->nsaved_selection);
+	curr_stats.save_msg = 1;
 }
 
 /* Possibly exits the application without saving vifminfo file or closes a
@@ -2080,6 +2112,11 @@ cmd_t(key_info_t key_info, keys_info_t *keys_info)
 	}
 
 	fview_cursor_redraw(curr_view);
+
+	//add by sim1: smart restore tag-selection or visual-selection
+	if (g_seltype != 0) {
+		g_seltype = 0;
+	}
 }
 
 /* Undo last command group. */
