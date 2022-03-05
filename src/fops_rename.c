@@ -198,6 +198,7 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 	if(nfiles == 0)
 	{
 		ui_sb_msg("0 files renamed");
+		cfg_set_vicmd(vicmd);  //add by sim1
 		return 1;
 	}
 
@@ -250,6 +251,7 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 	free_string_array(files, nfiles);
 	free(is_dup);
 
+	cfg_set_vicmd(vicmd);  //add by sim1
 	return 1;
 }
 
