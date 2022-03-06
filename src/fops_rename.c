@@ -186,19 +186,12 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 		return 0;
 	}
 
-	//add by sim1
-	int bg = 0;
-	char vicmd[PATH_MAX] = {0};
-	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg));
-	cfg_set_vicmd("vim");
-
 	int nfiles;
 	char **files = list_files_to_rename(view, recursive, &nfiles);
 	/* No files to process. */
 	if(nfiles == 0)
 	{
 		ui_sb_msg("0 files renamed");
-		cfg_set_vicmd(vicmd);  //add by sim1
 		return 1;
 	}
 
@@ -208,9 +201,14 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 		free_string_array(files, nfiles);
 		show_error_msg("Memory Error", "Unable to allocate enough memory");
 
-		cfg_set_vicmd(vicmd);  //add by sim1
 		return 0;
 	}
+
+	//add by sim1
+	int bg = 0;
+	char vicmd[PATH_MAX] = {0};
+	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg));
+	cfg_set_vicmd("vim");
 
 	/* If we weren't given list of new file names, try to obtain it from the
 	 * user. */
@@ -219,6 +217,8 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 	{
 		list = fops_query_list(nfiles, files, &nlines, 0, &verify_list, NULL);
 	}
+
+	cfg_set_vicmd(vicmd);  //add by sim1
 
 	if(nlines == 0)
 	{
@@ -251,7 +251,6 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 	free_string_array(files, nfiles);
 	free(is_dup);
 
-	cfg_set_vicmd(vicmd);  //add by sim1
 	return 1;
 }
 
