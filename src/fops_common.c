@@ -888,7 +888,7 @@ edit_list(ext_edit_t *ext_edit, size_t orig_len, char *orig[], int *edited_len,
 		return NULL;
 	}
 
-	if(vim_view_file(rename_file, -1, -1, 0) != 0)
+	if(vim_view_file(rename_file, -1, -1, 0, 1) != 0)  //mod by sim1
 	{
 		unlink(rename_file);
 		show_error_msgf("Error Editing File", "Editing of file \"%s\" failed.",

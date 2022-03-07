@@ -168,10 +168,6 @@ complete_filename_only(const char str[], void *arg)
 	return filename_completion(str, CT_FILE_WOE, 0);
 }
 
-//add by sim1
-extern void cfg_set_vicmd(const char vicmd[]);
-extern const char * cfg_get_vicmd(int *bg);
-
 int
 fops_rename(view_t *view, char *list[], int nlines, int recursive)
 {
@@ -204,12 +200,6 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 		return 0;
 	}
 
-	//add by sim1
-	int bg = 0;
-	char vicmd[PATH_MAX] = {0};
-	copy_str(vicmd, sizeof(vicmd), cfg_get_vicmd(&bg));
-	cfg_set_vicmd("vim");
-
 	/* If we weren't given list of new file names, try to obtain it from the
 	 * user. */
 	const int from_file = (nlines == 0);
@@ -217,8 +207,6 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 	{
 		list = fops_query_list(nfiles, files, &nlines, 0, &verify_list, NULL);
 	}
-
-	cfg_set_vicmd(vicmd);  //add by sim1
 
 	if(nlines == 0)
 	{

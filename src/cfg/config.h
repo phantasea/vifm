@@ -388,7 +388,7 @@ int cfg_source_file(const char filename[]);
 /* Gets editor invocation command.  Sets *bg to indicate whether the command
  * should be executed in background.  Returns pointer to a string from
  * configuration variables. */
-const char * cfg_get_vicmd(int *bg);
+const char * cfg_get_vicmd(int *bg, int abs);  //mod by sim1
 
 /* Clears histories.  Leaving directory history as is used during restart. */
 void cfg_clear_histories(int clear_dhistory);

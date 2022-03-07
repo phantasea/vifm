@@ -375,7 +375,7 @@ open_selected_file(const char path[], int line_num)
 {
 	if(os_access(path, R_OK) == 0)
 	{
-		(void)vim_view_file(path, line_num, -1, 1);
+		(void)vim_view_file(path, line_num, -1, 1, 0);  //mod by sim1
 	}
 	else
 	{

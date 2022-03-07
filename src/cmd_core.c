@@ -211,7 +211,7 @@ get_ext_command(const char beginning[], size_t line_pos, CmdInputType type)
 
 	if(setup_extcmd_file(cmd_file, beginning, type) == 0)
 	{
-		if(vim_view_file(cmd_file, 1, line_pos, 0) == 0)
+		if(vim_view_file(cmd_file, 1, line_pos, 0, 1) == 0)  //mod by sim1
 		{
 			cmd = get_file_first_line(cmd_file);
 		}

@@ -42,7 +42,7 @@ int vim_edit_marking(void);
  * number one, while zero means don't change it.  Returns zero on success, on
  * error non-zero is returned. */
 int vim_view_file(const char filename[], int line, int column,
-		int allow_forking);
+		int allow_forking, int abs);  //mod by sim1
 
 /* Stores list of file names (active files taken from the view or the files) in
  * a special file for use by an external application.  Returns zero on success,

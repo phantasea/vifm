@@ -653,7 +653,7 @@ view_current_file(const view_t *view)
 {
 	char full_path[PATH_MAX + 1];
 	get_current_full_path(view, sizeof(full_path), full_path);
-	(void)vim_view_file(full_path, -1, -1, 1);
+	(void)vim_view_file(full_path, -1, -1, 1, 0);  //mod by sim1
 }
 
 /* Resolves link target and either navigates inside directory the link points to
@@ -1086,7 +1086,7 @@ static char *
 gen_term_multiplexer_title_arg(const char cmd[])
 {
 	int bg;
-	const char *const vicmd = cfg_get_vicmd(&bg);
+	const char *const vicmd = cfg_get_vicmd(&bg, 0);  //mod by sim1
 	const char *const visubcmd = strstr(cmd, vicmd);
 	char *command_name = NULL;
 	const char *title;
