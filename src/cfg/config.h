@@ -172,6 +172,8 @@ typedef struct config_t
 	int vi_cmd_bg;
 	char *vi_x_command;
 	int vi_x_cmd_bg;
+	char *vimabs_cmd;  //add by sim1
+	int vimabs_bg;     //add by sim1
 	int use_trash;
 
 	/* Whether support of terminal multiplexers is enabled. */

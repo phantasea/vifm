@@ -127,6 +127,8 @@ cfg_init(void)
 	cfg.vi_cmd_bg = 0;
 	cfg.vi_x_command = strdup("");
 	cfg.vi_x_cmd_bg = 0;
+	cfg.vimabs_cmd = strdup("vim");  //add by sim1
+	cfg.vimabs_bg = 0;               //add by sim1
 	cfg.use_trash = 1;
 	cfg.use_term_multiplexer = 0;
 	cfg.use_vim_help = 0;
@@ -871,20 +873,27 @@ show_sourcing_error(const char filename[], int line_num)
 const char *
 cfg_get_vicmd(int *bg, int abs)  //mod by sim1
 {
+	//add by sim1: add 'vimabs' option
+	if (abs)
+	{
+		*bg = cfg.vimabs_bg;
+		return cfg.vimabs_cmd;
+	}
+
 	if(curr_stats.exec_env_type != EET_EMULATOR_WITH_X)
 	{
 		*bg = cfg.vi_cmd_bg;
-		return abs ? "vim" : cfg.vi_command;    //mod by sim1
+		return cfg.vi_command;
 	}
 	else if(cfg.vi_x_command[0] != '\0')
 	{
 		*bg = cfg.vi_x_cmd_bg;
-		return abs ? "vim" : cfg.vi_x_command;  //mod by sim1
+		return cfg.vi_x_command;
 	}
 	else
 	{
 		*bg = cfg.vi_cmd_bg;
-		return abs ? "vim" : cfg.vi_command;    //mod by sim1
+		return cfg.vi_command;
 	}
 }
 

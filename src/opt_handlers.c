@@ -252,6 +252,7 @@ static void filenamedisplen_handler(OPT_OP op, optval_t val);
 static void filenamedispall_handler(OPT_OP op, optval_t val);
 static void redolastcmdcfm_handler(OPT_OP op, optval_t val);
 static void clipboardprg_handler(OPT_OP op, optval_t val);
+static void vimabs_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 static const char *sort_enum[] = {
@@ -771,6 +772,10 @@ options[] = {
 	{ "clipboardprg", "", "clipboard program",
 	  OPT_STR, 0, NULL, &clipboardprg_handler, NULL,
 	  { .ref.str_val = &cfg.clipboard_prg },
+	},
+	{ "vimabs", "", "command to invoke editor",
+	  OPT_STR, 0, NULL, &vimabs_handler, NULL,
+	  { .ref.str_val = &cfg.vimabs_cmd },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "previewoptions", "", "tweaks for how preview is done",
@@ -3888,6 +3893,13 @@ static void
 clipboardprg_handler(OPT_OP op, optval_t val)
 {
 	(void)replace_string(&cfg.clipboard_prg, val.str_val);
+}
+
+static void
+vimabs_handler(OPT_OP op, optval_t val)
+{
+	(void)replace_string(&cfg.vimabs_cmd, val.str_val);
+	cfg.vimabs_bg = cut_suffix(cfg.vimabs_cmd, "&");
 }
 //add by sim1 *******************************************************************************
 

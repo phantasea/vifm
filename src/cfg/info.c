@@ -2321,6 +2321,8 @@ store_global_options(JSON_Object *root)
 	append_dstr(options, format_str("undolevels=%d", cfg.undo_levels));
 	append_dstr(options, format_str("vicmd=%s%s", escape_spaces(cfg.vi_command),
 			cfg.vi_cmd_bg ? " &" : ""));
+	append_dstr(options, format_str("vimabs=%s%s", escape_spaces(cfg.vimabs_cmd),
+			cfg.vimabs_bg ? " &" : ""));  //add by sim1
 	append_dstr(options, format_str("vixcmd=%s%s",
 				escape_spaces(cfg.vi_x_command), cfg.vi_cmd_bg ? " &" : ""));
 	append_dstr(options, format_str("%swrapscan", cfg.wrap_scan ? "" : "no"));
