@@ -2240,6 +2240,9 @@ cmd_za(key_info_t key_info, keys_info_t *keys_info)
 	dot_filter_toggle(curr_view);
 }
 
+extern void filter_nonsymlinks(view_t *view);
+extern void filter_nondotfiles(view_t *view);
+extern void filter_nondirectory(view_t *view);
 //add by sim1 +++++++++++++++++++++++++++++++++++++
 static void
 cmd_zA(key_info_t key_info, keys_info_t *keys_info)
