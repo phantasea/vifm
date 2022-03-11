@@ -442,7 +442,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 						size += fentry_get_size(view, entry);
 					}
 
-					friendly_size_notation(size, sizeof(buf), buf, 0);
+					friendly_size_notation(size, sizeof(buf), buf, 1);  //mod by sim1
 				}
 				break;
 			case 'd':

@@ -1559,7 +1559,7 @@ format_size(void *data, size_t buf_len, char buf[], const format_info_t *info)
 	}
 
 	str[0] = '\0';
-	friendly_size_notation(size, sizeof(str), str, 1);
+	friendly_size_notation(size, sizeof(str), str, 1);  //mod by sim1
 	snprintf(buf, buf_len + 1, " %s", str);
 }
 
