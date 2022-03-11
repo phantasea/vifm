@@ -253,6 +253,7 @@ static void filenamedispall_handler(OPT_OP op, optval_t val);
 static void redolastcmdcfm_handler(OPT_OP op, optval_t val);
 static void clipboardprg_handler(OPT_OP op, optval_t val);
 static void vimabs_handler(OPT_OP op, optval_t val);
+static void keymapsilent_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 static const char *sort_enum[] = {
@@ -776,6 +777,10 @@ options[] = {
 	{ "vimabs", "", "command to invoke editor",
 	  OPT_STR, 0, NULL, &vimabs_handler, NULL,
 	  { .ref.str_val = &cfg.vimabs_cmd },
+	},
+	{ "keymapsilent", "kms", "all map with colon prefix are silent",
+	  OPT_BOOL, 0, NULL, &keymapsilent_handler, NULL,
+	  { .ref.bool_val = &cfg.key_map_silent },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "previewoptions", "", "tweaks for how preview is done",
@@ -3900,6 +3905,12 @@ vimabs_handler(OPT_OP op, optval_t val)
 {
 	(void)replace_string(&cfg.vimabs_cmd, val.str_val);
 	cfg.vimabs_bg = cut_suffix(cfg.vimabs_cmd, "&");
+}
+
+static void
+keymapsilent_handler(OPT_OP op, optval_t val)
+{
+	cfg.key_map_silent = val.bool_val;
 }
 //add by sim1 *******************************************************************************
 

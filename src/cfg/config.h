@@ -341,6 +341,7 @@ typedef struct config_t
 	int file_name_disp_len;  /* file name length in statusbar */
 	int file_name_disp_all;  /* file name with prefix&suffix */
 	int redo_last_cmd_cfm;   /* if confirm before redo last cmd */
+	int key_map_silent;      /* all map with colon are silent */
 	char *top_mid_filler;    /* top middle border filler */
 	char *clipboard_prg;     /* how to obtain the clipboard */
 	//add by sim1 **********************************************
