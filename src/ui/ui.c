@@ -1620,15 +1620,12 @@ format_entry_name(const dir_entry_t *entry, NameFormat fmt, size_t buf_len,
 	}
 
 	//add by sim1 for file name left ellipsis
-	if ((fmt >> 3) == 1)
+	if (((fmt >> 3) == 1) && !cfg.file_name_disp_all)
 	{
-		name = left_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis);
-
-		if (!cfg.file_name_disp_all)
-		{
-			snprintf(buf, buf_len, "%s", name);
-			return;
-		}
+		char *ellipsis = left_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis);
+		snprintf(buf, buf_len, "%s", ellipsis);
+		free(ellipsis);
+		return;
 	}
 	//add by sim1 ***************************
 
