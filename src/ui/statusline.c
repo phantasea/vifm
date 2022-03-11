@@ -367,23 +367,34 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				free(escaped);
 				break;
 			case 'T':
-				if(curr->type == FT_LINK)
 				{
-					char full_path[PATH_MAX + 1];
-					char link_path[PATH_MAX - 4];  //add by sim1
-					get_full_path_of(curr, sizeof(full_path), full_path);
-					//mod by sim1 ++++++++++++++++++++++++++++++++++
-					if(get_link_target(full_path, link_path, sizeof(link_path)) != 0)
+					//mod by sim1 for file name left ellipsis and showing symlink
+					char path[2*PATH_MAX + 5] = {0};
+					char name[PATH_MAX + 1] = {0};
+					format_entry_name(curr, NF_FULL | (1 << 3), sizeof(name), name);
+
+					if(curr->type == FT_LINK)
 					{
-						copy_str(buf, sizeof(buf), "Failed to resolve link");
+						char full_path[PATH_MAX + 1] = {0};
+						char link_path[PATH_MAX + 1] = {0};
+						get_full_path_of(curr, sizeof(full_path), full_path);
+						if(get_link_target(full_path, link_path, sizeof(link_path)) != 0)
+						{
+							copy_str(buf, sizeof(buf), "Failed to resolve symlink!");
+							break;
+						}
+						snprintf(path, sizeof(path), "%s -> %s", name, link_path);
 					}
 					else
 					{
-						snprintf(buf, sizeof(buf), " -> %s", link_path);
+						snprintf(path, sizeof(path), "%s", name);
 					}
-					//mod by sim1 ----------------------------------
+
+					char *ellipsis = left_ellipsis(path, cfg.file_name_disp_len, curr_stats.ellipsis);
+					snprintf(buf, sizeof(buf), "%s", ellipsis);
+					free(ellipsis);
+					break;
 				}
-				break;
 			case 'A':
 #ifndef _WIN32
 				get_perm_string(buf, sizeof(buf), curr->mode);
