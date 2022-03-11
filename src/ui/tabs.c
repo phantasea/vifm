@@ -63,7 +63,7 @@ typedef struct
 pane_tab_t;
 
 //add by sim1
-typedef struct
+typedef struct undo_tab_t
 {
 	char *name;
 	char  path[PATH_MAX + 1];

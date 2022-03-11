@@ -331,7 +331,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 		buf[0] = '\0';
 		switch(c)
 		{
-			char path[PATH_MAX + 1] = {0};
+			char path[PATH_MAX + 1];
 			char *escaped;
 
 			case 'a':
@@ -352,6 +352,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				break;
 			case 't':
 			case 'f':
+				memset(path, 0, sizeof(path));
 				if(c == 't')
 				{
 					//mod by sim1 for file name left ellipsis
@@ -369,7 +370,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				if(curr->type == FT_LINK)
 				{
 					char full_path[PATH_MAX + 1];
-					char link_path[PATH_MAX + 1];  //add by sim1
+					char link_path[PATH_MAX - 4];  //add by sim1
 					get_full_path_of(curr, sizeof(full_path), full_path);
 					//mod by sim1 ++++++++++++++++++++++++++++++++++
 					if(get_link_target(full_path, link_path, sizeof(link_path)) != 0)
@@ -402,6 +403,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 			//add by sim1 ************************************************
 			case 'r':
 				{
+					memset(path, 0, sizeof(path));
 					get_full_path_at(view, view->list_pos, sizeof(path), path);
 					(void)get_rating_string(buf, sizeof(buf), path);
 				}
