@@ -5076,7 +5076,7 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	keys = substitute_specs(args);
 	mapping = substitute_specs(rhs);
 	//add by sim1 +++++++++++++++
-	if ((wcschr(mapping, ':') != NULL) && cfg.key_map_silent)
+	if (wcschr(mapping, ':') != NULL)
 	{
 		flags |= KEYS_FLAG_SILENT;
 	}
