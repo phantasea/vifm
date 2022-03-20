@@ -425,6 +425,12 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					snprintf(buf, sizeof(buf), "%d", nitems);
 				}
 				break;
+			case 'H':
+				{
+					if (!view->hide_dot)
+						copy_str(buf, sizeof(buf), "[H]");
+				}
+				break;
 			//add by sim1 ************************************************
 			case 'E':
 				{

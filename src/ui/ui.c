@@ -172,7 +172,7 @@ static int is_in_miller_view(const view_t *view);
 static int is_forced_list_mode(const view_t *view);
 
 /* List of macros that are expanded in the ruler. */
-static const char RULER_MACROS[] = "-rxlLPS%[]";  //mod by sim1, add char r for rating stars
+static const char RULER_MACROS[] = "-HrxlLPS%[]";  //mod by sim1: add char Hr
 
 void
 ui_ruler_update(view_t *view, int lazy_redraw)
