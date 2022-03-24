@@ -54,6 +54,7 @@
 #include "engine/variables.h"
 #include "int/path_env.h"
 #include "int/vim.h"
+#include "lua/vlua.h"
 #include "modes/dialogs/attr_dialog.h"
 #include "modes/dialogs/change_dialog.h"
 #include "modes/dialogs/msg_dialog.h"
@@ -2189,7 +2190,7 @@ edit_cmd(const cmd_info_t *cmd_info)
 			vifm_choose_files(curr_view, cmd_info->argc, cmd_info->argv);
 		}
 
-		vim_edit_files(cmd_info->argc, cmd_info->argv);
+		(void)vim_edit_files(cmd_info->argc, cmd_info->argv);
 		return 0;
 	}
 
@@ -2208,17 +2209,16 @@ edit_cmd(const cmd_info_t *cmd_info)
 		}
 	}
 
-	/* Reuse marking second time (for vifm_choose_files() or
-	 * vim_edit_marking()). */
-	curr_view->pending_marking = 1;
-
 	if(stats_file_choose_action_set())
 	{
+		/* Reuse marking second time. */
+		curr_view->pending_marking = 1;
+
 		/* The call below does not return. */
 		vifm_choose_files(curr_view, 0, NULL);
 	}
 
-	if(vim_edit_marking() != 0)
+	if(vim_edit_marking(curr_view) != 0)
 	{
 		show_error_msg("Edit error", "Can't edit selection");
 	}
@@ -2650,9 +2650,23 @@ help_cmd(const cmd_info_t *cmd_info)
 	char cmd[PATH_MAX + 1];
 	int bg;
 
+	const char *vi_cmd = cfg_get_vicmd(&bg, 1);  //mod by sim1
+	const int use_handler = vlua_handler_cmd(curr_stats.vlua, vi_cmd);
+
 	if(cfg.use_vim_help)
 	{
 		const char *topic = (cmd_info->argc > 0) ? cmd_info->args : VIFM_VIM_HELP;
+
+		if(use_handler)
+		{
+			if(vlua_open_help(curr_stats.vlua, vi_cmd, topic) != 0)
+			{
+				show_error_msgf(":help", "Failed to display help for %s via handler",
+						topic);
+			}
+			return 0;
+		}
+
 		bg = vim_format_help_cmd(topic, cmd, sizeof(cmd));
 	}
 	else
@@ -2663,10 +2677,21 @@ help_cmd(const cmd_info_t *cmd_info)
 			return 1;
 		}
 
-		if(!path_exists_at(cfg.config_dir, VIFM_HELP, DEREF))
+		char help_file[PATH_MAX + 1];
+		build_path(help_file, sizeof(help_file), cfg.config_dir, VIFM_HELP);
+
+		if(use_handler)
 		{
-			show_error_msgf("No help file", "Can't find \"%s/" VIFM_HELP "\" file",
-					cfg.config_dir);
+			if(vlua_edit_one(curr_stats.vlua, vi_cmd, help_file, -1, -1, 0) != 0)
+			{
+				show_error_msg(":help", "Failed to open help file via handler");
+			}
+			return 0;
+		}
+
+		if(!path_exists(help_file, DEREF))
+		{
+			show_error_msgf("No help file", "Can't find \"%s\" file", help_file);
 			return 0;
 		}
 
