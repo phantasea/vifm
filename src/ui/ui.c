@@ -1609,18 +1609,6 @@ format_entry_name(const dir_entry_t *entry, NameFormat fmt, size_t buf_len,
 		return;
 	}
 
-	/*add by sim1: file name ellipsis *****************
-	if ((fmt == NF_LELLIPSIS) || (fmt == NF_RELLIPSIS))
-	{
-		char *ellipsis = (fmt == NF_LELLIPSIS)
-			             ?  left_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis)
-			             : right_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis);
-		snprintf(buf, buf_len, "%s", ellipsis);
-		free(ellipsis);
-		return;
-	}
-	//add by sim1 ************************************/
-
 	if(fmt == NF_ROOT)
 	{
 		int root_len;
