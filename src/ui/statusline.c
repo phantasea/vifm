@@ -390,7 +390,8 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 
 					if (cfg.file_name_disp_all)
 					{
-						snprintf(buf, sizeof(buf), "%s", path);
+						//snprintf(buf, sizeof(buf), "%s", path);
+						copy_str(buf, sizeof(buf), path);
 						break;
 					}
 
