@@ -189,7 +189,9 @@ typedef enum
 {
 	NF_NONE, /* No formatting at all. */
 	NF_ROOT, /* Exclude extension and decorate the rest. */
-	NF_FULL  /* Decorate the whole name. */
+	NF_FULL, /* Decorate the whole name. */
+	NF_LELLIPSIS, /* sim1:  left ellipsis the name without decoration */
+	NF_RELLIPSIS, /* sim1: right ellipsis the name without decoration */
 }
 NameFormat;
 

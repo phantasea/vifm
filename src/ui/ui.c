@@ -1609,6 +1609,18 @@ format_entry_name(const dir_entry_t *entry, NameFormat fmt, size_t buf_len,
 		return;
 	}
 
+	/*add by sim1: file name ellipsis *****************
+	if ((fmt == NF_LELLIPSIS) || (fmt == NF_RELLIPSIS))
+	{
+		char *ellipsis = (fmt == NF_LELLIPSIS)
+			             ?  left_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis)
+			             : right_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis);
+		snprintf(buf, buf_len, "%s", ellipsis);
+		free(ellipsis);
+		return;
+	}
+	//add by sim1 ************************************/
+
 	if(fmt == NF_ROOT)
 	{
 		int root_len;
@@ -1618,16 +1630,6 @@ format_entry_name(const dir_entry_t *entry, NameFormat fmt, size_t buf_len,
 		split_ext(tmp_buf, &root_len, &ext_pos);
 		name = tmp_buf;
 	}
-
-	//add by sim1 for file name left ellipsis
-	if (((fmt >> 3) == 1) && !cfg.file_name_disp_all)
-	{
-		char *ellipsis = left_ellipsis(name, cfg.file_name_disp_len, curr_stats.ellipsis);
-		snprintf(buf, buf_len, "%s", ellipsis);
-		free(ellipsis);
-		return;
-	}
-	//add by sim1 ***************************
 
 	ui_get_decors(entry, &prefix, &suffix);
 	snprintf(buf, buf_len, "%s%s%s", prefix,

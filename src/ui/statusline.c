@@ -352,11 +352,9 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				break;
 			case 't':
 			case 'f':
-				memset(path, 0, sizeof(path));
 				if(c == 't')
 				{
-					//mod by sim1 for file name left ellipsis
-					format_entry_name(curr, NF_FULL | (1 << 3), sizeof(path), path);
+					format_entry_name(curr, NF_FULL, sizeof(path), path);
 				}
 				else
 				{
@@ -371,7 +369,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					//mod by sim1 for file name left ellipsis and showing symlink
 					char path[2*PATH_MAX + 5] = {0};
 					char name[PATH_MAX + 1] = {0};
-					format_entry_name(curr, NF_FULL | (1 << 3), sizeof(name), name);
+					format_entry_name(curr, NF_NONE, sizeof(name), name);
 
 					if(curr->type == FT_LINK)
 					{
@@ -388,6 +386,12 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					else
 					{
 						snprintf(path, sizeof(path), "%s", name);
+					}
+
+					if (cfg.file_name_disp_all)
+					{
+						snprintf(buf, sizeof(buf), "%s", path);
+						break;
 					}
 
 					char *ellipsis = left_ellipsis(path, cfg.file_name_disp_len, curr_stats.ellipsis);
