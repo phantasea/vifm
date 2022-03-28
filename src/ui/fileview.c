@@ -1346,7 +1346,7 @@ prepare_col_color(const view_t *view, int primary, int line_nr,
 		cs_mix_colors(&col, &cs->color[ODD_LINE_COLOR]);
 	}
 
-	primary = 1;  //add by sim1 for taking whole line effect of highlight
+	//primary = 1;  //add by sim1 for taking whole line effect of highlight
 	if(cdt->line_pos != -1)
 	{
 		const int is_current = (cdt->line_pos == cdt->current_pos);
