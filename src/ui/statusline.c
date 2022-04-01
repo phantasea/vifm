@@ -364,6 +364,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				copy_str(buf, sizeof(buf), escaped);
 				free(escaped);
 				break;
+			//add by sim1: ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 			case 'T':
 				{
 					//mod by sim1 for file name left ellipsis and showing symlink
@@ -395,11 +396,17 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 						break;
 					}
 
-					char *ellipsis = left_ellipsis(path, cfg.file_name_disp_len, curr_stats.ellipsis);
+					int maxlen = cfg.columns - cfg.file_name_disp_len;
+					if (maxlen < 4) {
+						maxlen = 4;
+					}
+
+					char *ellipsis = left_ellipsis(path, maxlen, curr_stats.ellipsis);
 					snprintf(buf, sizeof(buf), "%s", ellipsis);
 					free(ellipsis);
 					break;
 				}
+			//add by sim1: --------------------------------------------------------
 			case 'A':
 #ifndef _WIN32
 				get_perm_string(buf, sizeof(buf), curr->mode);
