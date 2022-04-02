@@ -285,10 +285,9 @@ static void store_file(const char path[], filemon_t *mon, int vinfo);
 static void get_session_dir(char buf[], size_t buf_size);
 
 //add by sim1 ********************************************************
-//static void write_rating_info(FILE *const fp);
+//static void str_rot_encrypt(char *str);
+//static void str_rot_decrypt(char *str);
 static rating_entry_t *rating_list = NULL;
-static void str_rot_encrypt(char *str);
-static void str_rot_decrypt(char *str);
 static rating_entry_t * create_rating_info(int star, char path[]);
 static void update_rating_star(rating_entry_t *entry, int star);
 static void update_rating_info(int star, char path[]);
@@ -646,19 +645,18 @@ read_legacy_info_file(const char info_file[])
 				set_str(info, "auto", line_val + 1);
 			}
 		}
-		//add by sim1
+		//add by sim1 ++++++++++++++++++++++++++++++++
 		else if(type == LINE_TYPE_STAR_RATING)
 		{
 			char *path;
 			int star = strtol(line_val, &path, 10);
-			str_rot_decrypt(path);
-			//update_rating_info(star, path);
+			//str_rot_decrypt(path);
 
 			JSON_Object *entry = append_object(ratings);
 			set_int(entry, "star", star);
 			set_str(entry, "path", path);
 		}
-		//add by sim1 --- END
+		//add by sim1 --------------------------------
 	}
 
 	free(line);
@@ -2596,7 +2594,7 @@ store_rating_info(JSON_Object *root)
 		//if ((entry->star > 0) && (path_exists(entry->path, NODEREF)))
 		if (entry->star > 0)  //don't care if file exists
 		{
-			str_rot_encrypt(entry->path);
+			//str_rot_encrypt(entry->path);
 
 			JSON_Object *obj = append_object(ratings);
 			set_int(obj, "star", entry->star);
@@ -2629,7 +2627,7 @@ load_rating_info(JSON_Object *root)
 		if(get_int(obj, "star", &star) &&
 				get_str(obj, "path", (const char **)&path))
 		{
-			str_rot_decrypt(path);
+			//str_rot_decrypt(path);
 			update_rating_info(star, path);
 		}
 	}
@@ -2934,6 +2932,7 @@ append_dstr(JSON_Array *array, char value[])
 }
 
 //add by sim1 ***************************************************
+/******************************************
 static void
 str_rot_encrypt(char *str)
 {
@@ -2965,50 +2964,13 @@ str_rot_decrypt(char *str)
 
 	return;
 }
+******************************************/
 
-rating_entry_t * get_rating_list()
+rating_entry_t *
+get_rating_list()
 {
 	return rating_list;
 }
-
-/*******************************************
-static void
-write_rating_info(FILE *const fp)
-{
-	if (NULL == fp)
-	{
-		return;
-	}
-
-	fprintf(fp, "\n# Star ratings:\n");
-
-	rating_entry_t *entry = rating_list;
-	while (entry != NULL)
-	{
-		rating_entry_t *temp = entry->next;
-
-		if (entry->star > 0)
-		{
-			if (path_exists(entry->path, NODEREF))
-			{
-				str_rot_encrypt(entry->path);
-				fprintf(fp, "*%d%s\n", entry->star, entry->path);
-			}
-		}
-
-		if (entry->path != NULL)
-		{
-			free(entry->path);
-		}
-
-		free(entry);
-
-		entry = temp;
-	}
-
-	return;
-}
-*******************************************/
 
 static rating_entry_t *
 create_rating_info(int star, char path[])
