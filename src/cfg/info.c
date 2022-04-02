@@ -651,7 +651,7 @@ read_legacy_info_file(const char info_file[])
 		{
 			char *path;
 			int star = strtol(line_val, &path, 10);
-			//str_rot_decrypt(path);
+			str_rot_decrypt(path);
 			//update_rating_info(star, path);
 
 			JSON_Object *entry = append_object(ratings);
@@ -2596,7 +2596,7 @@ store_rating_info(JSON_Object *root)
 		//if ((entry->star > 0) && (path_exists(entry->path, NODEREF)))
 		if (entry->star > 0)  //don't care if file exists
 		{
-			//str_rot_encrypt(entry->path);
+			str_rot_encrypt(entry->path);
 
 			JSON_Object *obj = append_object(ratings);
 			set_int(obj, "star", entry->star);
@@ -2629,7 +2629,7 @@ load_rating_info(JSON_Object *root)
 		if(get_int(obj, "star", &star) &&
 				get_str(obj, "path", (const char **)&path))
 		{
-			//str_rot_decrypt(path);
+			str_rot_decrypt(path);
 			update_rating_info(star, path);
 		}
 	}
