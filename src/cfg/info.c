@@ -285,8 +285,9 @@ static void store_file(const char path[], filemon_t *mon, int vinfo);
 static void get_session_dir(char buf[], size_t buf_size);
 
 //add by sim1 ********************************************************
-//static void str_rot_encrypt(char *str);
-//static void str_rot_decrypt(char *str);
+#define CRYPT_ROT_SHIFT 13
+static void str_rot_encrypt(char *str);
+static void str_rot_decrypt(char *str);
 static rating_entry_t *rating_list = NULL;
 static rating_entry_t * create_rating_info(int star, char path[]);
 static void update_rating_star(rating_entry_t *entry, int star);
@@ -650,7 +651,7 @@ read_legacy_info_file(const char info_file[])
 		{
 			char *path;
 			int star = strtol(line_val, &path, 10);
-			//str_rot_decrypt(path);
+			str_rot_decrypt(path);
 
 			JSON_Object *entry = append_object(ratings);
 			set_int(entry, "star", star);
@@ -2594,7 +2595,7 @@ store_rating_info(JSON_Object *root)
 		//if ((entry->star > 0) && (path_exists(entry->path, NODEREF)))
 		if (entry->star > 0)  //don't care if file exists
 		{
-			//str_rot_encrypt(entry->path);
+			str_rot_encrypt(entry->path);
 
 			JSON_Object *obj = append_object(ratings);
 			set_int(obj, "star", entry->star);
@@ -2627,7 +2628,7 @@ load_rating_info(JSON_Object *root)
 		if(get_int(obj, "star", &star) &&
 				get_str(obj, "path", (const char **)&path))
 		{
-			//str_rot_decrypt(path);
+			str_rot_decrypt(path);
 			update_rating_info(star, path);
 		}
 	}
@@ -2932,7 +2933,6 @@ append_dstr(JSON_Array *array, char value[])
 }
 
 //add by sim1 ***************************************************
-/******************************************
 static void
 str_rot_encrypt(char *str)
 {
@@ -2943,7 +2943,7 @@ str_rot_encrypt(char *str)
 
 	for (int idx=0; idx < strlen(str); idx++)
 	{
-		str[idx] = str[idx] + 13;
+		str[idx] = str[idx] + CRYPT_ROT_SHIFT;
 	}
 
 	return;
@@ -2959,12 +2959,11 @@ str_rot_decrypt(char *str)
 
 	for (int idx=0; idx < strlen(str); idx++)
 	{
-		str[idx] = str[idx] - 13;
+		str[idx] = str[idx] - CRYPT_ROT_SHIFT;
 	}
 
 	return;
 }
-******************************************/
 
 rating_entry_t *
 get_rating_list()
