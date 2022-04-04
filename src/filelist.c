@@ -3489,7 +3489,22 @@ fentry_get_size(const view_t *view, const dir_entry_t *entry)
 	return (size == DCACHE_UNKNOWN ? entry->size : size);
 }
 
-//add by sim1
+//add by sim1 ++++++++++++++++++++++++++++++++++++++++++++++
+extern int has_rating_stars(const char path[]);
+int
+fentry_is_nonratings(const dir_entry_t *entry)
+{
+	char full_path[PATH_MAX] = {0};
+
+	get_full_path_of(entry, sizeof(full_path), full_path);
+	if (has_rating_stars(full_path))
+	{
+		return 0;
+	}
+
+	return 1;
+}
+
 int
 fentry_is_nonsymlink(const dir_entry_t *entry)
 {
@@ -3532,6 +3547,12 @@ fentry_is_nondotfile(const dir_entry_t *entry)
 }
 
 int
+iter_nonratings_entries(view_t *view, dir_entry_t **entry)
+{
+	return iter_entries(view, entry, &fentry_is_nonratings);
+}
+
+int
 iter_nonsymlink_entries(view_t *view, dir_entry_t **entry)
 {
 	return iter_entries(view, entry, &fentry_is_nonsymlink);
@@ -3554,7 +3575,7 @@ iter_nondotfile_entries(view_t *view, dir_entry_t **entry)
 {
 	return iter_entries(view, entry, &fentry_is_nondotfile);
 }
-//add by sim1 --- END
+//add by sim1 ----------------------------------------------
 
 int
 iter_selected_entries(view_t *view, dir_entry_t **entry)

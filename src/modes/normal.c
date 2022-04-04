@@ -220,6 +220,7 @@ static void free_list_of_file_indexes(keys_info_t *keys_info);
 static void cmd_zM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zO(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zR(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_zS(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_zX(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_za(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zA(key_info_t key_info, keys_info_t *keys_info);
@@ -427,6 +428,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_z WK_M,        {{&cmd_zM}, .descr = "restore all filters"}},
 	{WK_z WK_O,        {{&cmd_zO}, .descr = "reset permanent filter"}},
 	{WK_z WK_R,        {{&cmd_zR}, .descr = "save and reset all filters"}},
+	{WK_z WK_S,        {{&cmd_zS}, .descr = "show only rating files"}},  //add by sim1
 	{WK_z WK_a,        {{&cmd_za}, .descr = "toggle dot files visibility"}},
 	{WK_z WK_d,        {{&cmd_zd}, .descr = "hide all directorys"}},  //mod by sim1
 	{WK_z WK_b,        {{&modnorm_zb}, .descr = "push cursor to the bottom"}},
@@ -2243,6 +2245,7 @@ cmd_za(key_info_t key_info, keys_info_t *keys_info)
 extern void filter_nonsymlinks(view_t *view);
 extern void filter_nondotfiles(view_t *view);
 extern void filter_nondirectory(view_t *view);
+extern void filter_nonratings(view_t *view);
 //add by sim1 +++++++++++++++++++++++++++++++++++++
 static void
 cmd_zA(key_info_t key_info, keys_info_t *keys_info)
@@ -2254,6 +2257,12 @@ static void
 cmd_zl(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_nonsymlinks(curr_view);
+}
+
+static void
+cmd_zS(key_info_t key_info, keys_info_t *keys_info)
+{
+	filter_nonratings(curr_view);
 }
 //add by sim1 -------------------------------------
 

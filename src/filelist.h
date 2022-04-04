@@ -205,6 +205,7 @@ int iter_directory_entries(view_t *view, dir_entry_t **entry);
 int iter_nondirectory_entries(view_t *view, dir_entry_t **entry);
 int iter_nondotfile_entries(view_t *view, dir_entry_t **entry);
 int iter_nonsymlink_entries(view_t *view, dir_entry_t **entry);
+int iter_nonratings_entries(view_t *view, dir_entry_t **entry);
 //add by sim1 -------
 
 /* Same as iter_selected_entries() function, but checks for marks. */

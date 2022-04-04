@@ -3169,6 +3169,17 @@ copy_rating_info(const char src[], const char dst[], int op)
 
   return;
 }
+
+int
+has_rating_stars(const char path[])
+{
+	if (!search_rating_info(path))
+	{
+		return 0;
+	}
+
+	return 1;
+}
 //add by sim1 ***************************************************
 
 void
