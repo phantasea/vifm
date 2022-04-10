@@ -3651,8 +3651,18 @@ static int
 mkdir_cmd(const cmd_info_t *cmd_info)
 {
 	const int at = get_at(curr_view, cmd_info);
-	return fops_mkdirs(curr_view, at, cmd_info->argv, cmd_info->argc,
-			cmd_info->emark) != 0;
+	int ret = fops_mkdirs(curr_view, at, cmd_info->argv, cmd_info->argc, cmd_info->emark) != 0;
+
+	//add by sim1
+	if (!ret && cfg.cd_after_mkdir && cmd_info->argc == 1)
+	{
+		char full[PATH_MAX + 1];
+		const char *const curr_dir = flist_get_dir(curr_view);
+		to_canonic_path(cmd_info->argv[0], curr_dir, full, sizeof(full));
+		(void)cd(curr_view, curr_dir, full);
+	}
+
+	return ret;
 }
 
 static int

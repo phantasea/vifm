@@ -240,6 +240,7 @@ cfg_init(void)
 	cfg.redo_last_cmd_cfm = 0;
 	cfg.top_mid_filler = strdup(" ");
 	cfg.clipboard_prg = strdup("");
+	cfg.cd_after_mkdir = 0;
 	//add by sim1 *******************
 
 	cfg.sizefmt.base = 1024;

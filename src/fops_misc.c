@@ -1070,7 +1070,7 @@ fops_mkdirs(view_t *view, int at, char **names, int count, int create_parent)
 
 	ui_sb_msgf("%d director%s created%s", n, (n == 1) ? "y" : "ies",
 			fops_get_cancellation_suffix());
-	return 1;
+	return 0;  //mod by sim1
 }
 
 int
