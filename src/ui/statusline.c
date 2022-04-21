@@ -443,6 +443,13 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 						copy_str(buf, sizeof(buf), "[H]");
 				}
 				break;
+			case 'F':
+				{
+					char *filter_raw = curr_view->local_filter.filter.raw;
+					if (filter_raw != NULL && filter_raw[0] != '\0')
+						copy_str(buf, sizeof(buf), filter_raw);
+				}
+				break;
 			//add by sim1 ************************************************
 			case 'E':
 				{
