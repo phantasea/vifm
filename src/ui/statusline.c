@@ -445,9 +445,18 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				break;
 			case 'F':
 				{
-					char *filter_raw = curr_view->local_filter.filter.raw;
-					if (filter_raw != NULL && filter_raw[0] != '\0')
-						copy_str(buf, sizeof(buf), filter_raw);
+					filter_t filter = curr_view->local_filter.filter;
+					if (filter.filter_directorys == TRUE) {
+						copy_str(buf, sizeof(buf), "files");
+					} else if (filter.filter_nondirectory == TRUE) {
+						copy_str(buf, sizeof(buf), "dirs");
+					} else if (filter.filter_nonsymlinks == TRUE) {
+						copy_str(buf, sizeof(buf), "symlinks");
+					} else if (filter.filter_nonratings == TRUE) {
+						copy_str(buf, sizeof(buf), "ratings");
+					} else if (filter.raw != NULL && filter.raw[0] != '\0') {
+						copy_str(buf, sizeof(buf), filter.raw);
+					}
 				}
 				break;
 			//add by sim1 ************************************************

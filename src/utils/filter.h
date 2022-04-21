@@ -29,6 +29,12 @@ typedef struct
 	/* Raw regexp for filtering, not NULL after initialization. */
 	char *raw;
 
+	/* add by sim1: showing filter indicator in ruler */
+	int filter_directorys;
+	int filter_nondirectory;
+	int filter_nonsymlinks;
+	int filter_nonratings;
+
 	/* Whether raw regexp was successfully compiled. */
 	int is_regex_valid;
 

@@ -2257,12 +2257,14 @@ static void
 cmd_zl(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_nonsymlinks(curr_view);
+	curr_view->local_filter.filter.filter_nonsymlinks = TRUE;  //add by sim1
 }
 
 static void
 cmd_zS(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_nonratings(curr_view);
+	curr_view->local_filter.filter.filter_nonratings = TRUE;  //add by sim1
 }
 //add by sim1 -------------------------------------
 
@@ -2271,12 +2273,14 @@ static void
 cmd_zD(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_nondirectory(curr_view);
+	curr_view->local_filter.filter.filter_nondirectory = TRUE;  //add by sim1
 }
 
 static void
 cmd_zd(key_info_t key_info, keys_info_t *keys_info)
 {
 	filter_directorys(curr_view);
+	curr_view->local_filter.filter.filter_directorys = TRUE;  //add by sim1
 }
 
 static void
@@ -2365,6 +2369,12 @@ cmd_zR(key_info_t key_info, keys_info_t *keys_info)
 	name_filters_remove(curr_view);
 	local_filter_remove(curr_view);
 	//dot_filter_set(curr_view, 1);  //del by sim1
+
+	//add by sim1
+	curr_view->local_filter.filter.filter_directorys   = FALSE;
+	curr_view->local_filter.filter.filter_nondirectory = FALSE;
+	curr_view->local_filter.filter.filter_nonsymlinks  = FALSE;
+	curr_view->local_filter.filter.filter_nonratings   = FALSE;
 }
 //mod by sim1 -------------------------------------
 

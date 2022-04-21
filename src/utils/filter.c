@@ -46,6 +46,12 @@ filter_init(filter_t *filter, int case_sensitive)
 		return 1;
 	}
 
+	//add by sim1
+	filter->filter_directorys   = 0;
+	filter->filter_nondirectory = 0;
+	filter->filter_nonsymlinks  = 0;
+	filter->filter_nonratings   = 0;
+
 	filter->is_regex_valid = 0;
 
 	filter->cflags = REG_EXTENDED;
