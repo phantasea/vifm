@@ -3136,7 +3136,8 @@ get_rating_string(char buf[], int buf_len, char path[])
 			}
 		}
 
-		snprintf(buf, buf_len, "%s", rating);
+		snprintf(buf, buf_len, "%*s%s",
+				(cfg.max_rating_stars - stars), "", rating);
 		return stars;
 }
 
