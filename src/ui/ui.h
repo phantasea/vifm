@@ -139,7 +139,7 @@ typedef struct rating_entry_t
 } rating_entry_t;
 
 int get_rating_stars(char path[]);
-int get_rating_string(char buf[], int len, char path[]);
+int get_rating_string(char buf[], int len, char path[], int format);
 void update_rating_info_selected(int star_num);
 void copy_rating_info(const char src[], const char dst[], int op);
 //add by sim1 --- END

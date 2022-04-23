@@ -3112,12 +3112,17 @@ get_rating_stars(char path[])
 }
 
 int
-get_rating_string(char buf[], int buf_len, char path[])
+get_rating_string(char buf[], int buf_len, char path[], int format)
 {
 		int i, stars;
 		char rating[64] = {0};
 
     stars = get_rating_stars(path);
+		if (stars <= 0)
+		{
+			return 0;
+		}
+
 		if (stars > cfg.max_rating_stars)
 		{
 			stars = cfg.max_rating_stars;
@@ -3136,8 +3141,15 @@ get_rating_string(char buf[], int buf_len, char path[])
 			}
 		}
 
-		snprintf(buf, buf_len, "%*s%s",
-				(cfg.max_rating_stars - stars), "", rating);
+		if (format)
+		{
+			snprintf(buf, buf_len, "%*s%s", (cfg.max_rating_stars - stars), "", rating);
+		}
+		else
+		{
+			snprintf(buf, buf_len, "%s", rating);
+		}
+
 		return stars;
 }
 

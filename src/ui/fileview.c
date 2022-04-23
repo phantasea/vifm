@@ -1755,7 +1755,7 @@ format_rating(void *data, size_t buf_len, char buf[], const format_info_t *info)
 
   char path[PATH_MAX] = {0};
 	get_full_path_at(view, pos, sizeof(path), path);
-	int stars = get_rating_string(buf, buf_len, path);
+	int stars = get_rating_string(buf, buf_len, path, 1);
 	if (stars <= 0)
 	{
 		format_size(data, buf_len, buf, info);

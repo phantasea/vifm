@@ -428,7 +428,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				{
 					memset(path, 0, sizeof(path));
 					get_full_path_at(view, view->list_pos, sizeof(path), path);
-					(void)get_rating_string(buf, sizeof(buf), path);
+					(void)get_rating_string(buf, sizeof(buf), path, 0);
 				}
 				break;
 			case 'n':
