@@ -2354,7 +2354,6 @@ store_global_options(JSON_Object *root)
 	append_dstr(options, format_str("maxundotabs=%d", cfg.max_undo_tabs));
 	append_dstr(options, format_str("previewmaxsize=%d", cfg.preview_max_size));
 	append_dstr(options, format_str("topmidfiller=%s", cfg.top_mid_filler));
-	append_dstr(options, format_str("maxratingstars=%d", cfg.max_rating_stars));
 	append_dstr(options, format_str("filenamedisplen=%d", cfg.file_name_disp_len));
 	append_dstr(options, format_str("%sfilenamedispall", cfg.file_name_disp_all ? "" : "no"));
 	append_dstr(options, format_str("%sredolastcmdcfm", cfg.redo_last_cmd_cfm ? "" : "no"));
@@ -3038,9 +3037,9 @@ update_rating_star(rating_entry_t *entry, int star)
 	}
 
 	entry->star += star;
-	if (entry->star > cfg.max_rating_stars)
+	if (entry->star > 7)
 	{
-		entry->star = cfg.max_rating_stars;
+		entry->star = 7;
 	}
 	else if (entry->star < 0)
 	{
@@ -3053,11 +3052,6 @@ update_rating_star(rating_entry_t *entry, int star)
 static void
 update_rating_info(int star, char path[])
 {
-	if (cfg.max_rating_stars == 0)
-	{
-		return;
-	}
-
 	if (NULL == path)
 	{
 		return;
@@ -3079,11 +3073,6 @@ update_rating_info_selected(int star)
 {
 	char path[PATH_MAX] = {0};
 	dir_entry_t *entry = NULL;
-
-	if (cfg.max_rating_stars == 0)
-	{
-		return;
-	}
 
 	while (iter_marked_entries(curr_view, &entry))
 	{
@@ -3123,9 +3112,9 @@ get_rating_string(char buf[], int buf_len, char path[], int format)
 			return 0;
 		}
 
-		if (stars > cfg.max_rating_stars)
+		if (stars > 7)
 		{
-			stars = cfg.max_rating_stars;
+			stars = 7;
 		}
 
 		const char *display = local_getenv("DISPLAY");
@@ -3143,7 +3132,7 @@ get_rating_string(char buf[], int buf_len, char path[], int format)
 
 		if (format)
 		{
-			snprintf(buf, buf_len, "%*s%s", (cfg.max_rating_stars - stars), "", rating);
+			snprintf(buf, buf_len, "%*s%s", (7 - stars), "", rating);
 		}
 		else
 		{

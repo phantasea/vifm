@@ -234,7 +234,6 @@ cfg_init(void)
 	cfg.prefer_vsplit = 0;
 	cfg.max_undo_tabs = 0;
 	cfg.preview_max_size = 0;
-	cfg.max_rating_stars = 9;
 	cfg.file_name_disp_len = 64;
 	cfg.file_name_disp_all = 1;
 	cfg.redo_last_cmd_cfm = 0;

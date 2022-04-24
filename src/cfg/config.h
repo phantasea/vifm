@@ -337,7 +337,6 @@ typedef struct config_t
 	int prefer_vsplit;       /* whether prefer vsplit */
 	int max_undo_tabs;       /* max number for undo tabs */
 	int preview_max_size;    /* max file size(kB) for preview */
-	int max_rating_stars;    /* max number for rating stars */
 	int file_name_disp_len;  /* file name length in statusbar */
 	int file_name_disp_all;  /* file name with prefix&suffix */
 	int redo_last_cmd_cfm;   /* if confirm before redo last cmd */
