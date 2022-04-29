@@ -69,7 +69,6 @@ enum
 	MENU_COLOR,         /* Menu highlight. */                   //add by sim1
 	DIALOG_COLOR,       /* Dialog highlight. */                 //add by sim1
 	TOP_MID_COLOR,      /* TopMid filler highlight. */          //add by sim1
-	LINE_NUM_SEL_COLOR, /* Current line number highlight. */    //add by sim1
 	LINE_NUM_SEP_COLOR, /* Line number separator highlight. */  //add by sim1
 	MISMATCH_COLOR,     /* File entries that don't match each other in diff. */
 	AUX_WIN_COLOR,      /* Auxiliary part of window. */
