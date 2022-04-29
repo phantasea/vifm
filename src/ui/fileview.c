@@ -1222,7 +1222,7 @@ draw_line_number(const column_data_t *cdt, int column)
 
 	const int mixed = cdt->line_pos == cdt->current_pos
 	               && view->num_type == NT_MIX;
-	const char *const format = mixed ? "%-*d " : "%*d ";  //sim1: no mod, just comment
+	const char *const format = mixed ? "%-*d" : "%*d";  //mod by sim1: line number without space
 	const int num = (view->num_type & NT_REL) && !mixed
 	              ? abs(cdt->line_pos - cdt->current_pos)
 	              : cdt->line_pos + 1;
@@ -1233,6 +1233,9 @@ draw_line_number(const column_data_t *cdt, int column)
 	checked_wmove(view->win, cdt->current_line, column);
 	cchar_t cch = prepare_col_color(view, 0, 1, cdt);
 	wprinta(view->win, num_str, &cch, 0);
+	//add by sim1: line number has diff color with the space separator
+	cch = prepare_col_color(view, 0, -1, cdt);
+	wprinta(view->win, " ", &cch, 0);
 }
 
 /* Adjusts search match offsets for the entry (assumed to be a search hit) to
@@ -1370,6 +1373,18 @@ prepare_col_color(const view_t *view, int primary, int line_nr,
 			{
 				cs_mix_colors(&col, &cs->color[color]);
 			}
+
+			//add by sim1 ++++++++++++++++++++++++++++++++++++++++
+			if (line_nr == 1)
+			{
+				cs_mix_colors(&col, &cs->color[LINE_NUM_COLOR]);
+			}
+
+			if (line_nr == -1)
+			{
+				cs_mix_colors(&col, &cs->color[LINE_NUM_SEP_COLOR]);
+			}
+			//add by sim1 ----------------------------------------
 		}
 		else if(line_nr)
 		{
