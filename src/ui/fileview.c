@@ -1364,6 +1364,23 @@ prepare_col_color(const view_t *view, int primary, int line_nr,
 		{
 			int color = (view == curr_view || !cdt->is_main) ? CURR_LINE_COLOR
 			                                                 : OTHER_LINE_COLOR;
+
+			//add by sim1 ++++++++++++++++++++++++++++++++++++++++++
+			if (line_nr)
+			{
+				if (line_nr == -1)
+				{
+					cs_mix_colors(&col, &cs->color[LINE_NUM_SEP_COLOR]);
+				}
+				else
+				{
+					cs_mix_colors(&col, &cs->color[LINE_NUM_SEL_COLOR]);
+				}
+
+				return cs_color_to_cchar(&col, -1);
+			}
+			//add by sim1 ------------------------------------------
+
 			/* Avoid combining attributes for non-primary column. */
 			if(!primary)
 			{
@@ -1373,18 +1390,6 @@ prepare_col_color(const view_t *view, int primary, int line_nr,
 			{
 				cs_mix_colors(&col, &cs->color[color]);
 			}
-
-			//add by sim1 ++++++++++++++++++++++++++++++++++++++++
-			if (line_nr == 1)
-			{
-				cs_mix_colors(&col, &cs->color[LINE_NUM_COLOR]);
-			}
-
-			if (line_nr == -1)
-			{
-				cs_mix_colors(&col, &cs->color[LINE_NUM_SEP_COLOR]);
-			}
-			//add by sim1 ----------------------------------------
 		}
 		else if(line_nr)
 		{
