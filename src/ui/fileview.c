@@ -577,9 +577,7 @@ calculate_number_width(const view_t *view, int list_length, int width)
 {
 	if(ui_view_displays_numbers(view))
 	{
-		const int min = view->num_width;
-
-		//mod by sim1: relativenumber width DIY
+		//mod by sim1: line number DIY
 		int digit_count = 0;
 		if (view->num_type == NT_REL) {
 			digit_count = count_digits(list_length - 1);
@@ -587,9 +585,14 @@ calculate_number_width(const view_t *view, int list_length, int width)
 				digit_count = 2;
 			}
 		} else {
+			if (view->num_type == NT_MIX) {
+				list_length = fpos_get_bottom_pos(view) + 1;
+			}
+
 			digit_count = count_digits(list_length);
 		}
 
+		const int min = view->num_width;
 		return MIN(MAX(1 + digit_count, min), width);
 	}
 
