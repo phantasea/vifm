@@ -444,7 +444,7 @@ op_removesl(ops_t *ops, void *data, const char src[], const char dst[])
 			}
 
 			//add by sim1
-			if (0 == !ok)
+			if (success)
 			{
 				copy_rating_info(src, dst, 0);
 			}
@@ -528,7 +528,7 @@ op_cp(ops_t *ops, void *data, const char src[], const char dst[],
 		OpsResult result = run_operation_command(ops, cmd, cancellable);
 
 		//add by sim1
-		if (0 == result)
+		if (OPS_SUCCEEDED == result)
 		{
 			copy_rating_info(src, dst, 2);
 		}
@@ -586,8 +586,8 @@ op_cp(ops_t *ops, void *data, const char src[], const char dst[],
 	};
 
 	//mod by sim1
-  int retval = exec_io_op(ops, &ior_cp, &args, data == NULL);
-	if (0 == retval)
+  OpsResult retval = exec_io_op(ops, &ior_cp, &args, data == NULL);
+	if (OPS_SUCCEEDED == retval)
 	{
 		copy_rating_info(src, dst, 2);
 	}
@@ -956,8 +956,8 @@ op_rmdir(ops_t *ops, void *data, const char src[], const char dst[])
 		LOG_INFO_MSG("Running rmdir command: \"%s\"", cmd);
 
 		//mod by sim1
-		int ret = run_operation_command(ops, cmd, 1);
-		if (0 == ret)
+		OpsResult ret = run_operation_command(ops, cmd, 1);
+		if (OPS_SUCCEEDED == ret)
 		{
 			copy_rating_info(src, dst, 0);
 		}
@@ -968,7 +968,7 @@ op_rmdir(ops_t *ops, void *data, const char src[], const char dst[])
 		const BOOL success = RemoveDirectoryW(utf16_path);
 
 		//mod by sim1
-		if (r != FALSE)
+		if (success)
 		{
 			copy_rating_info(src, dst, 0);
 		}
@@ -983,8 +983,8 @@ op_rmdir(ops_t *ops, void *data, const char src[], const char dst[])
 	};
 	
 	//mod by sim1
-  int retval = exec_io_op(ops, &iop_rmdir, &args, 0);
-	if (0 == retval)
+  OpsResult retval = exec_io_op(ops, &iop_rmdir, &args, 0);
+	if (OPS_SUCCEEDED == retval)
 	{
 		copy_rating_info(src, dst, 0);
 	}
