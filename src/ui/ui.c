@@ -859,6 +859,8 @@ adjust_splitter(int screen_w, int screen_h)
 static void
 clear_border(WINDOW *border)
 {
+	int i, j, height, width;
+
 	werase(border);
 
 	getmaxyx(border, height, width);
@@ -871,9 +873,9 @@ clear_border(WINDOW *border)
 		}
 
 		//mod by sim1: draw vborder filler smartly
-		for(int i = 0; i< width; ++i)
+		for(i = 0; i< width; ++i)
 		{
-			for(int j = 0; j < height; ++j)
+			for(j = 0; j < height; ++j)
 			{
 				mvwaddstr(border, j, i, cfg.vborder_filler);
 			}
@@ -1832,7 +1834,7 @@ ui_views_update_titles(void)
 //add by sim1 ***********************
 void print_top_mid_filler(void)
 {
-	if (!middle_border_is_visible())
+	if (!middle_border_is_visible() || (curr_stats.split != VSPLIT))
 	{
 		return;
 	}
