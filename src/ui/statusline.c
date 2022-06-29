@@ -71,7 +71,7 @@ static const char * format_job_bar(void);
 static char ** take_job_descr_snapshot(void);
 
 /* List of macros that are expanded in the status line. */
-static const char STATUS_LINE_MACROS[] = "nrtTfacAugsEdD-xlLPSz%[]{*";  //mod by sim1: adding nr
+static const char STATUS_LINE_MACROS[] = "nrtTfacAugsEdD-xlLoPSz%[]{*";  //mod by sim1: adding nr
 
 /* Number of background jobs. */
 static size_t nbar_jobs;
@@ -412,6 +412,11 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				get_perm_string(buf, sizeof(buf), curr->mode);
 #else
 				copy_str(buf, sizeof(buf), attr_str_long(curr->attrs));
+#endif
+				break;
+			case 'o':
+#ifndef _WIN32
+				snprintf(buf, sizeof(buf), "%03o", curr->mode & 0777);
 #endif
 				break;
 			case 'u':

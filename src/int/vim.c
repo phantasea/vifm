@@ -204,7 +204,7 @@ vim_view_file(const char filename[], int line, int column, int allow_forking, in
 #ifndef _WIN32
 	escaped = shell_like_escape(filename, 0);
 #else
-	escaped = (char *)enclose_in_dquotes(filename);
+	escaped = (char *)enclose_in_dquotes(filename, curr_stats.shell_type);
 #endif
 
 	//mod by sim1 for using vimux util
