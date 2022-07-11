@@ -1365,10 +1365,26 @@ prepare_col_color(const view_t *view, int primary, int line_nr,
 
 		if(is_current)
 		{
+			/******************************************************************
 			int color = (view == curr_view || !cdt->is_main) ? CURR_LINE_COLOR
 			                                                 : OTHER_LINE_COLOR;
+			******************************************************************/
 
 			//add by sim1 ++++++++++++++++++++++++++++++++++++++++
+			int color = 0;
+			if (view == curr_view)
+			{
+				color = CURR_LINE_COLOR;
+			}
+			else if (!cdt->is_main)
+			{
+				color = AUX_CURR_LINE_COLOR;
+			}
+			else
+			{
+				color = OTHER_LINE_COLOR;
+			}
+
 			if (line_nr == -1)
 			{
 				cs_mix_colors(&col, &cs->color[LINE_NUM_SEP_COLOR]);
