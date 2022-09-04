@@ -508,13 +508,14 @@ escape_for_squotes(const char string[], size_t offset)
 {
 	/* TODO: maybe combine code with escape_for_dquotes(). */
 
-	size_t len;
-	char *escaped, *out;
+	size_t len = strlen(string);
 
-	len = strlen(string);
-
-	escaped = malloc(len*2 + 1);
-	out = escaped;
+	char *escaped = malloc(len*2 + 1);
+	char *out = escaped;
+	if(escaped == NULL)
+	{
+		return NULL;
+	}
 
 	/* Copy prefix not escaping it. */
 	offset = MIN(len, offset);
@@ -540,13 +541,14 @@ escape_for_dquotes(const char string[], size_t offset)
 {
 	/* TODO: maybe combine code with escape_for_squotes(). */
 
-	size_t len;
-	char *escaped, *out;
+	size_t len = strlen(string);
 
-	len = strlen(string);
-
-	escaped = malloc(len*2 + 1);
-	out = escaped;
+	char *escaped = malloc(len*2 + 1);
+	char *out = escaped;
+	if(escaped == NULL)
+	{
+		return NULL;
+	}
 
 	/* Copy prefix not escaping it. */
 	offset = MIN(len, offset);
@@ -581,7 +583,12 @@ char *
 escape_unreadable(const char str[])
 {
 	int str_len = strlen(str);
+
 	char *escaped = malloc(str_len*2 + 1);
+	if(escaped == NULL)
+	{
+		return NULL;
+	}
 
 	char *out = escaped;
 	while(str_len > 0)

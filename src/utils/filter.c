@@ -159,7 +159,12 @@ static int
 append_to_filter(filter_t *filter, const char value[])
 {
 	size_t len = strlen(filter->raw);
+
 	char *const escaped_value = escape_name_for_filter(value);
+	if(escaped_value == NULL)
+	{
+		return 1;
+	}
 
 	if(len != 0)
 	{
@@ -220,6 +225,10 @@ escape_name_for_filter(const char string[])
 	len = strlen(string);
 
 	dup = ret = malloc(len*2 + 2 + 1);
+	if(dup == NULL)
+	{
+		return NULL;
+	}
 
 	while(*string != '\0')
 	{
