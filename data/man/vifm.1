@@ -1,4 +1,4 @@
-.TH VIFM 1 "September 05, 2022" "vifm 0.12.1-beta"
+.TH VIFM 1 "16 October 2022" "vifm 0.12.1"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -596,10 +596,11 @@ only for MS-Windows
 same as l key, but tries to run program with administrative privileges.
 .TP
 .BI av
-go to visual mode into selection amending state preserving current selection.
+go into visual mode for updating current selection, any existing selection
+is preserved.
 .TP
 .BI gv
-go to visual mode restoring last selection.
+go into visual mode restoring last selection.
 .TP
 .BI [reg]gs
 if register is present, then all files listed in that register that are
@@ -1728,8 +1729,15 @@ equals
 .TP
 .BI "                                         :compare"
 .TP
-.BI ":compare [byname | bysize | bycontents | listall | listunique | listdups |\
- ofboth | ofone | groupids | grouppaths | skipempty]..."
+.BI ":compare [byname | bysize | bycontents |"
+.BI "   listall | listunique | listdups |"
+.br
+.BI "   ofboth | ofone |"
+.br
+.BI "   groupids | grouppaths |"
+.br
+.BI "   skipempty | withicase | withrcase]..."
+.br
 compare files in one or two views according to the arguments.  The default
 is "bycontents listall ofboth grouppaths".  See "Compare views" section below
 for details.  Diff structure is incompatible with alternative representations,
@@ -6444,8 +6452,15 @@ displaying identically named files as mismatches).
 Which files to omit:
  \- skipempty \- ignore empty files.
 
+Comparison tweaks:
+ \- withicase \- ignore case when comparing file names/paths;
+ \- withrcase \- respect case when comparing file names/paths.
+
 Each argument can appear multiple times, the rightmost one of the group is
 considered.  Arguments alter default behaviour instead of substituting it.
+
+When neither "withicase" nor "withrcase" is specified, case depends on the
+running operating system and the file system on which the files are located.
 
 .B Examples
 

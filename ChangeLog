@@ -1,3 +1,52 @@
+0.12.1 to current
+
+	Changed implementation of `:compare grouppaths` to juxtapose only files
+	with identical relative paths.  Patch by Alexandr Keyp (a.k.a. IAmKapuze).
+
+	Added "withicase" and "withrcase" to :compare that force ignoring and
+	respecting case respectively on comparing file names and paths.  Thanks to
+	Jose Riha (a.k.a. jose1711).
+
+	Reduced amount of memory consumed by `:compare groupids`.
+
+	Made `:compare bycontents` not bother reading content of files which have
+	unique size.
+
+	Fixed segfault on trying to use pipe from Lua after its parent VifmJob
+	object was garbage-collected.  Thanks to PRESFIL.
+
+0.12.1-beta to 0.12.1 (2022-09-21)
+
+	Added shell completion for fish shell.  Patch by Hoang Nguyen (a.k.a.
+	FollieHiyuki).
+
+	Permit directories with trailing slashes supplied by external commands in
+	`:[un]select !cmd`.  Patch by filterfalse.
+
+	Fixed prefix mappings being left after removing a key (e.g., "a" remaining
+	after mapping and unmapping "ab").  Patch by filterfalse.
+
+	Fixed infinite loop on restoring visual selection after changing the order
+	of files to the opposite (`:invert o`).  Patch by filterfalse.
+
+	Fixed 'sort' and 'sortorder' string representations not being updated
+	after `:invert o`.  Patch by filterfalse.
+
+	Fixed memory leak on using 'cdpath'.
+
+	Fixed NULL pointer dereference on parsing desktop files, if no MIME
+	type recognizers are available.  Patch by filterfalse.
+
+	Fixed "load" subcommand of :plugin not being completed.
+
+	Fixed <silent> not being highlighted after :cnoremap and :cmap.
+
+	Fixed parts of graphics being left on entering menu mode.
+
+	Fixed %i without " &" preventing some applications from running by closing
+	their standard output and error.  Thanks to Daniel J. Perry (a.k.a.
+	BioBox).
+
 0.12 to 0.12.1-beta (2022-09-05)
 
 	Changed conflict dialog to offer "Merge all" option even for files if

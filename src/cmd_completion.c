@@ -534,6 +534,9 @@ complete_compare(const char str[])
 		{ "grouppaths", "group files in two panes by paths" },
 
 		{ "skipempty",  "exclude empty files from comparison" },
+
+		{ "withicase",  "force ignoring case on comparing names" },
+		{ "withrcase",  "force respecting case on comparing names" },
 	};
 
 	complete_from_string_list(str, lines, ARRAY_LEN(lines), 0);
@@ -745,6 +748,7 @@ complete_plugin(const char str[], char *argv[], int arg_num)
 	if(arg_num == 0 || arg_num == 1)
 	{
 		static const char *subcommands[][2] = {
+			{ "load",      "load plugins if they weren't loaded yet" },
 			{ "blacklist", "avoid loading this plugin" },
 			{ "whitelist", "ignore all but this and other whitelisted plugins" },
 		};

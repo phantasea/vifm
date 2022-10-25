@@ -21,6 +21,7 @@
 #include <stdlib.h> /* free() */
 #include <string.h> /* strdup() */
 
+#include "../int/file_magic.h"
 #include "../ui/ui.h"
 #include "../utils/fs.h"
 #include "../filelist.h"
@@ -39,9 +40,11 @@ vifm_entry_t;
 
 static int VLUA_API(vifmentry_gc)(lua_State *lua);
 static int VLUA_API(vifmentry_gettarget)(lua_State *lua);
+static int VLUA_API(vifmentry_mimetype)(lua_State *lua);
 
 VLUA_DECLARE_SAFE(vifmentry_gc);
 VLUA_DECLARE_SAFE(vifmentry_gettarget);
+VLUA_DECLARE_SAFE(vifmentry_mimetype);
 
 /* Methods of VifmEntry type. */
 static const luaL_Reg vifmentry_methods[] = {
@@ -78,6 +81,8 @@ vifmentry_new(lua_State *lua, const dir_entry_t *entry)
 	lua_setfield(lua, -2, "ctime");
 	lua_pushstring(lua, get_type_str(entry->type));
 	lua_setfield(lua, -2, "type");
+	lua_pushboolean(lua, fentry_is_dir(entry));
+	lua_setfield(lua, -2, "isdir");
 
 	int match = (entry->search_match != 0);
 	lua_pushboolean(lua, match);
@@ -108,6 +113,10 @@ vifmentry_new(lua_State *lua, const dir_entry_t *entry)
 
 	lua_pushcclosure(lua, VLUA_REF(vifmentry_gettarget), 1);
 	lua_setfield(lua, -2, "gettarget");
+
+	lua_pushlightuserdata(lua, vifm_entry);
+	lua_pushcclosure(lua, VLUA_REF(vifmentry_mimetype), 1);
+	lua_setfield(lua, -2, "mimetype");
 
 	char full_path[PATH_MAX + 1];
 	get_full_path_of(entry, sizeof(full_path), full_path);
@@ -143,6 +152,25 @@ VLUA_API(vifmentry_gettarget)(lua_State *lua)
 	}
 
 	lua_pushstring(lua, link_to);
+	return 1;
+}
+
+/* Gets a MIME type. */
+static int
+VLUA_API(vifmentry_mimetype)(lua_State *lua)
+{
+	vifm_entry_t *vifm_entry = lua_touserdata(lua, lua_upvalueindex(1));
+
+	const char *mimetype = get_mimetype(vifm_entry->full_path,
+			/*resolve_symlinks=*/1);
+
+	if(mimetype == NULL)
+	{
+		lua_pushnil(lua);
+		return 1;
+	}
+
+	lua_pushstring(lua, mimetype);
 	return 1;
 }
 

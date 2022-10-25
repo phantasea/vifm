@@ -2,6 +2,7 @@
 
 Provides the following user-defined view column types:
  * NameLink -- Name column that shows target of symbolic links
+ * MimeType -- column that shows MIME type of an entry
  * LsSize   -- ls-like size column (at most 4 characters in width)
  * LsTime   -- ls-like (also MC-like) time where time is shown if year matches
                current, otherwise year is displayed instead of time
@@ -9,6 +10,8 @@ Provides the following user-defined view column types:
  * AgeAtime -- relative age based on the atime stat (11 characters in width)
  * AgeCtime -- relative age based on the ctime stat (11 characters in width)
  * AgeMtime -- relative age based on the mtime stat (11 characters in width)
+
+ * FileMtime -- modification time for files only
 
 Usage example:
 
@@ -32,6 +35,12 @@ local function nameLink(info)
         text = text,
         matchstart = offset + e.matchstart,
         matchend = offset + e.matchend
+    }
+end
+
+local function mimeType(info)
+    return {
+        text = '<' .. (info.entry:mimetype() or 'UNAVAILABLE') .. '>'
     }
 end
 
@@ -76,6 +85,14 @@ local function mcSize(info)
     end
 end
 
+local function fileMtime(info)
+    local text = ''
+    if not info.entry.isdir then
+        text = os.date(vifm.opts.global.timefmt, info.entry.mtime)
+    end
+    return { text = text }
+end
+
 local secsPerYear<const> = 365*24*60*60
 local function lsTime(info)
     local time = info.entry.mtime
@@ -94,6 +111,14 @@ local added = vifm.addcolumntype {
 }
 if not added then
     vifm.sb.error("Failed to add NameLink view column")
+end
+
+local added = vifm.addcolumntype {
+    name = 'MimeType',
+    handler = mimeType
+}
+if not added then
+    vifm.sb.error("Failed to add MimeType view column")
 end
 
 local added = vifm.addcolumntype {
@@ -118,6 +143,14 @@ local added = vifm.addcolumntype {
 }
 if not added then
     vifm.sb.error("Failed to add MCSize view column")
+end
+
+local added = vifm.addcolumntype {
+    name = 'FileMtime',
+    handler = fileMtime
+}
+if not added then
+    vifm.sb.error("Failed to add FileMtime view column")
 end
 
 local time_units = {

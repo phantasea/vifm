@@ -2559,7 +2559,7 @@ ui_qv_width(const view_t *view)
 void
 ui_qv_cleanup_if_needed(void)
 {
-	if(curr_stats.preview.on && curr_stats.preview.cleanup_cmd != NULL)
+	if(curr_stats.preview.on && curr_stats.preview.kind != VK_TEXTUAL)
 	{
 		qv_cleanup(other_view, curr_stats.preview.cleanup_cmd);
 	}
@@ -2568,10 +2568,7 @@ ui_qv_cleanup_if_needed(void)
 void
 ui_hide_graphics(void)
 {
-	if(curr_stats.preview.on && curr_stats.preview.kind != VK_TEXTUAL)
-	{
-		qv_cleanup(other_view, curr_stats.preview.cleanup_cmd);
-	}
+	ui_qv_cleanup_if_needed();
 	modview_hide_graphics();
 }
 

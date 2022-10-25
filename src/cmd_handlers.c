@@ -154,7 +154,7 @@ static int command_cmd(const cmd_info_t *cmd_info);
 static int compare_cmd(const cmd_info_t *cmd_info);
 static int copen_cmd(const cmd_info_t *cmd_info);
 static int parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
-		ListType *lt, int *single_pane, int *group_ids, int *skip_empty);
+		ListType *lt, int *single_pane, int *flags);
 static int cunmap_cmd(const cmd_info_t *cmd_info);
 static int delete_cmd(const cmd_info_t *cmd_info);
 static int delmarks_cmd(const cmd_info_t *cmd_info);
@@ -2051,16 +2051,15 @@ compare_cmd(const cmd_info_t *cmd_info)
 {
 	CompareType ct = CT_CONTENTS;
 	ListType lt = LT_ALL;
-	int single_pane = 0, group_ids = 0, skip_empty = 0;
-	if(parse_compare_properties(cmd_info, &ct, &lt, &single_pane,
-				&group_ids, &skip_empty) != 0)
+	int single_pane = 0, flags = CF_GROUP_PATHS;
+	if(parse_compare_properties(cmd_info, &ct, &lt, &single_pane, &flags) != 0)
 	{
 		return CMDS_ERR_CUSTOM;
 	}
 
 	return single_pane
-	     ? (compare_one_pane(curr_view, ct, lt, skip_empty) != 0)
-	     : (compare_two_panes(ct, lt, !group_ids, skip_empty) != 0);
+	     ? (compare_one_pane(curr_view, ct, lt, flags) != 0)
+	     : (compare_two_panes(ct, lt, flags) != 0);
 }
 
 /* Opens menu with contents of the last displayed menu with navigation to files
@@ -2076,7 +2075,7 @@ copen_cmd(const cmd_info_t *cmd_info)
  * error message is displayed on the status bar. */
 static int
 parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
-		ListType *lt, int *single_pane, int *group_ids, int *skip_empty)
+		ListType *lt, int *single_pane, int *flags)
 {
 	int i;
 	for(i = 0; i < cmd_info->argc; ++i)
@@ -2090,9 +2089,19 @@ parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
 		else if(strcmp(property, "listdups") == 0)   *lt = LT_DUPS;
 		else if(strcmp(property, "ofboth") == 0)     *single_pane = 0;
 		else if(strcmp(property, "ofone") == 0)      *single_pane = 1;
-		else if(strcmp(property, "groupids") == 0)   *group_ids = 1;
-		else if(strcmp(property, "grouppaths") == 0) *group_ids = 0;
-		else if(strcmp(property, "skipempty") == 0)  *skip_empty = 1;
+		else if(strcmp(property, "groupids") == 0)   *flags &= ~CF_GROUP_PATHS;
+		else if(strcmp(property, "grouppaths") == 0) *flags |= CF_GROUP_PATHS;
+		else if(strcmp(property, "skipempty") == 0)  *flags |= CF_SKIP_EMPTY;
+		else if(strcmp(property, "withicase") == 0)
+		{
+			*flags &= ~CF_RESPECT_CASE;
+			*flags |= CF_IGNORE_CASE;
+		}
+		else if(strcmp(property, "withrcase") == 0)
+		{
+			*flags &= ~CF_IGNORE_CASE;
+			*flags |= CF_RESPECT_CASE;
+		}
 		else
 		{
 			ui_sb_errf("Unknown comparison property: %s", property);
@@ -3404,6 +3413,7 @@ invert_state(char state_type)
 	{
 		invert_sorting_order(curr_view);
 		resort_dir_list(1, curr_view);
+		load_sort_option(curr_view);
 		redraw_view(curr_view);
 	}
 	else
