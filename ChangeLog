@@ -7,6 +7,9 @@
 	respecting case respectively on comparing file names and paths.  Thanks to
 	Jose Riha (a.k.a. jose1711).
 
+	Added printing stats while in :compare mode.  Patch by Alexandr
+	Keyp (a.k.a. IAmKapuze).
+
 	Reduced amount of memory consumed by `:compare groupids`.
 
 	Made `:compare bycontents` not bother reading content of files which have
@@ -14,6 +17,8 @@
 
 	Fixed segfault on trying to use pipe from Lua after its parent VifmJob
 	object was garbage-collected.  Thanks to PRESFIL.
+
+	Fixed check for broken symlinks in :edit command.
 
 0.12.1-beta to 0.12.1 (2022-09-21)
 

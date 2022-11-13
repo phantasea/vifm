@@ -49,12 +49,14 @@
 #include "api.h"
 #include "common.h"
 #include "vifm_cmds.h"
+#include "vifm_events.h"
 #include "vifm_handlers.h"
 #include "vifm_keys.h"
 #include "vifm_tabs.h"
 #include "vifm_viewcolumns.h"
 #include "vifmjob.h"
 #include "vifmview.h"
+#include "vlua_cbacks.h"
 #include "vlua_state.h"
 
 static void patch_env(lua_State *lua);
@@ -132,18 +134,27 @@ static const struct luaL_Reg sb_methods[] = {
 	{ NULL,     NULL               }
 };
 
+/* Address of this variable serves as a key in Lua table. */
+static char plugin_envs;
+
 vlua_t *
 vlua_init(void)
 {
 	vlua_t *vlua = vlua_state_alloc();
-	if(vlua != NULL)
+	if(vlua == NULL)
 	{
-		patch_env(vlua->lua);
-		load_api(vlua->lua);
-
-		vifm_viewcolumns_init(vlua);
-		vifm_handlers_init(vlua);
+		return NULL;
 	}
+
+	patch_env(vlua->lua);
+	load_api(vlua->lua);
+
+	vlua_cbacks_init(vlua);
+	vifm_viewcolumns_init(vlua);
+	vifm_handlers_init(vlua);
+
+	vlua_state_make_table(vlua, &plugin_envs);
+
 	return vlua;
 }
 
@@ -202,6 +213,10 @@ load_api(lua_State *lua)
 	/* Setup vifm.cmds. */
 	vifm_cmds_init(lua);
 	lua_setfield(lua, -2, "cmds");
+
+	/* Setup vifm.events. */
+	vifm_events_init(lua);
+	lua_setfield(lua, -2, "events");
 
 	/* Setup vifm.keys. */
 	vifm_keys_init(lua);
@@ -604,6 +619,13 @@ setup_plugin_env(lua_State *lua, plug_t *plug)
 	lua_pushcclosure(lua, VLUA_REF(print), 1);
 	lua_setfield(lua, -2, "print");
 
+	/* Map plug to plugin environment for future queries. */
+	vlua_state_get_table(get_state(lua), &plugin_envs);
+	lua_pushlightuserdata(lua, plug);
+	lua_pushvalue(lua, -3);
+	lua_settable(lua, -3);
+	lua_pop(lua, 1);
+
 	if(lua_setupvalue(lua, -2, 1) == NULL)
 	{
 		lua_pop(lua, 1);
@@ -636,7 +658,7 @@ VLUA_API(vifm_plugin_require)(lua_State *lua)
 	plug_t *plug = lua_touserdata(lua, lua_upvalueindex(1));
 	if(plug == NULL)
 	{
-		assert(false && "vifm.plugin.require() called outside a plugin?");
+		assert(0 && "vifm.plugin.require() called outside a plugin?");
 		return 0;
 	}
 
@@ -648,7 +670,21 @@ VLUA_API(vifm_plugin_require)(lua_State *lua)
 				mod_name);
 	}
 
-	luaL_requiref(lua, full_path, VLUA_IREF(require_plugin_module), 1);
+	/* luaL_requiref() equivalent that passes plug to require_plugin_module(). */
+	luaL_getsubtable(lua, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+	lua_getfield(lua, -1, full_path);
+	if(!lua_toboolean(lua, -1))
+	{
+		lua_pop(lua, 1);
+		lua_pushlightuserdata(lua, plug);
+		lua_pushcclosure(lua, VLUA_IREF(require_plugin_module), 1);
+		lua_pushstring(lua, full_path);
+		lua_call(lua, 1, 1);
+		lua_pushvalue(lua, -1);
+		lua_setfield(lua, -3, full_path);
+	}
+	lua_remove(lua, -2);
+
 	return 1;
 }
 
@@ -657,7 +693,32 @@ static int
 VLUA_IMPL(require_plugin_module)(lua_State *lua)
 {
 	const char *mod = luaL_checkstring(lua, 1);
-	if(luaL_loadfile(lua, mod) != LUA_OK || lua_pcall(lua, 0, 1, 0) != LUA_OK)
+	if(luaL_loadfile(lua, mod) != LUA_OK)
+	{
+		const char *error = lua_tostring(lua, -1);
+		return luaL_error(lua, "vifm.plugin.require('%s'): %s", mod, error);
+	}
+
+	/* Fetch custom environment of the current plugin. */
+	plug_t *plug = lua_touserdata(lua, lua_upvalueindex(1));
+	assert(plug != NULL && "Invalid call to require_plugin_module()");
+	vlua_state_get_table(get_state(lua), &plugin_envs);
+	lua_pushlightuserdata(lua, plug);
+	if(lua_gettable(lua, -2) != LUA_TTABLE)
+	{
+		return luaL_error(lua,
+				"vifm.plugin.require('%s'): failed to fetch plugin env", mod);
+	}
+	lua_remove(lua, -2);
+
+	/* Use that environment for the newly loaded module. */
+	if(lua_setupvalue(lua, -2, 1) == NULL)
+	{
+		return luaL_error(lua,
+				"vifm.plugin.require('%s'): failed to copy plugin env", mod);
+	}
+
+	if(lua_pcall(lua, 0, 1, 0) != LUA_OK)
 	{
 		const char *error = lua_tostring(lua, -1);
 		return luaL_error(lua, "vifm.plugin.require('%s'): %s", mod, error);
@@ -724,7 +785,8 @@ vlua_open_file(vlua_t *vlua, const char prog[], const dir_entry_t *entry)
 }
 
 char *
-vlua_make_status_line(vlua_t *vlua, const char format[], view_t *view, int width)
+vlua_make_status_line(vlua_t *vlua, const char format[], view_t *view,
+		int width)
 {
 	return vifm_handlers_make_status_line(vlua, format, view, width);
 }
@@ -754,6 +816,18 @@ vlua_edit_list(vlua_t *vlua, const char handler[], char *entries[],
 {
 	return vifm_handlers_edit_list(vlua, handler, entries, nentries, current,
 			quickfix_format);
+}
+
+void
+vlua_process_callbacks(vlua_t *vlua)
+{
+	vlua_cbacks_process(vlua);
+}
+
+void
+vlua_events_app_exit(vlua_t *vlua)
+{
+	vifm_events_app_exit(vlua);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
