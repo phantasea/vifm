@@ -175,6 +175,15 @@ typedef enum
 }
 CompareType;
 
+/* Type of files to list after a comparison. */
+typedef enum
+{
+	LT_ALL,    /* All files. */
+	LT_DUPS,   /* Files that have at least 1 dup on other side or in this view. */
+	LT_UNIQUE, /* Files unique to this view or within this view. */
+}
+ListType;
+
 /* Type of scheduled view update event. */
 typedef enum
 {
@@ -282,6 +291,7 @@ struct cv_data_t
 
 	/* Additional data for CV_DIFF type. */
 	CompareType diff_cmp_type;  /* Type of comparison. */
+	ListType diff_list_type;    /* Type of results. */
 	int diff_cmp_flags;         /* Flags used to build the diff. */
 	compare_stats_t diff_stats; /* List of comparison results */
 
@@ -765,6 +775,9 @@ int ui_view_unsorted(const view_t *view);
 /* Shuts down UI making it possible to use terminal (either after vifm is closed
  * or when terminal might be used by another application that vifm runs). */
 void ui_shutdown(void);
+
+/* Enables/disables mouse support. */
+void ui_set_mouse_active(int active);
 
 /* Temporarily shuts down UI until a key is pressed. */
 void ui_pause(void);

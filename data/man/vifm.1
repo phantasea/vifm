@@ -1,4 +1,4 @@
-.TH VIFM 1 "9 November 2022" "vifm 0.12.1"
+.TH VIFM 1 "20 November 2022" "vifm 0.12.1"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -1736,12 +1736,21 @@ equals
 .br
 .BI "   groupids | grouppaths |"
 .br
-.BI "   skipempty | withicase | withrcase]..."
+.BI "   skipempty | withicase | withrcase |"
+.br
+.BI "   showidentical | showdifferent | showuniqueleft | showuniqueright]..."
 .br
 compare files in one or two views according to the arguments.  The default
-is "bycontents listall ofboth grouppaths".  See "Compare views" section below
+is "bycontents listall ofboth grouppaths showidentical showdifferent
+showuniqueleft showuniqueright".  See "Compare views" section below
 for details.  Diff structure is incompatible with alternative representations,
 so values of 'lsview' and 'millerview' options are ignored.
+.TP
+.BI ":compare! (showidentical | showdifferent | showuniqueleft |"
+.BI "    showuniqueright)..."
+this invocation form works only when compare view is active and results in
+redoing of the previous :compare with toggled state of the passed in
+options.
 .TP
 .BI "                                         :copen"
 .TP
@@ -4449,6 +4458,19 @@ made by external applications, monitoring background jobs, redrawing UI).  There
 are no strict guarantees, however the higher this value is, the less is CPU load
 in idle mode.
 .TP
+.BI "'mouse'"
+type: charset
+.br
+default: ""
+.br
+
+Contains a sequence of single-character flags:
+ - a - all supported modes (a shorthand for all the rest and future additions)
+ - c - command-line mode
+ - m - menu mode
+ - n - normal mode
+ - v - visual mode
+.TP
 .BI "'number' 'nu'"
 type: boolean
 .br
@@ -6426,7 +6448,7 @@ grouping to preserve as all file ids are guaranteed to be distinct.
 
 .B Creation
 
-Arguments passed to :compare form four categories each with its own
+Arguments passed to :compare form seven categories each with its own
 prefix and is responsible for particular property of operation.
 
 Which files to compare:
@@ -6457,6 +6479,12 @@ Comparison tweaks:
  \- withicase \- ignore case when comparing file names/paths;
  \- withrcase \- respect case when comparing file names/paths.
 
+Which results to show (has no effect for single pane comparison):
+ \- showidentical   \- toggle showing of identical files;
+ \- showdifferent   \- toggle showing of different files;
+ \- showuniqueleft  \- toggle showing of unique top/left files;
+ \- showuniqueright \- toggle showing of unique bottom/right files.
+
 Each argument can appear multiple times, the rightmost one of the group is
 considered.  Arguments alter default behaviour instead of substituting it.
 
@@ -6472,6 +6500,7 @@ files in two trees with grouping by paths, so the following are equivalent:
   :compare
   :compare bycontents grouppaths
   :compare bycontents listall ofboth grouppaths
+  :compare showidentical showdifferent showuniqueleft showuniqueright
 .EE
 
 Another use case is to find duplicates in the current sub-tree:
@@ -7158,6 +7187,65 @@ vertical split.
 
 You can cancel renaming by removing all non-comments from the buffer.  This
 also erases information about previous edits.
+.\" ---------------------------------------------------------------------------
+.SH Using mouse
+.\" ---------------------------------------------------------------------------
+Note: <ScrollWheelDown> is not available on 32-bit *nix systems, because
+ncurses doesn't support it there (limitation of implementation).
+
+Note: these are not available in mappings at the momemnt.
+
+.B "Normal Mode"
+
+  event             position  change  action
+                     cursor   window
+  <LeftMouse>         yes      yes    <cr> if cursor wasn't move
+  <LeftRelease>        no      yes
+  <MiddleMouse>        no      yes    <c-e>
+  <MiddleRelease>      no      yes
+  <RightMouse>        yes      yes    :file
+  <RightRelease>       no      yes
+  <ScrollWheelUp>      no      yes    <c-y>
+  <ScrollWheelDown>    no      yes    <c-e>
+
+.B "Visual Mode"
+
+  event             position  selection  action
+                     cursor
+  <LeftMouse>         yes      update    <cr> if cursor wasn't move
+  <LeftRelease>        no
+  <MiddleMouse>        no      update    <c-e>
+  <MiddleRelease>      no
+  <RightMouse>         no
+  <RightRelease>       no
+  <ScrollWheelUp>      no      update    <c-y>
+  <ScrollWheelDown>    no      update    <c-e>
+
+.B "Command-line Mode"
+
+  event             position  action
+                     cursor
+  <LeftMouse>         yes
+  <LeftRelease>        no
+  <MiddleMouse>        no     <c-n>
+  <MiddleRelease>      no
+  <RightMouse>         no
+  <RightRelease>       no
+  <ScrollWheelUp>      no     <c-p>
+  <ScrollWheelDown>    no     <c-n>
+
+.B "Menu Mode"
+
+  event             position  action
+                     cursor
+  <LeftMouse>         yes     <cr> if cursor wasn't moved
+  <LeftRelease>        no
+  <MiddleMouse>        no     <c-e>
+  <MiddleRelease>      no
+  <RightMouse>         no
+  <RightRelease>       no
+  <ScrollWheelUp>      no     <c-y>
+  <ScrollWheelDown>    no     <c-e>
 .\" ---------------------------------------------------------------------------
 .SH Plugin
 .\" ---------------------------------------------------------------------------

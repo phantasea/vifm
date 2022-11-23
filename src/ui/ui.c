@@ -61,6 +61,7 @@
 #include "../utils/string_array.h"
 #include "../utils/utf8.h"
 #include "../utils/utils.h"
+#include "../compare.h"
 #include "../event_loop.h"
 #include "../filelist.h"
 #include "../flist_sel.h"
@@ -373,6 +374,25 @@ move_pair(int from, int to)
 		{
 			rwin.cs.pair[i] = to;
 		}
+	}
+}
+
+void
+ui_set_mouse_active(int active)
+{
+	if(vifm_testing())
+	{
+		return;
+	}
+
+	if(active)
+	{
+		mousemask(ALL_MOUSE_EVENTS, /*oldmask=*/NULL);
+		mouseinterval(0);
+	}
+	else
+	{
+		mousemask(/*newmask=*/0, /*oldmask=*/NULL);
 	}
 }
 
@@ -1551,6 +1571,14 @@ ui_swap_view_data(view_t *left, view_t *right)
 	t = right->custom.diff_stats.unique_left;
 	right->custom.diff_stats.unique_left = right->custom.diff_stats.unique_right;
 	right->custom.diff_stats.unique_right = t;
+
+	const int unique_lr = (CF_SHOW_UNIQUE_LEFT | CF_SHOW_UNIQUE_RIGHT);
+	if((left->custom.diff_cmp_flags & unique_lr) == CF_SHOW_UNIQUE_LEFT ||
+			(left->custom.diff_cmp_flags & unique_lr) == CF_SHOW_UNIQUE_RIGHT)
+	{
+		left->custom.diff_cmp_flags ^= unique_lr;
+		right->custom.diff_cmp_flags ^= unique_lr;
+	}
 
 	tmp_view = *left;
 	*left = *right;
