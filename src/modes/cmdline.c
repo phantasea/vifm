@@ -2801,7 +2801,7 @@ static char *
 escaped_arg_hook(const char match[])
 {
 #ifndef _WIN32
-	return shell_like_escape(match, 1);
+	return posix_like_escape(match, /*type=*/1);
 #else
 	return strdup(escape_for_cd(match));
 #endif
