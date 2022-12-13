@@ -710,7 +710,7 @@ cmd_emarkemark(key_info_t key_info, keys_info_t *keys_info)
 	}
 
 	cmds_vars_set_count(key_info.count);
-	modcline_enter(CLS_COMMAND, prefix, NULL);
+	modcline_enter(CLS_COMMAND, prefix);
 }
 
 /* Processes !<selector> normal mode command.  Processes results of applying
@@ -1556,7 +1556,7 @@ cmd_percent(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_equal(key_info_t key_info, keys_info_t *keys_info)
 {
-	modcline_enter(CLS_FILTER, curr_view->local_filter.filter.raw, NULL);
+	modcline_enter(CLS_FILTER, curr_view->local_filter.filter.raw);
 }
 
 /* Continues navigation to word which starts with specified character in
@@ -1578,7 +1578,7 @@ cmd_dot(key_info_t key_info, keys_info_t *keys_info)
 	//add by sim1: whether confirm before redo last change
 	if (cfg.redo_last_cmd_cfm)
 	{
-		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command, NULL);
+		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command);
 		return;
 	}
 
@@ -1608,7 +1608,7 @@ cmd_colon(key_info_t key_info, keys_info_t *keys_info)
 	}
 
 	cmds_vars_set_count(key_info.count);
-	modcline_enter(CLS_COMMAND, prefix, NULL);
+	modcline_enter(CLS_COMMAND, prefix);
 }
 
 /* Continues navigation to word which starts with specified character in initial
@@ -2083,7 +2083,7 @@ activate_search(int count, int back, int external)
 	else
 	{
 		const CmdLineSubmode submode = back ? CLS_BSEARCH : CLS_FSEARCH;
-		modcline_enter(submode, "", NULL);
+		modcline_enter(submode, "");
 	}
 }
 

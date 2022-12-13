@@ -482,7 +482,7 @@ static void
 cmd_ctrl_l(key_info_t key_info, keys_info_t *keys_info)
 {
 	update_screen(UT_FULL);
-	curs_set(0);
+	ui_set_cursor(/*visibility=*/0);
 }
 
 static void
@@ -668,7 +668,7 @@ cmd_dot(key_info_t key_info, keys_info_t *keys_info)
 	cmds_vars_set_count(key_info.count);
 
 	if (cfg.redo_last_cmd_cfm) {
-		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command, NULL);
+		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command);
 	} else {
 		curr_stats.save_msg = exec_commands(curr_stats.last_cmdline_command, curr_view, CIT_COMMAND);
 		reject_and_leave();
@@ -693,7 +693,7 @@ cmd_colon(key_info_t key_info, keys_info_t *keys_info)
 {
 	update_marks(view);
 	cmds_vars_set_count(key_info.count);
-	modcline_enter(CLS_COMMAND, "", NULL);
+	modcline_enter(CLS_COMMAND, "");
 }
 
 /* Continues navigation to word which starts with specified character in initial
@@ -1142,7 +1142,7 @@ activate_search(int count, int back, int external)
 	else
 	{
 		const CmdLineSubmode submode = back ? CLS_VBSEARCH : CLS_VFSEARCH;
-		modcline_enter(submode, "", NULL);
+		modcline_enter(submode, "");
 	}
 }
 
