@@ -2252,6 +2252,8 @@ fix_tree_links(dir_entry_t *entries, dir_entry_t *entry, int old_idx,
 static int
 is_dir_big(const char path[])
 {
+	return 0;  //add by sim1
+
 #ifndef _WIN32
 	struct stat s;
 	if(os_stat(path, &s) != 0)
