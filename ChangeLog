@@ -26,6 +26,9 @@
 	Added input() builtin function to prompt user for input.  Thanks to Artur
 	F. (a.k.a. arturfabriciohahaedgy).
 
+	Added ETA to detailed progress dialog.  Thanks to Jose Riha (a.k.a.
+	jose1711).
+
 	Reduced amount of memory consumed by `:compare groupids`.
 
 	Made `:compare bycontents` not bother reading content of files which have
@@ -59,6 +62,9 @@
 
 	Fixed abort due to assertion failure on using zx normal mode key after
 	leaving tree in some cases.  Thanks to Mark S. (a.k.a. Markuzcha).
+
+	Fixed asynchronous previewing of symbolic links, which required manual
+	redraw.  Thanks to Alexandre Viau.
 
 0.12.1-beta to 0.12.1 (2022-09-21)
 
