@@ -121,8 +121,8 @@ WINDOW *menu_win;
 WINDOW *sort_win;
 WINDOW *change_win;
 WINDOW *error_win;
+WINDOW *tab_line;
 
-static WINDOW *tab_line;
 static WINDOW *mtop_line;
 static WINDOW *mborder;
 

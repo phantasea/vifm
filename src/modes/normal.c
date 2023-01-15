@@ -88,7 +88,6 @@ static void cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_d(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_e(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_f(key_info_t key_info, keys_info_t *keys_info);
-static void page_scroll(int base, int direction);
 static void cmd_ctrl_g(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_space(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_emarkemark(key_info_t key_info, keys_info_t *keys_info);
@@ -608,10 +607,7 @@ cmd_ctrl_a(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_b(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(can_scroll_up(curr_view))
-	{
-		page_scroll(fpos_get_last_visible_cell(curr_view), -1);
-	}
+	fview_scroll_page_up(curr_view);
 }
 
 /* Resets selection and search highlight. */
@@ -648,31 +644,7 @@ cmd_ctrl_e(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_f(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(can_scroll_down(curr_view))
-	{
-		page_scroll(curr_view->top_line, 1);
-	}
-}
-
-/* Scrolls pane by one view in both directions.  The direction should be 1 or
- * -1. */
-static void
-page_scroll(int base, int direction)
-{
-	enum { HOR_GAP_SIZE = 2, VER_GAP_SIZE = 1 };
-	int old_pos = curr_view->list_pos;
-	int offset = fview_is_transposed(curr_view)
-	    ? (MAX(1, curr_view->column_count - VER_GAP_SIZE))*curr_view->window_rows
-	    : (curr_view->window_rows - HOR_GAP_SIZE)*curr_view->column_count;
-	int new_pos = base + direction*offset
-	            + old_pos%curr_view->run_size - base%curr_view->run_size;
-	curr_view->list_pos = MAX(0, MIN(curr_view->list_rows - 1, new_pos));
-	scroll_by_files(curr_view, direction*offset);
-
-	/* Updating list_pos ourselves doesn't take into account
-	 * synchronization/updates of the other view, so trigger them. */
-	ui_view_schedule_redraw(curr_view);
-	fpos_set_pos(curr_view, curr_view->list_pos);
+	fview_scroll_page_down(curr_view);
 }
 
 static void
@@ -2706,12 +2678,26 @@ handle_mouse_event(key_info_t key_info, keys_info_t *keys_info)
 		return;
 	}
 
+	/* Positions after 222 can become negative due to a combination of protocol
+	 * limitations and implementation.  This workaround can extend the range at
+	 * least a bit when SGR 1006 isn't available. */
+	if(e.x < 0)
+	{
+		e.x = e.x&0xff;
+	}
+	if(e.y < 0)
+	{
+		e.y = e.y&0xff;
+	}
+
 	if((cfg.mouse & (M_ALL_MODES | M_NORMAL_MODE)) == 0)
 	{
 		return;
 	}
 
-	if(wenclose(lwin.win, e.y, e.x))
+	int on_tab_line = !cfg.pane_tabs && wenclose(tab_line, e.y, e.x);
+
+	if(wenclose(lwin.win, e.y, e.x) || wenclose(lwin.title, e.y, e.x))
 	{
 		if(curr_view != &lwin)
 		{
@@ -2719,7 +2705,7 @@ handle_mouse_event(key_info_t key_info, keys_info_t *keys_info)
 			return;
 		}
 	}
-	else if(wenclose(rwin.win, e.y, e.x))
+	else if(wenclose(rwin.win, e.y, e.x) || wenclose(rwin.title, e.y, e.x))
 	{
 		if(curr_view != &rwin)
 		{
@@ -2727,12 +2713,28 @@ handle_mouse_event(key_info_t key_info, keys_info_t *keys_info)
 			return;
 		}
 	}
-	else
+	else if(!on_tab_line)
 	{
 		return;
 	}
 
-	if(e.bstate & BUTTON1_PRESSED)
+	if(on_tab_line || wenclose(curr_view->title, e.y, e.x))
+	{
+		if(!on_tab_line && !cfg.pane_tabs)
+		{
+			/* Do nothing. */
+		}
+		else if(e.bstate & BUTTON4_PRESSED)
+		{
+			tabs_previous(1);
+		}
+		else if(e.bstate & (BUTTON2_PRESSED | BUTTON5_PRESSED))
+		{
+			tabs_next(1);
+		}
+		/* Other events are to handled in the future. */
+	}
+	else if(e.bstate & BUTTON1_PRESSED)
 	{
 		wmouse_trafo(curr_view->win, &e.y, &e.x, FALSE);
 
