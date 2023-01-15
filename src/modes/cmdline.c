@@ -2820,6 +2820,9 @@ cmd_right(key_info_t key_info, keys_info_t *keys_info)
 	}
 }
 
+//add by sim1
+static int nav_home = 1;
+
 /* Moves command-line cursor to the beginning of command-line or moves
  * view cursor to the first file in navigation. */
 static void
@@ -2827,7 +2830,14 @@ cmd_home(key_info_t key_info, keys_info_t *keys_info)
 {
 	if(input_stat.navigating)
 	{
-		fpos_set_pos(curr_view, 0);
+		//mod by sim1
+		if (nav_home) {
+			fpos_set_pos(curr_view, 0);
+			nav_home = 0;
+		} else {
+			fpos_set_pos(curr_view, curr_view->list_rows - 1);
+			nav_home = 1;
+		}
 	}
 	else
 	{
