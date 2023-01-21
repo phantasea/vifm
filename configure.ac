@@ -408,16 +408,14 @@ dnl Enable POSIX shared memory
 AC_CHECK_LIB(rt, shm_open, [LIBS="$LIBS -lrt"])
 
 dnl Use pthread library
-AX_CHECK_COMPILE_FLAG([-pthread], [
-    TESTS_CFLAGS="$CFLAGS -pthread"
-    CFLAGS="$CFLAGS -pthread"
-    ], [
-    AC_CHECK_LIB(pthread, pthread_create,
-      [LIBS="$LIBS -lpthread"
-      AC_CHECK_HEADER([pthread.h], [], [AC_MSG_ERROR([pthread.h header not found.])])
-      ],
-      [AC_MSG_ERROR([libpthread not found])])
-  ])
+AX_PTHREAD([
+             LIBS="$PTHREAD_LIBS $LIBS"
+             CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+             TESTS_CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+             CC="$PTHREAD_CC"
+           ], [
+             AC_MSG_ERROR([pthread not found])
+           ])
 
 dnl Check for all required elements in pthread.h.
 AC_CHECK_FUNC([pthread_create], [], [AC_MSG_ERROR([pthread_create() function not found.])])
@@ -425,14 +423,15 @@ AC_CHECK_FUNC([pthread_getspecific], [], [AC_MSG_ERROR([pthread_getspecific() fu
 AC_CHECK_FUNC([pthread_key_create], [], [AC_MSG_ERROR([pthread_key_create() function not found.])])
 AC_CHECK_FUNC([pthread_mutex_lock], [], [AC_MSG_ERROR([pthread_mutex_lock() function not found.])])
 AC_CHECK_FUNC([pthread_mutex_unlock], [], [AC_MSG_ERROR([pthread_mutex_unlock() function not found.])])
-AC_CHECK_FUNC([pthread_once], [], [AC_MSG_ERROR([pthread_once() function not found.])])
 AC_CHECK_FUNC([pthread_setspecific], [], [AC_MSG_ERROR([pthread_setspecific() function not found.])])
+AC_CHECK_FUNC([pthread_detach], [], [AC_MSG_ERROR([pthread_detach() function not found.])])
+AC_CHECK_FUNC([pthread_self], [], [AC_MSG_ERROR([pthread_self() function not found.])])
 AC_CHECK_TYPE([pthread_t], [], [AC_MSG_ERROR([pthread_t type not found in pthread.h])], [[#include <pthread.h>]])
-AC_CHECK_TYPE([pthread_once_t], [], [AC_MSG_ERROR([pthread_once_t type not found in pthread.h])], [[#include <pthread.h>]])
 AC_CHECK_TYPE([pthread_key_t], [], [AC_MSG_ERROR([pthread_key_t type not found in pthread.h])], [[#include <pthread.h>]])
 AC_CHECK_TYPE([pthread_mutex_t], [], [AC_MSG_ERROR([pthread_mutex_t type not found in pthread.h])], [[#include <pthread.h>]])
-AC_CHECK_DECL([PTHREAD_ONCE_INIT], [], [AC_MSG_ERROR([PTHREAD_ONCE_INIT not found in pthread.h])], [[#include <pthread.h>]])
+AC_CHECK_TYPE([pthread_cond_t], [], [AC_MSG_ERROR([pthread_cond_t type not found in pthread.h])], [[#include <pthread.h>]])
 AC_CHECK_DECL([PTHREAD_MUTEX_INITIALIZER], [], [AC_MSG_ERROR([PTHREAD_MUTEX_INITIALIZER not found in pthread.h])], [[#include <pthread.h>]])
+AC_CHECK_DECL([PTHREAD_COND_INITIALIZER], [], [AC_MSG_ERROR([PTHREAD_COND_INITIALIZER not found in pthread.h])], [[#include <pthread.h>]])
 
 dnl Name of curses library file.
 curses_lib_name=ncursesw
