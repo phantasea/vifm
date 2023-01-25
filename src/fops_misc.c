@@ -88,9 +88,8 @@ static void go_to_first_file(view_t *view, char *names[], int count);
 static void update_dir_entry_size(dir_entry_t *entry, int force);
 static void start_dir_size_calc(const char path[], int force);
 static void dir_size_bg(bg_op_t *bg_op, void *arg);
-static void dir_size(bg_op_t *bg_op, char path[], int force);
+static void dir_size(bg_op_t *bg_op, const char path[], int force);
 static int bg_cancellation_hook(void *arg);
-static void redraw_after_path_change(view_t *view, const char path[]);
 #ifndef _WIN32
 static void change_owner_cb(const char new_owner[], void *arg);
 static int complete_owner(const char str[], void *arg);
@@ -199,52 +198,25 @@ fops_delete(view_t *view, int reg, int use_trash)
 	return 1;
 }
 
-int
-fops_delete_current(view_t *view, int use_trash, int nested)
+void
+fops_delete_entry(ops_t *ops, view_t *view, dir_entry_t *entry, int use_trash,
+		int nested)
 {
-	char undo_msg[COMMAND_GROUP_INFO_LEN];
-	dir_entry_t *entry;
-	ops_t *ops;
 	const char *const top_dir = get_top_dir(view);
-	const char *const curr_dir = top_dir == NULL ? flist_get_dir(view) : top_dir;
 
 	use_trash = use_trash && cfg.use_trash;
 
 	/* This check for the case when we are for sure in the trash. */
 	if(use_trash && top_dir != NULL && trash_has_path(top_dir))
 	{
-		show_error_msg("Can't perform deletion",
-				"Current directory is under trash directory");
-		return 0;
+		show_error_msgf("Can't delete to trash",
+				"Current directory is under trash directory:\n%s",
+				replace_home_part(top_dir));
+		return;
 	}
-
-	snprintf(undo_msg, sizeof(undo_msg), "%celete in %s: ", use_trash ? 'd' : 'D',
-			replace_home_part(curr_dir));
-	if(!nested)
-	{
-		un_group_open(undo_msg);
-	}
-
-	ops = fops_get_ops(OP_REMOVE, use_trash ? "deleting" : "Deleting", curr_dir,
-			curr_dir);
-
-	entry = &view->dir_entry[view->list_pos];
 
 	fops_progress_msg("Deleting files", 0, 1);
 	(void)delete_file(entry, ops, BLACKHOLE_REG_NAME, use_trash, nested);
-
-	if(!nested)
-	{
-		un_group_close();
-		ui_views_reload_filelists();
-	}
-
-	ui_sb_msgf("%d %s %celeted%s", ops->succeeded,
-			(ops->succeeded == 1) ? "file" : "files", use_trash ? 'd' : 'D',
-			fops_get_cancellation_suffix());
-
-	fops_free_ops(ops);
-	return 1;
 }
 
 /* Removes single file specified by its entry.  Returns zero on success,
@@ -1320,7 +1292,7 @@ dir_size_bg(bg_op_t *bg_op, void *arg)
 /* Calculates directory size and triggers view updates if necessary.  Changes
  * path. */
 static void
-dir_size(bg_op_t *bg_op, char path[], int force)
+dir_size(bg_op_t *bg_op, const char path[], int force)
 {
 	const cancellation_t bg_cancellation_info = {
 		.arg = bg_op,
@@ -1329,10 +1301,10 @@ dir_size(bg_op_t *bg_op, char path[], int force)
 
 	(void)fops_dir_size(path, force, &bg_cancellation_info);
 
-	remove_last_path_component(path);
-
-	redraw_after_path_change(&lwin, path);
-	redraw_after_path_change(&rwin, path);
+	/* Redraw the views unconditionally, because checking their location from a
+	 * background thread will cause a data race. */
+	ui_view_schedule_redraw(&lwin);
+	ui_view_schedule_redraw(&rwin);
 }
 
 /* Implementation of cancellation hook for background tasks. */
@@ -1340,16 +1312,6 @@ static int
 bg_cancellation_hook(void *arg)
 {
 	return bg_op_cancelled(arg);
-}
-
-/* Schedules view redraw in case path change might have affected it. */
-static void
-redraw_after_path_change(view_t *view, const char path[])
-{
-	if(path_starts_with(view->curr_dir, path) || flist_custom_active(view))
-	{
-		ui_view_schedule_redraw(view);
-	}
 }
 
 uint64_t
