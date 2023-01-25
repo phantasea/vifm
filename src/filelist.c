@@ -3565,31 +3565,31 @@ fentry_is_nondotfile(const dir_entry_t *entry)
 int
 iter_nonratings_entries(view_t *view, dir_entry_t **entry)
 {
-	return iter_entries(view, entry, &fentry_is_nonratings);
+	return iter_entries(view, entry, &fentry_is_nonratings, 1);
 }
 
 int
 iter_nonsymlink_entries(view_t *view, dir_entry_t **entry)
 {
-	return iter_entries(view, entry, &fentry_is_nonsymlink);
+	return iter_entries(view, entry, &fentry_is_nonsymlink, 1);
 }
 
 int
 iter_directory_entries(view_t *view, dir_entry_t **entry)
 {
-	return iter_entries(view, entry, &fentry_is_dir);
+	return iter_entries(view, entry, &fentry_is_dir, 1);
 }
 
 int
 iter_nondirectory_entries(view_t *view, dir_entry_t **entry)
 {
-	return iter_entries(view, entry, &fentry_is_nondirectory);
+	return iter_entries(view, entry, &fentry_is_nondirectory, 1);
 }
 
 int
 iter_nondotfile_entries(view_t *view, dir_entry_t **entry)
 {
-	return iter_entries(view, entry, &fentry_is_nondotfile);
+	return iter_entries(view, entry, &fentry_is_nondotfile, 1);
 }
 //add by sim1 ----------------------------------------------
 
