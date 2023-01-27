@@ -179,7 +179,7 @@ static int elseif_cmd(const cmd_info_t *cmd_info);
 static int empty_cmd(const cmd_info_t *cmd_info);
 static int endif_cmd(const cmd_info_t *cmd_info);
 static int exe_cmd(const cmd_info_t *cmd_info);
-static char * try_eval_arglist(const cmd_info_t *cmd_info);
+static char * try_eval_args(const cmd_info_t *cmd_info);
 static int file_cmd(const cmd_info_t *cmd_info);
 static int filetype_cmd(const cmd_info_t *cmd_info);
 static int filextype_cmd(const cmd_info_t *cmd_info);
@@ -1050,7 +1050,7 @@ emark_cmd(const cmd_info_t *cmd_info)
 				ui_sb_msg("No previous command-line command");
 				return 1;
 			}
-			return exec_commands(last_cmd, curr_view, CIT_COMMAND) != 0;
+			return cmds_dispatch(last_cmd, curr_view, CIT_COMMAND) != 0;
 		}
 		return CMDS_ERR_TOO_FEW_ARGS;
 	}
@@ -1152,7 +1152,7 @@ apropos_cmd(const cmd_info_t *cmd_info)
 	else if(last_args == NULL)
 	{
 		ui_sb_err("Nothing to repeat");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	return show_apropos_menu(curr_view, last_args) != 0;
@@ -1197,7 +1197,7 @@ autocmd_cmd(const cmd_info_t *cmd_info)
 		if(!is_in_string_array_case(events, ARRAY_LEN(events), event))
 		{
 			ui_sb_errf("No such event: %s", event);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 	}
 
@@ -1223,7 +1223,7 @@ autocmd_cmd(const cmd_info_t *cmd_info)
 	if(vle_aucmd_on_execute(event, patterns, action, &aucmd_action_handler) != 0)
 	{
 		ui_sb_err("Failed to register autocommand");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	return 0;
@@ -1243,7 +1243,7 @@ aucmd_action_handler(const char action[], void *arg)
 	const int prev_global_local_settings = curr_stats.global_local_settings;
 	curr_stats.global_local_settings = 0;
 
-	(void)exec_commands(action, view, CIT_COMMAND);
+	(void)cmds_dispatch(action, view, CIT_COMMAND);
 
 	curr_stats.global_local_settings = prev_global_local_settings;
 
@@ -1285,7 +1285,7 @@ bmark_cmd(const cmd_info_t *cmd_info)
 	}
 	free(path);
 	free(tags);
-	return err;
+	return (err ? CMDS_ERR_CUSTOM : 0);
 }
 
 /* Lists either all bookmarks or those matching specified tags. */
@@ -1460,7 +1460,6 @@ list_abbrevs(const char prefix[])
 static int
 add_cabbrev(const cmd_info_t *cmd_info, int no_remap)
 {
-	int result;
 	wchar_t *subst;
 	wchar_t *wargs = to_wide(cmd_info->args);
 	wchar_t *rhs = wargs;
@@ -1482,18 +1481,19 @@ add_cabbrev(const cmd_info_t *cmd_info, int no_remap)
 	}
 
 	subst = substitute_specsw(rhs);
-	result = no_remap
-	       ? vle_abbr_add_no_remap(wargs, subst)
-	       : vle_abbr_add(wargs, subst);
+	int err = no_remap
+	        ? vle_abbr_add_no_remap(wargs, subst)
+	        : vle_abbr_add(wargs, subst);
 	free(subst);
 	free(wargs);
 
-	if(result != 0)
+	if(err != 0)
 	{
 		ui_sb_err("Failed to register abbreviation");
+		return CMDS_ERR_CUSTOM;
 	}
 
-	return result;
+	return 0;
 }
 
 /* Changes location of a view or both views.  Handle multiple configurations of
@@ -1641,7 +1641,7 @@ chmod_cmd(const cmd_info_t *cmd_info)
 	{
 		ui_sb_errf("Regexp error: %s", get_regexp_error(err, &re));
 		regfree(&re);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	for(i = 0; i < cmd_info->argc; i++)
@@ -1656,7 +1656,7 @@ chmod_cmd(const cmd_info_t *cmd_info)
 	if(i < cmd_info->argc)
 	{
 		ui_sb_errf("Invalid argument: %s", cmd_info->argv[i]);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	flist_set_marking(curr_view, 0);
@@ -1703,12 +1703,12 @@ chown_cmd(const cmd_info_t *cmd_info)
 	if(u && get_uid(user, &uid) != 0)
 	{
 		ui_sb_errf("Invalid user name: \"%s\"", user);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	if(g && get_gid(group, &gid) != 0)
 	{
 		ui_sb_errf("Invalid group name: \"%s\"", group);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	flist_set_marking(curr_view, 0);
@@ -1727,7 +1727,7 @@ clone_cmd(const cmd_info_t *cmd_info)
 		if(cmd_info->argc > 0)
 		{
 			ui_sb_err("No arguments are allowed if you use \"?\"");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 		return fops_clone(curr_view, NULL, -1, 0, 1) != 0;
 	}
@@ -1769,7 +1769,7 @@ colorscheme_cmd(const cmd_info_t *cmd_info)
 	if((cmd_info->argc == 1 || assoc_form) && !cs_exists(cmd_info->argv[0]))
 	{
 		ui_sb_errf("Cannot find colorscheme %s" , cmd_info->argv[0]);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(assoc_form)
@@ -1822,7 +1822,7 @@ assoc_colorscheme(const char name[], const char path[])
 	{
 		ui_sb_errf("%s isn't a directory", directory);
 		free(directory);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	cs_assoc_dir(name, directory);
@@ -1910,11 +1910,13 @@ cunabbrev_cmd(const cmd_info_t *cmd_info)
 		return 0;
 	}
 
-	const int result = vle_abbr_remove(wargs);
+	const int err = vle_abbr_remove(wargs);
 	free(wargs);
-	if(result != 0)
+
+	if(err != 0)
 	{
-		ui_sb_err("No such abbreviation");
+		ui_sb_errf("No such abbreviation: %s", cmd_info->args);
+		return CMDS_ERR_CUSTOM;
 	}
 	return 0;
 }
@@ -1967,7 +1969,7 @@ delmarks_cmd(const cmd_info_t *cmd_info)
 		else
 		{
 			ui_sb_err("No arguments are allowed if you use \"!\"");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 	}
 
@@ -2033,6 +2035,11 @@ delbmarks_cmd(const cmd_info_t *cmd_info)
 	{
 		/* Remove set of bookmarks that include all of the specified tags. */
 		char *const tags = make_tags_list(cmd_info);
+		if(tags == NULL)
+		{
+			return CMDS_ERR_CUSTOM;
+		}
+
 		bmarks_find(tags, &remove_bmark, NULL);
 		free(tags);
 	}
@@ -2141,7 +2148,7 @@ parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
 		if(cmd_info->emark && !starts_with_lit(property, "show"))
 		{
 			ui_sb_errf("Unexpected property for toggling: %s", property);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		if     (strcmp(property, "byname") == 0)     *ct = CT_NAME;
@@ -2183,7 +2190,7 @@ parse_compare_properties(const cmd_info_t *cmd_info, CompareType *ct,
 		else
 		{
 			ui_sb_errf("Unknown comparison property: %s", property);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 	}
 
@@ -2198,14 +2205,14 @@ delsession_cmd(const cmd_info_t *cmd_info)
 
 	if(!sessions_exists(session_name))
 	{
-		ui_sb_msgf("No stored sessions with such name: %s", session_name);
-		return 1;
+		ui_sb_errf("No stored sessions with such name: %s", session_name);
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(sessions_remove(session_name) != 0)
 	{
-		ui_sb_msgf("Failed to delete a session: %s", session_name);
-		return 1;
+		ui_sb_errf("Failed to delete a session: %s", session_name);
+		return CMDS_ERR_CUSTOM;
 	}
 
 	return 0;
@@ -2268,7 +2275,12 @@ dunmap_cmd(const cmd_info_t *cmd_info)
 static int
 echo_cmd(const cmd_info_t *cmd_info)
 {
-	char *const eval_result = try_eval_arglist(cmd_info);
+	char *const eval_result = try_eval_args(cmd_info);
+	if(eval_result == NULL)
+	{
+		return CMDS_ERR_CUSTOM;
+	}
+
 	ui_sb_msg(eval_result);
 	free(eval_result);
 	return 1;
@@ -2381,10 +2393,10 @@ static int
 exe_cmd(const cmd_info_t *cmd_info)
 {
 	int result = 1;
-	char *const eval_result = try_eval_arglist(cmd_info);
+	char *const eval_result = try_eval_args(cmd_info);
 	if(eval_result != NULL)
 	{
-		result = exec_commands(eval_result, curr_view, CIT_COMMAND);
+		result = cmds_dispatch(eval_result, curr_view, CIT_COMMAND);
 		free(eval_result);
 	}
 	return result != 0;
@@ -2394,18 +2406,18 @@ exe_cmd(const cmd_info_t *cmd_info)
  * Returns pointer to newly allocated string, which should be freed by caller,
  * or NULL on error. */
 static char *
-try_eval_arglist(const cmd_info_t *cmd_info)
+try_eval_args(const cmd_info_t *cmd_info)
 {
 	char *eval_result;
 	const char *error_pos = NULL;
 
 	if(cmd_info->argc == 0)
 	{
-		return NULL;
+		return strdup("");
 	}
 
 	vle_tb_clear(vle_err);
-	eval_result = eval_arglist(cmd_info->raw_args, &error_pos);
+	eval_result = cmds_eval_args(cmd_info->raw_args, &error_pos);
 
 	if(eval_result == NULL)
 	{
@@ -2429,7 +2441,7 @@ file_cmd(const cmd_info_t *cmd_info)
 	if(rn_open_with_match(curr_view, cmd_info->argv[0], cmd_info->bg) != 0)
 	{
 		ui_sb_err("Can't find associated program with requested beginning");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	return 0;
@@ -2480,8 +2492,7 @@ add_assoc(const cmd_info_t *cmd_info, int viewer, int for_x)
 	matchers = matchers_list(cmd_info->argv[0], &nmatchers);
 	if(matchers == NULL)
 	{
-		ui_sb_err("Not enough memory.");
-		return 1;
+		return CMDS_ERR_NO_MEM;
 	}
 
 	for(i = 0; i < nmatchers; ++i)
@@ -2493,7 +2504,7 @@ add_assoc(const cmd_info_t *cmd_info, int viewer, int for_x)
 			ui_sb_errf("Wrong pattern (%s): %s", matchers[i], error);
 			free(error);
 			free_string_array(matchers, nmatchers);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		if(viewer)
@@ -2635,7 +2646,7 @@ set_view_filter(view_t *view, const char filter[], const char fallback[],
 	{
 		ui_sb_errf("Name filter not set: %s", error);
 		free(error);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	view->invert = invert;
@@ -2664,7 +2675,7 @@ find_cmd(const cmd_info_t *cmd_info)
 	else if(cmds_state.find.last_args == NULL)
 	{
 		ui_sb_err("Nothing to repeat");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	return show_find_menu(curr_view, cmds_state.find.includes_path,
@@ -2677,11 +2688,11 @@ finish_cmd(const cmd_info_t *cmd_info)
 	if(curr_stats.sourcing_state != SOURCING_PROCESSING)
 	{
 		ui_sb_err(":finish used outside of a sourced file");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	curr_stats.sourcing_state = SOURCING_FINISHING;
-	commands_scope_escape();
+	cmds_scope_escape();
 	return 0;
 }
 
@@ -2700,13 +2711,13 @@ goto_path_cmd(const cmd_info_t *cmd_info)
 	if(is_root_dir(abs_path))
 	{
 		ui_sb_errf("Can't navigate to root directory: %s", abs_path);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(!path_exists(abs_path, NODEREF))
 	{
 		ui_sb_errf("Path doesn't exist: %s", abs_path);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	fname = strdup(get_last_path_component(abs_path));
@@ -2731,7 +2742,7 @@ grep_cmd(const cmd_info_t *cmd_info)
 	else if(last_args == NULL)
 	{
 		ui_sb_err("Nothing to repeat");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	inv = last_invert;
@@ -2772,7 +2783,7 @@ help_cmd(const cmd_info_t *cmd_info)
 		if(cmd_info->argc != 0)
 		{
 			ui_sb_err("No arguments are allowed when 'vimhelp' option is off");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		char help_file[PATH_MAX + 1];
@@ -2851,7 +2862,7 @@ highlight_clear(const cmd_info_t *cmd_info)
 		if(!cs_del_file_hi(cmd_info->argv[1]))
 		{
 			ui_sb_errf("No such group: %s", cmd_info->argv[1]);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		ui_invalidate_cs(curr_stats.cs);
@@ -2965,7 +2976,7 @@ highlight_group(const cmd_info_t *cmd_info)
 	if(group_id < 0)
 	{
 		ui_sb_errf("Highlight group not found: %s", cmd_info->argv[0]);
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	color = &curr_stats.cs->color[group_id];
@@ -3097,12 +3108,12 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 		if(equal == NULL)
 		{
 			ui_sb_errf("Missing equal sign in \"%s\"", arg);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 		if(equal[1] == '\0')
 		{
 			ui_sb_errf("Missing argument: %s", arg);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		copy_str(arg_name, MIN(sizeof(arg_name), (size_t)(equal - arg + 1)), arg);
@@ -3111,14 +3122,14 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 		{
 			if(try_parse_cterm_color(equal + 1, 0, color) != 0)
 			{
-				return 1;
+				return CMDS_ERR_CUSTOM;
 			}
 		}
 		else if(strcmp(arg_name, "ctermfg") == 0)
 		{
 			if(try_parse_cterm_color(equal + 1, 1, color) != 0)
 			{
-				return 1;
+				return CMDS_ERR_CUSTOM;
 			}
 		}
 		else if(strcmp(arg_name, "guibg") == 0)
@@ -3126,7 +3137,7 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 			int value;
 			if(try_parse_gui_color(equal + 1, &value) != 0)
 			{
-				return 1;
+				return CMDS_ERR_CUSTOM;
 			}
 
 			cs_color_enable_gui(color);
@@ -3137,7 +3148,7 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 			int value;
 			if(try_parse_gui_color(equal + 1, &value) != 0)
 			{
-				return 1;
+				return CMDS_ERR_CUSTOM;
 			}
 
 			cs_color_enable_gui(color);
@@ -3150,7 +3161,7 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 			if((attrs = get_attrs(equal + 1, &combine_attrs)) == -1)
 			{
 				ui_sb_errf("Illegal argument: %s", equal + 1);
-				return 1;
+				return CMDS_ERR_CUSTOM;
 			}
 
 			if(strcmp(arg_name, "cterm") == 0)
@@ -3174,7 +3185,7 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 		else
 		{
 			ui_sb_errf("Illegal argument: %s", arg);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 	}
 
@@ -3197,7 +3208,7 @@ try_parse_cterm_color(const char str[], int is_fg, col_attr_t *color)
 			cs->state = CSS_BROKEN;
 		}
 
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(is_fg)
@@ -3420,7 +3431,7 @@ eval_if_condition(const cmd_info_t *cmd_info)
 		vle_tb_append_linef(vle_err, "%s: %s", "Invalid expression",
 				cmd_info->args);
 		ui_sb_err(vle_tb_get_data(vle_err));
-		result = -1;
+		result = CMDS_ERR_CUSTOM;
 	}
 	else
 	{
@@ -3516,7 +3527,7 @@ jobs_cmd(const cmd_info_t *cmd_info)
 static int
 keepsel_cmd(const cmd_info_t *cmd_info)
 {
-	return cmds_exec(curr_view, cmd_info->args, /*menu=*/0, /*keep_sel=*/1);
+	return cmds_exec(cmd_info->args, curr_view, /*menu=*/0, /*keep_sel=*/1);
 }
 
 static int
@@ -3526,7 +3537,7 @@ let_cmd(const cmd_info_t *cmd_info)
 	if(let_variables(cmd_info->args) != 0)
 	{
 		ui_sb_err(vle_tb_get_data(vle_err));
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	else if(*vle_tb_get_data(vle_err) != '\0')
 	{
@@ -3547,7 +3558,7 @@ locate_cmd(const cmd_info_t *cmd_info)
 	else if(last_args == NULL)
 	{
 		ui_sb_err("Nothing to repeat");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	return show_locate_menu(curr_view, last_args) != 0;
 }
@@ -3611,7 +3622,7 @@ mark_cmd(const cmd_info_t *cmd_info)
 		if(!marks_is_empty(curr_view, mark))
 		{
 			ui_sb_errf("Mark isn't empty: %c", mark);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 	}
 
@@ -3629,7 +3640,7 @@ mark_cmd(const cmd_info_t *cmd_info)
 	{
 		free(expanded_path);
 		ui_sb_err("Expected full path to the directory");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(cmd_info->argc == 2)
@@ -3813,7 +3824,7 @@ cpmv_cmd(const cmd_info_t *cmd_info, int move)
 		if(argc > 0)
 		{
 			ui_sb_err("No positional arguments are allowed if you use \"?\"");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		if(cmd_info->bg)
@@ -4001,7 +4012,7 @@ pushd_cmd(const cmd_info_t *cmd_info)
 		if(dir_stack_swap() != 0)
 		{
 			ui_sb_err("No other directories");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 		return 0;
 	}
@@ -4180,7 +4191,7 @@ link_cmd(const cmd_info_t *cmd_info, int absolute)
 		if(argc > 0)
 		{
 			ui_sb_err("No positional arguments are allowed if you use \"?\"");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 		return fops_cpmv(curr_view, NULL, -1, op, flags) != 0;
 	}
@@ -4340,7 +4351,7 @@ session_cmd(const cmd_info_t *cmd_info)
 	if(contains_slash(session_name))
 	{
 		ui_sb_err("Session name can't include path separators");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(strcmp(session_name, "-") == 0)
@@ -4348,12 +4359,12 @@ session_cmd(const cmd_info_t *cmd_info)
 		if(is_null_or_empty(curr_stats.last_session))
 		{
 			ui_sb_err("No previous session");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 		if(!sessions_exists(curr_stats.last_session))
 		{
 			ui_sb_err("Previous session doesn't exist");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		session_name = curr_stats.last_session;
@@ -4404,7 +4415,7 @@ switch_to_a_session(const char session_name[])
 		{
 			ui_sb_err("Session switching has failed, no active session");
 		}
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	ui_sb_msgf("Loaded session: %s", sessions_current());
@@ -4501,17 +4512,17 @@ source_cmd(const cmd_info_t *cmd_info)
 	if(!path_exists(path, DEREF))
 	{
 		ui_sb_errf("File doesn't exist: %s", cmd_info->argv[0]);
-		ret = 1;
+		ret = CMDS_ERR_CUSTOM;
 	}
 	if(os_access(path, R_OK) != 0)
 	{
 		ui_sb_errf("File isn't readable: %s", cmd_info->argv[0]);
-		ret = 1;
+		ret = CMDS_ERR_CUSTOM;
 	}
 	if(cfg_source_file(path) != 0)
 	{
 		ui_sb_errf("Error sourcing file: %s", cmd_info->argv[0]);
-		ret = 1;
+		ret = CMDS_ERR_CUSTOM;
 	}
 	free(path);
 	return ret;
@@ -4592,7 +4603,7 @@ substitute_cmd(const cmd_info_t *cmd_info)
 	if(is_null_or_empty(last_pattern))
 	{
 		ui_sb_err("No previous pattern");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	flist_set_marking(curr_view, 0);
@@ -4640,7 +4651,7 @@ sync_selectively(const cmd_info_t *cmd_info)
 	if(parse_sync_properties(cmd_info, &location, &cursor_pos, &local_options,
 				&filters, &filelist, &tree) != 0)
 	{
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(!cv_tree(curr_view->custom.type))
@@ -4865,7 +4876,7 @@ tabnew_cmd(const cmd_info_t *cmd_info)
 	if(cfg.pane_tabs && curr_view->custom.type == CV_DIFF)
 	{
 		ui_sb_err("Switching tab of single pane would drop comparison");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	const char *path = NULL;
@@ -4897,7 +4908,7 @@ tabnew_cmd(const cmd_info_t *cmd_info)
 	if(tabs_new(NULL, path) != 0)
 	{
 		ui_sb_err("Failed to open a new tab");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	return 0;
 }
@@ -4978,7 +4989,7 @@ tr_cmd(const cmd_info_t *cmd_info)
 	if(cmd_info->argv[0][0] == '\0' || cmd_info->argv[1][0] == '\0')
 	{
 		ui_sb_err("Empty argument");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	pl = strlen(cmd_info->argv[0]);
@@ -4987,7 +4998,7 @@ tr_cmd(const cmd_info_t *cmd_info)
 	if(pl < sl)
 	{
 		ui_sb_err("Second argument cannot be longer");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	else if(pl > sl)
 	{
@@ -5053,7 +5064,7 @@ parse_tree_properties(const cmd_info_t *cmd_info, int *depth)
 			if(*endptr != '\0' || value < 1)
 			{
 				ui_sb_errf("Invalid depth: %s", arg);
-				return 1;
+				return CMDS_ERR_CUSTOM;
 			}
 
 			*depth = value - 1;
@@ -5061,7 +5072,7 @@ parse_tree_properties(const cmd_info_t *cmd_info, int *depth)
 		else
 		{
 			ui_sb_errf("Invalid argument: %s", arg);
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 	}
 
@@ -5081,7 +5092,7 @@ unlet_cmd(const cmd_info_t *cmd_info)
 	if(unlet_variables(cmd_info->args) != 0 && !cmd_info->emark)
 	{
 		ui_sb_err(vle_tb_get_data(vle_err));
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	return 0;
 }
@@ -5124,7 +5135,7 @@ unmap_cmd(const cmd_info_t *cmd_info)
 	{
 		ui_sb_err("Error while unmapping keys");
 	}
-	return result != 0;
+	return (result != 0 ? CMDS_ERR_CUSTOM : 0);
 }
 
 /* Unselects files that match passed in expression or range. */
@@ -5166,7 +5177,7 @@ view_cmd(const cmd_info_t *cmd_info)
 
 	if((!curr_stats.preview.on || cmd_info->emark) && !qv_can_show())
 	{
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	if(curr_stats.preview.on && cmd_info->emark)
 	{
@@ -5303,7 +5314,7 @@ do_split(const cmd_info_t *cmd_info, SPLIT orientation)
 	if(cmd_info->emark && cmd_info->argc != 0)
 	{
 		ui_sb_err("No arguments are allowed if you use \"!\"");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 
 	if(cmd_info->emark)
@@ -5347,7 +5358,7 @@ do_unmap(const char keys[], int mode)
 	if(result != 0)
 	{
 		ui_sb_err("No such mapping");
-		return 1;
+		return CMDS_ERR_CUSTOM;
 	}
 	return 0;
 }
@@ -5459,7 +5470,7 @@ winrun(view_t *view, const char cmd[])
 	/* :winrun and :windo should be able to set settings separately for each
 	 * window. */
 	curr_stats.global_local_settings = 0;
-	result = exec_commands(cmd, curr_view, CIT_COMMAND);
+	result = cmds_dispatch(cmd, curr_view, CIT_COMMAND);
 	curr_stats.global_local_settings = prev_global_local_settings;
 
 	ui_view_unpick(view, tmp_curr, tmp_other);
@@ -5615,15 +5626,15 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 
 	if(expanded_com[0] == ':')
 	{
-		commands_scope_start();
+		cmds_scope_start();
 
-		int sm = exec_commands(expanded_com, curr_view, CIT_COMMAND);
+		int sm = cmds_dispatch(expanded_com, curr_view, CIT_COMMAND);
 		free(expanded_com);
 
-		if(commands_scope_finish() != 0)
+		if(cmds_scope_finish() != 0)
 		{
 			ui_sb_err("Unmatched if-else-endif");
-			return 1;
+			return CMDS_ERR_CUSTOM;
 		}
 
 		return sm != 0;
@@ -5653,7 +5664,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 	else if(starts_with_lit(expanded_com, "filter") &&
 			char_is_one_of(" !/", expanded_com[6]))
 	{
-		save_msg = exec_command(expanded_com, curr_view, CIT_COMMAND);
+		save_msg = cmds_dispatch1(expanded_com, curr_view, CIT_COMMAND);
 		external = 0;
 	}
 	else if(expanded_com[0] == '!')
@@ -5680,13 +5691,13 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(expanded_com[0] == '/')
 	{
-		exec_command(expanded_com + 1, curr_view, CIT_FSEARCH_PATTERN);
+		cmds_dispatch1(expanded_com + 1, curr_view, CIT_FSEARCH_PATTERN);
 		cmds_preserve_selection();
 		external = 0;
 	}
 	else if(expanded_com[0] == '=')
 	{
-		exec_command(expanded_com + 1, curr_view, CIT_FILTER_PATTERN);
+		cmds_dispatch1(expanded_com + 1, curr_view, CIT_FILTER_PATTERN);
 		ui_view_schedule_reload(curr_view);
 		cmds_preserve_selection();
 		external = 0;

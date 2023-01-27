@@ -671,7 +671,7 @@ cmd_dot(key_info_t key_info, keys_info_t *keys_info)
 	if (cfg.redo_last_cmd_cfm) {
 		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command);
 	} else {
-		curr_stats.save_msg = exec_commands(curr_stats.last_cmdline_command, curr_view, CIT_COMMAND);
+		curr_stats.save_msg = cmds_dispatch(curr_stats.last_cmdline_command, curr_view, CIT_COMMAND);
 		reject_and_leave();
 	}
 }
@@ -1110,7 +1110,7 @@ static void
 cmd_q_colon(key_info_t key_info, keys_info_t *keys_info)
 {
 	leave_clearing_selection(0, 0);
-	get_and_execute_command("", 0U, CIT_COMMAND);
+	cmds_run_ext("", 0U, CIT_COMMAND);
 }
 
 /* Runs external editor to get search pattern and then executes it. */
@@ -1138,7 +1138,7 @@ activate_search(int count, int back, int external)
 	if(external)
 	{
 		CmdInputType type = back ? CIT_VBSEARCH_PATTERN : CIT_VFSEARCH_PATTERN;
-		get_and_execute_command("", 0U, type);
+		cmds_run_ext("", 0U, type);
 	}
 	else
 	{
