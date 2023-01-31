@@ -76,7 +76,7 @@
 #include "wk.h"
 
 /* Prompt prefix when navigation is enabled. */
-#define NAV_PREFIX L"nav"
+#define NAV_PREFIX L"(nav)"
 
 /* History search mode. */
 typedef enum
@@ -117,6 +117,7 @@ typedef struct
 
 	/* Line editing state. */
 	wchar_t *line;                /* The line reading. */
+	wchar_t *last_line;           /* Previous contents of the line. */
 	wchar_t *initial_line;        /* Initial state of the line. */
 	int index;                    /* Index of the current character in cmdline. */
 	int curs_pos;                 /* Position of the cursor in status bar. */
@@ -203,6 +204,7 @@ static void draw_wild_menu(int op);
 static int draw_wild_bar(int *last_pos, int *pos, int *len);
 static int draw_wild_popup(int *last_pos, int *pos, int *len);
 static int compute_wild_menu_height(void);
+static void cmd_ctrl_j(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ctrl_k(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_return(key_info_t key_info, keys_info_t *keys_info);
 static void nav_open(void);
@@ -302,6 +304,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_C_g,             {{&cmd_ctrl_g}, .descr = "edit cmdline in editor"}},
 	{WK_C_h,             {{&cmd_ctrl_h}, .descr = "remove char to the left"}},
 	{WK_C_i,             {{&cmd_ctrl_i}, .descr = "start/continue completion"}},
+	{WK_C_j,             {{&cmd_ctrl_j}, .descr = "nav: leave without moving the cursor"}},
 	{WK_C_k,             {{&cmd_ctrl_k}, .descr = "remove line part to the right"}},
 	{WK_CR,              {{&cmd_return}, .descr = "execute/accept input"}},
 	{WK_C_n,             {{&cmd_ctrl_n}, .descr = "recall next history item"}},
@@ -506,8 +509,6 @@ draw_cmdline_text(line_stats_t *stat)
 static void
 input_line_changed(void)
 {
-	static wchar_t *previous;
-
 	if(!cfg.inc_search ||
 			(!input_stat.search_mode && input_stat.sub_mode != CLS_FILTER))
 	{
@@ -523,15 +524,16 @@ input_line_changed(void)
 	input_stat.state = PS_NORMAL;
 	if(is_input_line_empty())
 	{
-		free(previous);
-		previous = NULL;
+		free(input_stat.last_line);
+		input_stat.last_line = NULL;
 
 		set_view_port();
 		handle_empty_input();
 	}
-	else if(previous == NULL || wcscmp(previous, input_stat.line) != 0)
+	else if(input_stat.last_line == NULL ||
+			wcscmp(input_stat.last_line, input_stat.line) != 0)
 	{
-		(void)replace_wstring(&previous, input_stat.line);
+		(void)replace_wstring(&input_stat.last_line, input_stat.line);
 
 		set_view_port();
 		handle_nonempty_input();
@@ -876,6 +878,7 @@ init_line_stats(line_stats_t *stat, const wchar_t prompt[],
 	stat->prev_mode = prev_mode;
 
 	stat->line = vifm_wcsdup(initial);
+	stat->last_line = NULL;
 	stat->initial_line = vifm_wcsdup(stat->line);
 	stat->index = wcslen(initial);
 	stat->curs_pos = esc_wcswidth(stat->line, (size_t)-1);
@@ -937,6 +940,7 @@ set_view_port(void)
 	{
 		curr_view->top_line = input_stat.old_top;
 		curr_view->list_pos = input_stat.old_pos;
+		fview_position_updated(curr_view);
 	}
 	else if(input_stat.sub_mode == CLS_FILTER)
 	{
@@ -1028,9 +1032,11 @@ static void
 free_line_stats(line_stats_t *stat)
 {
 	free(input_stat.line);
+	free(input_stat.last_line);
 	free(input_stat.initial_line);
 	free(input_stat.line_buf);
 	input_stat.line = NULL;
+	input_stat.last_line = NULL;
 	input_stat.initial_line = NULL;
 	input_stat.line_buf = NULL;
 }
@@ -1532,6 +1538,20 @@ compute_wild_menu_height(void)
 	return MIN(count, MIN(10, max_height));
 }
 
+/* Leaves navigation mode without undoing cursor position or filter state. */
+static void
+cmd_ctrl_j(key_info_t key_info, keys_info_t *keys_info)
+{
+	if(input_stat.navigating)
+	{
+		if(input_stat.sub_mode == CLS_FILTER)
+		{
+			local_filter_accept(curr_view, /*update_history=*/0);
+		}
+		leave_cmdline_mode(/*cancelled=*/0);
+	}
+}
+
 static void
 cmd_ctrl_k(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -1709,6 +1729,23 @@ nav_open(void)
 			replace_string(&initial, "");
 		}
 
+		/* Auto-commands on entering a directory can do something that will require
+		 * a postponed view update.  Do it here, so that we don't work with file
+		 * list that's about to be changed.  In particular re-entering submode saves
+		 * top and cursor positions. */
+		switch(ui_view_query_scheduled_event(curr_view))
+		{
+			case UUE_NONE:
+				/* Nothing to do. */
+				break;
+			case UUE_REDRAW:
+				ui_view_schedule_redraw(curr_view);
+				break;
+			case UUE_RELOAD:
+				load_saving_pos(curr_view);
+				break;
+		}
+
 		if(initial != NULL)
 		{
 			enter_submode(sub_mode, initial, /*reenter=*/1);
@@ -1720,7 +1757,10 @@ nav_open(void)
 	else
 	{
 		leave_cmdline_mode(/*cancelled=*/0);
-		rn_open(curr_view, FHE_RUN);
+		if(cfg.nav_open_files)
+		{
+			rn_open(curr_view, FHE_RUN);
+		}
 	}
 }
 
