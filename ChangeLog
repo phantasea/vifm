@@ -60,6 +60,8 @@
 	Added 'navoptions' option to allow tweaking navigation mode a bit.  Thanks
 	to filterfalse.
 
+	Added "rpreview:files" to 'milleroptions'.  Thanks to aksr.
+
 	Reduced amount of memory consumed by `:compare groupids`.
 
 	Made `:compare bycontents` not bother reading content of files which have
@@ -76,6 +78,9 @@
 
 	Made instances running inside AppImage consider contents of `/etc/vifm`.
 	Thanks to aleksejrs.
+
+	Made Ctrl-E/Ctrl-Y scroll transposed ls-like view horizontally by one
+	column.
 
 	Fixed segfault on trying to use pipe from Lua after its parent VifmJob
 	object was garbage-collected.  Thanks to PRESFIL.
@@ -119,6 +124,11 @@
 	Fixed segfault on passing invalid tag to :delbmarks.
 
 	Fixed :echo printing previous message when invoked without arguments.
+
+	Fixed Ctrl-E in visual mode not doing anything when view is scrolled to
+	its top.
+
+	Fixed 'milleroptions' not recovering value of "rpreview:" on error.
 
 0.12.1-beta to 0.12.1 (2022-09-21)
 

@@ -74,6 +74,14 @@ ifdef DEBUG
     BINSUBDIR := debug/
 endif
 
+# test for a bad directory path which breaks the Makefile
+ifndef win_env
+    # testing for # seems to work only for some versions of GNU Make
+    ifneq (,$(findstring :,$(PWD)))
+        $(error Paths with : break tests' Makefile)
+    endif
+endif
+
 # path to build tree
 B ?=
 # path to storage for intermediate build files

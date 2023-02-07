@@ -202,6 +202,15 @@ typedef enum
 }
 NameFormat;
 
+/* What kinds of entries should be previewed by miller views. */
+typedef enum
+{
+	MP_ALL,   /* All entries. */
+	MP_DIRS,  /* Directories only. */
+	MP_FILES, /* Files only. */
+}
+MillerPreview;
+
 /* Single entry of directory history. */
 typedef struct
 {
@@ -384,8 +393,8 @@ struct view_t
 	int miller_view, miller_view_g;
 	/* Proportions of columns. */
 	int miller_ratios[3], miller_ratios_g[3];
-	/* Whether right column should also preview files. */
-	int miller_preview_files, miller_preview_files_g;
+	/* What entries are to be previewed in the right column. */
+	MillerPreview miller_preview, miller_preview_g;
 	/* Caches of file lists for miller mode. */
 	cached_entries_t left_column;
 	cached_entries_t right_column;
@@ -651,6 +660,9 @@ void only(void);
  * given factor. */
 void move_splitter(int by, int fact);
 
+/* Recalculates difference of two panes scroll positions. */
+void ui_remember_scroll_offset(void);
+
 /* Sets size of the view to specified value. */
 void ui_view_resize(view_t *view, int to);
 
@@ -673,6 +685,18 @@ void checked_wmove(WINDOW *win, int y, int x);
 
 /* Changes visibility of hardware cursor. */
 void ui_set_cursor(int visibility);
+
+/* Retrieves mouse event.  Adjusts and filters events in the process.  Returns
+ * ERR or OK curses error codes. */
+int ui_get_mouse(MEVENT *event);
+
+/* Determines curses window that displays tabs for the view or global tabs if
+ * they are active.  Returns the window pointer. */
+WINDOW * ui_get_tab_line_win(const view_t *view);
+
+/* Determines index of a tab at the specified coordinate.  Returns tab number
+ * base zero or -1 if tab label is not present at that location. */
+int ui_map_tab_line(view_t *view, int x);
 
 /* Displays "Terminal is too small" kind of message instead of UI. */
 void ui_display_too_small_term_msg(void);
