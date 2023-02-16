@@ -436,7 +436,8 @@ $(top_srcdir)/data/vim/doc/app/tags: \
 	elif [ -n "$(VIM)" ]; then \
 		vim -e -s -c 'helptags $(top_srcdir)/data/vim/doc/app|q'; \
 	else \
-		touch $@; \
+		echo "Can't generate tags without perl or vim"; \
+		false; \
 	fi
 
 $(top_srcdir)/data/vim/doc/plugin/tags: \
@@ -447,7 +448,8 @@ $(top_srcdir)/data/vim/doc/plugin/tags: \
 	elif [ -n "$(VIM)" ]; then \
 		vim -e -s -c 'helptags $(top_srcdir)/data/vim/doc/plugin|q'; \
 	else \
-		touch $@; \
+		echo "Can't generate tags without perl or vim"; \
+		false; \
 	fi
 
 tags.c: $(top_srcdir)/data/vim/doc/app/tags
