@@ -40,6 +40,7 @@
 #include <stdio.h> /* snprintf() vsnprintf() */
 #include <string.h> /* memset() strcat() strcmp() strcpy() strdup() strlen() */
 #include <wchar.h> /* wint_t wcslen() */
+#include <pwd.h> /* add by sim1 */
 
 #include "../cfg/config.h"
 #include "../cfg/info.h"
@@ -2481,13 +2482,21 @@ print_view_title(const view_t *view, int active_view, char title[])
 	ret = gethostname(hostname, HOST_NAME_MAX);
 	if (ret)
 	{
-		strcpy(hostname, "sopheau");
+		strcpy(hostname, "sopheauX");
 	}
 
 	ret = getlogin_r(username, LOGIN_NAME_MAX);
 	if (ret)
 	{
-		strcpy(username, "simone");
+		struct passwd *pw = getpwuid(geteuid());
+		if (pw)
+		{
+			strcpy(username, pw->pw_name);
+		}
+		else
+		{
+			strcpy(username, "simoneX");
+		}
 	}
 
 	ellipsis_len -= (strlen(username) + 1 + strlen(hostname) + 1);
