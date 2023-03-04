@@ -4130,7 +4130,7 @@ regedit_cmd(const cmd_info_t *cmd_info)
 
 	/* Forking is disabled because in some cases process can return value
 	 * before any changes will be written and editor will be closed. */
-	const int edit_result = vim_view_file(tmp_fname, 1, 1, /*allow_forking=*/0);
+	const int edit_result = vim_view_file(tmp_fname, 1, 1, /*allow_forking=*/0, 1);  //mod by sim1
 	if(edit_result != 0)
 	{
 		ui_sb_err("Register content edition went unsuccessful.");
