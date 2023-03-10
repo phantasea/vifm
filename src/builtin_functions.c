@@ -71,6 +71,7 @@ static var_t executable_builtin(const call_info_t *call_info);
 static var_t expand_builtin(const call_info_t *call_info);
 static var_t extcached_builtin(const call_info_t *call_info);
 TSTATIC void set_extcached_monitor_type(FileMonType type);
+static var_t filereadable_builtin(const call_info_t *call_info);
 static var_t filetype_builtin(const call_info_t *call_info);
 static int get_fnum(var_t fnum);
 static const char * type_of_link_target(const dir_entry_t *entry);
@@ -103,6 +104,7 @@ static const function_t functions[] = {
 	{ "executable",  "check for executable file",  {1,1}, &executable_builtin },
 	{ "expand",      "expand macros in a string",  {1,1}, &expand_builtin },
 	{ "extcached",   "caches result of a command", {3,3}, &extcached_builtin },
+	{ "filereadable","checks for a readable file", {1,1}, &filereadable_builtin },
 	{ "filetype",    "retrieve type of a file",    {1,2}, &filetype_builtin },
 	{ "filesize",    "retrieve size of a file",    {1,1}, &filesize_builtin },   //add by sim1
 	{ "fnameescape", "escapes string for a :cmd",  {1,1}, &fnameescape_builtin },
@@ -305,6 +307,23 @@ TSTATIC void
 set_extcached_monitor_type(FileMonType type)
 {
 	extcached_mon_type = type;
+}
+
+/* Checks whether path is a non-directory entry and its permissions allow
+ * reading.  Returns boolean value describing result of the check. */
+static var_t
+filereadable_builtin(const call_info_t *call_info)
+{
+	int is_readable = 0;
+
+	char *path = var_to_str(call_info->argv[0]);
+	if(path != NULL)
+	{
+		is_readable = (os_access(path, R_OK) == 0 && !is_dir(path));
+		free(path);
+	}
+
+	return var_from_bool(is_readable);
 }
 
 /* Gets string representation of file type.  Returns the string. */
