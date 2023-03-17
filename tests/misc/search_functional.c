@@ -107,8 +107,7 @@ TEST(message_for_invalid_pattern)
 
 	(void)vle_keys_exec_timed_out(WK_SLASH L"*" WK_CR);
 
-	assert_string_equal("Regexp (*) error: Invalid preceding regular expression",
-			ui_sb_last());
+	assert_string_starts_with("Regexp (*) error: ", ui_sb_last());
 }
 
 TEST(selection_is_dropped_for_hlsearch)
@@ -197,7 +196,7 @@ TEST(correct_cursor_position_for_incsearch_with_a_count)
 {
 	cfg.inc_search = 1;
 
-	(void)vle_keys_exec_timed_out(L"3" WK_SLASH L"." WK_CR);
+	(void)vle_keys_exec_timed_out(L"3" WK_SLASH L".." WK_CR);
 	assert_int_equal(3, lwin.list_pos);
 }
 

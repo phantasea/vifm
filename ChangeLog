@@ -1,4 +1,4 @@
-0.12.1 to current
+0.12.1 to 0.13-beta (2023-03-17)
 
 	Changed implementation of `:compare grouppaths` to juxtapose only files
 	with identical relative paths.  Patch by Alexandr Keyp (a.k.a. IAmKapuze).
@@ -14,11 +14,11 @@
 	to Sergei Trofimovich (a.k.a. trofi).
 
 	Changed %N macro to also not start a process group for a command.  Thanks
-	to Oskar Grunning (sQVe).
+	to Oskar Grunning (a.k.a. sQVe).
 
 	Changed error reporting for some of the :commands such that now their
-	failures cause a dialog to appear of sourcing of vifmrc, previously those
-	errors were printed only to status bar.
+	failures cause a dialog to appear on sourcing, previously those errors
+	were printed only to status bar.
 
 	Added "withicase" and "withrcase" to :compare that force ignoring and
 	respecting case respectively on comparing file names and paths.  Thanks to
@@ -120,8 +120,8 @@
 
 	Made file conflict more concise.  Thanks to aleksejrs.
 
-	Update Default-256 to fix differentiate between more file types.  Thanks
-	to aleksejrs.
+	Update Default-256 to differentiate between more file types.  Thanks to
+	aleksejrs.
 
 	Don't move cursor on search failure during search with a count.  Patch by
 	filterfalse.
@@ -132,6 +132,9 @@
 
 	A regular search logic showing messages is applied to n/N.  Patch by
 	filterfalse.
+
+	Made aborting deletion abort the operation on the rest of files when
+	deleting multiple files.
 
 	Fixed segfault on trying to use pipe from Lua after its parent VifmJob
 	object was garbage-collected.  Thanks to PRESFIL.
@@ -221,6 +224,12 @@
 
 	Fixed resetting count to 1 during incremental search in normal mode.  Patch
 	by filterfalse.
+
+	Fixed description of %i macro in the documentation to mention that it runs
+	command in background.
+
+	Fixed the last search direction not being saved on search performed from
+	non-normal mode.  Patch by filterfalse.
 
 0.12.1-beta to 0.12.1 (2022-09-21)
 

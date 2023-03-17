@@ -107,6 +107,34 @@ TEST(vifm_exists)
 	assert_string_equal("y", ui_sb_last());
 }
 
+TEST(vifm_executable)
+{
+	const char *const exec_file = SANDBOX_PATH "/exec" EXE_SUFFIX;
+	create_executable(exec_file);
+
+	ui_sb_msg("");
+
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.executable('.') and 'y' or 'n')"));
+	assert_string_equal("n", ui_sb_last());
+
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.executable('" SANDBOX_PATH "') and 'y' or 'n')"));
+	assert_string_equal("n", ui_sb_last());
+
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.executable('" SANDBOX_PATH "/exec" EXE_SUFFIX "') "
+				      "and 'y' or 'n')"));
+	assert_string_equal("y", ui_sb_last());
+
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.executable('" TEST_DATA_PATH "/read/two-lines') "
+				      "and 'y' or 'n')"));
+	assert_string_equal("n", ui_sb_last());
+
+	assert_success(remove(exec_file));
+}
+
 TEST(vifm_makepath)
 {
 	assert_success(vlua_run_string(vlua, "sandbox = '" SANDBOX_PATH "'"));
@@ -222,8 +250,8 @@ TEST(vifm_currview)
 	++curr_view->id;
 	ui_sb_msg("");
 	assert_failure(vlua_run_string(vlua, "r:cd('bla')"));
-	assert_true(ends_with(ui_sb_last(),
-				"Invalid VifmView object (associated view is dead)"));
+	assert_string_ends_with("Invalid VifmView object (associated view is dead)",
+			ui_sb_last());
 
 	assert_success(cmds_dispatch1("tabnew", curr_view, CIT_COMMAND));
 
@@ -249,8 +277,40 @@ TEST(vifm_version)
 
 	ui_sb_msg("");
 	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.major,"
+				"      vifm.version.api.minor,"
+				"      vifm.version.api.patch)"));
+	assert_string_equal("0\t1\t0", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
 				"print(vifm.version.api.atleast(0, 0, 0))"));
 	assert_string_equal("true", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.atleast(0, 0, 1))"));
+	assert_string_equal("true", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.atleast(0, 1))"));
+	assert_string_equal("true", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.atleast(0, 1, 1))"));
+	assert_string_equal("false", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.atleast(0, 2))"));
+	assert_string_equal("false", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_success(vlua_run_string(vlua,
+				"print(vifm.version.api.atleast(1))"));
+	assert_string_equal("false", ui_sb_last());
 }
 
 TEST(vifm_run)
@@ -262,8 +322,8 @@ TEST(vifm_run)
 				"print(vifm.run({ cmd = 'exit 3',"
 				                " usetermmux = false,"
 				                " pause = 'unknown' }))"));
-	assert_true(ends_with(ui_sb_last(),
-				": Unrecognized value for `pause`: unknown"));
+	assert_string_ends_with(": Unrecognized value for `pause`: unknown",
+			ui_sb_last());
 
 	/* This waits for user input on Windows. */
 #ifndef _WIN32
@@ -327,8 +387,8 @@ TEST(vifm_input)
 	assert_failure(vlua_run_string(vlua,
 				"print(vifm.input({ prompt = 'write: ',"
 				                  " complete = 'bla' }))"));
-	assert_true(ends_with(ui_sb_last(),
-				": Unrecognized value for `complete`: bla"));
+	assert_string_ends_with(": Unrecognized value for `complete`: bla",
+			ui_sb_last());
 
 	vle_keys_reset();
 

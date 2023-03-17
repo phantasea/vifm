@@ -2098,9 +2098,8 @@ make_bmark_path(const char path[])
 static int
 compare_cmd(const cmd_info_t *cmd_info)
 {
-	int in_compare = cv_compare(curr_view->custom.type);
-
-	if(cmd_info->emark && !in_compare)
+	int is_toggling = cmd_info->emark;
+	if(is_toggling && !cv_compare(curr_view->custom.type))
 	{
 		ui_sb_err("Toggling requires active compare view");
 		return CMDS_ERR_CUSTOM;
@@ -2108,13 +2107,13 @@ compare_cmd(const cmd_info_t *cmd_info)
 
 	CompareType ct = CT_CONTENTS;
 	ListType lt = LT_ALL;
-	int flags = (in_compare ? CF_NONE : CF_GROUP_PATHS);
+	int flags = (is_toggling ? CF_NONE : CF_GROUP_PATHS);
 	if(parse_compare_properties(cmd_info, &ct, &lt, &flags) != 0)
 	{
 		return CMDS_ERR_CUSTOM;
 	}
 
-	if(in_compare)
+	if(is_toggling)
 	{
 		struct cv_data_t *cv = &curr_view->custom;
 		return (compare_two_panes(cv->diff_cmp_type, cv->diff_list_type,
@@ -3128,14 +3127,16 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 		{
 			if(try_parse_cterm_color(equal + 1, 0, color) != 0)
 			{
-				return CMDS_ERR_CUSTOM;
+				/* Color not supported by the current terminal is not a hard error. */
+				return 1;
 			}
 		}
 		else if(strcmp(arg_name, "ctermfg") == 0)
 		{
 			if(try_parse_cterm_color(equal + 1, 1, color) != 0)
 			{
-				return CMDS_ERR_CUSTOM;
+				/* Color not supported by the current terminal is not a hard error. */
+				return 1;
 			}
 		}
 		else if(strcmp(arg_name, "guibg") == 0)
@@ -3143,7 +3144,8 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 			int value;
 			if(try_parse_gui_color(equal + 1, &value) != 0)
 			{
-				return CMDS_ERR_CUSTOM;
+				/* Color not supported by the current terminal is not a hard error. */
+				return 1;
 			}
 
 			cs_color_enable_gui(color);
@@ -3154,7 +3156,8 @@ parse_file_highlight(const cmd_info_t *cmd_info, col_attr_t *color)
 			int value;
 			if(try_parse_gui_color(equal + 1, &value) != 0)
 			{
-				return CMDS_ERR_CUSTOM;
+				/* Color not supported by the current terminal is not a hard error. */
+				return 1;
 			}
 
 			cs_color_enable_gui(color);
@@ -3214,7 +3217,7 @@ try_parse_cterm_color(const char str[], int is_fg, col_attr_t *color)
 			cs->state = CSS_BROKEN;
 		}
 
-		return CMDS_ERR_CUSTOM;
+		return 1;
 	}
 
 	if(is_fg)
@@ -5776,7 +5779,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 	}
 	else if(expanded_com[0] == '/')
 	{
-		modnorm_set_search_count(/*count=*/1);
+		modnorm_set_search_attrs(/*count=*/1, /*last_search_backward=*/0);
 		cmds_dispatch1(expanded_com + 1, curr_view, CIT_FSEARCH_PATTERN);
 		cmds_preserve_selection();
 		external = 0;
