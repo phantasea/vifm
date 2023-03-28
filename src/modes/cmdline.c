@@ -500,6 +500,11 @@ handle_empty_input(void)
 		ui_view_reset_search_highlight(curr_view);
 	}
 
+	if(input_stat.prev_mode == VISUAL_MODE)
+	{
+		modvis_update();
+	}
+
 	if(input_stat.sub_mode == CLS_FILTER)
 	{
 		set_local_filter("");
@@ -525,7 +530,7 @@ handle_nonempty_input(void)
 			break;
 		case CLS_VBSEARCH: backward = 1; /* Fall through. */
 		case CLS_VFSEARCH:
-			result = modvis_find(curr_view, mbinput, backward, /*print_msg=*/0,
+			result = modvis_find_interactive(curr_view, mbinput, backward,
 					&input_stat.search_match_found);
 			update_state(result, curr_view->matches);
 			break;
@@ -826,6 +831,7 @@ init_line_stats(line_stats_t *stat, const wchar_t prompt[],
 	stat->dot_pos = -1;
 	stat->line_edited = 0;
 	stat->enter_mapping_state = vle_keys_mapping_state();
+	stat->expanding_abbrev = 0;
 	stat->state = PS_NORMAL;
 
 	if((is_forward_search(sub_mode) || is_backward_search(sub_mode)) &&
@@ -878,11 +884,6 @@ set_view_port(void)
 	{
 		/* Filtering itself doesn't update status line. */
 		ui_stat_update(curr_view, 1);
-	}
-
-	if(input_stat.prev_mode == VISUAL_MODE)
-	{
-		modvis_update();
 	}
 }
 
