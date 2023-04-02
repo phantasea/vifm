@@ -1551,6 +1551,7 @@ reset_local_options(view_t *view)
 	val.int_val = view->ls_view_g;
 	vle_opts_assign("lsview", val, OPT_LOCAL);
 
+	view->miller_preview = view->miller_preview_g;
 	memcpy(view->miller_ratios, view->miller_ratios_g,
 			sizeof(view->miller_ratios));
 	fill_milleroptions(&val, view->miller_ratios_g, view->miller_preview_g);
@@ -1683,6 +1684,9 @@ clone_local_options(const view_t *from, view_t *to, int defer_slow)
 
 	to->miller_view_g = from->miller_view_g;
 	fview_set_millerview(to, from->miller_view);
+
+	to->miller_preview_g = from->miller_preview_g;
+	to->miller_preview = from->miller_preview;
 
 	replace_string(&to->preview_prg, from->preview_prg);
 	replace_string(&to->preview_prg_g, from->preview_prg_g);
