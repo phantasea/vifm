@@ -3004,10 +3004,12 @@ create_rating_info(int star, char path[])
 		return NULL;
 	}
   
+	/******* not check *************
 	if (!path_exists(path, NODEREF))
 	{
 		return NULL;
 	}
+	******** not check ************/
 
 	rating_entry_t *entry = (rating_entry_t *)malloc(sizeof(rating_entry_t));
 	if (NULL == entry)
