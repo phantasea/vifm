@@ -290,13 +290,13 @@ static void get_session_dir(char buf[], size_t buf_size);
 
 //add by sim1 ********************************************************
 #define CRYPT_ROT_SHIFT 13
+extern const char * local_getenv(const char envname[]);
 static void str_rot_encrypt(char *str);
 static void str_rot_decrypt(char *str);
 static rating_entry_t *rating_list = NULL;
 static rating_entry_t * create_rating_info(int star, char path[]);
 static void update_rating_star(rating_entry_t *entry, int star);
-static void update_rating_info(int star, char path[]);
-extern const char * local_getenv(const char envname[]);
+void update_rating_info(int star, char path[]);
 static void store_rating_info(JSON_Object *root);
 static void load_rating_info(JSON_Object *root);
 //add by sim1 ********************************************************
@@ -3071,7 +3071,7 @@ update_rating_star(rating_entry_t *entry, int star)
 	return;
 }
 
-static void
+void
 update_rating_info(int star, char path[])
 {
 	if (NULL == path)

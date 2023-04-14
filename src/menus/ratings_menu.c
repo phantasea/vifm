@@ -31,13 +31,17 @@
 #include "menus.h"
 
 static int execute_ratings_cb(view_t *view, menu_data_t *m);
+static KHandlerResponse rating_khandler(view_t *view, menu_data_t *m, const wchar_t keys[]);
 extern rating_entry_t * get_rating_list();
+extern void update_rating_info(int star, char path[]);
+extern int get_rating_stars(char path[]);
 
 int show_ratings_menu(view_t *view)
 {
 	static menu_data_t m;
 	menus_init_data(&m, view, strdup("Rating Stars -- Target"), strdup("No star ratings added"));
 	m.execute_handler = &execute_ratings_cb;
+	m.key_handler = &rating_khandler;
 
 	rating_entry_t *entry = get_rating_list();
 	while (entry != NULL)
@@ -66,6 +70,21 @@ execute_ratings_cb(view_t *view, menu_data_t *m)
 {
 	(void)menus_goto_file(m, view, m->items[m->pos]+2, 0);
 	return 0;
+}
+
+/* Menu-specific shortcut handler.  Returns code that specifies both taken
+ * actions and what should be done next. */
+static KHandlerResponse
+rating_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
+{
+	if(wcscmp(keys, L"dd") == 0)
+	{
+		int star = get_rating_stars(m->items[m->pos]+2);
+		update_rating_info(0-star, m->items[m->pos]+2);
+		menus_remove_current(m->state);
+		return KHR_REFRESH_WINDOW;
+	}
+	return KHR_UNHANDLED;
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
