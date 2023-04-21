@@ -1,11 +1,11 @@
 #include <stic.h>
 
-#include <unistd.h> /* chdir() rmdir() symlink() unlink() */
+#include <unistd.h> /* chdir() rmdir() unlink() */
 
 #include <stddef.h> /* size_t */
 #include <stdio.h> /* fclose() fopen() fprintf() remove() */
 #include <stdlib.h> /* free() */
-#include <string.h> /* memcpy() memset() */
+#include <string.h> /* memcpy() */
 
 #include <test-utils.h>
 
@@ -133,11 +133,7 @@ TEST(reload_does_not_remove_broken_symlinks, IF(not_windows))
 	assert_non_null(os_realpath(TEST_DATA_PATH "/existing-files/a", test_file));
 
 	assert_success(chdir(SANDBOX_PATH));
-
-	/* symlink() is not available on Windows, but other code is fine. */
-#ifndef _WIN32
-	assert_success(symlink("/wrong/path", "broken-link"));
-#endif
+	assert_success(make_symlink("/wrong/path", "broken-link"));
 
 	assert_false(flist_custom_active(&lwin));
 
@@ -157,16 +153,10 @@ TEST(reload_does_not_remove_broken_symlinks, IF(not_windows))
 TEST(symlinks_to_dirs_are_recognized_as_dirs, IF(not_windows))
 {
 	char test_dir[PATH_MAX + 1];
-
 	assert_non_null(os_realpath(TEST_DATA_PATH "/existing-files", test_dir));
 
 	assert_success(chdir(SANDBOX_PATH));
-
-	/* symlink() is not available on Windows, but other code is fine. */
-#ifndef _WIN32
-	assert_success(symlink(test_dir, "dir-link"));
-#endif
-	(void)test_dir;
+	assert_success(make_symlink(test_dir, "dir-link"));
 
 	assert_false(flist_custom_active(&lwin));
 
@@ -224,9 +214,6 @@ TEST(files_are_sorted_undecorated)
 	cfg.type_decs[FT_DIR][DECORATION_SUFFIX][0] = '/';
 	cfg.type_decs[FT_DIR][DECORATION_SUFFIX][1] = '\0';
 
-	lwin.sort[0] = SK_BY_NAME;
-	memset(&lwin.sort[1], SK_NONE, sizeof(lwin.sort) - 1);
-
 	assert_success(os_mkdir("foo", 0700));
 	assert_success(os_mkdir("foo-", 0700));
 	assert_success(os_mkdir("foo0", 0700));
@@ -267,9 +254,6 @@ TEST(unsorted_custom_view_does_not_change_order_of_files)
 TEST(sorted_custom_view_after_unsorted)
 {
 	opt_handlers_setup();
-
-	lwin.sort[0] = SK_BY_NAME;
-	memset(&lwin.sort[1], SK_NONE, sizeof(lwin.sort) - 1);
 
 	assert_false(flist_custom_active(&lwin));
 
@@ -553,8 +537,7 @@ TEST(can_set_very_cv_twice_in_a_row)
 
 	lwin.columns = columns_create();
 
-	lwin.sort[0] = SK_BY_NAME;
-	memset(&lwin.sort[1], SK_NONE, sizeof(lwin.sort) - 1);
+	view_set_sort(lwin.sort, SK_BY_NAME, SK_NONE);
 
 	setup_custom_view(&lwin, 1);
 	flist_custom_start(&lwin, "test");
@@ -589,15 +572,10 @@ TEST(symlinks_are_not_resolved_in_origins, IF(not_windows))
 {
 	char path[PATH_MAX + 1];
 
-	/* symlink() is not available on Windows, but the rest of the code is fine. */
-#ifndef _WIN32
-	{
-		char src[PATH_MAX + 1], dst[PATH_MAX + 1];
-		make_abs_path(src, sizeof(src), TEST_DATA_PATH, "existing-files", cwd);
-		make_abs_path(dst, sizeof(dst), SANDBOX_PATH, "link", cwd);
-		assert_success(symlink(src, dst));
-	}
-#endif
+	char src[PATH_MAX + 1], dst[PATH_MAX + 1];
+	make_abs_path(src, sizeof(src), TEST_DATA_PATH, "existing-files", cwd);
+	make_abs_path(dst, sizeof(dst), SANDBOX_PATH, "link", cwd);
+	assert_success(make_symlink(src, dst));
 
 	assert_success(chdir(SANDBOX_PATH "/link"));
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "link",

@@ -1,7 +1,7 @@
 #include <stic.h>
 
 #include <sys/stat.h> /* chmod() */
-#include <unistd.h> /* pathconf() rmdir() symlink() unlink() */
+#include <unistd.h> /* pathconf() rmdir() unlink() */
 
 #include <string.h> /* memset() */
 
@@ -171,11 +171,7 @@ TEST(incdec)
 
 TEST(rename_to_broken_symlink_name, IF(not_windows))
 {
-	/* symlink() is not available on Windows, but the rest of the code is fine. */
-#ifndef _WIN32
-	assert_success(symlink("no-such-file", SANDBOX_PATH "/broken-link"));
-#endif
-
+	assert_success(make_symlink("no-such-file", SANDBOX_PATH "/broken-link"));
 	create_file(SANDBOX_PATH "/a-file");
 
 	populate_dir_list(&lwin, 0);

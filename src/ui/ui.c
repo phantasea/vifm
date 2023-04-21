@@ -1530,6 +1530,7 @@ void
 switch_panes(void)
 {
 	switch_panes_content();
+	load_view_options(curr_view);
 	modview_try_activate();
 }
 
@@ -2814,8 +2815,11 @@ ui_qv_cleanup_if_needed(void)
 void
 ui_hide_graphics(void)
 {
-	ui_qv_cleanup_if_needed();
-	modview_hide_graphics();
+	if(!modes_is_menu_like())
+	{
+		ui_qv_cleanup_if_needed();
+		modview_hide_graphics();
+	}
 }
 
 void
@@ -2869,8 +2873,7 @@ ui_shutdown(void)
 {
 	if(curr_stats.load_stage >= 0 && !vifm_testing() && !isendwin())
 	{
-		ui_qv_cleanup_if_needed();
-		modview_hide_graphics();
+		ui_hide_graphics();
 		def_prog_mode();
 		endwin();
 	}

@@ -1,15 +1,15 @@
 #include <stic.h>
 
-#include <unistd.h> /* chdir() symlink() */
+#include <unistd.h> /* chdir() */
 
 #include <limits.h> /* INT_MIN */
-#include <string.h> /* memset() */
 
 #include <test-utils.h>
 
 #include "../../src/cfg/config.h"
 #include "../../src/compat/fs_limits.h"
 #include "../../src/engine/keys.h"
+#include "../../src/engine/options.h"
 #include "../../src/modes/cmdline.h"
 #include "../../src/modes/modes.h"
 #include "../../src/modes/wk.h"
@@ -35,16 +35,15 @@ SETUP_ONCE()
 SETUP()
 {
 	view_setup(&lwin);
+	view_setup(&rwin);
 	modes_init();
 	opt_handlers_setup();
-
-	lwin.sort_g[0] = SK_BY_NAME;
-	memset(&lwin.sort_g[1], SK_NONE, sizeof(lwin.sort_g) - 1);
 }
 
 TEARDOWN()
 {
 	view_teardown(&lwin);
+	view_teardown(&rwin);
 	vle_keys_reset();
 	opt_handlers_teardown();
 }
@@ -169,17 +168,26 @@ TEST(gs_memory_implicit_stash)
 	assert_true(lwin.dir_entry[2].selected);
 }
 
+TEST(swapping_views_loads_options)
+{
+	assert_success(vle_opts_set("numberwidth=3", OPT_GLOBAL));
+	assert_success(vle_opts_set("numberwidth=7", OPT_LOCAL));
+	(void)vle_keys_exec_timed_out(WK_C_w WK_x);
+	assert_string_equal("0", vle_opts_get("numberwidth", OPT_GLOBAL));
+	assert_string_equal("0", vle_opts_get("numberwidth", OPT_LOCAL));
+	(void)vle_keys_exec_timed_out(WK_C_w WK_x);
+	assert_string_equal("3", vle_opts_get("numberwidth", OPT_GLOBAL));
+	assert_string_equal("7", vle_opts_get("numberwidth", OPT_LOCAL));
+}
+
 TEST(gf, IF(not_windows))
 {
 	char dir_path[PATH_MAX + 1];
 	make_abs_path(dir_path, sizeof(dir_path), SANDBOX_PATH, "dir", cwd);
 
 	create_dir(SANDBOX_PATH "/dir");
-	/* symlink() is not available on Windows, but the rest of the code is fine. */
-#ifndef _WIN32
-	assert_success(symlink("dir", SANDBOX_PATH "/link1"));
-	assert_success(symlink("link1", SANDBOX_PATH "/link2"));
-#endif
+	assert_success(make_symlink("dir", SANDBOX_PATH "/link1"));
+	assert_success(make_symlink("link1", SANDBOX_PATH "/link2"));
 
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
 	load_dir_list(&lwin, 0);
@@ -205,11 +213,8 @@ TEST(gF, IF(not_windows))
 	make_abs_path(dir_path, sizeof(dir_path), SANDBOX_PATH, "dir", cwd);
 
 	create_dir(SANDBOX_PATH "/dir");
-	/* symlink() is not available on Windows, but the rest of the code is fine. */
-#ifndef _WIN32
-	assert_success(symlink("dir", SANDBOX_PATH "/link1"));
-	assert_success(symlink("link1", SANDBOX_PATH "/link2"));
-#endif
+	assert_success(make_symlink("dir", SANDBOX_PATH "/link1"));
+	assert_success(make_symlink("link1", SANDBOX_PATH "/link2"));
 
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
 	load_dir_list(&lwin, 0);
