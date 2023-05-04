@@ -593,8 +593,9 @@ static const char *vifminfo_set[][2] = {
 	[BIT(VINFO_PHISTORY)]  = { "phistory",  "prompt history" },
 	[BIT(VINFO_EHISTORY)]  = { "ehistory",  "expression register history" },
 	[BIT(VINFO_FHISTORY)]  = { "fhistory",  "local filter history" },
-	[BIT(VINFO_RATINGS)]   = { "ratings",   "star ratings" },
+	[BIT(VINFO_MCHISTORY)] = { "mchistory", "menu cmdline history" },
 	[BIT(VINFO_TABS)]      = { "tabs",      "global or pane tabs" },
+	[BIT(VINFO_RATINGS)]   = { "ratings",   "star ratings" },
 };
 ARRAY_GUARD(vifminfo_set, NUM_VINFO);
 

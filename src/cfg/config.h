@@ -141,10 +141,11 @@ enum
 	VINFO_FHISTORY  = 1 << 13, /* Filter history. */
 	VINFO_PHISTORY  = 1 << 14, /* Prompt history. */
 	VINFO_SHISTORY  = 1 << 15, /* Search history. */
-	VINFO_SAVEDIRS  = 1 << 16, /* Restore last used directories on startup. */
-	VINFO_TABS      = 1 << 17, /* Restore global or pane tabs. */
-	VINFO_RATINGS   = 1 << 18, /* Restore last used directories on startup. */
-	NUM_VINFO       = 19,      /* Number of VINFO_* constants. */
+	VINFO_MCHISTORY = 1 << 16, /* Command-line history of menus. */
+	VINFO_SAVEDIRS  = 1 << 17, /* Restore last used directories on startup. */
+	VINFO_TABS      = 1 << 18, /* Restore global or pane tabs. */
+	VINFO_RATINGS   = 1 << 19, /* Restore rating records on startup. */
+	NUM_VINFO       = 20,      /* Number of VINFO_* constants. */
 
 	EMPTY_VINFO = 0,                   /* Empty set of flags. */
 	FULL_VINFO  = (1 << NUM_VINFO) - 1 /* Full set of flags. */
