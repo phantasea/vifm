@@ -7,6 +7,13 @@
 
 	Added ":history mcmd" menu for displaying command-line history of menus.
 
+	Added :col[der] and :cnew[er] commands to menu mode to traverse history of
+	navigation menus.
+
+	Added :chi[story] command that opens a menu of saved menus.
+
+	Added :chi[story] command to menu mode.
+
 	Don't draw right padding on a truncated rightmost column of a transposed
 	ls-like view.
 
@@ -20,6 +27,8 @@
 
 	Made documentation of 'vifminfo' more readable.
 
+	Rewrote "Menus and dialogs" part of the documentation.
+
 	Fixed line number column not including padding to the left of it.
 
 	Fixed local options not being loaded on Ctrl-W x.
@@ -32,6 +41,12 @@
 
 	Fixed statusbar output not being preserved on running commands from
 	:history menus.
+
+	Fixed not being able to pick a symbolic link to a directory via
+	--choose-files or --on-choose by selecting and opening it.
+
+	Fixed 'slowfs' option not being applied to targets of symbolic links on
+	operations related to directory sizes.  Thanks to rok (a.k.a. aca).
 
 0.13-beta to 0.13 (2023-04-04)
 
