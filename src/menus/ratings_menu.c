@@ -59,7 +59,7 @@ int show_ratings_menu(view_t *view)
 		entry = entry->next;
 	}
 
-	return menus_enter(m.state, view);
+	return menus_enter(&m, view);
 }
 
 /* Callback that is called when menu item is selected. 
