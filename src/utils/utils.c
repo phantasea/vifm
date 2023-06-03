@@ -974,7 +974,7 @@ format_position(char buf[], size_t buf_len, int top, int total, int visible)
 	}
 	else
 	{
-		snprintf(buf, buf_len, "%2d%%", (top*100)/(total - visible));
+		snprintf(buf, buf_len, "%02d%%", (top*100)/(total - visible));
 	}
 }
 
