@@ -379,6 +379,8 @@ typedef struct config_t
 	char *top_mid_filler;    /* top middle border filler */
 	char *clipboard_prg;     /* how to obtain the clipboard */
 	int cd_after_mkdir;      /* cd after mkdir */
+	char *pane_one_tag;      /* tag for pane#1 */
+	char *pane_two_tag;      /* tag for pane#2 */
 	//add by sim1 **********************************************
 
 	/* Settings of size formatting. */

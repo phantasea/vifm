@@ -250,6 +250,8 @@ cfg_init(void)
 	cfg.top_mid_filler = strdup(" ");
 	cfg.clipboard_prg = strdup("");
 	cfg.cd_after_mkdir = 0;
+	cfg.pane_one_tag = strdup("(1)");
+	cfg.pane_two_tag = strdup("(2)");
 	//add by sim1 *******************
 
 	cfg.sizefmt.base = 1024;

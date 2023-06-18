@@ -2576,7 +2576,9 @@ print_view_title(const view_t *view, int active_view, char title[])
 	//add by sim1: add pane tag shown at the right-most of the pane
 	if (!middle_border_is_visible())
 	{
-		mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? " ㈠" : " ㈡");
+		//mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? " ㈠" : " ㈡");
+		//mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? " ①" : " ②");
+		mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? cfg.pane_one_tag : cfg.pane_two_tag);
 	}
 	//mod by sim1 *******************************
 

@@ -261,6 +261,8 @@ static void redolastcmdcfm_handler(OPT_OP op, optval_t val);
 static void clipboardprg_handler(OPT_OP op, optval_t val);
 static void vimabs_handler(OPT_OP op, optval_t val);
 static void cdaftermkdir_handler(OPT_OP op, optval_t val);
+static void paneonetag_handler(OPT_OP op, optval_t val);
+static void panetwotag_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 /* Possible values of 'caseoptions'. */
@@ -781,6 +783,14 @@ options[] = {
 	{ "cdaftermkdir", "mkcd", "cd after creating new dir",
 	  OPT_BOOL, 0, NULL, &cdaftermkdir_handler, NULL,
 	  { .ref.bool_val = &cfg.cd_after_mkdir },
+	},
+	{ "paneonetag", "", "tag of pane#1",
+	  OPT_STR, 0, NULL, &paneonetag_handler, NULL,
+	  { .ref.str_val = &cfg.pane_one_tag },
+	},
+	{ "panetwotag", "", "tag of pane#2",
+	  OPT_STR, 0, NULL, &panetwotag_handler, NULL,
+	  { .ref.str_val = &cfg.pane_two_tag },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "mouse", "", "which modes handle mouse",
@@ -4161,6 +4171,18 @@ static void
 cdaftermkdir_handler(OPT_OP op, optval_t val)
 {
 	cfg.cd_after_mkdir = val.bool_val;
+}
+
+static void
+paneonetag_handler(OPT_OP op, optval_t val)
+{
+	(void)replace_string(&cfg.pane_one_tag, val.str_val);
+}
+
+static void
+panetwotag_handler(OPT_OP op, optval_t val)
+{
+	(void)replace_string(&cfg.pane_two_tag, val.str_val);
 }
 //add by sim1 *******************************************************************************
 
