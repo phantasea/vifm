@@ -20,6 +20,9 @@
 	Added 'hloptions' option to configure which columns get colored.  Thanks to
 	qsmodo.
 
+	Added "millersep:" value to 'fillchars' that allows customizing the border
+	between miller columns.  Thanks to Shuo (a.k.a. shenqshuoh).
+
 	Don't draw right padding on a truncated rightmost column of a transposed
 	ls-like view.
 
