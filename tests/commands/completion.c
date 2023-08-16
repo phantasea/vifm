@@ -29,6 +29,7 @@
 #include "../../src/builtin_functions.h"
 #include "../../src/cmd_core.h"
 #include "../../src/plugins.h"
+#include "../lua/asserts.h"
 
 #define ASSERT_COMPLETION(initial, expected) \
 	do \
@@ -585,6 +586,25 @@ TEST(highlight_is_completed)
 
 	assert_success(cmds_dispatch("hi {*.jpg} cterm=none", &lwin, CIT_COMMAND));
 	ASSERT_COMPLETION(L"hi clear ", L"hi clear {*.jpg}");
+}
+
+TEST(highlight_columns_are_completed)
+{
+	curr_stats.vlua = vlua_init();
+
+	GLUA_EQ(curr_stats.vlua, "", "function handler() end");
+	GLUA_EQ(curr_stats.vlua, "",
+			"vifm.addcolumntype{ name = 'Test', handler = handler }");
+
+	/* Completion doesn't require columns to be colored. */
+	ASSERT_COMPLETION(L"hi column:s", L"hi column:size");
+	ASSERT_COMPLETION(L"hi column:T", L"hi column:Test");
+
+	assert_success(cmds_dispatch("hi column:size cterm=bold", &lwin, CIT_COMMAND));
+	ASSERT_COMPLETION(L"hi clear column:si", L"hi clear column:size");
+
+	vlua_finish(curr_stats.vlua);
+	curr_stats.vlua = NULL;
 }
 
 TEST(command_options_are_completed)
