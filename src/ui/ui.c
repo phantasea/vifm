@@ -1661,6 +1661,7 @@ only(void)
 {
 	if(curr_stats.number_of_windows != 1)
 	{
+		ui_hide_graphics();
 		curr_stats.number_of_windows = 1;
 		update_screen(UT_REDRAW);
 	}
