@@ -1206,7 +1206,7 @@ column_line_print(const char buf[], int offset, AlignType align,
 
 	const int primary = is_primary_column_id(info->id);
 	const cchar_t line_attrs =
-		prepare_col_color(view, primary, 0, cdt, info->real_id);
+		prepare_col_color(view, primary, 0, cdt);
 
 	/* Non-empty prefix contains tree pseudo-graphics. */
 	size_t extra_prefix = primary ? *cdt->prefix_len : 0U;

@@ -359,7 +359,6 @@ columns_format_line(columns_t *cols, void *format_data, int max_line_width)
 		AlignType align = decorate_output(col, &info, col_buffer,
 				sizeof(col_buffer), max_line_width);
 		const int cur_col_start = calculate_start_pos(col, col_buffer, align);
-		int print_start = MIN(cur_col_start, col->start);
 
 		/* Ensure that we are not trying to draw current column in the middle of a
 		 * character inside previous column. */
