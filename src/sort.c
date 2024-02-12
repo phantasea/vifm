@@ -357,9 +357,9 @@ vercmp(const char s[], const char t[])
 			t = p;
 
 			if(num_a != num_b)
-				return num_a - num_b;
+				return SORT_CMP(num_a, num_b);
 			else if(*os != *ot)
-				return *os - *ot;
+				return SORT_CMP(*os, *ot);
 		}
 		else if(*s == *t)
 		{
@@ -370,7 +370,7 @@ vercmp(const char s[], const char t[])
 			break;
 	}
 
-	return *s - *t;
+	return SORT_CMP(*s, *t);
 }
 #else
 /* Skips all zeros in front of numbers (correctly handles zero).  Returns str, a
@@ -449,34 +449,34 @@ sort_dir_list(const void *one, const void *two)
 			break;
 
 		case SK_BY_TIME_MODIFIED:
-			retval = first->mtime - second->mtime;
+			retval = SORT_CMP(first->mtime, second->mtime);
 			break;
 
 		case SK_BY_TIME_ACCESSED:
-			retval = first->atime - second->atime;
+			retval = SORT_CMP(first->atime, second->atime);
 			break;
 
 		case SK_BY_TIME_CHANGED:
-			retval = first->ctime - second->ctime;
+			retval = SORT_CMP(first->ctime, second->ctime);
 			break;
 
 #ifndef _WIN32
 		case SK_BY_MODE:
-			retval = first->mode - second->mode;
+			retval = SORT_CMP(first->mode, second->mode);
 			break;
 
 		case SK_BY_INODE:
-			retval = first->inode - second->inode;
+			retval = SORT_CMP(first->inode, second->inode);
 			break;
 
 		case SK_BY_OWNER_NAME: /* FIXME */
 		case SK_BY_OWNER_ID:
-			retval = first->uid - second->uid;
+			retval = SORT_CMP(first->uid, second->uid);
 			break;
 
 		case SK_BY_GROUP_NAME: /* FIXME */
 		case SK_BY_GROUP_ID:
-			retval = first->gid - second->gid;
+			retval = SORT_CMP(first->gid, second->gid);
 			break;
 
 		case SK_BY_PERMISSIONS:
@@ -489,7 +489,7 @@ sort_dir_list(const void *one, const void *two)
 			break;
 
 		case SK_BY_NLINKS:
-			retval = first->nlinks - second->nlinks;
+			retval = SORT_CMP(first->nlinks, second->nlinks);
 			break;
 #endif
 		//add by sim1  *******************************************************
@@ -501,7 +501,7 @@ sort_dir_list(const void *one, const void *two)
 
 	if(retval == 0)
 	{
-		retval = first->tag - second->tag;
+		retval = SORT_CMP(first->tag, second->tag);
 	}
 	else if(sort_descending)
 	{
@@ -517,7 +517,7 @@ compare_file_sizes(const dir_entry_t *f, const dir_entry_t *s)
 {
 	const uint64_t fsize = fentry_get_size(view, f);
 	const uint64_t ssize = fentry_get_size(view, s);
-	return (fsize < ssize) ? -1 : (fsize > ssize);
+	return SORT_CMP(fsize, ssize);
 }
 
 /* Compares number of items in two directories (taken as zero for files).
@@ -531,7 +531,7 @@ compare_item_count(const dir_entry_t *f, int fdir, const dir_entry_t *s,
 	 * performance overhead is not desirable. */
 	const uint64_t fsize = fdir ? fentry_get_nitems(view, f) : 0U;
 	const uint64_t ssize = sdir ? fentry_get_nitems(view, s) : 0U;
-	return (fsize > ssize) ? 1 : (fsize < ssize) ? -1 : 0;
+	return SORT_CMP(fsize, ssize);
 }
 
 /* Compares two file names according to grouping regular expression.  Returns
