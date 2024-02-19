@@ -5378,10 +5378,10 @@ $as_echo "#define _XOPEN_SOURCE_EXTENDED 1" >>confdefs.h
 
 
 
-printf "%s\n" "#define UTF8PROC_STATIC 1" >>confdefs.h
+$as_echo "#define UTF8PROC_STATIC 1" >>confdefs.h
 
 
-       for ac_header in alloca.h
+for ac_header in alloca.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "alloca.h" "ac_cv_header_alloca_h" "$ac_includes_default"
 if test "x$ac_cv_header_alloca_h" = xyes; then :
