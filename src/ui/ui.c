@@ -143,7 +143,7 @@ static WINDOW *mborder;
 static int init_pair_wrapper(int pair, int fg, int bg);
 static int pair_content_wrapper(int pair, int *fg, int *bg);
 static int pair_in_use(int pair);
-static void move_pair(int from, int to);
+static void pair_moved(int from, int to);
 static void create_windows(void);
 static void update_geometry(void);
 static int update_start(UpdateType update_kind);
@@ -274,7 +274,7 @@ setup_ncurses_interface(void)
 		.init_pair = &init_pair_wrapper,
 		.pair_content = &pair_content_wrapper,
 		.pair_in_use = &pair_in_use,
-		.move_pair = &move_pair,
+		.pair_moved = &pair_moved,
 	};
 	colmgr_init(&colmgr_conf);
 
@@ -371,9 +371,9 @@ pair_in_use(int pair)
 	return 0;
 }
 
-/* Substitutes old pair number with the new one. */
+/* Replaces uses of an old pair number with the new one. */
 static void
-move_pair(int from, int to)
+pair_moved(int from, int to)
 {
 	int i;
 	for(i = 0; i < MAXNUM_COLOR; ++i)
