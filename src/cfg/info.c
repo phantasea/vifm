@@ -3180,11 +3180,11 @@ get_rating_string(char buf[], int buf_len, char path[], int format)
 		{
 			if (strlen(display) > 0)  //$DISPLAY==":0" in X
 			{
-				strcat(rating, "★");
+				strcat(rating, "");
 			}
 			else
 			{
-				strcat(rating, "");
+				strcat(rating, "★");
 			}
 		}
 
