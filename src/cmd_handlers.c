@@ -223,7 +223,7 @@ static int history_cmd(const cmd_info_t *cmd_info);
 static int histnext_cmd(const cmd_info_t *cmd_info);
 static int histprev_cmd(const cmd_info_t *cmd_info);
 static int if_cmd(const cmd_info_t *cmd_info);
-static int eval_if_condition(const cmd_info_t *cmd_info);
+static int eval_if_condition(int cmd_id, const cmd_info_t *cmd_info);
 static int invert_cmd(const cmd_info_t *cmd_info);
 static void print_inversion_state(char state_type);
 static void invert_state(char state_type);
@@ -2362,7 +2362,7 @@ else_cmd(const cmd_info_t *cmd_info)
 static int
 elseif_cmd(const cmd_info_t *cmd_info)
 {
-	const int x = eval_if_condition(cmd_info);
+	const int x = eval_if_condition(COM_ELSEIF_STMT, cmd_info);
 	if(x < 0)
 	{
 		return CMDS_ERR_CUSTOM;
@@ -3388,7 +3388,7 @@ histprev_cmd(const cmd_info_t *cmd_info)
 static int
 if_cmd(const cmd_info_t *cmd_info)
 {
-	const int x = eval_if_condition(cmd_info);
+	const int x = eval_if_condition(COM_IF_STMT, cmd_info);
 	if(x < 0)
 	{
 		return CMDS_ERR_CUSTOM;
@@ -3402,8 +3402,14 @@ if_cmd(const cmd_info_t *cmd_info)
  * error, zero for expression that's evaluated to false and positive number for
  * true expressions. */
 static int
-eval_if_condition(const cmd_info_t *cmd_info)
+eval_if_condition(int cmd_id, const cmd_info_t *cmd_info)
 {
+	if(!cmds_scoped_should_eval(cmd_id))
+	{
+		/* Pretend the condition evaluated to false. */
+		return 0;
+	}
+
 	vle_tb_clear(vle_err);
 
 	int result;
