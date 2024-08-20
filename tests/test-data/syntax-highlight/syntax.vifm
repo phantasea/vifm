@@ -520,6 +520,7 @@ chist
 chisto
 chistor
 chistory
+wingo
 
 " the words following ":" should be highlighted as :commands
 nnoremap lhs :session
