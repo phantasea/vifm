@@ -523,6 +523,10 @@ chistory
 wingo
 cal
 call
+o
+op
+ope
+open
 
 " the words following ":" should be highlighted as :commands
 nnoremap lhs :session
