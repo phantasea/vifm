@@ -335,7 +335,7 @@ def_handler(wchar_t key)
 	void *p;
 	wchar_t buf[2] = {key, L'\0'};
 
-	input_stat.history_search = HIST_NONE;
+	input_stat.hist_search = HIST_NONE;
 
 	if(input_stat.complete_continue
 			&& input_stat.line[input_stat.index - 1] == L'/' && key == L'/')
@@ -934,8 +934,8 @@ init_line_stats(line_stats_t *stat, const wchar_t prompt[],
 	stat->len = stat->index;
 	stat->cmd_pos = -1;
 	stat->complete_continue = 0;
-	stat->history_search = HIST_NONE;
-	stat->line_buf = NULL;
+	stat->hist_search = HIST_NONE;
+	stat->hist_search_stash = NULL;
 	stat->reverse_completion = 0;
 	stat->manual_completion = 0;
 	stat->inc_completion = 0;
@@ -1081,11 +1081,11 @@ free_line_stats(line_stats_t *stat)
 	free(input_stat.line);
 	free(input_stat.last_line);
 	free(input_stat.initial_line);
-	free(input_stat.line_buf);
+	free(input_stat.hist_search_stash);
 	input_stat.line = NULL;
 	input_stat.last_line = NULL;
 	input_stat.initial_line = NULL;
-	input_stat.line_buf = NULL;
+	input_stat.hist_search_stash = NULL;
 }
 
 /* Moves command-line cursor to the beginning of command-line. */
@@ -2077,16 +2077,16 @@ is_backward_search(CmdLineSubmode sub_mode)
 }
 
 static void
-save_users_input(void)
+hist_search_stash_input(void)
 {
-	(void)replace_wstring(&input_stat.line_buf, input_stat.line);
+	(void)replace_wstring(&input_stat.hist_search_stash, input_stat.line);
 }
 
 static void
-restore_user_input(void)
+hist_search_unstash_input(void)
 {
 	input_stat.cmd_pos = -1;
-	(void)replace_wstring(&input_stat.line, input_stat.line_buf);
+	(void)replace_wstring(&input_stat.line, input_stat.hist_search_stash);
 	input_stat.len = wcslen(input_stat.line);
 	update_cmdline(&input_stat);
 }
@@ -2125,10 +2125,10 @@ cmd_ctrl_n(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.history_search == HIST_NONE)
-		save_users_input();
+	if(input_stat.hist_search == HIST_NONE)
+		hist_search_stash_input();
 
-	input_stat.history_search = HIST_GO;
+	input_stat.hist_search = HIST_GO;
 
 	hist_next(&input_stat, pick_hist(), cfg.history_len);
 }
@@ -2143,11 +2143,11 @@ hist_next(line_stats_t *stat, const hist_t *hist, size_t len)
 		return;
 	}
 
-	if(stat->history_search != HIST_SEARCH)
+	if(stat->hist_search != HIST_SEARCH)
 	{
 		if(stat->cmd_pos <= 0)
 		{
-			restore_user_input();
+			hist_search_unstash_input();
 			return;
 		}
 		--stat->cmd_pos;
@@ -2168,7 +2168,7 @@ hist_next(line_stats_t *stat, const hist_t *hist, size_t len)
 		}
 		if(pos < 0)
 		{
-			restore_user_input();
+			hist_search_unstash_input();
 			return;
 		}
 		stat->cmd_pos = pos;
@@ -2811,10 +2811,10 @@ cmd_ctrl_p(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.history_search == HIST_NONE)
-		save_users_input();
+	if(input_stat.hist_search == HIST_NONE)
+		hist_search_stash_input();
 
-	input_stat.history_search = HIST_GO;
+	input_stat.hist_search = HIST_GO;
 
 	hist_prev(&input_stat, pick_hist(), cfg.history_len);
 }
@@ -2957,12 +2957,12 @@ cmd_down(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.history_search == HIST_NONE)
-		save_users_input();
+	if(input_stat.hist_search == HIST_NONE)
+		hist_search_stash_input();
 
-	if(input_stat.history_search != HIST_SEARCH)
+	if(input_stat.hist_search != HIST_SEARCH)
 	{
-		input_stat.history_search = HIST_SEARCH;
+		input_stat.hist_search = HIST_SEARCH;
 		input_stat.hist_search_len = input_stat.len;
 	}
 
@@ -2982,12 +2982,12 @@ cmd_up(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.history_search == HIST_NONE)
-		save_users_input();
+	if(input_stat.hist_search == HIST_NONE)
+		hist_search_stash_input();
 
-	if(input_stat.history_search != HIST_SEARCH)
+	if(input_stat.hist_search != HIST_SEARCH)
 	{
-		input_stat.history_search = HIST_SEARCH;
+		input_stat.hist_search = HIST_SEARCH;
 		input_stat.hist_search_len = input_stat.len;
 	}
 
@@ -3096,7 +3096,7 @@ hist_prev(line_stats_t *stat, const hist_t *hist, size_t len)
 		return;
 	}
 
-	if(stat->history_search != HIST_SEARCH)
+	if(stat->hist_search != HIST_SEARCH)
 	{
 		if(stat->cmd_pos == hist->size - 1)
 		{
@@ -3470,7 +3470,7 @@ wcsdel(wchar_t *src, int pos, int len)
 static void
 switch_to_editing(void)
 {
-	input_stat.history_search = HIST_NONE;
+	input_stat.hist_search = HIST_NONE;
 	stop_completion();
 }
 
