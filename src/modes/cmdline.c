@@ -154,6 +154,7 @@ static int is_backward_search(CmdLineSubmode sub_mode);
 static int replace_wstring(wchar_t **str, const wchar_t with[]);
 static void cmd_ctrl_n(key_info_t key_info, keys_info_t *keys_info);
 static void hist_next(line_stats_t *stat, const hist_t *hist, size_t len);
+static void hist_search_reset_input(void);
 static void cmd_ctrl_requals(key_info_t key_info, keys_info_t *keys_info);
 static void expr_reg_prompt_cb(const char expr[], void *arg);
 static int expr_reg_prompt_completion(const char cmd[], void *arg);
@@ -216,6 +217,7 @@ static void cmd_end(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_page_up(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_page_down(key_info_t key_info, keys_info_t *keys_info);
 #endif /* ENABLE_EXTENDED_KEYS */
+static int hist_search_setup(HIST kind);
 static void update_cmdline_size(void);
 TSTATIC int line_completion(line_stats_t *stat);
 static int start_completion(line_stats_t *stat, int inc_completion);
@@ -2076,21 +2078,6 @@ is_backward_search(CmdLineSubmode sub_mode)
 	    || sub_mode == CLS_VWBSEARCH;
 }
 
-static void
-hist_search_stash_input(void)
-{
-	(void)replace_wstring(&input_stat.hist_search_stash, input_stat.line);
-}
-
-static void
-hist_search_unstash_input(void)
-{
-	input_stat.cmd_pos = -1;
-	(void)replace_wstring(&input_stat.line, input_stat.hist_search_stash);
-	input_stat.len = wcslen(input_stat.line);
-	update_cmdline(&input_stat);
-}
-
 /* Replaces *str with a copy of the with string.  *str can be NULL or equal to
  * the with (then function does nothing).  Returns non-zero if memory allocation
  * failed. */
@@ -2125,11 +2112,7 @@ cmd_ctrl_n(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.hist_search == HIST_NONE)
-		hist_search_stash_input();
-
-	input_stat.hist_search = HIST_GO;
-
+	(void)hist_search_setup(HIST_GO);
 	hist_next(&input_stat, pick_hist(), cfg.history_len);
 }
 
@@ -2147,7 +2130,7 @@ hist_next(line_stats_t *stat, const hist_t *hist, size_t len)
 	{
 		if(stat->cmd_pos <= 0)
 		{
-			hist_search_unstash_input();
+			hist_search_reset_input();
 			return;
 		}
 		--stat->cmd_pos;
@@ -2168,7 +2151,7 @@ hist_next(line_stats_t *stat, const hist_t *hist, size_t len)
 		}
 		if(pos < 0)
 		{
-			hist_search_unstash_input();
+			hist_search_reset_input();
 			return;
 		}
 		stat->cmd_pos = pos;
@@ -2182,6 +2165,16 @@ hist_next(line_stats_t *stat, const hist_t *hist, size_t len)
 	{
 		stat->cmd_pos = len - 1;
 	}
+}
+
+/* Restores original user input saved by hist_search_setup(). */
+static void
+hist_search_reset_input(void)
+{
+	input_stat.cmd_pos = -1;
+	(void)replace_wstring(&input_stat.line, input_stat.hist_search_stash);
+	input_stat.len = wcslen(input_stat.line);
+	update_cmdline(&input_stat);
 }
 
 /* Invokes expression register prompt. */
@@ -2811,11 +2804,7 @@ cmd_ctrl_p(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.hist_search == HIST_NONE)
-		hist_search_stash_input();
-
-	input_stat.hist_search = HIST_GO;
-
+	(void)hist_search_setup(HIST_GO);
 	hist_prev(&input_stat, pick_hist(), cfg.history_len);
 }
 
@@ -2957,12 +2946,8 @@ cmd_down(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.hist_search == HIST_NONE)
-		hist_search_stash_input();
-
-	if(input_stat.hist_search != HIST_SEARCH)
+	if(hist_search_setup(HIST_SEARCH))
 	{
-		input_stat.hist_search = HIST_SEARCH;
 		input_stat.hist_search_len = input_stat.len;
 	}
 
@@ -2982,12 +2967,8 @@ cmd_up(key_info_t key_info, keys_info_t *keys_info)
 
 	stop_completion();
 
-	if(input_stat.hist_search == HIST_NONE)
-		hist_search_stash_input();
-
-	if(input_stat.hist_search != HIST_SEARCH)
+	if(hist_search_setup(HIST_SEARCH))
 	{
-		input_stat.hist_search = HIST_SEARCH;
 		input_stat.hist_search_len = input_stat.len;
 	}
 
@@ -3085,6 +3066,27 @@ cmd_page_down(key_info_t key_info, keys_info_t *keys_info)
 }
 
 #endif /* ENABLE_EXTENDED_KEYS */
+
+/* Makes sure that a historical search of the specified kind is active, saving
+ * current command-line input if the search wasn't active at all.  Returns zero
+ * if the request kind was already active. */
+static int
+hist_search_setup(HIST kind)
+{
+	/* The input needs to be stored only when historical search is initiated. */
+	if(input_stat.hist_search == HIST_NONE)
+	{
+		(void)replace_wstring(&input_stat.hist_search_stash, input_stat.line);
+	}
+
+	if(input_stat.hist_search == kind)
+	{
+		return 0;
+	}
+
+	input_stat.hist_search = kind;
+	return 1;
+}
 
 /* Puts previous element in the history.  hist can be NULL, in which case
  * nothing happens. */
