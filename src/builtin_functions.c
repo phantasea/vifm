@@ -84,6 +84,7 @@ static complete_cmd_func pick_completer(const char type[], int *success);
 static void input_builtin_cb(const char response[], void *arg);
 static var_t layoutis_builtin(const call_info_t *call_info);
 static var_t paneisat_builtin(const call_info_t *call_info);
+static var_t selected_builtin(const call_info_t *call_info);
 static var_t system_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
 static var_t isactive_builtin(const call_info_t *call_info);
@@ -117,6 +118,7 @@ static const function_t functions[] = {
 	{ "isdotfile",   "check if file a dot file",   {1,1}, &isdotfile_builtin },  //add by sim1
 	{ "layoutis",    "query current layout",       {1,1}, &layoutis_builtin },
 	{ "paneisat",    "query pane location",        {1,1}, &paneisat_builtin },
+	{ "selected",    "retrieve selection size",    {0,0}, &selected_builtin },
 	{ "selfiles",    "selected file number",       {0,0}, &selfiles_builtin },   //add by sim1
 	{ "system",      "execute external command",   {1,1}, &system_builtin },
 	{ "tabpagenr",   "number of current/last tab", {0,1}, &tabpagenr_builtin },
@@ -640,6 +642,14 @@ paneisat_builtin(const call_info_t *call_info)
 	free(loc);
 
 	return var_from_bool(result);
+}
+
+/* Retrieves number of files selected in the active pane.  Returns an
+ * integer. */
+static var_t
+selected_builtin(const call_info_t *call_info)
+{
+	return var_from_int(curr_view->selected_files);
 }
 
 /* Runs the command in a shell and returns its output (joined standard output
