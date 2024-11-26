@@ -91,16 +91,12 @@ VLUA_DECLARE_UNSAFE(vifmview_unselect);
 
 /* Methods of VifmView type. */
 static const luaL_Reg vifmview_methods[] = {
-	{ "cd",         VLUA_REF(vifmview_cd)         },
-	{ "entries",    VLUA_REF(vifmview_entries)    },
-	{ "entry",      VLUA_REF(vifmview_entry)      },
-	{ "focus",      VLUA_REF(vifmview_focus)      },
-	{ "gotopath",   VLUA_REF(vifmview_gotopath)   },
-	{ "loadcustom", VLUA_REF(vifmview_loadcustom) },
-	{ "select",     VLUA_REF(vifmview_select)     },
-	{ "selected",   VLUA_REF(vifmview_selected)   },
-	{ "unselect",   VLUA_REF(vifmview_unselect)   },
-	{ NULL,         NULL                          }
+	{ "cd",       VLUA_REF(vifmview_cd)       },
+	{ "entry",    VLUA_REF(vifmview_entry)    },
+	{ "select",   VLUA_REF(vifmview_select)   },
+	{ "selected", VLUA_REF(vifmview_selected) },
+	{ "unselect", VLUA_REF(vifmview_unselect) },
+	{ NULL,       NULL                        }
 };
 
 void

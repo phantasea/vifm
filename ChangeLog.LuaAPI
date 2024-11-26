@@ -52,19 +52,6 @@ documented in the regular ChangeLog.
 
 	Added VifmView:selected() that returns an iterator over selected entries.
 
-	Added VifmView:entries() that returns an iterator over all entries.
-
-	Added VifmView:focus() that makes the view the current one.
-
-	Added VifmView:gotopath() that navigates to a file (like :goto or
-	--select).
-
-	Added VifmView:loadcustom() that sets list of paths as a custom view.
-
-	Added index of Lua API to the documentation for easier overview/lookup.
-
-	Added vifm.menus.loadcustom() that makes a menu out of a list of strings.
-
 	Made VifmJob:errors() wait for receiving errors if the job has finished.
 
 	Fixed jobs created via vifm.startjob() being displayed with "UNKNOWN" for
