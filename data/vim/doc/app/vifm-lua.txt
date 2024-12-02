@@ -1,4 +1,4 @@
-*vifm-lua.txt*    For Vifm version 1.0  Last change: 2024 Dec 2
+*vifm-lua.txt*    For Vifm version 1.0  Last change: 2024 Dec 3
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -1687,6 +1687,9 @@ vifm.fs.rmdir({path})                      |vifm-l_vifm.fs.rmdir()|
 
 vifm.keys (table)                          |vifm-l_vifm.keys|
 vifm.keys.add({key})                       |vifm-l_vifm.keys.add()|
+
+vifm.menus (table)                         |vifm-l_vifm.menus|
+vifm.menus.loadcustom({menu})              |vifm-l_vifm.menus.loadcustom()|
 
 vifm.opts (table)                          |vifm-l_vifm.opts|
 vifm.opts.global (table)                   |vifm-l_vifm.opts.global|
