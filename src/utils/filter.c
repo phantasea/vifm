@@ -85,6 +85,12 @@ filter_clear(filter_t *filter)
 {
 	filter->raw[0] = '\0';
 	free_regex(filter);
+
+	//add by sim1
+	filter->filter_directorys   = 0;
+	filter->filter_nondirectory = 0;
+	filter->filter_nonsymlinks  = 0;
+	filter->filter_nonratings   = 0;
 }
 
 int
