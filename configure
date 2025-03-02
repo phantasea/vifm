@@ -5728,18 +5728,13 @@ if test "x$ac_cv_type_mntent" = xyes; then :
 fi
 
 else
-    ac_fn_c_check_type "$LINENO" "getmntinfo" "ac_cv_type_getmntinfo" "
-                     #include <sys/param.h>
-                     #include <sys/ucred.h>
-                     #include <sys/mount.h>
-
-"
-if test "x$ac_cv_type_getmntinfo" = xyes; then :
+    ac_fn_c_check_func "$LINENO" "getmntinfo" "ac_cv_func_getmntinfo"
+if test "x$ac_cv_func_getmntinfo" = xyes
+then :
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_GETMNTINFO 1
 _ACEOF
-
 
 fi
 
