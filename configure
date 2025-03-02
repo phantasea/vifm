@@ -6662,13 +6662,6 @@ else
   as_fn_error $? "wcstombs() function not found." "$LINENO" 5
 fi
 
-ac_fn_c_check_func "$LINENO" "wcswidth" "ac_cv_func_wcswidth"
-if test "x$ac_cv_func_wcswidth" = xyes; then :
-
-else
-  as_fn_error $? "wcswidth() function not found." "$LINENO" 5
-fi
-
 ac_fn_c_check_func "$LINENO" "wcwidth" "ac_cv_func_wcwidth"
 if test "x$ac_cv_func_wcwidth" = xyes; then :
 
