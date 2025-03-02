@@ -6672,8 +6672,8 @@ fi
 ac_fn_c_check_func "$LINENO" "wcwidth" "ac_cv_func_wcwidth"
 if test "x$ac_cv_func_wcwidth" = xyes; then :
 
-else
-  as_fn_error $? "wcwidth() function not found." "$LINENO" 5
+printf "%s\n" "#define HAVE_WCWIDTH 1" >>confdefs.h
+
 fi
 
 
