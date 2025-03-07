@@ -5729,12 +5729,9 @@ fi
 
 else
     ac_fn_c_check_func "$LINENO" "getmntinfo" "ac_cv_func_getmntinfo"
-if test "x$ac_cv_func_getmntinfo" = xyes
-then :
+if test "x$ac_cv_func_getmntinfo" = xyes; then :
 
-cat >>confdefs.h <<_ACEOF
-#define HAVE_GETMNTINFO 1
-_ACEOF
+$as_echo "#define HAVE_GETMNTINFO 1" >>confdefs.h
 
 fi
 
