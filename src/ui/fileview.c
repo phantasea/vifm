@@ -126,7 +126,7 @@ static void draw_line_number(const column_data_t *cdt, int column);
 static int is_primary_colored_column_id(int id);
 static int is_primary_column_id(int id);
 static cchar_t prepare_col_color(const view_t *view, int is_primary_colored,
-		int line_nr, const column_data_t *cdt, int real_id);
+		int line_nr, const column_data_t *cdt);
 static void mix_in_common_colors(col_attr_t *col, const view_t *view,
 		dir_entry_t *entry, int line_color);
 static void mix_in_file_hi(const view_t *view, dir_entry_t *entry, int type_hi,
@@ -1207,7 +1207,7 @@ column_line_print(const char buf[], int offset, AlignType align,
 
 	const int is_primary_colored = is_primary_colored_column_id(info->id);
 	const cchar_t line_attrs =
-		prepare_col_color(view, is_primary_colored, 0, cdt, info->real_id);
+		prepare_col_color(view, is_primary_colored, 0, cdt);
 
 	/* Non-empty prefix contains tree pseudo-graphics. */
 	const int is_treeable_column = is_primary_column_id(info->id);
@@ -1380,7 +1380,7 @@ is_primary_column_id(int id)
  * used for drawing on a window. */
 static cchar_t
 prepare_col_color(const view_t *view, int is_primary_colored, int line_nr,
-		const column_data_t *cdt, int real_id)
+		const column_data_t *cdt)
 {
 	const col_scheme_t *const cs = ui_view_get_cs(view);
 	col_attr_t col = ui_get_win_color(view, cs);
@@ -1413,6 +1413,7 @@ prepare_col_color(const view_t *view, int is_primary_colored, int line_nr,
 			/******************************************************************
 			int color = (view == curr_view || !cdt->is_main) ? CURR_LINE_COLOR
 			                                                 : OTHER_LINE_COLOR;
+			******************************************************************/
 
 			//add by sim1 ++++++++++++++++++++++++++++++++++++++++
 			int color = 0;
@@ -1440,7 +1441,6 @@ prepare_col_color(const view_t *view, int is_primary_colored, int line_nr,
 				cs_mix_colors(&col, &cs->color[LINE_NUM_COLOR]);
 			}
 			//add by sim1 ----------------------------------------
-			******************************************************************/
 
 			/* Avoid combining attributes for non-primary columns. */
 			if(!is_primary_colored)
