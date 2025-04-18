@@ -972,6 +972,8 @@ fill_dir_entry(dir_entry_t *entry, const char path[], const struct dirent *d)
 		/* Query mode of symbolic link target. */
 		if(!entry->slow_target && os_stat(entry->name, &s) == 0)
 		{
+			//add by sim1: show symlink target's real size
+			entry->size = (uintmax_t)s.st_size;
 			entry->mode = s.st_mode;
 		}
 	}
