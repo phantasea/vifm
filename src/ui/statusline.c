@@ -399,7 +399,8 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 							copy_str(buf, sizeof(buf), "Failed to resolve symlink!");
 							break;
 						}
-						snprintf(path, sizeof(path), "%s -> %s", name, link_path);
+						//snprintf(path, sizeof(path), "%s -> %s", name, link_path);
+						snprintf(path, sizeof(path), "-> %s", link_path);
 					}
 					else
 					{
