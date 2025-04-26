@@ -714,9 +714,6 @@ execute_next_keys(key_chunk_t *curr, const wchar_t keys[], key_info_t *key_info,
 static int
 needs_waiting(const key_chunk_t *curr)
 {
-	//add by sim1: keep showing suggestbox for s/,
-	return 1;
-
 	if(curr->wait)
 	{
 		return 1;
