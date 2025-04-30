@@ -63,6 +63,13 @@
 	Fixed ruler in menu mode not growing in size to accomodate its content.
 	Thanks to CaptainFantastic.
 
+	Fixed a memory leak on formatting tab line when there is not enough space.
+
+	Fixed an unlikely memory leak on parsing of malformed 'viewcolumns'.
+
+	Fixed truncating wide characters on drawing columns broken on introducing
+	column-specific highlighting in 0.14-beta.  Thanks to Snake52996.
+
 0.14-beta to 0.14 (2025-02-08)
 
 	Improved documentation on zh/zl menu keys a bit.
@@ -132,6 +139,9 @@
 
 	Added 'hloptions' option to configure which view colums get affected by
 	file highlighting.  Thanks to qsmodo.
+
+	Added "column:{name}" form of argument to :highlight command to specify
+	style of a separate column.  Thanks to Anton Gepting.
 
 	Added "millersep:" value to 'fillchars' that allows customizing the border
 	between miller columns.  Thanks to Shuo (a.k.a. shenqshuoh).

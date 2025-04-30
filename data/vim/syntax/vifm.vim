@@ -152,8 +152,10 @@ syntax keyword vifmHiColors contained black red green yellow blue magenta cyan
 		\ Khaki1 Wheat1 Cornsilk1 Grey100 Grey3 Grey7 Grey11 Grey15 Grey19 Grey23
 		\ Grey27 Grey30 Grey35 Grey39 Grey42 Grey46 Grey50 Grey54 Grey58 Grey62
 		\ Grey66 Grey70 Grey74 Grey78 Grey82 Grey85 Grey89 Grey93
-
 syntax case match
+syntax match vifmHiGroups contained "column:[A-Z][a-zA-Z]*"
+syntax match vifmHiGroups contained
+		\ "column:\(ext\|name\|size\|atime\|ctime\|mtime\|iname\|dir\|type\|fileext\|nitems\|groups\|target\|root\|fileroot\|gid\|gname\|mode\|uid\|uname\|perms\|nlinks\|inode\)"
 
 " Options
 syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions

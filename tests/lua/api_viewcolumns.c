@@ -76,7 +76,14 @@ TEST(column_is_registered)
 	GLUA_EQ(vlua, "true",
 			"print(vifm.addcolumntype{ name = 'Test', handler = handler })");
 
-	assert_true(vlua_viewcolumn_map(vlua, "Test") != -1);
+	int id = vlua_viewcolumn_map(vlua, "Test");
+	assert_true(id != -1);
+
+	char *name = vlua_viewcolumn_map_back(vlua, id);
+	assert_string_equal("Test", name);
+	free(name);
+
+	assert_string_equal(NULL, vlua_viewcolumn_map_back(vlua, -1));
 }
 
 TEST(duplicate_name)

@@ -116,6 +116,8 @@ static int compare_rating(const dir_entry_t *f, const dir_entry_t *s);  //add by
 
 /* The following variables are set by prepare_for_sorting(). */
 
+/* The following variables are set by prepare_for_sorting(). */
+
 /* View which is being sorted. */
 static view_t *view;
 /* Picked sort array of the view. */

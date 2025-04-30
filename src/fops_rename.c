@@ -191,7 +191,6 @@ fops_rename(view_t *view, char *list[], int nlines, int recursive)
 	{
 		free_string_array(files, nfiles);
 		show_error_msg("Memory Error", "Unable to allocate enough memory");
-
 		return 0;
 	}
 

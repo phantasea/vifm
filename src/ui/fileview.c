@@ -126,7 +126,7 @@ static void draw_line_number(const column_data_t *cdt, int column);
 static int is_primary_colored_column_id(int id);
 static int is_primary_column_id(int id);
 static cchar_t prepare_col_color(const view_t *view, int is_primary_colored,
-		int line_nr, const column_data_t *cdt);
+		int line_nr, const column_data_t *cdt, int real_id);
 static void mix_in_common_colors(col_attr_t *col, const view_t *view,
 		dir_entry_t *entry, int line_color);
 static void mix_in_file_hi(const view_t *view, dir_entry_t *entry, int type_hi,
@@ -1207,7 +1207,7 @@ column_line_print(const char buf[], int offset, AlignType align,
 
 	const int is_primary_colored = is_primary_colored_column_id(info->id);
 	const cchar_t line_attrs =
-		prepare_col_color(view, is_primary_colored, 0, cdt);
+		prepare_col_color(view, is_primary_colored, 0, cdt, info->real_id);
 
 	/* Non-empty prefix contains tree pseudo-graphics. */
 	const int is_treeable_column = is_primary_column_id(info->id);
@@ -1244,7 +1244,7 @@ column_line_print(const char buf[], int offset, AlignType align,
 		buf += extra_prefix;
 
 		checked_wmove(view->win, cdt->current_line, final_offset - extra_prefix);
-		cchar_t cch = prepare_col_color(view, 0, 0, cdt);
+		cchar_t cch = prepare_col_color(view, 0, 0, cdt, /*real_id=*/-1);
 		wprinta(view->win, print_buf, &cch, 0);
 	}
 
@@ -1304,10 +1304,10 @@ draw_line_number(const column_data_t *cdt, int column)
 			num);
 
 	checked_wmove(view->win, cdt->current_line, column);
-	cchar_t cch = prepare_col_color(view, 0, 1, cdt);
+	cchar_t cch = prepare_col_color(view, 0, 1, cdt, /*real_id=*/-1);
 	wprinta(view->win, num_str, &cch, 0);
 	//add by sim1: line number has diff color with the space separator
-	cch = prepare_col_color(view, 0, -1, cdt);
+	cch = prepare_col_color(view, 0, -1, cdt, -1);
 	wprinta(view->win, " ", &cch, 0);
 }
 
@@ -1380,7 +1380,7 @@ is_primary_column_id(int id)
  * used for drawing on a window. */
 static cchar_t
 prepare_col_color(const view_t *view, int is_primary_colored, int line_nr,
-		const column_data_t *cdt)
+		const column_data_t *cdt, int real_id)
 {
 	const col_scheme_t *const cs = ui_view_get_cs(view);
 	col_attr_t col = ui_get_win_color(view, cs);
@@ -1395,7 +1395,12 @@ prepare_col_color(const view_t *view, int is_primary_colored, int line_nr,
 		cs_mix_colors(&col, &cs->color[ODD_LINE_COLOR]);
 	}
 
-	//primary = 1;  //add by sim1 for taking whole line effect of highlight
+	const col_attr_t *column_hi = cs_get_column_hi(cs, real_id);
+	if(column_hi != NULL)
+	{
+		cs_mix_colors(&col, column_hi);
+	}
+
 	if(cdt->line_pos != -1)
 	{
 		const int is_current = (cdt->line_pos == cdt->current_pos);
@@ -1404,7 +1409,7 @@ prepare_col_color(const view_t *view, int is_primary_colored, int line_nr,
 		 * but the rest depends on configuration. */
 		const int with_line_hi = is_primary_colored
 		                      || (cfg.color_what == CW_ONE_ROW && is_current)
-		                      || cfg.color_what == CW_ALL_ROWS;
+		                      || (cfg.color_what == CW_ALL_ROWS);
 		const int line_color = with_line_hi ? cdt->line_hi_group : -1;
 		mix_in_common_colors(&col, view, cdt->entry, line_color);
 
