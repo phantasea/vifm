@@ -1855,9 +1855,9 @@ format_rating(void *data, size_t buf_len, char buf[], const format_info_t *info)
 {
 	const column_data_t *cdt = info->data;
 	view_t *view = cdt->view;
-  int pos = cdt->line_pos;
+	int pos = cdt->line_pos;
 
-  char path[PATH_MAX] = {0};
+	char path[PATH_MAX] = {0};
 	get_full_path_at(view, pos, sizeof(path), path);
 	int stars = get_rating_string(buf, buf_len, path, 1);
 	if (stars <= 0)
