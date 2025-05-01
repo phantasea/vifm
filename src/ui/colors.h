@@ -56,7 +56,6 @@ enum
 	EXECUTABLE_COLOR,   /* Executable. */
 	SELECTED_COLOR,     /* Selected item. */
 	CURR_LINE_COLOR,    /* Line under the cursor in the selected pane. */
-	AUX_CURR_LINE_COLOR,/* Line under the cursor in the aux window. */  //add by sim1
 	TOP_LINE_COLOR,     /* Top line of the other pane. */
 	TOP_LINE_SEL_COLOR, /* Top line of the selected pane. */
 	STATUS_LINE_COLOR,  /* Status line. */
