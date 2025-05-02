@@ -260,7 +260,6 @@ static void prefervsplit_handler(OPT_OP op, optval_t val);
 static void maxundotabs_handler(OPT_OP op, optval_t val);
 static void previewmaxsize_handler(OPT_OP op, optval_t val);
 static void topmidfiller_handler(OPT_OP op, optval_t val);
-static void filenamedisplen_handler(OPT_OP op, optval_t val);
 static void redolastcmdcfm_handler(OPT_OP op, optval_t val);
 static void clipboardprg_handler(OPT_OP op, optval_t val);
 static void vimabs_handler(OPT_OP op, optval_t val);
@@ -765,10 +764,6 @@ options[] = {
 	{ "previewmaxsize", "pms", "max file size(kB) for preview",
 	  OPT_INT, 0, NULL, &previewmaxsize_handler, NULL,
 	  { .ref.int_val = &cfg.preview_max_size },
-	},
-	{ "filenamedisplen", "fndl", "filename length in statusbar",
-	  OPT_INT, 0, NULL, &filenamedisplen_handler, NULL,
-	  { .ref.int_val = &cfg.file_name_disp_len },
 	},
 	{ "topmidfiller", "tmf", "top middle border filler",
 	  OPT_STR, 0, NULL, &topmidfiller_handler, NULL,
@@ -4235,20 +4230,6 @@ topmidfiller_handler(OPT_OP op, optval_t val)
 	}
 
 	(void)replace_string(&cfg.top_mid_filler, val.str_val);
-}
-
-static void
-filenamedisplen_handler(OPT_OP op, optval_t val)
-{
-	if (val.int_val <= 0)
-	{
-		vle_tb_append_linef(vle_err, "filenamedisplen=%d, but it must be positive", val.int_val);
-		error = 1;
-		cfg.file_name_disp_len = 64;
-		return;
-	}
-
-	cfg.file_name_disp_len = val.int_val;
 }
 
 static void
