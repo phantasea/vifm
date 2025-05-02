@@ -288,6 +288,13 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 	int nexpansions = 0;
 	int has_expander = 0;
 
+	//add by sim1
+	static int len_perm   = 0;
+	static int len_uid    = 0;
+	static int len_gid    = 0;
+	static int len_time   = 0;
+	static int len_rating = 0;
+
 	if(curr == NULL)
 	{
 		return result;
@@ -384,7 +391,6 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 			//add by sim1: ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 			case 'T':
 				{
-					//mod by sim1 for file name left ellipsis and showing symlink
 					char path[2*PATH_MAX + 5] = {0};
 					char name[PATH_MAX + 1] = {0};
 					format_entry_name(curr, NF_NONE, sizeof(name), name);
@@ -399,28 +405,37 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 							copy_str(buf, sizeof(buf), "Failed to resolve symlink!");
 							break;
 						}
-						//snprintf(path, sizeof(path), "%s -> %s", name, link_path);
-						snprintf(path, sizeof(path), "-> %s", link_path);
+						snprintf(path, sizeof(path), "%s", link_path);
 					}
 					else
 					{
 						snprintf(path, sizeof(path), "%s", name);
 					}
 
-					if (cfg.file_name_disp_all)
-					{
-						//snprintf(buf, sizeof(buf), "%s", path);
-						copy_str(buf, sizeof(buf), path);
-						break;
+					// [-rwxrwxrwx]|simone:simone|12:30 05/21/25|***|  "xxxxx"
+					int len_left = len_perm+3 + len_uid+len_gid+2 + len_time+1;
+					if (len_rating > 0) {
+						len_left += len_rating+1;
 					}
 
-					int maxlen = cfg.columns - cfg.file_name_disp_len;
-					if (maxlen < 4) {
-						maxlen = 4;
+					//2:two spaces 2:two double quotes
+					int maxlen = cfg.columns - len_left - 2 - 2;
+
+					if (curr->type == FT_LINK) {
+						maxlen -= 3;  //strlen("-> ")
+					}
+
+					if (maxlen < 6) {
+						maxlen = 6;   //strlen("….xxxx")
 					}
 
 					char *ellipsis = left_ellipsis(path, maxlen, curr_stats.ellipsis);
-					snprintf(buf, sizeof(buf), "%s", ellipsis);
+					if (curr->type == FT_LINK) {
+						snprintf(buf, sizeof(buf), "\"-> %s\"", ellipsis);
+					} else {
+						snprintf(buf, sizeof(buf), "\"%s\"", ellipsis);
+					}
+
 					free(ellipsis);
 					break;
 				}
@@ -431,6 +446,8 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 #else
 				copy_str(buf, sizeof(buf), attr_str_long(curr->attrs));
 #endif
+				//add by sim1
+				len_perm = strlen(buf);
 				break;
 			case 'o':
 #ifndef _WIN32
@@ -439,9 +456,13 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				break;
 			case 'u':
 				get_uid_string(curr, 0, sizeof(buf), buf);
+				//add by sim1
+				len_uid = strlen(buf);
 				break;
 			case 'g':
 				get_gid_string(curr, 0, sizeof(buf), buf);
+				//add by sim1
+				len_gid = strlen(buf);
 				break;
 			case 's':
 				friendly_size_notation(fentry_get_size(view, curr), sizeof(buf), buf, 0);
@@ -452,6 +473,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					memset(path, 0, sizeof(path));
 					get_full_path_at(view, view->list_pos, sizeof(path), path);
 					(void)get_rating_string(buf, sizeof(buf), path, 0);
+					len_rating = wide_len(buf);
 				}
 				break;
 			case 'n':
@@ -506,6 +528,8 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				{
 					struct tm *tm_ptr = localtime(&curr->mtime);
 					strftime(buf, sizeof(buf), cfg.time_format, tm_ptr);
+					//add by sim1
+					len_time = strlen(buf);
 				}
 				break;
 			case '-':

@@ -383,7 +383,6 @@ typedef struct config_t
 	int max_undo_tabs;       /* max number for undo tabs */
 	int preview_max_size;    /* max file size(kB) for preview */
 	int file_name_disp_len;  /* file name length in statusbar */
-	int file_name_disp_all;  /* file name with prefix&suffix */
 	int redo_last_cmd_cfm;   /* if confirm before redo last cmd */
 	char *top_mid_filler;    /* top middle border filler */
 	char *clipboard_prg;     /* how to obtain the clipboard */
