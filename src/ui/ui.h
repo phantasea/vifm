@@ -135,6 +135,7 @@ typedef struct rating_entry_t
 {
 	char  *path;                   /* full path */
 	int    star;                   /* star number */
+	int    flag;                   /* if path name is encrypted */
 	struct rating_entry_t *next;   /* next entry */
 } rating_entry_t;
 

@@ -294,16 +294,19 @@ static void get_session_dir(char buf[], size_t buf_size);
 
 //add by sim1 ********************************************************
 #define CRYPT_ROT_SHIFT 13
+#define ENCRYPTED 0
+#define DECRYPTED 1
+
+static rating_entry_t *rating_list = NULL;
+
 extern const char * local_getenv(const char envname[]);
-void set_rating_stars(int star, char path[]);
 static void str_rot_encrypt(char *str);
 static void str_rot_decrypt(char *str);
-static rating_entry_t *rating_list = NULL;
-static rating_entry_t * create_rating_info(int star, char path[]);
 static void update_rating_star(rating_entry_t *entry, int star);
-static void update_rating_info(int star, char path[]);
-static void store_rating_info(JSON_Object *root);
+static void update_rating_info(int star, char path[], int flag);
+static void save_rating_info(JSON_Object *root);
 static void load_rating_info(JSON_Object *root);
+static rating_entry_t * create_rating_info(int star, char path[], int flag);
 //add by sim1 ********************************************************
 
 /* Monitor to check for changes of vifminfo file. */
@@ -656,6 +659,8 @@ read_legacy_info_file(const char info_file[])
 			}
 		}
 		//add by sim1 ++++++++++++++++++++++++++++++++
+		//to compatibly read old legacy vifminfo file
+		//example: *4/opt/util/fileopen
 		else if(type == LINE_TYPE_STAR_RATING)
 		{
 			char *path;
@@ -1488,7 +1493,7 @@ serialize_state(int vinfo)
 	//add by sim1
 	if(vinfo & VINFO_RATINGS)
 	{
-		store_rating_info(root);
+		save_rating_info(root);
 	}
 	//add by sim1 --- END
 
@@ -2634,7 +2639,7 @@ clone_array(JSON_Object *parent, const JSON_Array *array, const char node[])
 
 //add by sim1 ******************************************
 static void
-store_rating_info(JSON_Object *root)
+save_rating_info(JSON_Object *root)
 {
 	JSON_Array *ratings = add_array(root, "ratings");
 
@@ -2643,10 +2648,12 @@ store_rating_info(JSON_Object *root)
 	{
 		rating_entry_t *temp = entry->next;
 
-		//if ((entry->star > 0) && (path_exists(entry->path, NODEREF)))
-		if (entry->star > 0)  //don't care if file exists
+		if (entry->star > 0)
 		{
-			str_rot_encrypt(entry->path);
+			if (entry->flag == DECRYPTED)
+			{
+				str_rot_encrypt(entry->path);
+			}
 
 			JSON_Object *obj = append_object(ratings);
 			set_int(obj, "star", entry->star);
@@ -2676,11 +2683,19 @@ load_rating_info(JSON_Object *root)
 
 		int star;
 		char *path;
+		int flag = DECRYPTED;
+
 		if(get_int(obj, "star", &star) &&
 				get_str(obj, "path", (const char **)&path))
 		{
 			str_rot_decrypt(path);
-			update_rating_info(star, path);
+			if(!path_exists(path, NODEREF))
+			{
+				flag = ENCRYPTED;
+				str_rot_encrypt(path);
+			}
+
+			update_rating_info(star, path, flag);
 		}
 	}
 }
@@ -3023,9 +3038,10 @@ get_rating_list()
 }
 
 static rating_entry_t *
-create_rating_info(int star, char path[])
+create_rating_info(int star, char path[], int flag)
 {
-	if (star <= 0)
+	if ((star <= 0) ||
+			(flag != ENCRYPTED && flag != DECRYPTED))
 	{
 		return NULL;
 	}
@@ -3035,13 +3051,6 @@ create_rating_info(int star, char path[])
 		return NULL;
 	}
   
-	/******* not check *************
-	if (!path_exists(path, NODEREF))
-	{
-		return NULL;
-	}
-	******** not check ************/
-
 	rating_entry_t *entry = (rating_entry_t *)malloc(sizeof(rating_entry_t));
 	if (NULL == entry)
 	{
@@ -3049,6 +3058,7 @@ create_rating_info(int star, char path[])
 	}
 	memset(entry, 0, sizeof(rating_entry_t));
 
+	entry->flag = flag;
 	entry->path = strdup(path);
 	update_rating_star(entry, star);
 
@@ -3103,7 +3113,7 @@ update_rating_star(rating_entry_t *entry, int star)
 }
 
 static void
-update_rating_info(int star, char path[])
+update_rating_info(int star, char path[], int flag)
 {
 	if (NULL == path)
 	{
@@ -3113,7 +3123,7 @@ update_rating_info(int star, char path[])
 	rating_entry_t *entry = search_rating_info(path);
 	if (NULL == entry)
 	{
-		(void)create_rating_info(star, path);
+		(void)create_rating_info(star, path, flag);
 		return;
 	}
 
@@ -3130,7 +3140,7 @@ update_rating_info_selected(int star)
 	while (iter_marked_entries(curr_view, &entry))
 	{
 		get_full_path_of(entry, sizeof(path), path);
-		update_rating_info(star, path);
+		update_rating_info(star, path, DECRYPTED);
 	}
 
 	return;
@@ -3224,18 +3234,18 @@ copy_rating_info(const char src[], const char dst[], int op)
 		return;
 	}
 
-	if (op == 0)
+	if (op == 0)  //rm
 	{
 		entry->star = 0;
 	}
-	else if (op == 1)
+	else if (op == 1)  //mv
 	{
 		free(entry->path);
 		entry->path = strdup(dst);
 	}
-	else if (op == 2)
+	else if (op == 2)  //cp
 	{
-		update_rating_info(entry->star, (char *)dst);
+		update_rating_info(entry->star, (char *)dst, entry->flag);
 	}
 
   return;
