@@ -243,6 +243,8 @@ delete_file(dir_entry_t *entry, ops_t *ops, int reg, int use_trash, int nested)
 		if(result == 0)
 		{
 			un_group_add_op(OP_REMOVE, NULL, NULL, full_path, "");
+			//add by sim1: remove rating item
+			copy_rating_info(full_path, full_path, 0);
 		}
 	}
 	else if(trash_is_at_path(full_path))
