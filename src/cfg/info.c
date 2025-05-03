@@ -2693,7 +2693,7 @@ load_rating_info(JSON_Object *root)
 				str_rot_encrypt(path);
 			}
 
-			update_rating_info(star, path, flag);
+			(void)create_rating_info(star, path, flag);
 		}
 	}
 }
@@ -3226,7 +3226,7 @@ copy_rating_info(const char src[], const char dst[], int op)
 		return;
 	}
 
-  rating_entry_t *entry = search_rating_info(src);
+	rating_entry_t *entry = search_rating_info(src);
 	if (NULL == entry)
 	{
 		return;
@@ -3258,6 +3258,28 @@ has_rating_stars(const char path[])
 	}
 
 	return 1;
+}
+
+void
+decrypt_rating_path(char path[])
+{
+	if (NULL == path) {
+		return;
+	}
+
+	rating_entry_t *entry = search_rating_info(path);
+	if (NULL == entry) {
+		return;
+	}
+
+	if (entry->flag == DECRYPTED) {
+		return;
+	}
+
+	str_rot_decrypt(path);
+	entry->path = strdup(path);
+	entry->flag = DECRYPTED;
+	return;
 }
 //add by sim1 ***************************************************
 

@@ -34,6 +34,7 @@ static int execute_ratings_cb(view_t *view, menu_data_t *m);
 static KHandlerResponse rating_khandler(view_t *view, menu_data_t *m, const wchar_t keys[]);
 extern rating_entry_t * get_rating_list();
 extern void set_rating_stars(int star, char path[]);
+extern void decrypt_rating_path(char path[]);
 
 int show_ratings_menu(view_t *view)
 {
@@ -80,6 +81,12 @@ rating_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 	{
 		set_rating_stars(0, m->items[m->pos]+2);
 		menus_remove_current(m->state);
+		return KHR_REFRESH_WINDOW;
+	}
+	else if(wcscmp(keys, L"u") == 0)
+	{
+		decrypt_rating_path(m->items[m->pos]+2);
+		menus_partial_redraw(m->state);
 		return KHR_REFRESH_WINDOW;
 	}
 	return KHR_UNHANDLED;
