@@ -1360,9 +1360,16 @@ void
 vle_keys_suggest(const wchar_t keys[], vle_keys_list_cb cb, int custom_only,
 		int fold_subkeys)
 {
+	//mod by sim1:
+	/*******************************************************************
 	keys_suggest(&user_cmds_root[vle_mode_get()], keys, L"key: ", cb,
 			custom_only, fold_subkeys);
 	keys_suggest(&builtin_cmds_root[vle_mode_get()], keys, L"key: ", cb,
+			custom_only, fold_subkeys);
+	*******************************************************************/
+	keys_suggest(&user_cmds_root[vle_mode_get()], keys, L"", cb,
+			custom_only, fold_subkeys);
+	keys_suggest(&builtin_cmds_root[vle_mode_get()], keys, L"", cb,
 			custom_only, fold_subkeys);
 }
 
