@@ -3,6 +3,7 @@
 
 set -x
 set -e
+set -u
 
 # Reference: https://docs.appimage.org/packaging-guide/from-source/native-binaries.html#id2
 
@@ -11,7 +12,7 @@ set -e
 # like Travis, and RAM disk is available)
 # DISABLED: It seems that linuxdeploy won't be executable on shared memory,
 # maybe /dev/shm is marked as non-executable?
-if [ "$CI" == "" ] && [ -d /dev/shm ] && false; then
+if [ -z "${CI:-}" ] && [ -d /dev/shm ] && false; then
     TEMP_BASE=/dev/shm
 else
     TEMP_BASE=/tmp
@@ -44,7 +45,7 @@ pushd "$NCURSES_DIR"
 ./configure --without-shared --enable-widec --prefix=/usr \
     --without-normal --without-debug --without-cxx --without-cxx-binding \
     --without-ada --without-manpages --without-tests
-make -j4
+make -j"$(nproc)"
 make DESTDIR="$PWD/build" install
 popd
 
@@ -52,7 +53,7 @@ popd
 ./configure --sysconfdir=/etc --prefix=/usr \
     --with-curses="$NCURSES_DIR/build/usr" \
     --without-glib --without-X11 --without-libmagic
-make -j4
+make -j"$(nproc)"
 make DESTDIR="$BUILD_DIR/AppDir" install
 
 # Setup root files
