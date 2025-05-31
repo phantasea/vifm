@@ -5433,13 +5433,9 @@ static int
 do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 		int no_remap)
 {
-	wchar_t *keys, *mapping;
-	char *raw_rhs, *rhs;
-	char t;
-
 	if(cmd_info->argc <= 1)
 	{
-		keys = substitute_specs(cmd_info->args);
+		wchar_t *keys = substitute_specs(cmd_info->args);
 		if(keys != NULL)
 		{
 			int save_msg = show_map_menu(curr_view, map_type, mode, keys);
@@ -5457,14 +5453,12 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	int flags = (no_remap ? KEYS_FLAG_NOREMAP : KEYS_FLAG_NONE)
 	                | parse_map_args(&args);
 
-	raw_rhs = vle_cmds_past_arg(args);
-	t = *raw_rhs;
+	char *raw_rhs = vle_cmds_past_arg(args);
 	*raw_rhs = '\0';
 
-	int error = 0;
-	rhs = vle_cmds_at_arg(raw_rhs + 1);
-	keys = substitute_specs(args);
-	mapping = substitute_specs(rhs);
+	char *rhs = vle_cmds_at_arg(raw_rhs + 1);
+	wchar_t *keys = substitute_specs(args);
+	wchar_t *mapping = substitute_specs(rhs);
 	//add by sim1 +++++++++++++++
 	if (wcschr(mapping, ':') != NULL)
 	{
@@ -5473,7 +5467,10 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	//add by sim1 ---------------
 	if(keys != NULL && mapping != NULL)
 	{
-		error = vle_keys_user_add(keys, mapping, mode, flags);
+		if(vle_keys_user_add(keys, mapping, mode, flags) != 0)
+		{
+			show_error_msg("Mapping Error", "Unable to allocate enough memory");
+		}
 	}
 	else
 	{
@@ -5482,11 +5479,6 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	}
 	free(mapping);
 	free(keys);
-
-	*raw_rhs = t;
-
-	if(error)
-		show_error_msg("Mapping Error", "Unable to allocate enough memory");
 
 	return 0;
 }
