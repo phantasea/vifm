@@ -197,6 +197,7 @@ typedef struct
 
 	FILE *original_stdout; /* Saved original standard output. */
 
+	int choose_one;         /* Choose at most one item. */
 	char *chosen_files_out; /* Destination for writing chosen files. */
 	char *chosen_dir_out;   /* Destination for writing chosen directory. */
 	char *output_delimiter; /* Delimiter for writing out list of paths. */
@@ -268,6 +269,9 @@ int stats_file_choose_action_set(void);
 
 /* Records status bar message. */
 void stats_save_msg(const char msg[]);
+
+/* Clears history of the most recent statusbar messages. */
+void stats_clear_msgs(status_t *stats);
 
 /* Updates curr_stats.preview.on field and performs necessary updates in other
  * parts of the application. */
