@@ -175,6 +175,7 @@ static void pick_current_viewer(modview_info_t *vi);
 static void replace_vi(modview_info_t *orig, modview_info_t *new);
 static void cmd_a(key_info_t key_info, keys_info_t *keys_info);
 static void switch_viewer(modview_info_t *vi, int offset);
+static int get_viewer_index(const modview_info_t *vi);
 static void cmd_b(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_d(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_f(key_info_t key_info, keys_info_t *keys_info);
@@ -1238,15 +1239,8 @@ switch_viewer(modview_info_t *vi, int offset)
 		return;
 	}
 
-	int i;
-	for(i = 0; i < vi->viewers.nitems; ++i)
-	{
-		if(vi->viewers.items[i] == vi->curr_viewer)
-		{
-			break;
-		}
-	}
-	if(i == vi->viewers.nitems)
+	int i = get_viewer_index(vi);
+	if(i < 0)
 	{
 		return;
 	}
@@ -1262,6 +1256,22 @@ switch_viewer(modview_info_t *vi, int offset)
 	i = (i + vi->viewers.nitems + offset)%vi->viewers.nitems;
 	vi->curr_viewer = vi->viewers.items[i];
 	reload_view(vi, NOSILENT);
+}
+
+/* Retrieves index of the current viewer.  Returns the index or -1. */
+static int
+get_viewer_index(const modview_info_t *vi)
+{
+	int i;
+	for(i = 0; i < vi->viewers.nitems; ++i)
+	{
+		if(vi->viewers.items[i] == vi->curr_viewer)
+		{
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 static void
@@ -1322,6 +1332,10 @@ cmd_i(key_info_t key_info, keys_info_t *keys_info)
 	{
 		vi->raw = !vi->raw;
 		reload_view(vi, NOSILENT);
+	}
+	else
+	{
+		display_error("No raw mode for an external viewer.");
 	}
 }
 
