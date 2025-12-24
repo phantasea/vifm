@@ -27,7 +27,11 @@
 	Added optional "next" and "prev" actions to :view command to switch
 	default previewer for the current and similar files.
 
-	Updated utf8proc to v2.10.0.
+	Added 'extprompt' option to allow opening path input boxes in external
+	editor automatically when "path" value is included in the value.  Patch by
+	Kaspars Vandans.
+
+	Updated utf8proc to v2.11.2.
 
 	Made documentation on which :commands can have comments a bit more
 	verbose.
@@ -70,6 +74,12 @@
 	Display an error on trying to switch from external preview to raw mode.
 
 	Updated sample vifmrc files to use `vi` as a last resort if it exists.
+
+	Fall back to using standard::fast-content-type from GLib if
+	standard::content-type is missing.  Patch by Jan Palus (a.k.a. jpalus).
+
+	Improved description of the local filter in the documentation.  Thanks to
+	CaptainFantastic.
 
 	Fixed 'trashdir' with "%r" on BSD-like systems (those with getmntinfo()
 	instead of getmntent() API).  The regression was apparently introduced in
@@ -158,11 +168,14 @@
 	show up because it would be empty.
 
 	Fixed `vifm-pause` and other helpers not being available from within
-	AppImage.  Thanks to Marcin Kowalski (a.k.a., mrkowalski).
+	AppImage.  Thanks to Marcin Kowalski (a.k.a. mrkowalski).
 
 	Fixed vifm.vim not cleaning up buffers properly when used as a netrw
-	replacement.  Thanks to Ivan Shapovalov (a.k.a., intelfx) and
+	replacement.  Thanks to Ivan Shapovalov (a.k.a. intelfx) and
 	pascualpobil.
+
+	Fixed a crash if GLib didn't return a file type.  Patch by Jan
+	Palus (a.k.a. jpalus).
 
 0.14-beta to 0.14 (2025-02-08)
 
