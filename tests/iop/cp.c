@@ -17,6 +17,7 @@
 #include "../../src/compat/os.h"
 #include "../../src/io/iop.h"
 #include "../../src/utils/fs.h"
+#include "../../src/utils/macros.h"
 
 #include "utils.h"
 
@@ -333,6 +334,62 @@ TEST(file_symlink_copy_is_symlink, IF(not_windows))
 
 	assert_string_equal(new_target, old_target);
 
+	delete_test_file(SANDBOX_PATH "/sym-link");
+	delete_test_file(SANDBOX_PATH "/sym-link-copy");
+}
+
+TEST(file_symlink_copy_is_a_file, IF(not_windows))
+{
+	char file_contents[] = "file_symlink_copy_is_a_file";
+	const char *file_lines[] = { file_contents };
+
+	make_file(SANDBOX_PATH "/target", file_contents);
+
+	/* This is to help verify that file mode is copied. */
+	assert_success(os_chmod(SANDBOX_PATH "/target", 0600));
+
+	{
+		char path[PATH_MAX + 1];
+		io_args_t args = {
+			.arg1.path = path,
+			.arg2.target = SANDBOX_PATH "/sym-link",
+		};
+		ioe_errlst_init(&args.result.errors);
+
+		make_abs_path(path, sizeof(path), SANDBOX_PATH, "target", NULL);
+		assert_int_equal(IO_RES_SUCCEEDED, iop_ln(&args));
+
+		assert_int_equal(0, args.result.errors.error_count);
+	}
+
+	assert_true(is_symlink(SANDBOX_PATH "/sym-link"));
+
+	{
+		io_args_t args = {
+			.arg1.src = SANDBOX_PATH "/sym-link",
+			.arg2.dst = SANDBOX_PATH "/sym-link-copy",
+			.arg4.deep_copying = 1,
+		};
+		ioe_errlst_init(&args.result.errors);
+
+		assert_int_equal(IO_RES_SUCCEEDED, iop_cp(&args));
+
+		assert_int_equal(0, args.result.errors.error_count);
+	}
+
+	assert_true(is_symlink(SANDBOX_PATH "/sym-link"));
+	assert_true(!is_symlink(SANDBOX_PATH "/sym-link-copy"));
+
+	/* Check the contents is copied. */
+	file_is(SANDBOX_PATH "/sym-link-copy", file_lines, ARRAY_LEN(file_lines));
+
+	/* Check that file mode is copied. */
+	struct stat src, dst;
+	assert_success(os_stat(SANDBOX_PATH "/sym-link", &src));
+	assert_success(os_lstat(SANDBOX_PATH "/sym-link-copy", &dst));
+	assert_int_equal(src.st_mode & 0777, dst.st_mode & 0777);
+
+	delete_test_file(SANDBOX_PATH "/target");
 	delete_test_file(SANDBOX_PATH "/sym-link");
 	delete_test_file(SANDBOX_PATH "/sym-link-copy");
 }

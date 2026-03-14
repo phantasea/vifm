@@ -1,4 +1,4 @@
-*vifm-app.txt*    For Vifm version 0.15  Last change: 2026 January 13
+*vifm-app.txt*    For Vifm version 0.15  Last change: 2026 March 11
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -539,8 +539,8 @@ gv                                             *vifm-gv*
     When no register is specified, restore the last selection saved for this
     view (similar to what |vifm-gv| does for visual mode selection).  When you
     leave a directory, its saved selection is remembered for that path and
-    visiting the directory again restores it.  Selection for up to 10 distinct
-    file-system locations are remembered.
+    visiting the directory again restores it.  Selection is remembered for
+    up to 10 distinct file-system locations.
 
 
 gu<selector>                                   *vifm-gu*
@@ -1278,7 +1278,7 @@ Supported mechanisms:
     Also form a single argument.
     A backslash inside double quotes escapes the next character (for example,
     \" becomes a quote, \\ becomes a backslash).
-    Some C‑style escape sequences are interpreted (`\a`, `\b`, `\f`, `\n`,
+    Some C-style escape sequences are interpreted (`\a`, `\b`, `\f`, `\n`,
     `\r`, `\t`, `\v`).
 
     Example:
@@ -1668,8 +1668,8 @@ The builtin commands are:
     options.
 
 :cope[n]                                       *vifm-:copen* *vifm-:cope*
-    reopens the last visible menu that has navigation to files by default, if
-    any.  See |vifm-menus-history|.
+    reopens the most recently closed navigation menu, if any.  See
+    |vifm-menus-history|.
 
                                                *vifm-:copy* *vifm-:co*
 :[range]co[py][!?][ &]
@@ -1681,6 +1681,8 @@ The builtin commands are:
 :[range]co[py][!] name1 name2...[ &]
     copy files to directory of other view giving each next file a
     corresponding name from the argument list.  "!" forces overwrite.
+:[range]co[py][!?] -deep ...
+    see |vifm-deep-param|.
 :[range]co[py][!?] -skip ...
     see |vifm-skip-param|.
 
@@ -2429,6 +2431,8 @@ order using the '.' operator.  Any whitespace is ignored.
     from their original location instead of copying them.  During this
     operation no confirmation dialogs will be shown, all checks are performed
     beforehand.
+:[line]pu[t][!] -deep ...
+    see |vifm-deep-param|.
 
 :pw[d]                                         *vifm-:pwd* *vifm-:pw*
     display the present working directory.
@@ -2975,9 +2979,21 @@ Some of the command-line commands accept parameters in the form of
 parameters and positional arguments.  Items from the two groups cannot be
 interleaved and parameters always come first.  List of parameters is
 terminated implicitly by the first argument that doesn't start with a
-dash ("-") or explicitly via "--" separator (needs to be a separate
-argument), which is just discarded.  These strict rules allow arbitrary
-positional arguments, such as file names that start with a dash.
+dash ("-") or explicitly via "--" separator (must be a separate argument),
+which is just discarded.  These strict rules allow arbitrary positional
+arguments, such as file names that start with a dash.
+
+-deep                                                      *vifm-deep-param*
+This parameter makes |vifm-:copy| resolve symbolic links in the source.
+
+Note that when |vifm-'syscalls'| is on, the behaviour differs from that of
+`cp -L` (same as `cp --dereference`) in cases when a symbolic link's target
+can't be meaningfully copied:
+ - when link's target doesn't exist (broken link)
+ - when link to a directory creates a cycle
+In both cases `cp` prints an error and doesn't create anything at the
+destination but vifm copies symbolic links as is to preserve file structure.
+This implementation detail may change in the future or become configurable.
 
 -skip                                                      *vifm-skip-param*
 This parameter makes |vifm-:copy|, |vifm-:move|, |vifm-:alink| and
@@ -6639,8 +6655,8 @@ Available actions:
     If the destination file is shorter, append the missing tail bytes from the
     source file.
     Example: if the source is 1000 bytes and the destination is 300
-    bytes, the last 700 bytes of the source are appended.  This is intended
-    for resuming interrupted copy operations.
+    bytes in size, the last 700 bytes of the source are appended.  This action
+    is intended for resuming interrupted copy operations.
 
 Notes:
 

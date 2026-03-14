@@ -80,8 +80,6 @@ SETUP()
 	static int option_changed;
 	optval_t def = { .str_val = "/tmp" };
 
-	cfg.slow_fs_list = strdup("");
-
 	init_builtin_functions();
 
 	stats.line = wcsdup(L"set ");
@@ -120,8 +118,6 @@ TEARDOWN()
 	curr_stats.cs = NULL;
 
 	restore_cwd(saved_cwd);
-
-	update_string(&cfg.slow_fs_list, NULL);
 
 	free(stats.line);
 	vle_opts_reset();
@@ -632,9 +628,19 @@ TEST(highlight_columns_are_completed)
 	curr_stats.vlua = NULL;
 }
 
+TEST(put_is_completed)
+{
+	ASSERT_COMPLETION(L"put ", L"put ");
+	ASSERT_COMPLETION(L"put -", L"put -deep");
+}
+
 TEST(command_options_are_completed)
 {
-	ASSERT_COMPLETION(L"copy -", L"copy -skip");
+	ASSERT_COMPLETION(L"move -", L"move -skip");
+	ASSERT_NEXT_MATCH("-skip");
+
+	ASSERT_COMPLETION(L"copy -", L"copy -deep");
+	ASSERT_NEXT_MATCH("-skip");
 
 	other_view = &rwin;
 #ifndef _WIN32

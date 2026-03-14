@@ -39,8 +39,6 @@ SETUP()
 	curr_view = &lwin;
 	other_view = &rwin;
 
-	update_string(&cfg.slow_fs_list, "");
-
 	cmds_init();
 	opt_handlers_setup();
 
@@ -54,8 +52,6 @@ TEARDOWN()
 	view_teardown(&rwin);
 
 	opt_handlers_teardown();
-
-	update_string(&cfg.slow_fs_list, NULL);
 
 	vle_aucmd_remove(NULL, NULL);
 }

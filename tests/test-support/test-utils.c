@@ -466,25 +466,45 @@ make_symlink(const char target[], const char linkpath[])
 void
 remove_dir(const char path[])
 {
-	assert_success(rmdir(path));
+	int result = rmdir(path);
+	assert_success(result);
+	if(result != 0)
+	{
+		assert_string_equal(NULL, path);
+	}
 }
 
 void
 no_remove_dir(const char path[])
 {
-	assert_failure(rmdir(path));
+	int result = rmdir(path);
+	assert_failure(result);
+	if(result == 0)
+	{
+		assert_string_equal(NULL, path);
+	}
 }
 
 void
 remove_file(const char path[])
 {
-	assert_success(remove(path));
+	int result = remove(path);
+	assert_success(result);
+	if(result != 0)
+	{
+		assert_string_equal(NULL, path);
+	}
 }
 
 void
 no_remove_file(const char path[])
 {
-	assert_failure(remove(path));
+	int result = remove(path);
+	assert_failure(result);
+	if(result == 0)
+	{
+		assert_string_equal(NULL, path);
+	}
 }
 
 void

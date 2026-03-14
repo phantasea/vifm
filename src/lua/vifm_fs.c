@@ -47,11 +47,9 @@ VLUA_DECLARE_SAFE(fs_mv);
 VLUA_DECLARE_SAFE(fs_rm);
 VLUA_DECLARE_SAFE(fs_rmdir);
 
-/* Named NULL and non-NULL constants for clarity. */
+/* Named NULL constants for clarity. */
 static void *const no_dst = NULL;
 static void *const no_data = NULL;
-static char dummy;
-static void *const no_cancel = &dummy;
 
 /* Functions of the `vifm.fs` table. */
 static const luaL_Reg vifm_fs_methods[] = {
@@ -84,7 +82,8 @@ VLUA_API(fs_ln)(lua_State *lua)
 {
 	const char *path = luaL_checkstring(lua, 1);
 	const char *target = luaL_checkstring(lua, 2);
-	return perform_fs_op(lua, OP_SYMLINK, target, path, CRP_SKIP_ALL, no_data);
+	void *no_cancel = ops_flags(DF_NO_CANCEL);
+	return perform_fs_op(lua, OP_SYMLINK, target, path, CRP_SKIP_ALL, no_cancel);
 }
 
 /* Member of `vifm.fs` that creates a directory, possibly along with its
@@ -95,14 +94,10 @@ VLUA_API(fs_mkdir)(lua_State *lua)
 	const char *path = luaL_checkstring(lua, 1);
 	const char *on_missing_parent = luaL_optstring(lua, 2, "fail");
 
-	void *data = no_data;
-	if(strcmp(on_missing_parent, "create") == 0)
-	{
-		/* Any non-NULL value enables creation of parent directories. */
-		data = lua;
-	}
-
-	return perform_fs_op(lua, OP_MKDIR, path, no_dst, CRP_SKIP_ALL, data);
+	DataFlags flags = strcmp(on_missing_parent, "create") == 0 ? DF_MAKE_PARENTS
+	                                                           : DF_NONE;
+	return perform_fs_op(lua, OP_MKDIR, path, no_dst, CRP_SKIP_ALL,
+			ops_flags(flags));
 }
 
 /* Member of `vifm.fs` that creates a file if it doesn't yet exist. */
@@ -125,6 +120,7 @@ static int
 VLUA_API(fs_rm)(lua_State *lua)
 {
 	const char *path = luaL_checkstring(lua, 1);
+	void *no_cancel = ops_flags(DF_NO_CANCEL);
 	return perform_fs_op(lua, OP_REMOVESL, path, no_dst, CRP_SKIP_ALL, no_cancel);
 }
 
@@ -144,6 +140,7 @@ cp_mv(lua_State *lua, OPS normal_op, OPS force_op, OPS append_op)
 	const char *src = luaL_checkstring(lua, 1);
 	const char *dst = luaL_checkstring(lua, 2);
 	const char *on_conflict = luaL_optstring(lua, 3, "fail");
+	void *no_cancel = ops_flags(DF_NO_CANCEL);
 
 	if(strcmp(on_conflict, "overwrite") == 0)
 	{

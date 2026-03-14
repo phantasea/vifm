@@ -122,9 +122,12 @@ int directory_accessible(const char path[]);
  * absolute (in order for this function to work correctly). */
 int is_dir_writable(const char path[]);
 
-/* Gets correct file size independently of platform.  Returns zero for both
- * empty files and on error. */
+/* Gets correct file size independently of the platform without resolving
+ * symbolic links.  Returns zero for both empty files and on error. */
 uint64_t get_file_size(const char path[]);
+
+/* Same as get_file_size() but resolves symbolic links. */
+uint64_t get_target_file_size(const char path[]);
 
 /* Appends all regular files inside the path directory.  Reallocates array of
  * strings if necessary to fit all elements.  Returns pointer to reallocated
@@ -157,10 +160,6 @@ int rename_file(const char src[], const char dst[]);
 void remove_dir_content(const char path[]);
 
 struct dirent;
-
-/* Uses dentry or full path to check whether target is symbolic link.  Returns
- * non-zero if so, otherwise zero is returned. */
-int entry_is_link(const char path[], const struct dirent *dentry);
 
 /* Uses dentry or full path to check file type.  Returns non-zero for
  * directories, otherwise zero is returned.  Symbolic links are _not_

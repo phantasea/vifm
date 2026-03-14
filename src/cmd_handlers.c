@@ -756,7 +756,7 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "push onto directory stack",
 	  .flags = HAS_EMARK | HAS_QUOTED_ARGS | HAS_COMMENT | HAS_ENVVARS,
 	  .handler = &pushd_cmd,       .min_args = 0,   .max_args = 2, },
-	{ .name = "put",               .abbr = "pu",    .id = -1,
+	{ .name = "put",               .abbr = "pu",    .id = COM_PUT,
 	  .descr = "paste files from a register",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG,
 	  .handler = &put_cmd,         .min_args = 0,   .max_args = 1, },
@@ -3955,6 +3955,11 @@ cpmv_cmd(const cmd_info_t *cmd_info, int move)
 	{
 		return CMDS_ERR_CUSTOM;
 	}
+	if(move && (flags & CMLF_DEEP))
+	{
+		ui_sb_err("-deep doesn't apply to moving");
+		return CMDS_ERR_CUSTOM;
+	}
 
 	flags |= (cmd_info->emark ? CMLF_FORCE : CMLF_NONE);
 
@@ -4180,9 +4185,30 @@ put_cmd(const cmd_info_t *cmd_info)
 	int reg = DEFAULT_REG_NAME;
 	const int at = get_at(curr_view, cmd_info);
 
-	if(cmd_info->argc == 1)
+	const int move = cmd_info->emark;
+
+	int argc = cmd_info->argc;
+	char **argv = cmd_info->argv;
+	const int flags = parse_cpmv_flags(&argc, &argv);
+	if(flags < 0)
 	{
-		const int error = get_reg(cmd_info->argv[0], &reg);
+		return CMDS_ERR_CUSTOM;
+	}
+	if(flags & CMLF_SKIP)
+	{
+		ui_sb_err("-skip doesn't apply to putting");
+		return CMDS_ERR_CUSTOM;
+	}
+	const int deep = ((flags & CMLF_DEEP) != 0);
+	if(move && deep)
+	{
+		ui_sb_err("-deep doesn't apply to moving");
+		return CMDS_ERR_CUSTOM;
+	}
+
+	if(argc == 1)
+	{
+		const int error = get_reg(argv[0], &reg);
 		if(error != 0)
 		{
 			return error;
@@ -4191,10 +4217,10 @@ put_cmd(const cmd_info_t *cmd_info)
 
 	if(cmd_info->bg)
 	{
-		return fops_put_bg(curr_view, at, reg, cmd_info->emark) != 0;
+		return fops_put_bg(curr_view, at, reg, move, deep) != 0;
 	}
 
-	return fops_put(curr_view, at, reg, cmd_info->emark) != 0;
+	return fops_put(curr_view, at, reg, move, deep) != 0;
 }
 
 static int
@@ -4406,6 +4432,12 @@ link_cmd(const cmd_info_t *cmd_info, int absolute)
 		return CMDS_ERR_CUSTOM;
 	}
 
+	if(flags & CMLF_DEEP)
+	{
+		ui_sb_err("-deep doesn't apply to making links");
+		return CMDS_ERR_CUSTOM;
+	}
+
 	flags |= (cmd_info->emark ? CMLF_FORCE : CMLF_NONE);
 
 	flist_set_marking(curr_view, 0);
@@ -4431,6 +4463,12 @@ parse_cpmv_flags(int *argc, char ***argv)
 {
 	int flags = 0;
 
+	if(argc == 0)
+	{
+		/* To avoid incrementing NULL *argv by zero at the bottom. */
+		return flags;
+	}
+
 	int i;
 	for(i = 0; i < *argc; ++i)
 	{
@@ -4449,6 +4487,10 @@ parse_cpmv_flags(int *argc, char ***argv)
 		if(strcmp(argv[0][i], "-skip") == 0)
 		{
 			flags |= CMLF_SKIP;
+		}
+		else if(strcmp(argv[0][i], "-deep") == 0)
+		{
+			flags |= CMLF_DEEP;
 		}
 		else
 		{

@@ -478,7 +478,7 @@ extract_cmd_name(const char line[], int raw, size_t buf_len, char buf[])
 }
 
 #ifdef _WIN32
-/* Removes first and the last charater of the string, if they are quotes. */
+/* Removes the first and last characters of the string, if they are quotes. */
 static void
 unquote(char quoted[])
 {

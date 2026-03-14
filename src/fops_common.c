@@ -916,7 +916,7 @@ fops_is_dir_entry(const char full_path[], const struct dirent *dentry)
 
 int
 fops_enqueue_marked_files(ops_t *ops, view_t *view, const char dst_hint[],
-		int to_trash)
+		int to_trash, int deep)
 {
 	int nmarked_files = 0;
 	dir_entry_t *entry = NULL;
@@ -932,12 +932,12 @@ fops_enqueue_marked_files(ops_t *ops, view_t *view, const char dst_hint[],
 		if(to_trash)
 		{
 			char *const trash_dir = trash_pick_dir(entry->origin);
-			ops_enqueue(ops, full_path, trash_dir);
+			ops_enqueue(ops, full_path, trash_dir, deep);
 			free(trash_dir);
 		}
 		else
 		{
-			ops_enqueue(ops, full_path, dst_hint);
+			ops_enqueue(ops, full_path, dst_hint, deep);
 		}
 
 		++nmarked_files;
@@ -1288,8 +1288,8 @@ fops_mv_file_f(const char src[], const char dst[], OPS op, int bg,
 		return 0;
 	}
 
-	OpsResult result = perform_operation(op, ops, cancellable ? NULL : (void *)1,
-			src, dst);
+	void *flags = ops_flags(cancellable ? DF_NONE : DF_NO_CANCEL);
+	OpsResult result = perform_operation(op, ops, flags, src, dst);
 	if(result != OPS_SUCCEEDED)
 	{
 		return 1;
@@ -1297,7 +1297,7 @@ fops_mv_file_f(const char src[], const char dst[], OPS op, int bg,
 
 	if(!bg)
 	{
-		un_group_add_op(op, NULL, NULL, src, dst);
+		un_group_add_op(op, flags, flags, src, dst);
 	}
 	return 0;
 }

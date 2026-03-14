@@ -31,6 +31,13 @@
 	editor automatically when "path" value is included in the value.  Patch by
 	Kaspars Vandans.
 
+	Added example of handling .deb-files to sample vifmrc.  Patch by Kirill
+	Rekhov.
+
+	Added -deep parameter to :copy and :put commands that makes them resolve
+	symbolic links while copying.  Thanks to Jose Riha (a.k.a. jose1711) and
+	an anonymous at Vifm Q2A site.
+
 	Updated utf8proc to v2.11.2.
 
 	Made documentation on which :commands can have comments a bit more
@@ -47,7 +54,8 @@
 	and custom views.
 
 	Updated .desktop-file to add localizations and be more up-to-date with
-	modern recommendations.  Patch by Matěj Cepl (a.k.a. mcepl).
+	modern recommendations.  Separate patches by Matěj Cepl (a.k.a. mcepl) and
+	Jared Cervantes (a.k.a. Jaredy899).
 
 	Extended range of numbers Ctrl-A/Ctrl-X can deal with from [-2**31; 2**31)
 	to [-2**63; 2**63).  Thanks to CaptainFantastic.
@@ -84,6 +92,14 @@
 	Documented quoting and escaping on command-line.  Patch by Kirill Rekhov.
 
 	Documented name conflict resolution dialog.  Patch by Kirill Rekhov.
+
+	Adjusted statusbar message according to the operation performed by p, P,
+	al and rl normal mode commands.  Thanks to CaptainFantastic and qadzek.
+
+	Improved wording in documentation on gs and :copen.
+
+	Improved wording in a confirmation prompt for permanent deletion during
+	undo/redo.
 
 	Fixed 'trashdir' with "%r" on BSD-like systems (those with getmntinfo()
 	instead of getmntent() API).  The regression was apparently introduced in

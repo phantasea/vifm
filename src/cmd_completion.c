@@ -119,6 +119,7 @@ static void complete_wingo(const char str[]);
 static int wingo_sorter(const char a[], const char b[]);
 static const char * skip_number(const char str[]);
 static void complete_winrun(const char str[]);
+static void complete_option(int cmd_id, const char str[]);
 static void complete_view(const char str[]);
 static void complete_from_string_list(const char str[], const char *items[][2],
 		size_t item_count, int ignore_case);
@@ -316,12 +317,9 @@ non_path_completion(completion_data_t *data)
 		}
 	}
 	else if(is_option(data->cmd_info) && (id == COM_COPY || id == COM_MOVE ||
-				id == COM_ALINK || id == COM_RLINK))
+				id == COM_ALINK || id == COM_RLINK || id == COM_PUT))
 	{
-		static const char *lines[][2] = {
-			{ "-skip", "skip files with conflicting names" }
-		};
-		complete_from_string_list(arg, lines, ARRAY_LEN(lines), /*ignore_case=*/0);
+		complete_option(id, arg);
 	}
 	else if(id == COM_VIEW)
 	{
@@ -330,8 +328,9 @@ non_path_completion(completion_data_t *data)
 			complete_view(arg);
 		}
 	}
-	else
+	else if(id != COM_PUT)
 	{
+		/* Perform path completion. */
 		return -1;
 	}
 
@@ -1130,6 +1129,37 @@ complete_winrun(const char str[])
 		{ ",", "inactive view" },
 	};
 	complete_from_string_list(str, win_marks, ARRAY_LEN(win_marks), 0);
+}
+
+/* Completes an option of :copy/:move/:alink/:rlink/:put. */
+static void
+complete_option(int cmd_id, const char str[])
+{
+	static const char *lines[][2] = {
+		{ "-deep", "resolve symbolic links while copying" },
+		{ "-skip", "skip files with conflicting names" },
+	};
+
+	const char *(*opts)[2];
+	int opt_count;
+	switch(cmd_id)
+	{
+		case COM_COPY:
+			opts = lines;
+			opt_count = 2;
+			break;
+		case COM_PUT:
+			opts = &lines[0];
+			opt_count = 1;
+			break;
+
+		default:
+			opts = &lines[1];
+			opt_count = 1;
+			break;
+	}
+
+	complete_from_string_list(str, opts, opt_count, /*ignore_case=*/0);
 }
 
 /* Completes the first argument of :view. */

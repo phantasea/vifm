@@ -36,7 +36,6 @@ SETUP()
 	init_undo_list_for_tests(&exec_func, &undo_levels);
 
 	cfg.use_system_calls = 1;
-	cfg.slow_fs_list = strdup("");
 	cfg.delete_prg = strdup("");
 
 #ifndef _WIN32
@@ -58,7 +57,6 @@ SETUP()
 
 TEARDOWN()
 {
-	free(cfg.slow_fs_list);
 	free(cfg.delete_prg);
 	free(cfg.shell);
 	free(cfg.shell_cmd_flag);

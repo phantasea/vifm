@@ -464,6 +464,14 @@ get_perm_string(char buf[], int len, mode_t mode)
 int
 refers_to_slower_fs(const char from[], const char to[])
 {
+	/* At least some tests don't need to know anything about this being
+	 * configurable and yet this code gets run from tests.  Bail out if the value
+	 * isn't set, this is a well-defined behaviour anyway. */
+	if(is_null_or_empty(cfg.slow_fs_list))
+	{
+		return 0;
+	}
+
 	const int i = find_path_prefix_index(to, cfg.slow_fs_list);
 	/* When destination is not on slow file system, no performance penalties are
 	 * expected. */
@@ -479,6 +487,12 @@ refers_to_slower_fs(const char from[], const char to[])
 int
 is_on_slow_fs(const char full_path[], const char slowfs_specs[])
 {
+	/* Empty list optimization and bail out for some tests. */
+	if(is_null_or_empty(slowfs_specs))
+	{
+		return 0;
+	}
+
 	char fs_name[PATH_MAX + 1];
 	get_mount_point_traverser_state state = {
 		.type = MI_FS_TYPE,
@@ -487,12 +501,6 @@ is_on_slow_fs(const char full_path[], const char slowfs_specs[])
 		.buf = fs_name,
 		.curr_len = 0UL,
 	};
-
-	/* Empty list optimization. */
-	if(slowfs_specs[0] == '\0')
-	{
-		return 0;
-	}
 
 	/* If slowfs equals "*" then all file systems are considered slow.  On cygwin
 	 * obtaining list of mounts from /etc/mtab, which is linked to /proc/mounts,

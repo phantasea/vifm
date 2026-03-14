@@ -50,7 +50,6 @@ SETUP()
 
 	replace_string(&cfg.fuse_home, fuse_home);
 	replace_string(&cfg.shell, "/bin/sh");
-	replace_string(&cfg.slow_fs_list, "");
 	curr_stats.fuse_umount_cmd = "true";
 
 	saved_cwd = save_cwd();
@@ -66,7 +65,6 @@ TEARDOWN()
 
 	update_string(&cfg.fuse_home, NULL);
 	update_string(&cfg.shell, NULL);
-	update_string(&cfg.slow_fs_list, NULL);
 	curr_stats.fuse_umount_cmd = NULL;
 
 	restore_cwd(saved_cwd);

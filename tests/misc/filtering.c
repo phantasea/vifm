@@ -40,7 +40,6 @@ SETUP_ONCE()
 SETUP()
 {
 	update_string(&cfg.fuse_home, "no");
-	update_string(&cfg.slow_fs_list, "");
 
 	cfg.filter_inverted_by_default = 1;
 
@@ -74,7 +73,6 @@ SETUP()
 
 TEARDOWN()
 {
-	update_string(&cfg.slow_fs_list, NULL);
 	update_string(&cfg.fuse_home, NULL);
 
 	view_teardown(&lwin);

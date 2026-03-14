@@ -32,8 +32,8 @@ void ioeta_release(ioeta_estim_t *estim);
 /* Adds zero-size item to the estimation. */
 void ioeta_add_item(ioeta_estim_t *estim, const char path[]);
 
-/* Adds file to the estimation. */
-void ioeta_add_file(ioeta_estim_t *estim, const char path[]);
+/* Adds file to the estimation.  Deep estimation resolves symlinks. */
+void ioeta_add_file(ioeta_estim_t *estim, const char path[], int deep);
 
 /* Adds directory to the estimation. */
 void ioeta_add_dir(ioeta_estim_t *estim, const char path[]);

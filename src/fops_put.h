@@ -27,12 +27,12 @@ struct view_t;
 /* Puts files from specified register into current directory.  at specifies
  * index of entry to be used to obtain destination path, -1 means current
  * position.  Returns new value for save_msg flag. */
-int fops_put(struct view_t *view, int at, int reg_name, int move);
+int fops_put(struct view_t *view, int at, int reg_name, int move, int deep);
 
 /* Starts background task that puts files from specified register into current
  * directory.  at specifies index of entry to be used to obtain destination
  * path, -1 means current position.  Returns new value for save_msg flag. */
-int fops_put_bg(struct view_t *view, int at, int reg_name, int move);
+int fops_put_bg(struct view_t *view, int at, int reg_name, int move, int deep);
 
 /* Like fops_put(), but makes absolute or relative symbolic links to files.
  * Returns new value for save_msg flag. */

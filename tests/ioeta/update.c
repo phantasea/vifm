@@ -29,14 +29,14 @@ TEST(add_item_increments_number_of_items)
 TEST(add_file_increments_number_of_items)
 {
 	const int prev = estim->total_items;
-	ioeta_add_file(estim, "path");
+	ioeta_add_file(estim, "path", /*deep=*/0);
 	assert_int_equal(prev + 1, estim->total_items);
 }
 
 TEST(add_dir_increments_number_of_bytes)
 {
 	const int prev = estim->total_bytes;
-	ioeta_add_file(estim, TEST_DATA_PATH "/read/binary-data");
+	ioeta_add_file(estim, TEST_DATA_PATH "/read/binary-data", /*deep=*/0);
 	assert_int_equal(prev + 1024, estim->total_bytes);
 }
 

@@ -52,7 +52,6 @@ SETUP_ONCE()
 SETUP()
 {
 	update_string(&cfg.fuse_home, "no");
-	update_string(&cfg.slow_fs_list, "");
 
 	/* So that nothing is written into directory history. */
 	rwin.list_rows = 0;
@@ -69,7 +68,6 @@ SETUP()
 
 TEARDOWN()
 {
-	update_string(&cfg.slow_fs_list, NULL);
 	update_string(&cfg.fuse_home, NULL);
 
 	view_teardown(&lwin);

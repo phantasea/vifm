@@ -434,6 +434,9 @@ files_attrib(view_t *view, DWORD add, DWORD sub, int recurse_dirs)
 static void
 file_attrib(char *path, DWORD add, DWORD sub, int recurse_dirs)
 {
+/* Integer to pointer conversion. */
+#define V(e) ((void *)(uintptr_t)(e))
+
 	/* FIXME: set attributes recursively. */
 
 	DWORD attrs = GetFileAttributes(path);
@@ -445,23 +448,23 @@ file_attrib(char *path, DWORD add, DWORD sub, int recurse_dirs)
 	if(add != 0)
 	{
 		const size_t wadd = add;
-		if(perform_operation(OP_ADDATTR, NULL, (void *)wadd, path, NULL) ==
+		if(perform_operation(OP_ADDATTR, NULL, V(wadd), path, NULL) ==
 				OPS_SUCCEEDED)
 		{
-			un_group_add_op(OP_ADDATTR, (void *)wadd, (void *)(~attrs & wadd), path,
-					"");
+			un_group_add_op(OP_ADDATTR, V(wadd), V(~attrs & wadd), path, "");
 		}
 	}
 	if(sub != 0)
 	{
 		const size_t wsub = sub;
-		if(perform_operation(OP_SUBATTR, NULL, (void *)wsub, path, NULL) ==
+		if(perform_operation(OP_SUBATTR, NULL, V(wsub), path, NULL) ==
 				OPS_SUCCEEDED)
 		{
-			un_group_add_op(OP_SUBATTR, (void *)wsub, (void *)(~attrs & wsub), path,
-					"");
+			un_group_add_op(OP_SUBATTR, V(wsub), V(~attrs & wsub), path, "");
 		}
 	}
+
+#undef V
 }
 
 /* goes to the bottom of the properties dialog */

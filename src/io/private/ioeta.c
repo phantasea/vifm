@@ -46,9 +46,13 @@ ioeta_add_item(ioeta_estim_t *estim, const char path[])
 }
 
 void
-ioeta_add_file(ioeta_estim_t *estim, const char path[])
+ioeta_add_file(ioeta_estim_t *estim, const char path[], int deep)
 {
-	if(!is_symlink(path))
+	if(deep)
+	{
+		estim->total_bytes += get_target_file_size(path);
+	}
+	else if(!is_symlink(path))
 	{
 		estim->total_bytes += get_file_size(path);
 	}

@@ -56,6 +56,17 @@ typedef enum
 }
 OPS;
 
+/* Flags encoded as a pointer-to-void data. */
+typedef enum
+{
+	DF_NONE         =      0, /* No flags. */
+	DF_MAKE_PARENTS = 1 << 0, /* Parent directories should be created. */
+	DF_NO_CANCEL    = 1 << 1, /* Cancellation is not enabled for the operation. */
+	DF_DEEP_COPY    = 1 << 2, /* Copying should dereference source symlinks. */
+	DF_LIMIT_VALUE  = 1 << 3, /* Indirect size of the flags. */
+}
+DataFlags;
+
 /* Result of trying to execute an operation via perform_operation(). */
 typedef enum
 {
@@ -142,13 +153,16 @@ const char * ops_describe(const ops_t *ops);
 
 /* Puts new item to the ops.  Destination argument is a hint to optimize
  * estimating performance, it can be NULL. */
-void ops_enqueue(ops_t *ops, const char src[], const char dst[]);
+void ops_enqueue(ops_t *ops, const char src[], const char dst[], int deep);
 
 /* Advances ops to the next item. */
 void ops_advance(ops_t *ops, int succeeded);
 
 /* Frees ops_t.  The ops can be NULL. */
 void ops_free(ops_t *ops);
+
+/* Produces a pointer value that describes the flags.  Returns the value. */
+void * ops_flags(DataFlags flags);
 
 /* Performs single operations, possibly part of the ops (which can be NULL).
  * Returns status. */

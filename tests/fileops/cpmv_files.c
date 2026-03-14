@@ -543,6 +543,186 @@ TEST(broken_link_behaves_like_a_regular_file_on_conflict, IF(not_windows))
 	}
 }
 
+TEST(deep_copy_file_link, IF(not_windows), REPEAT(2))
+{
+	cfg.use_system_calls = STIC_TEST_PARAM;
+
+	char new_fname[] = "copy";
+	char *list[] = { &new_fname[0] };
+
+	const char *contents = "target contents";
+
+	make_file("target", contents);
+
+	update_string(&lwin.dir_entry[0].name, "good-file-symlink");
+	assert_success(make_symlink("target", "good-file-symlink"));
+
+	lwin.dir_entry[0].marked = 1;
+	lwin.dir_entry[0].type = FT_LINK;
+	(void)fops_cpmv(&lwin, list, ARRAY_LEN(list), CMLO_COPY, CMLF_DEEP);
+
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	assert_true(is_symlink(SANDBOX_PATH "/good-file-symlink"));
+	assert_false(is_symlink(SANDBOX_PATH "/copy"));
+
+	const char *lines[] = { contents };
+	file_is(SANDBOX_PATH "/copy", lines, ARRAY_LEN(lines));
+
+	remove_file(SANDBOX_PATH "/good-file-symlink");
+	remove_file(SANDBOX_PATH "/copy");
+	remove_file(SANDBOX_PATH "/target");
+}
+
+TEST(deep_copy_dir_link, IF(not_windows), REPEAT(2))
+{
+	cfg.use_system_calls = STIC_TEST_PARAM;
+
+	char new_fname[] = "copy";
+	char *list[] = { &new_fname[0] };
+
+	create_dir("target");
+
+	update_string(&lwin.dir_entry[0].name, "good-dir-symlink");
+	assert_success(make_symlink("target", "good-dir-symlink"));
+
+	lwin.dir_entry[0].marked = 1;
+	lwin.dir_entry[0].type = FT_LINK;
+	(void)fops_cpmv(&lwin, list, ARRAY_LEN(list), CMLO_COPY, CMLF_DEEP);
+
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	assert_true(is_symlink(SANDBOX_PATH "/good-dir-symlink"));
+	assert_false(is_symlink(SANDBOX_PATH "/copy"));
+
+	remove_file(SANDBOX_PATH "/good-dir-symlink");
+	remove_dir(SANDBOX_PATH "/copy");
+	remove_dir(SANDBOX_PATH "/target");
+}
+
+TEST(deep_copy_link_in_dir, IF(not_windows), REPEAT(2))
+{
+	cfg.use_system_calls = STIC_TEST_PARAM;
+
+	char new_fname[] = "copy";
+	char *list[] = { &new_fname[0] };
+
+	create_dir("target");
+	create_dir("dir");
+
+	update_string(&lwin.dir_entry[0].name, "dir");
+	assert_success(make_symlink("../target", "dir/dir-symlink"));
+
+	lwin.dir_entry[0].marked = 1;
+	lwin.dir_entry[0].type = FT_DIR;
+	(void)fops_cpmv(&lwin, list, ARRAY_LEN(list), CMLO_COPY, CMLF_DEEP);
+
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	assert_true(is_symlink(SANDBOX_PATH "/dir/dir-symlink"));
+	assert_false(is_symlink(SANDBOX_PATH "/copy/dir-symlink"));
+
+	remove_file(SANDBOX_PATH "/dir/dir-symlink");
+	remove_dir(SANDBOX_PATH "/dir");
+
+	remove_dir(SANDBOX_PATH "/copy/dir-symlink");
+	remove_dir(SANDBOX_PATH "/copy");
+
+	remove_dir(SANDBOX_PATH "/target");
+}
+
+TEST(deep_copy_bad_link, IF(not_windows), REPEAT(2))
+{
+	cfg.use_system_calls = STIC_TEST_PARAM;
+
+	char new_fname[] = "copy";
+	char *list[] = { &new_fname[0] };
+
+	update_string(&lwin.dir_entry[0].name, "bad-symlink");
+	assert_success(make_symlink("notarget", "bad-symlink"));
+
+	lwin.dir_entry[0].marked = 1;
+	lwin.dir_entry[0].type = FT_LINK;
+	(void)fops_cpmv(&lwin, list, ARRAY_LEN(list), CMLO_COPY, CMLF_DEEP);
+
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	assert_true(is_symlink(SANDBOX_PATH "/bad-symlink"));
+	remove_file(SANDBOX_PATH "/bad-symlink");
+
+	/* There is no actual file to copy but the symlink itself. */
+	if(cfg.use_system_calls)
+	{
+		assert_true(is_symlink(SANDBOX_PATH "/copy"));
+		remove_file(SANDBOX_PATH "/copy");
+	}
+}
+
+TEST(deep_copy_file_link_loop, IF(not_windows), REPEAT(2))
+{
+	cfg.use_system_calls = STIC_TEST_PARAM;
+
+	char new_fname[] = "copy";
+	char *list[] = { &new_fname[0] };
+
+	update_string(&lwin.dir_entry[0].name, "link");
+	assert_success(make_symlink("link", "link"));
+
+	lwin.dir_entry[0].marked = 1;
+	lwin.dir_entry[0].type = FT_LINK;
+	(void)fops_cpmv(&lwin, list, ARRAY_LEN(list), CMLO_COPY, CMLF_DEEP);
+
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	assert_true(is_symlink(SANDBOX_PATH "/link"));
+	remove_file(SANDBOX_PATH "/link");
+
+	/* There is no actual file to copy but the symlink itself. */
+	if(cfg.use_system_calls)
+	{
+		assert_true(is_symlink(SANDBOX_PATH "/copy"));
+		remove_file(SANDBOX_PATH "/copy");
+	}
+}
+
+TEST(deep_copy_dir_link_loop, IF(not_windows), REPEAT(2))
+{
+	cfg.use_system_calls = STIC_TEST_PARAM;
+
+	char new_fname[] = "copy";
+	char *list[] = { &new_fname[0] };
+
+	create_dir("dir");
+
+	update_string(&lwin.dir_entry[0].name, "dir");
+	assert_success(make_symlink("../dir", "dir/parent-symlink"));
+
+	lwin.dir_entry[0].marked = 1;
+	lwin.dir_entry[0].type = FT_DIR;
+	(void)fops_cpmv(&lwin, list, ARRAY_LEN(list), CMLO_COPY, CMLF_DEEP);
+
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+
+	assert_true(is_symlink(SANDBOX_PATH "/dir/parent-symlink"));
+
+	remove_file(SANDBOX_PATH "/dir/parent-symlink");
+	remove_dir(SANDBOX_PATH "/dir");
+
+	/* There is no actual file to copy but the symlink itself. */
+	if(cfg.use_system_calls)
+	{
+		assert_true(is_symlink(SANDBOX_PATH "/copy/parent-symlink"));
+		remove_file(SANDBOX_PATH "/copy/parent-symlink");
+	}
+	remove_dir(SANDBOX_PATH "/copy");
+}
+
 static void
 check_directory_clash(int parent_to_child, CopyMoveLikeOp op)
 {

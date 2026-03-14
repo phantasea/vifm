@@ -147,5 +147,35 @@ TEST(cpmv_does_not_crash_on_wrong_list_access)
 	restore_cwd(saved_cwd);
 }
 
+TEST(non_copy_cmds_reject_deep_option)
+{
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("%move -deep", &lwin, CIT_COMMAND));
+	assert_string_equal("-deep doesn't apply to moving", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("%alink -deep", &lwin, CIT_COMMAND));
+	assert_string_equal("-deep doesn't apply to making links", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("%rlink -deep", &lwin, CIT_COMMAND));
+	assert_string_equal("-deep doesn't apply to making links", ui_sb_last());
+}
+
+TEST(deep_copy, IF(not_windows))
+{
+	assert_success(make_symlink("a", SANDBOX_PATH "/left/linked"));
+	assert_success(populate_dir_list(&lwin, /*reload=*/1));
+
+	lwin.list_pos = lwin.list_rows - 1;
+	assert_string_equal("linked", lwin.dir_entry[lwin.list_pos].name);
+
+	assert_failure(cmds_dispatch1("copy -deep", &lwin, CIT_COMMAND));
+	assert_false(is_symlink(SANDBOX_PATH "/right/linked"));
+
+	remove_file(SANDBOX_PATH "/left/linked");
+	remove_file(SANDBOX_PATH "/right/linked");
+}
+
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */

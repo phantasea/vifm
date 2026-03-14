@@ -11,7 +11,6 @@
 
 #include "../../src/compat/fs_limits.h"
 #include "../../src/compat/os.h"
-#include "../../src/cfg/config.h"
 #include "../../src/ui/column_view.h"
 #include "../../src/utils/fs.h"
 #include "../../src/utils/path.h"
@@ -31,8 +30,6 @@ SETUP()
 
 	cmds_init();
 
-	cfg.slow_fs_list = strdup("");
-
 	view_setup(&lwin);
 	view_setup(&rwin);
 
@@ -47,9 +44,6 @@ TEARDOWN()
 	restore_cwd(saved_cwd);
 
 	vle_cmds_reset();
-
-	free(cfg.slow_fs_list);
-	cfg.slow_fs_list = NULL;
 
 	view_teardown(&lwin);
 	view_teardown(&rwin);

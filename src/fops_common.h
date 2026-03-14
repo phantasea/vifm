@@ -45,6 +45,7 @@ typedef struct
 	int move;                /* Whether this is a move operation. */
 	int force;               /* Whether destination files should be removed. */
 	int skip;                /* Skip files that already exist at destination. */
+	int deep;                /* Follow symbolic links in the source of copy. */
 	char **sel_list;         /* Full paths of files to be processed. */
 	size_t sel_list_len;     /* Number of files to process (sel_list size). */
 	char path[PATH_MAX + 1]; /* Path at which processing should take place. */
@@ -133,7 +134,7 @@ int fops_is_dir_entry(const char full_path[], const struct dirent* dentry);
 /* Adds marked files to the ops.  Considers UI cancellation.  dst_hint can be
  * NULL.  Returns number of files enqueued. */
 int fops_enqueue_marked_files(ops_t *ops, struct view_t *view,
-		const char dst_hint[], int to_trash);
+		const char dst_hint[], int to_trash, int deep);
 
 /* Allocates opt_t structure and configures it as needed.  Returns pointer to
  * newly allocated structure, which should be freed by free_ops(). */

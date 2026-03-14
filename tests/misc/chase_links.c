@@ -32,7 +32,6 @@ SETUP()
 
 	cmds_init();
 
-	cfg.slow_fs_list = strdup("");
 	cfg.chase_links = 1;
 
 	init_view(&lwin);
@@ -42,8 +41,6 @@ SETUP()
 TEARDOWN()
 {
 	vle_cmds_reset();
-
-	update_string(&cfg.slow_fs_list, NULL);
 
 	cfg.chase_links = 0;
 

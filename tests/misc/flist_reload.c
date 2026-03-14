@@ -21,8 +21,6 @@ SETUP()
 
 	assert_success(chdir(SANDBOX_PATH));
 
-	update_string(&cfg.slow_fs_list, "");
-
 	assert_true(get_cwd(cwd, sizeof(cwd)) == cwd);
 
 	view_setup(view);
@@ -44,8 +42,6 @@ TEARDOWN()
 	(void)rmdir("1");
 	(void)rmdir("2");
 	(void)rmdir("3");
-
-	update_string(&cfg.slow_fs_list, NULL);
 }
 
 TEST(exact_match_is_preferred)

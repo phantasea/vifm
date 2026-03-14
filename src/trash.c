@@ -574,7 +574,9 @@ trash_restore(const char trash_name[])
 
 	copy_str(path, sizeof(path), trash_list[i].path);
 	copy_str(full, sizeof(full), trash_list[i].trash_name);
-	if(perform_operation(OP_MOVE, NULL, NULL, full, path) == OPS_SUCCEEDED)
+
+	void *flags = ops_flags(DF_NONE);
+	if(perform_operation(OP_MOVE, NULL, flags, full, path) == OPS_SUCCEEDED)
 	{
 		char *msg, *p;
 		size_t len;
@@ -594,7 +596,7 @@ trash_restore(const char trash_name[])
 		un_replace_group_msg(msg);
 		free(msg);
 
-		un_group_add_op(OP_MOVE, NULL, NULL, full, path);
+		un_group_add_op(OP_MOVE, flags, flags, full, path);
 		un_group_close();
 		remove_from_trash(trash_name);
 		return 0;

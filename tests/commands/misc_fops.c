@@ -201,6 +201,55 @@ TEST(putting_files_works)
 	regs_reset();
 }
 
+TEST(put_invocation)
+{
+	/* Invalid register name. */
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("put asdf", &lwin, CIT_COMMAND));
+	assert_string_equal("Trailing characters", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("put -bla", &lwin, CIT_COMMAND));
+	assert_string_equal("Unrecognized :command option: -bla", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("put -skip", &lwin, CIT_COMMAND));
+	assert_string_equal("-skip doesn't apply to putting", ui_sb_last());
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("put! -deep", &lwin, CIT_COMMAND));
+	assert_string_equal("-deep doesn't apply to moving", ui_sb_last());
+}
+
+TEST(deep_put, IF(not_windows))
+{
+	char path[PATH_MAX + 1];
+
+	regs_init();
+
+	assert_success(os_mkdir(SANDBOX_PATH "/dst", 0700));
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "dst", cwd);
+
+	make_file(SANDBOX_PATH "/file", "contents");
+	make_abs_path(path, sizeof(path), SANDBOX_PATH, "file", cwd);
+	assert_success(make_symlink(path, SANDBOX_PATH "/linked"));
+
+	make_abs_path(path, sizeof(path), SANDBOX_PATH, "linked", cwd);
+	assert_success(regs_append(DEFAULT_REG_NAME, path));
+
+	assert_failure(cmds_dispatch1("put -deep", &lwin, CIT_COMMAND));
+	restore_cwd(saved_cwd);
+	saved_cwd = save_cwd();
+	assert_false(is_symlink(SANDBOX_PATH "/dst/linked"));
+
+	remove_file(SANDBOX_PATH "/dst/linked");
+	remove_dir(SANDBOX_PATH "/dst");
+	remove_file(SANDBOX_PATH "/linked");
+	remove_file(SANDBOX_PATH "/file");
+
+	regs_reset();
+}
+
 TEST(yank_works_with_ranges)
 {
 	char path[PATH_MAX + 1];

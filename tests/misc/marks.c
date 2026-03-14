@@ -5,7 +5,6 @@
 
 #include <test-utils.h>
 
-#include "../../src/cfg/config.h"
 #include "../../src/compat/os.h"
 #include "../../src/ui/ui.h"
 #include "../../src/marks.h"
@@ -23,7 +22,6 @@ static int calls;
 
 SETUP()
 {
-	cfg.slow_fs_list = strdup("");
 	lwin.list_pos = 0;
 	lwin.column_count = 1;
 	rwin.list_pos = 0;
@@ -34,9 +32,6 @@ SETUP()
 
 TEARDOWN()
 {
-	free(cfg.slow_fs_list);
-	cfg.slow_fs_list = NULL;
-
 	marks_clear_all();
 }
 

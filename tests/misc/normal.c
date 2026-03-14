@@ -13,12 +13,15 @@
 #include "../../src/modes/cmdline.h"
 #include "../../src/modes/modes.h"
 #include "../../src/modes/wk.h"
+#include "../../src/ui/statusbar.h"
 #include "../../src/ui/ui.h"
 #include "../../src/utils/fs.h"
+#include "../../src/utils/path.h"
 #include "../../src/utils/str.h"
 #include "../../src/filelist.h"
 #include "../../src/flist_sel.h"
 #include "../../src/fops_common.h"
+#include "../../src/registers.h"
 #include "../../src/status.h"
 
 #include "utils.h"
@@ -244,6 +247,115 @@ TEST(lb_rb_S)
 	assert_int_equal(0, lwin.list_pos);
 }
 
+TEST(selection_is_primary)
+{
+	regs_init();
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "read",
+			cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+
+	assert_int_equal(0, lwin.list_pos);
+	lwin.dir_entry[1].selected = 1;
+	lwin.selected_files = 1;
+
+	const reg_t *def_reg = regs_find(DEFAULT_REG_NAME);
+
+	cfg.selection_is_primary = 1;
+	(void)vle_keys_exec_timed_out(L"yy");
+	assert_int_equal(1, def_reg->nfiles);
+	assert_string_ends_with("/dos-eof", def_reg->files[0]);
+
+	cfg.selection_is_primary = 0;
+	(void)vle_keys_exec_timed_out(L"yy");
+	assert_int_equal(1, def_reg->nfiles);
+	assert_string_ends_with("/binary-data", def_reg->files[0]);
+
+	regs_reset();
+}
+
+TEST(yy_one_file)
+{
+	regs_init();
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "read",
+			cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+
+	const reg_t *def_reg = regs_find(DEFAULT_REG_NAME);
+
+	ui_sb_msg("");
+	(void)vle_keys_exec_timed_out(L"yy");
+	assert_string_equal("1 item yanked", ui_sb_last());
+	assert_int_equal(1, def_reg->nfiles);
+	assert_string_ends_with("/binary-data", def_reg->files[0]);
+
+	regs_reset();
+}
+
+TEST(yy_adjacent_files)
+{
+	regs_init();
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "read",
+			cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+
+	const reg_t *def_reg = regs_find(DEFAULT_REG_NAME);
+
+	ui_sb_msg("");
+	(void)vle_keys_exec_timed_out(L"3yy");
+	assert_int_equal(3, def_reg->nfiles);
+	assert_string_equal("3 items yanked", ui_sb_last());
+	assert_string_ends_with("/binary-data", def_reg->files[0]);
+	assert_string_ends_with("/dos-eof", def_reg->files[1]);
+	assert_string_ends_with("/dos-line-endings", def_reg->files[2]);
+
+	regs_reset();
+}
+
+TEST(p_P, REPEAT(2))
+{
+	const int p = (STIC_TEST_PARAM == 0);
+
+	regs_init();
+	undo_setup();
+
+	create_dir(SANDBOX_PATH "/src");
+	create_file(SANDBOX_PATH "/src/file");
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "src", cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+	(void)vle_keys_exec_timed_out(L"yy");
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+
+	ui_sb_msg("");
+	(void)vle_keys_exec_timed_out(p ? L"p" : L"P");
+	assert_success(chdir(cwd));
+
+	if(p)
+	{
+		assert_string_equal("1 item copied", ui_sb_last());
+
+		remove_file(SANDBOX_PATH "/src/file");
+		remove_file(SANDBOX_PATH "/file");
+	}
+	else
+	{
+		assert_string_equal("1 item moved", ui_sb_last());
+
+		no_remove_file(SANDBOX_PATH "/src/file");
+		remove_file(SANDBOX_PATH "/file");
+	}
+
+	remove_dir(SANDBOX_PATH "/src");
+
+	regs_reset();
+	undo_teardown();
+}
+
 TEST(gf, IF(not_windows))
 {
 	char dir_path[PATH_MAX + 1];
@@ -376,6 +488,45 @@ TEST(cl_multiple_files, IF(not_windows))
 
 	fops_init(NULL, NULL);
 	undo_teardown();
+}
+
+TEST(al_rl, IF(not_windows), REPEAT(2))
+{
+	const int al = (STIC_TEST_PARAM == 0);
+
+	regs_init();
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "read",
+			cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+	(void)vle_keys_exec_timed_out(L"yy");
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+
+	ui_sb_msg("");
+	(void)vle_keys_exec_timed_out(al ? L"al" : L"rl");
+	assert_success(chdir(cwd));
+
+	char target[PATH_MAX + 1];
+	assert_success(get_link_target(SANDBOX_PATH "/binary-data", target,
+				sizeof(target)));
+
+	assert_string_ends_with("/binary-data", target);
+	if(al)
+	{
+		assert_string_equal("1 item linked (abs)", ui_sb_last());
+		assert_true(is_path_absolute(target));
+	}
+	else
+	{
+		assert_string_equal("1 item linked (rel)", ui_sb_last());
+		assert_false(is_path_absolute(target));
+	}
+
+	remove_file(SANDBOX_PATH "/binary-data");
+
+	regs_reset();
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

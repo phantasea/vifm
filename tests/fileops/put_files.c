@@ -71,13 +71,13 @@ TEARDOWN()
 
 TEST(put_files_bg_fails_on_wrong_register)
 {
-	assert_true(fops_put_bg(&lwin, -1, -1, 0));
+	assert_true(fops_put_bg(&lwin, -1, -1, 0, /*deep=*/0));
 	wait_for_bg();
 }
 
 TEST(put_files_bg_fails_on_empty_register)
 {
-	assert_true(fops_put_bg(&lwin, -1, 'a', 0));
+	assert_true(fops_put_bg(&lwin, -1, 'a', 0, /*deep=*/0));
 	wait_for_bg();
 }
 
@@ -86,7 +86,7 @@ TEST(put_files_bg_fails_on_identical_names_in_a_register)
 	assert_success(regs_append('a', TEST_DATA_PATH "/existing-files/a"));
 	assert_success(regs_append('a', TEST_DATA_PATH "/rename/a"));
 
-	assert_true(fops_put_bg(&lwin, -1, 'a', 0));
+	assert_true(fops_put_bg(&lwin, -1, 'a', 0, /*deep=*/0));
 	wait_for_bg();
 }
 
@@ -96,7 +96,7 @@ TEST(put_files_bg_fails_on_file_name_conflict)
 
 	assert_success(regs_append('a', TEST_DATA_PATH "/rename/a"));
 
-	assert_true(fops_put_bg(&lwin, -1, 'a', 0));
+	assert_true(fops_put_bg(&lwin, -1, 'a', 0, /*deep=*/0));
 	wait_for_bg();
 
 	assert_success(unlink(SANDBOX_PATH "/a"));
@@ -106,7 +106,7 @@ TEST(put_files_bg_copies_files)
 {
 	assert_success(regs_append('a', TEST_DATA_PATH "/existing-files/a"));
 
-	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 0));
+	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 0, /*deep=*/0));
 	wait_for_bg();
 
 	assert_success(unlink(SANDBOX_PATH "/a"));
@@ -121,7 +121,7 @@ TEST(put_files_bg_skips_nonexistent_source_files)
 	assert_success(regs_append('a', SANDBOX_PATH "/dir/b"));
 	assert_success(unlink(SANDBOX_PATH "/dir/b"));
 
-	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 0));
+	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 0, /*deep=*/0));
 	wait_for_bg();
 
 	assert_success(unlink(SANDBOX_PATH "/a"));
@@ -140,7 +140,7 @@ TEST(put_files_bg_demangles_names_of_trashed_files)
 	make_abs_path(path, sizeof(path), SANDBOX_PATH, "trash/000_b", saved_cwd);
 	assert_success(regs_append('a', path));
 
-	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 1));
+	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 1, /*deep=*/0));
 	wait_for_bg();
 
 	assert_success(unlink(SANDBOX_PATH "/b"));
@@ -163,25 +163,25 @@ TEST(put_files_copies_files_according_to_tree_structure)
 	/* Copy at the top level.  Set at to -1. */
 
 	lwin.list_pos = 0;
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 	assert_success(unlink(SANDBOX_PATH "/a"));
 
 	lwin.list_pos = 0;
-	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 0));
+	assert_int_equal(0, fops_put_bg(&lwin, -1, 'a', 0, /*deep=*/0));
 	wait_for_bg();
 	assert_success(unlink(SANDBOX_PATH "/a"));
 
 	/* Copy at nested level.  Set at to desired position. */
 
-	(void)fops_put(&lwin, 1, 'a', 0);
+	(void)fops_put(&lwin, 1, 'a', 0, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 	assert_success(unlink(SANDBOX_PATH "/dir/a"));
 
 	/* Here target position in 100, which should become 1 automatically. */
-	assert_int_equal(0, fops_put_bg(&lwin, 100, 'a', 0));
+	assert_int_equal(0, fops_put_bg(&lwin, 100, 'a', 0, /*deep=*/0));
 	wait_for_bg();
 	assert_success(unlink(SANDBOX_PATH "/dir/a"));
 
@@ -204,7 +204,7 @@ TEST(overwrite_request_accounts_for_target_file_rename)
 
 	fops_init(&line_prompt, &options_prompt_rename);
 
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 
@@ -230,7 +230,7 @@ TEST(abort_stops_operation)
 	assert_success(regs_append('a', SANDBOX_PATH "/dir/b"));
 
 	fops_init(&line_prompt, &options_prompt_abort);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 
@@ -262,7 +262,7 @@ TEST(rename_on_put)
 	assert_success(regs_append('a', path));
 
 	fops_init(&line_prompt_rec, &options_prompt_rename_rec);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	/* Continue the operation. */
 	rename_cb("b", /*arg=*/NULL);
 
@@ -303,7 +303,7 @@ TEST(change_mind)
 	/* Overwrite #1 -> No -> Skip -> Overwrite #2. */
 
 	fops_init(&line_prompt, &cm_overwrite);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 
@@ -331,7 +331,7 @@ TEST(broken_link_does_not_stop_putting, IF(not_windows))
 
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH "/dst", "",
 			saved_cwd);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 
@@ -355,7 +355,7 @@ TEST(broken_link_behaves_like_a_regular_file_on_conflict, IF(not_windows))
 	assert_success(regs_append('a', path));
 
 	fops_init(&line_prompt, &cm_no);
-	(void)fops_put(&lwin, -1, 'a', /*move=*/1);
+	(void)fops_put(&lwin, -1, 'a', /*move=*/1, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 
@@ -383,7 +383,7 @@ parent_overwrite_with_put(int move)
 	assert_success(regs_append('a', path));
 
 	fops_init(&line_prompt, &options_prompt_overwrite);
-	(void)fops_put(&lwin, -1, 'a', move);
+	(void)fops_put(&lwin, -1, 'a', move, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 
@@ -416,7 +416,7 @@ double_clash_with_put(int move)
 	/* The larger sub-tree should be moved in this case. */
 
 	fops_init(&line_prompt, &options_prompt_overwrite);
-	(void)fops_put(&lwin, -1, 'a', move);
+	(void)fops_put(&lwin, -1, 'a', move, /*deep=*/0);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
 
@@ -439,7 +439,7 @@ TEST(putting_single_file_moves_cursor_to_that_file)
 	assert_success(regs_append('a', path));
 
 	lwin.list_pos = 0;
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(1, lwin.list_pos);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
@@ -464,7 +464,7 @@ TEST(putting_multiple_files_moves_cursor_to_the_first_one_in_sorted_order)
 	assert_success(regs_append('a', path));
 
 	lwin.list_pos = 0;
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(1, lwin.list_pos);
 	assert_string_equal("a", get_current_file_name(&lwin));
 	restore_cwd(saved_cwd);
@@ -490,7 +490,7 @@ TEST(putting_file_with_conflict_moves_cursor_on_aborting)
 
 	lwin.list_pos = 0;
 	fops_init(&line_prompt, &options_prompt_abort);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(1, lwin.list_pos);
 	restore_cwd(saved_cwd);
 	saved_cwd = save_cwd();
@@ -516,7 +516,7 @@ TEST(putting_files_with_conflict_moves_cursor_to_the_last_conflicting_file)
 
 	lwin.list_pos = 0;
 	fops_init(&line_prompt, &options_prompt_skip_all);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(1, lwin.list_pos);
 	assert_string_equal("b", get_current_file_name(&lwin));
 	restore_cwd(saved_cwd);
@@ -543,7 +543,7 @@ TEST(putting_files_with_conflict_moves_cursor_to_the_last_renamed_file)
 
 	lwin.list_pos = 0;
 	fops_init(&line_prompt, &options_prompt_rename);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(1, lwin.list_pos);
 	assert_string_equal("b", get_current_file_name(&lwin));
 	restore_cwd(saved_cwd);
@@ -569,7 +569,7 @@ TEST(cursor_is_moved_even_if_no_file_was_processed)
 
 	lwin.list_pos = 0;
 	fops_init(&line_prompt, &options_prompt_skip_all);
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(1, lwin.list_pos);
 	assert_string_equal("b", get_current_file_name(&lwin));
 	restore_cwd(saved_cwd);
@@ -597,7 +597,7 @@ TEST(show_merge_all_option_if_paths_include_dir)
 	assert_success(regs_append('a', path));
 
 	options_count = 0;
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(8, options_count);
 
 	restore_cwd(saved_cwd);
@@ -607,7 +607,7 @@ TEST(show_merge_all_option_if_paths_include_dir)
 	assert_success(regs_append('a', path));
 
 	options_count = 0;
-	(void)fops_put(&lwin, -1, 'a', 0);
+	(void)fops_put(&lwin, -1, 'a', 0, /*deep=*/0);
 	assert_int_equal(9, options_count);
 
 	restore_cwd(saved_cwd);
@@ -668,7 +668,7 @@ TEST(merging_on_copy_confirms_overwrites)
 	merge_prompt_count = 0;
 	yes_prompt_count = 0;
 
-	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/0);
+	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/0, /*deep=*/0);
 	assert_int_equal(1, merge_prompt_count);
 	assert_int_equal(1, yes_prompt_count);
 
@@ -704,7 +704,7 @@ TEST(merging_on_move_confirms_overwrites)
 	merge_prompt_count = 0;
 	yes_prompt_count = 0;
 
-	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/1);
+	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/1, /*deep=*/0);
 	assert_int_equal(1, merge_prompt_count);
 	assert_int_equal(1, yes_prompt_count);
 
@@ -744,7 +744,7 @@ TEST(failure_to_remove_source_due_to_user_does_not_stop_moving)
 	merge_prompt_count = 0;
 	no_prompt_count = 0;
 
-	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/1);
+	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/1, /*deep=*/0);
 	assert_int_equal(1, merge_prompt_count);
 	assert_int_equal(2, no_prompt_count);
 
@@ -788,7 +788,7 @@ TEST(put_keeps_unmoved_files_that_were_denied_to_overwrite)
 	merge_prompt_count = 0;
 	no_prompt_count = 0;
 
-	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/1);
+	(void)fops_put(&lwin, /*at=*/-1, /*reg_name=*/'a', /*move=*/1, /*deep=*/0);
 	assert_int_equal(1, merge_prompt_count);
 	assert_int_equal(1, no_prompt_count);
 

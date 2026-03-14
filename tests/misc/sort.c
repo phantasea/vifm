@@ -70,12 +70,7 @@ TEST(symlink_to_dir, IF(not_windows))
 	lwin.dir_entry[2].origin = lwin.curr_dir;
 	lwin.dir_entry[2].dir_link = 1;
 
-	cfg.slow_fs_list = strdup("");
-
 	sort_view(&lwin);
-
-	free(cfg.slow_fs_list);
-	cfg.slow_fs_list = NULL;
 
 	assert_string_equal("self", lwin.dir_entry[0].name);
 

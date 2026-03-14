@@ -43,30 +43,30 @@
 #include "iop.h"
 
 static VisitResult rm_visitor(const char full_path[], VisitAction action,
-		void *param);
+		int deep, void *param);
 static VisitResult cp_visitor(const char full_path[], VisitAction action,
-		void *param);
+		int deep, void *param);
 static IoRes mv_by_copy(io_args_t *args, int confirmed);
 static IoRes mv_replacing_all(io_args_t *args);
 static IoRes mv_replacing_files(io_args_t *args);
 static int is_file(const char path[]);
 static VisitResult mv_visitor(const char full_path[], VisitAction action,
-		void *param);
+		int deep, void *param);
 static VisitResult cp_mv_visitor(const char full_path[], VisitAction action,
-		void *param, int cp);
+		void *param, int cp, int deep);
 static VisitResult vr_from_io_res(IoRes result);
 
 IoRes
 ior_rm(io_args_t *args)
 {
 	const char *const path = args->arg1.path;
-	return traverse(path, &rm_visitor, args);
+	return traverse(path, /*deep=*/0, &rm_visitor, args);
 }
 
 /* Implementation of traverse() visitor for subtree removal.  Returns 0 on
  * success, otherwise non-zero is returned. */
 static VisitResult
-rm_visitor(const char full_path[], VisitAction action, void *param)
+rm_visitor(const char full_path[], VisitAction action, int deep, void *param)
 {
 	io_args_t *const rm_args = param;
 	VisitResult result = VR_OK;
@@ -122,6 +122,7 @@ ior_cp(io_args_t *args)
 {
 	const char *const src = args->arg1.src;
 	const char *const dst = args->arg2.dst;
+	const int deep_copying = args->arg4.deep_copying;
 
 	if(is_in_subtree(dst, src, 0))
 	{
@@ -154,15 +155,15 @@ ior_cp(io_args_t *args)
 		}
 	}
 
-	return traverse(src, &cp_visitor, args);
+	return traverse(src, deep_copying, &cp_visitor, args);
 }
 
 /* Implementation of traverse() visitor for subtree copying.  Returns 0 on
  * success, otherwise non-zero is returned. */
 static VisitResult
-cp_visitor(const char full_path[], VisitAction action, void *param)
+cp_visitor(const char full_path[], VisitAction action, int deep, void *param)
 {
-	return cp_mv_visitor(full_path, action, param, 1);
+	return cp_mv_visitor(full_path, action, param, /*cp=*/1, deep);
 }
 
 IoRes
@@ -360,7 +361,7 @@ mv_replacing_files(io_args_t *args)
 		}
 	}
 
-	return traverse(src, &mv_visitor, args);
+	return traverse(src, /*deep=*/0, &mv_visitor, args);
 }
 
 /* Checks that path points to a file or symbolic link.  Returns non-zero if so,
@@ -375,15 +376,16 @@ is_file(const char path[])
 /* Implementation of traverse() visitor for subtree moving.  Returns 0 on
  * success, otherwise non-zero is returned. */
 static VisitResult
-mv_visitor(const char full_path[], VisitAction action, void *param)
+mv_visitor(const char full_path[], VisitAction action, int deep, void *param)
 {
-	return cp_mv_visitor(full_path, action, param, 0);
+	return cp_mv_visitor(full_path, action, param, /*cp=*/0, /*deep=*/0);
 }
 
 /* Generic implementation of traverse() visitor for subtree copying/moving.
  * Returns 0 on success, otherwise non-zero is returned. */
 static VisitResult
-cp_mv_visitor(const char full_path[], VisitAction action, void *param, int cp)
+cp_mv_visitor(const char full_path[], VisitAction action, void *param, int cp,
+		int deep)
 {
 	io_args_t *const cp_args = param;
 	const char *dst_full_path;
@@ -432,6 +434,8 @@ cp_mv_visitor(const char full_path[], VisitAction action, void *param, int cp)
 					/* It's safe to always use fast file cloning on moving files. */
 					.arg4.fast_file_cloning = cp ? cp_args->arg4.fast_file_cloning : 1,
 					.arg4.data_sync = cp_args->arg4.data_sync,
+					/* Deep copying may be suppressed for links that can't be copied. */
+					.arg4.deep_copying = cp ? deep && cp_args->arg4.deep_copying : 0,
 
 					.cancellation = cp_args->cancellation,
 					.confirm = cp_args->confirm,

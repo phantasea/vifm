@@ -64,9 +64,10 @@ TEST(app_fsop_is_called)
 				"echo", NULL));
 	assert_int_equal(OPS_SUCCEEDED, perform_operation(OP_MKFILE, NULL, NULL,
 				"from", NULL));
-	assert_int_equal(OPS_SUCCEEDED, perform_operation(OP_MOVE, NULL, NULL,
+	void *flags = ops_flags(DF_NONE);
+	assert_int_equal(OPS_SUCCEEDED, perform_operation(OP_MOVE, NULL, flags,
 				"from", "to"));
-	assert_int_equal(OPS_SUCCEEDED, perform_operation(OP_REMOVESL, NULL, NULL,
+	assert_int_equal(OPS_SUCCEEDED, perform_operation(OP_REMOVESL, NULL, flags,
 				"to", NULL));
 	vlua_process_callbacks(vlua);
 	curr_stats.vlua = NULL;

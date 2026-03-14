@@ -32,14 +32,12 @@ static int bad_editor_call(const char type[], const char title[],
 SETUP()
 {
 	update_string(&cfg.shell, "");
-	update_string(&cfg.slow_fs_list, "");
 	assert_success(stats_init(&cfg));
 }
 
 TEARDOWN()
 {
 	update_string(&cfg.shell, NULL);
-	update_string(&cfg.slow_fs_list, NULL);
 }
 
 /* Because of fmemopen(). */

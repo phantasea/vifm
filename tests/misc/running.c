@@ -47,7 +47,6 @@ SETUP()
 #endif
 
 	update_string(&cfg.vi_command, "echo");
-	update_string(&cfg.slow_fs_list, "");
 	update_string(&cfg.fuse_home, "");
 
 	stats_update_shell_type(cfg.shell);
@@ -76,7 +75,6 @@ TEARDOWN()
 
 	ft_reset(0);
 	update_string(&cfg.vi_command, NULL);
-	update_string(&cfg.slow_fs_list, NULL);
 	update_string(&cfg.fuse_home, NULL);
 }
 

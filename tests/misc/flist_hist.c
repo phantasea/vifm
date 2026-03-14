@@ -27,8 +27,6 @@
 
 SETUP()
 {
-	update_string(&cfg.slow_fs_list, "");
-
 	view_setup(&lwin);
 	strcpy(lwin.curr_dir, "/lwin");
 	append_view_entry(&lwin, "lfile0");
@@ -42,8 +40,6 @@ SETUP()
 
 TEARDOWN()
 {
-	update_string(&cfg.slow_fs_list, NULL);
-
 	cfg_resize_histories(0);
 
 	view_teardown(&lwin);

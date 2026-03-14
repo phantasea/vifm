@@ -125,6 +125,8 @@ struct io_args_t
 			unsigned int fast_file_cloning : 1;
 			/* Whether to call fdatasync() periodically. */
 			unsigned int data_sync : 1;
+			/* Deep link copying (copy the target instead of linking to it). */
+			unsigned int deep_copying : 1;
 		};
 	}
 	arg4;

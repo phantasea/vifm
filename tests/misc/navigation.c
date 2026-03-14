@@ -21,7 +21,6 @@ SETUP()
 	other_view = &rwin;
 
 	cfg.fuse_home = strdup("no");
-	cfg.slow_fs_list = strdup("");
 	cfg.chase_links = 1;
 
 	view_setup(&lwin);
@@ -34,7 +33,6 @@ SETUP()
 
 TEARDOWN()
 {
-	update_string(&cfg.slow_fs_list, NULL);
 	update_string(&cfg.fuse_home, NULL);
 
 	cfg.chase_links = 0;

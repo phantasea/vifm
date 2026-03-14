@@ -298,6 +298,7 @@ iop_cp_internal(io_args_t *args)
 	const char *const src = args->arg1.src;
 	const char *const dst = args->arg2.dst;
 	const IoCrs crs = args->arg3.crs;
+	const int deep_copying = args->arg4.deep_copying;
 	const io_confirm confirm = args->confirm;
 	struct stat st;
 
@@ -318,7 +319,7 @@ iop_cp_internal(io_args_t *args)
 		DWORD flags;
 		wchar_t *utf16_src, *utf16_dst;
 
-		flags = COPY_FILE_COPY_SYMLINK;
+		flags = (deep_copying ? 0 : COPY_FILE_COPY_SYMLINK);
 		if(crs == IO_CRS_FAIL)
 		{
 			flags |= COPY_FILE_FAIL_IF_EXISTS;
@@ -359,9 +360,11 @@ iop_cp_internal(io_args_t *args)
 	}
 #endif
 
-	/* Create symbolic link rather than copying file it points to.  This check
-	 * should go before directory check as is_dir() resolves symbolic links. */
-	if(is_symlink(src))
+	/* Optionally create a symbolic link rather than copying file it points to.  A
+	 * broken symlink is always copied as a symlink.  This check should go before
+	 * directory check as is_dir() resolves symbolic links. */
+	if((!deep_copying && is_symlink(src)) ||
+			(deep_copying && is_symlink(src) && !path_exists(src, DEREF)))
 	{
 		char link_target[PATH_MAX + 1];
 
@@ -630,7 +633,7 @@ iop_cp_internal(io_args_t *args)
 		error = 1;
 	}
 
-	if(error == 0 && os_lstat(src, &src_st) == 0)
+	if(error == 0 && (deep_copying ? os_stat : os_lstat)(src, &src_st) == 0)
 	{
 		error = os_chmod(dst, src_st.st_mode & 07777);
 		if(error != 0)

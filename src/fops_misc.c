@@ -160,7 +160,8 @@ fops_delete(view_t *view, int reg, int use_trash)
 	ops = fops_get_ops(OP_REMOVE, use_trash ? "deleting" : "Deleting", curr_dir,
 			curr_dir);
 
-	nmarked_files = fops_enqueue_marked_files(ops, view, NULL, use_trash);
+	nmarked_files =
+		fops_enqueue_marked_files(ops, view, NULL, use_trash, /*deep=*/0);
 
 	entry = NULL;
 	i = 0;
@@ -230,7 +231,8 @@ delete_file(dir_entry_t *entry, ops_t *ops, int reg, int use_trash, int nested)
 
 	if(!use_trash)
 	{
-		OpsResult r = perform_operation(OP_REMOVE, ops, NULL, full_path, NULL);
+		void *flags = ops_flags(DF_NONE);
+		OpsResult r = perform_operation(OP_REMOVE, ops, flags, full_path, NULL);
 		result = (r == OPS_SUCCEEDED ? 0 : -1);
 
 		/* For some reason "rm" sometimes returns 0 on cancellation. */
@@ -241,7 +243,7 @@ delete_file(dir_entry_t *entry, ops_t *ops, int reg, int use_trash, int nested)
 
 		if(result == 0)
 		{
-			un_group_add_op(OP_REMOVE, NULL, NULL, full_path, "");
+			un_group_add_op(OP_REMOVE, flags, NULL, full_path, "");
 			//add by sim1: remove rating item
 			copy_rating_info(full_path, full_path, 0);
 		}
@@ -264,7 +266,8 @@ delete_file(dir_entry_t *entry, ops_t *ops, int reg, int use_trash, int nested)
 		char *const dest = trash_gen_path(entry->origin, entry->name);
 		if(dest != NULL)
 		{
-			OpsResult r = perform_operation(op, ops, NULL, full_path, dest);
+			void *flags = ops_flags(DF_NONE);
+			OpsResult r = perform_operation(op, ops, flags, full_path, dest);
 			result = (r == OPS_SUCCEEDED ? 0 : -1);
 
 			/* For some reason "rm" sometimes returns 0 on cancellation. */
@@ -275,7 +278,7 @@ delete_file(dir_entry_t *entry, ops_t *ops, int reg, int use_trash, int nested)
 
 			if(result == 0)
 			{
-				un_group_add_op(op, NULL, NULL, full_path, dest);
+				un_group_add_op(op, flags, flags, full_path, dest);
 				regs_append(reg, dest);
 			}
 			free(dest);
@@ -407,7 +410,7 @@ delete_files_in_bg(bg_op_t *bg_op, void *arg)
 		{
 			const char *const src = args->sel_list[i];
 			char *trash_dir = (args->use_trash ? trash_pick_dir(src) : args->path);
-			ops_enqueue(ops, src, trash_dir);
+			ops_enqueue(ops, src, trash_dir, /*deep=*/0);
 			if(trash_dir != args->path)
 			{
 				free(trash_dir);
@@ -430,9 +433,11 @@ delete_files_in_bg(bg_op_t *bg_op, void *arg)
 static void
 delete_file_in_bg(ops_t *ops, const char path[], int use_trash)
 {
+	void *flags = ops_flags(DF_NONE);
+
 	if(!use_trash)
 	{
-		(void)perform_operation(OP_REMOVE, ops, NULL, path, NULL);
+		(void)perform_operation(OP_REMOVE, ops, flags, path, NULL);
 		return;
 	}
 
@@ -445,7 +450,7 @@ delete_file_in_bg(ops_t *ops, const char path[], int use_trash)
 		const char *const fname = get_last_path_component(path);
 		char *const trash_name = trash_gen_path(path, fname);
 		const char *const dest = (trash_name != NULL) ? trash_name : fname;
-		(void)perform_operation(OP_MOVE, ops, NULL, path, dest);
+		(void)perform_operation(OP_MOVE, ops, flags, path, dest);
 		free(trash_name);
 	}
 }
@@ -694,7 +699,7 @@ retarget_many(view_t *view, char *files[], int nfiles)
 	{
 		char full_path[PATH_MAX + 1];
 		get_full_path_of(entry, sizeof(full_path), full_path);
-		ops_enqueue(ops, full_path, full_path);
+		ops_enqueue(ops, full_path, full_path, /*deep=*/0);
 	}
 
 	int i = 0;
@@ -735,14 +740,16 @@ verify_retarget_list(char *files[], int nfiles, char *names[], int nnames,
 static void
 change_link(ops_t *ops, const char path[], const char from[], const char to[])
 {
-	if(perform_operation(OP_REMOVESL, ops, NULL, path, NULL) == OPS_SUCCEEDED)
+	void *flags = ops_flags(DF_NONE);
+
+	if(perform_operation(OP_REMOVESL, ops, flags, path, NULL) == OPS_SUCCEEDED)
 	{
-		un_group_add_op(OP_REMOVESL, NULL, NULL, path, from);
+		un_group_add_op(OP_REMOVESL, flags, flags, path, from);
 	}
 
-	if(perform_operation(OP_SYMLINK2, ops, NULL, to, path) == OPS_SUCCEEDED)
+	if(perform_operation(OP_SYMLINK2, ops, flags, to, path) == OPS_SUCCEEDED)
 	{
-		un_group_add_op(OP_SYMLINK2, NULL, NULL, to, path);
+		un_group_add_op(OP_SYMLINK2, flags, flags, to, path);
 	}
 }
 
@@ -839,7 +846,8 @@ fops_clone(view_t *view, char *list[], int nlines, int force, int copies)
 	ops_t *ops = fops_get_ops(OP_COPY, "Cloning", curr_dir,
 			with_dir ? list[0] : curr_dir);
 
-	int nmarked_files = fops_enqueue_marked_files(ops, view, dst_path, 0);
+	int nmarked_files =
+		fops_enqueue_marked_files(ops, view, dst_path, /*to_trash=*/0, /*deep=*/0);
 
 	const int custom_fnames = (nlines > 0);
 
@@ -960,11 +968,12 @@ clone_file(const dir_entry_t *entry, const char path[], const char clone[],
 {
 	char full_path[PATH_MAX + 1];
 	char clone_name[PATH_MAX + 1];
+	void *flags = ops_flags(DF_NONE);
 
 	to_canonic_path(clone, path, clone_name, sizeof(clone_name));
 	if(path_exists(clone_name, DEREF))
 	{
-		if(perform_operation(OP_REMOVESL, NULL, NULL, clone_name, NULL) !=
+		if(perform_operation(OP_REMOVESL, NULL, flags, clone_name, NULL) !=
 				OPS_SUCCEEDED)
 		{
 			return 1;
@@ -973,13 +982,13 @@ clone_file(const dir_entry_t *entry, const char path[], const char clone[],
 
 	get_full_path_of(entry, sizeof(full_path), full_path);
 
-	if(perform_operation(OP_COPY, ops, NULL, full_path, clone_name) !=
+	if(perform_operation(OP_COPY, ops, flags, full_path, clone_name) !=
 			OPS_SUCCEEDED)
 	{
 		return 1;
 	}
 
-	un_group_add_op(OP_COPY, NULL, NULL, full_path, clone_name);
+	un_group_add_op(OP_COPY, flags, flags, full_path, clone_name);
 	return 0;
 }
 
@@ -989,15 +998,12 @@ fops_mkdirs(view_t *view, int at, char **names, int count, int create_parent)
 	char buf[COMMAND_GROUP_INFO_LEN + 1];
 	int i;
 	int n;
-	void *cp;
 	const char *const dst_dir = fops_get_dst_dir(view, at);
 
 	if(!fops_view_can_be_extended(view, at))
 	{
 		return 1;
 	}
-
-	cp = (void *)(size_t)create_parent;
 
 	for(i = 0; i < count; ++i)
 	{
@@ -1023,6 +1029,7 @@ fops_mkdirs(view_t *view, int at, char **names, int count, int create_parent)
 	}
 
 	ops_t *ops = fops_get_ops(OP_MKDIR, "making dirs", dst_dir, dst_dir);
+	void *flags = ops_flags(create_parent ? DF_MAKE_PARENTS : DF_NONE);
 
 	snprintf(buf, sizeof(buf), "mkdir in %s: ", replace_home_part(dst_dir));
 
@@ -1034,9 +1041,9 @@ fops_mkdirs(view_t *view, int at, char **names, int count, int create_parent)
 		char full[PATH_MAX + 1];
 		to_canonic_path(names[i], dst_dir, full, sizeof(full));
 
-		if(perform_operation(OP_MKDIR, ops, cp, full, NULL) == OPS_SUCCEEDED)
+		if(perform_operation(OP_MKDIR, ops, flags, full, NULL) == OPS_SUCCEEDED)
 		{
-			un_group_add_op(OP_MKDIR, cp, NULL, full, "");
+			un_group_add_op(OP_MKDIR, flags, NULL, full, "");
 			++n;
 		}
 		else if(i == 0)
@@ -1408,7 +1415,7 @@ fops_chown(int u, int g, uid_t uid, gid_t gid)
 			replace_home_part(curr_dir));
 
 	ops = fops_get_ops(OP_CHOWN, "re-owning", curr_dir, curr_dir);
-	(void)fops_enqueue_marked_files(ops, view, NULL, 0);
+	(void)fops_enqueue_marked_files(ops, view, NULL, /*to_trash=*/0, /*deep=*/0);
 
 	fops_append_marked_files(view, undo_msg, NULL);
 	un_group_open(undo_msg);

@@ -629,6 +629,7 @@ const char *tags[] = {
 	"vifm-cw",
 	"vifm-d",
 	"vifm-dd",
+	"vifm-deep-param",
 	"vifm-do",
 	"vifm-dp",
 	"vifm-e",

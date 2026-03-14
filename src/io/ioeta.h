@@ -79,8 +79,9 @@ void ioeta_free(ioeta_estim_t *estim);
 
 /* Calculates estimates for a subtree rooted at path.  Adds them up to values
  * already present in the estim.  Shallow estimation doesn't recur into
- * directories. */
-void ioeta_calculate(ioeta_estim_t *estim, const char path[], int shallow);
+ * directories.  Deep estimation resolves symbolic links. */
+void ioeta_calculate(ioeta_estim_t *estim, const char path[], int shallow,
+		int deep);
 
 #endif /* VIFM__IO__IOETA_H__ */
 

@@ -1,4 +1,4 @@
-.TH VIFM 1 "13 January 2026" "vifm 0.15"
+.TH VIFM 1 "11 March 2026" "vifm 0.15"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -621,8 +621,8 @@ visible in current view are selected.
 When no register is specified, restore the last selection saved for this
 view (similar to what gv does for visual mode selection).  When you
 leave a directory, its saved selection is remembered for that path and
-visiting the directory again restores it.  Selection for up to 10 distinct
-file-system locations are remembered.
+visiting the directory again restores it.  Selection is remembered for
+up to 10 distinct file-system locations.
 .TP
 .BI gu<selector>
 make names of selected files lowercase.
@@ -1441,7 +1441,7 @@ Supported mechanisms:
     Also form a single argument.
     A backslash inside double quotes escapes the next character (for example,
 \\" becomes a quote, \\\\ becomes a backslash).
-    Some C‑style escape sequences are interpreted (\\a, \\b, \\f, \\n, \\r,
+    Some C\-style escape sequences are interpreted (\\a, \\b, \\f, \\n, \\r,
 \\t, \\v).
 
     Example:
@@ -1922,8 +1922,8 @@ options.
 .BI "                                         :copen"
 .TP
 .BI ":cope[n]"
-reopens the last visible menu that has navigation to files by default, if any.
-See also "Menus history" section.
+reopens the most recently closed navigation menu, if any.  See also
+"Menus history" section.
 .TP
 .BI "                                         :copy"
 .TP
@@ -1938,6 +1938,9 @@ directory of other view).  "!" forces overwrite.
 .BI ":[range]co[py][!] name1 name2...[ &]"
 copy files to directory of other view giving each next file a corresponding name
 from the argument list.  "!" forces overwrite
+.TP
+.BI ":[range]co[py][!?] -deep ...[ &]"
+see "\-deep parameter" below.
 .TP
 .BI ":[range]co[py][!?] -skip ...[ &]"
 see "\-skip parameter" below.
@@ -2807,7 +2810,6 @@ loads all plugins.  To be used in configuration file to manually load
 plugins at an earlier point.  The plugins can be loaded only once,
 additional calls will do nothing.
 .TP
-.TP
 .BI ":plugin blacklist {plugin}"
 adds {plugin} to the list of plugins to be ignored.
 .TP
@@ -2841,6 +2843,9 @@ The [line] can be used to pick node in a tree-view.  "!" moves files
 "!" moves files from their original location instead of copying them.
 During this operation no confirmation dialogs will be shown, all checks
 are performed beforehand.
+.TP
+.BI ":[line]pu[t][!] -deep ..."
+see "\-deep parameter" below.
 .TP
 .BI "                                         :pwd"
 .TP
@@ -3620,9 +3625,23 @@ Some of the command-line commands accept parameters in the form of
 parameters and positional arguments.  Items from the two groups cannot be
 interleaved and parameters always come first.  List of parameters is
 terminated implicitly by the first argument that doesn't start with a
-dash ("-") or explicitly via "--" separator (needs to be a separate
-argument), which is just discarded.  These strict rules allow arbitrary
-positional arguments, such as file names that start with a dash.
+dash ("-") or explicitly via "--" separator (must be a separate argument),
+which is just discarded.  These strict rules allow arbitrary positional
+arguments, such as file names that start with a dash.
+
+.TP
+.BI "\-deep parameter"
+This parameter makes :copy resolve symbolic links in the source.
+
+Note that when 'syscalls' is on, the behaviour differs from that of
+`cp \-L` (same as `cp \-\-dereference`) in cases when a symbolic link's target
+can't be meaningfully copied:
+ - when link's target doesn't exist (broken link)
+ - when link to a directory creates a cycle
+.br
+In both cases `cp` prints an error and doesn't create anything at the
+destination but vifm copies symbolic links as is to preserve file structure.
+This implementation detail may change in the future or become configurable.
 
 .TP
 .BI "\-skip parameter"
@@ -5020,7 +5039,6 @@ Specifies when tab line should be displayed.  Possible values:
 
 Alternatively 0, 1 and 2 Vim-like values  are also accepted and correspond to
 "never", "multiple" and "always" respectively.
-.TP
 .TP
 .BI 'sizefmt'
 type: string list

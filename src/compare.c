@@ -1170,7 +1170,7 @@ files_are_identical(const char a[], int a_readable, const char b[],
 static int
 file_is_empty(const char path[])
 {
-	/* get_file_size() would return size of a symbolic link. */
+	/* get_target_file_size() returns 0 on error as if the file is empty. */
 	struct stat st;
 	return (os_stat(path, &st) == 0 && st.st_size == 0);
 }

@@ -10,6 +10,7 @@
 #include "../../src/io/ior.h"
 
 static void progress_changed(const io_progress_t *progress);
+static void calc(ioeta_estim_t *estim, const char path[]);
 
 static int invoked_eta;
 static int invoked_progress;
@@ -48,9 +49,14 @@ progress_changed(const io_progress_t *progress)
 	}
 }
 
+static void calc(ioeta_estim_t *estim, const char path[])
+{
+	ioeta_calculate(estim, path, /*shallow=*/0, /*deep=*/0);
+}
+
 TEST(cp_file_invokes_ionotif)
 {
-	ioeta_calculate(estim, TEST_DATA_PATH "/read/binary-data", 0);
+	calc(estim, TEST_DATA_PATH "/read/binary-data");
 
 	{
 		io_args_t args = {
@@ -69,7 +75,7 @@ TEST(cp_file_invokes_ionotif)
 /* Relies on the previous test. */
 TEST(mv_file_invokes_ionotif)
 {
-	ioeta_calculate(estim, SANDBOX_PATH "/copy-of-binary-data", 0);
+	calc(estim, SANDBOX_PATH "/copy-of-binary-data");
 
 	{
 		io_args_t args = {
@@ -88,7 +94,7 @@ TEST(mv_file_invokes_ionotif)
 /* Relies on the previous test. */
 TEST(rm_file_invokes_ionotif)
 {
-	ioeta_calculate(estim, SANDBOX_PATH "/copy-of-binary-data", 0);
+	calc(estim, SANDBOX_PATH "/copy-of-binary-data");
 
 	{
 		io_args_t args = {
@@ -105,7 +111,7 @@ TEST(rm_file_invokes_ionotif)
 
 TEST(cp_dir_invokes_ionotif)
 {
-	ioeta_calculate(estim, TEST_DATA_PATH "/read", 0);
+	calc(estim, TEST_DATA_PATH "/read");
 
 	{
 		io_args_t args = {
@@ -124,7 +130,7 @@ TEST(cp_dir_invokes_ionotif)
 /* Relies on the previous test. */
 TEST(mv_dir_invokes_ionotif)
 {
-	ioeta_calculate(estim, SANDBOX_PATH "/moved-read", 0);
+	calc(estim, SANDBOX_PATH "/moved-read");
 
 	{
 		io_args_t args = {
@@ -143,7 +149,7 @@ TEST(mv_dir_invokes_ionotif)
 /* Relies on the previous test. */
 TEST(rm_dir_invokes_ionotif)
 {
-	ioeta_calculate(estim, SANDBOX_PATH "/moved-read", 0);
+	calc(estim, SANDBOX_PATH "/moved-read");
 
 	assert_success(chmod(SANDBOX_PATH "/moved-read", 0700));
 

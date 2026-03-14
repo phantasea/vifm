@@ -43,11 +43,13 @@ VisitResult;
 /* Generic handler for file system traversing algorithm.  Must return 0 on
  * success, otherwise directory traverse will be stopped. */
 typedef VisitResult (*subtree_visitor)(const char full_path[],
-		VisitAction action, void *param);
+		VisitAction action, int deep, void *param);
 
-/* A generic recursive file system traversing entry point.  Returns zero on
- * success, otherwise non-zero is returned. */
-IoRes traverse(const char path[], subtree_visitor visitor, void *param);
+/* A generic recursive file system traversing entry point.  Deep traversal
+ * descends into symbolic links to directories.  Returns zero on success,
+ * otherwise non-zero is returned. */
+IoRes traverse(const char path[], int deep, subtree_visitor visitor,
+		void *param);
 
 #endif /* VIFM__IO__PRIVATE__TRAVERSER_H__ */
 

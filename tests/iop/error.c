@@ -92,7 +92,7 @@ TEST(ignore_does_not_mess_up_estimations, IF(regular_unix_user))
 	clone_test_file(TEST_DATA_PATH "/read/utf8-bom", SANDBOX_PATH "/src");
 	assert_success(chmod(SANDBOX_PATH "/src", 0200));
 
-	ioeta_calculate(args.estim, SANDBOX_PATH "/src", 0);
+	ioeta_calculate(args.estim, SANDBOX_PATH "/src", /*shallow=*/0, /*deep=*/0);
 	assert_int_equal(1, args.estim->total_items);
 	assert_int_equal(0, args.estim->current_item);
 	assert_int_equal(0, args.estim->inspected_items);
@@ -131,7 +131,8 @@ TEST(retry_does_not_mess_up_estimations, IF(not_windows))
 	clone_test_file(TEST_DATA_PATH "/read/utf8-bom", SANDBOX_PATH "/dir/file");
 	assert_success(chmod(SANDBOX_PATH "/dir", 0500));
 
-	ioeta_calculate(args.estim, SANDBOX_PATH "/dir/file", 0);
+	ioeta_calculate(args.estim, SANDBOX_PATH "/dir/file", /*shallow=*/0,
+			/*deep=*/0);
 	assert_int_equal(1, args.estim->total_items);
 	assert_int_equal(0, args.estim->current_item);
 	assert_int_equal(0, args.estim->inspected_items);

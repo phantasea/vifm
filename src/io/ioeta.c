@@ -28,7 +28,7 @@
 #include "private/traverser.h"
 
 static VisitResult eta_visitor(const char full_path[], VisitAction action,
-		void *param);
+		int deep, void *param);
 
 ioeta_estim_t *
 ioeta_alloc(void *param, io_cancellation_t cancellation)
@@ -55,7 +55,7 @@ ioeta_free(ioeta_estim_t *estim)
 }
 
 void
-ioeta_calculate(ioeta_estim_t *estim, const char path[], int shallow)
+ioeta_calculate(ioeta_estim_t *estim, const char path[], int shallow, int deep)
 {
 	if(shallow)
 	{
@@ -63,14 +63,14 @@ ioeta_calculate(ioeta_estim_t *estim, const char path[], int shallow)
 	}
 	else
 	{
-		(void)traverse(path, &eta_visitor, estim);
+		(void)traverse(path, deep, &eta_visitor, estim);
 	}
 }
 
 /* Implementation of traverse() visitor for subtree copying.  Returns 0 on
  * success, otherwise non-zero is returned. */
 static VisitResult
-eta_visitor(const char full_path[], VisitAction action, void *param)
+eta_visitor(const char full_path[], VisitAction action, int deep, void *param)
 {
 	ioeta_estim_t *const estim = param;
 
@@ -85,7 +85,7 @@ eta_visitor(const char full_path[], VisitAction action, void *param)
 			ioeta_add_dir(estim, full_path);
 			return VR_SKIP_DIR_LEAVE;
 		case VA_FILE:
-			ioeta_add_file(estim, full_path);
+			ioeta_add_file(estim, full_path, deep);
 			return VR_OK;
 		case VA_DIR_LEAVE:
 			assert(0 && "Can't get here because of VR_SKIP_DIR_LEAVE.");

@@ -494,6 +494,18 @@ get_file_size(const char path[])
 #endif
 }
 
+uint64_t
+get_target_file_size(const char path[])
+{
+	char path_real[PATH_MAX + 1];
+	if(os_realpath(path, path_real) != path_real)
+	{
+		return 0;
+	}
+
+	return get_file_size(path_real);
+}
+
 char **
 list_regular_files(const char path[], char *list[], int *len)
 {
@@ -635,18 +647,6 @@ remove_dir_content(const char path[])
 		}
 	}
 	os_closedir(dir);
-}
-
-int
-entry_is_link(const char path[], const struct dirent *dentry)
-{
-#ifndef _WIN32
-	if(get_dirent_type(dentry, path) == DT_LNK)
-	{
-		return 1;
-	}
-#endif
-	return is_symlink(path);
 }
 
 int
