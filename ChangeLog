@@ -101,6 +101,9 @@
 	Improved wording in a confirmation prompt for permanent deletion during
 	undo/redo.
 
+	Don't offer "append the tail" conflict resolution option for al and rl
+	operations because it's inappropriate for creation of symbolic links.
+
 	Fixed 'trashdir' with "%r" on BSD-like systems (those with getmntinfo()
 	instead of getmntent() API).  The regression was apparently introduced in
 	v0.9.1-beta.  Thanks to sublimal.
@@ -199,6 +202,16 @@
 
 	Fixed undoing of chmod operation not restoring owner's read permission.
 	Thanks to aleksejrs.  Patch by Kirill Rekhov.
+
+	Fixed incorrect progress indicator for dp and do keys in compare view.
+	Thanks to aleksejrs.
+
+	Fixed UID/GID occasionally not being formatted as requested (numeric vs.
+	symbolic form) in the UI.  Thanks to vuenn.
+
+	Fixed rl normal mode key sometimes not moving cursor to the newly inserted
+	link and simultaneously logging partial name in the undo history message,
+	which is merely informative.
 
 0.14-beta to 0.14 (2025-02-08)
 

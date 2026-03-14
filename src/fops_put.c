@@ -568,7 +568,6 @@ static int
 put_next(int force)
 {
 	char *filename;
-	const char *dst_name;
 	const char *const dst_dir = put_confirm.dst_dir;
 	struct stat src_st;
 	char src_buf[PATH_MAX + 1], dst_buf[PATH_MAX + 1];
@@ -603,15 +602,22 @@ put_next(int force)
 	}
 
 	from_trash = trash_has_path(filename);
-	move = from_trash || put_confirm.op == CMLO_MOVE;
+	move = put_confirm.op == CMLO_MOVE
+	    || (put_confirm.op == CMLO_COPY && from_trash);
 
 	copy_str(src_buf, sizeof(src_buf), filename);
 
-	dst_name = put_confirm.dst_name;
+	const char *dst_name = put_confirm.dst_name;
 	if(dst_name == NULL)
 	{
 		dst_name = fops_get_dst_name(src_buf, from_trash);
 	}
+
+	/* Making a copy to avoid issues when src_buf is modified while dst_name
+	 * points into it. */
+	char dst_name_buf[NAME_MAX + 1];
+	copy_str(dst_name_buf, sizeof(dst_name_buf), dst_name);
+	dst_name = dst_name_buf;
 
 	build_path(dst_buf, sizeof(dst_buf), dst_dir, dst_name);
 	chosp(dst_buf);
@@ -1073,8 +1079,8 @@ prompt_what_to_do(const char fname[], const char caused_by[])
 
 	if(!same_file)
 	{
-		if(cfg.use_system_calls && is_regular_file_noderef(dst_buf) &&
-				is_regular_file_noderef(caused_by))
+		if(cfg.use_system_calls && ONE_OF(put_confirm.op, CMLO_COPY, CMLO_MOVE) &&
+				is_regular_file_noderef(dst_buf) && is_regular_file_noderef(caused_by))
 		{
 			responses[i++] = append;
 		}

@@ -331,9 +331,14 @@ TEST(p_P, REPEAT(2))
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
 	populate_dir_list(&lwin, /*reload=*/0);
 
+	assert_int_equal(0, lwin.list_pos);
+
 	ui_sb_msg("");
 	(void)vle_keys_exec_timed_out(p ? L"p" : L"P");
 	assert_success(chdir(cwd));
+
+	/* Check that the cursor is positioned on the new entry. */
+	assert_int_equal(1, lwin.list_pos);
 
 	if(p)
 	{
@@ -501,12 +506,19 @@ TEST(al_rl, IF(not_windows), REPEAT(2))
 	populate_dir_list(&lwin, /*reload=*/0);
 	(void)vle_keys_exec_timed_out(L"yy");
 
+	create_file(SANDBOX_PATH "/_dummy_first_");
+
 	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
 	populate_dir_list(&lwin, /*reload=*/0);
+
+	assert_int_equal(0, lwin.list_pos);
 
 	ui_sb_msg("");
 	(void)vle_keys_exec_timed_out(al ? L"al" : L"rl");
 	assert_success(chdir(cwd));
+
+	/* Check that the cursor is positioned on the new entry. */
+	assert_int_equal(1, lwin.list_pos);
 
 	char target[PATH_MAX + 1];
 	assert_success(get_link_target(SANDBOX_PATH "/binary-data", target,
@@ -524,6 +536,7 @@ TEST(al_rl, IF(not_windows), REPEAT(2))
 		assert_false(is_path_absolute(target));
 	}
 
+	remove_file(SANDBOX_PATH "/_dummy_first_");
 	remove_file(SANDBOX_PATH "/binary-data");
 
 	regs_reset();
