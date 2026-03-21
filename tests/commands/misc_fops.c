@@ -285,12 +285,104 @@ TEST(zero_count_is_rejected)
 	const char *expected = "Count argument can't be zero";
 
 	ui_sb_msg("");
+	assert_failure(cmds_dispatch("delete 0", &lwin, CIT_COMMAND));
+	assert_string_equal(expected, ui_sb_last());
+
+	ui_sb_msg("");
 	assert_failure(cmds_dispatch("delete a 0", &lwin, CIT_COMMAND));
+	assert_string_equal(expected, ui_sb_last());
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch("yank 0", &lwin, CIT_COMMAND));
 	assert_string_equal(expected, ui_sb_last());
 
 	ui_sb_msg("");
 	assert_failure(cmds_dispatch("yank a 0", &lwin, CIT_COMMAND));
 	assert_string_equal(expected, ui_sb_last());
+}
+
+TEST(range_and_count_fails)
+{
+	/* The first parameter (register) is not a register. */
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch("delete ( 0", &lwin, CIT_COMMAND));
+	assert_string_equal("Trailing characters", ui_sb_last());
+
+	/* The only parameter (register) is not a register. */
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch("delete #", &lwin, CIT_COMMAND));
+	assert_string_equal("Trailing characters", ui_sb_last());
+
+	/* The second parameter (count) is not a number. */
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch("delete a e", &lwin, CIT_COMMAND));
+	assert_string_equal("Trailing characters", ui_sb_last());
+
+	/* The only parameter (count) is not a number. */
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch("delete a e", &lwin, CIT_COMMAND));
+	assert_string_equal("Trailing characters", ui_sb_last());
+}
+
+TEST(non_zero_count_is_handled)
+{
+	regs_init();
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH,
+			"existing-files", cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+
+	const reg_t *reg = regs_find('a');
+
+	/* No range, register, count. */
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("yank a 2", &lwin, CIT_COMMAND));
+	assert_string_equal("2 items yanked", ui_sb_last());
+
+	reg = regs_find('a');
+	assert_int_equal(2, reg->nfiles);
+	assert_string_ends_with("/a", reg->files[0]);
+	assert_string_ends_with("/b", reg->files[1]);
+
+	/* Range, no register, count. */
+
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch1("2yank 2", &lwin, CIT_COMMAND));
+	assert_string_equal("2 items yanked", ui_sb_last());
+
+	reg = regs_find(DEFAULT_REG_NAME);
+	assert_int_equal(2, reg->nfiles);
+	assert_string_ends_with("/b", reg->files[0]);
+	assert_string_ends_with("/c", reg->files[1]);
+
+	regs_reset();
+}
+
+TEST(delete, REPEAT(2))
+{
+	const int in_bg = (STIC_TEST_PARAM == 1);
+
+	create_file(SANDBOX_PATH "/file");
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), SANDBOX_PATH, "", cwd);
+	populate_dir_list(&lwin, /*reload=*/0);
+	assert_string_equal("file", lwin.dir_entry[lwin.list_pos].name);
+
+	ui_sb_msg("");
+	if(in_bg)
+	{
+		assert_success(cmds_dispatch1("delete &", &lwin, CIT_COMMAND));
+		wait_for_bg();
+		assert_string_equal("", ui_sb_last());
+	}
+	else
+	{
+		assert_failure(cmds_dispatch1("delete", &lwin, CIT_COMMAND));
+		assert_string_equal("1 item Deleted", ui_sb_last());
+	}
+
+	no_remove_file(SANDBOX_PATH "/file");
 }
 
 static OpsResult

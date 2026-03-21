@@ -123,6 +123,35 @@ TEST(cmds_command)
 			"if not r then print 'fail' end");
 }
 
+TEST(cmds_args)
+{
+	cmds_init();
+
+	GLUA_EQ(vlua, "",
+			"r = vifm.cmds.add {"
+			"  name = 'cmd',"
+			"  minargs = 1,"
+			"  maxargs = 2,"
+			"  handler = function(info) argv = info.argv end,"
+			"}"
+			"if not r then print 'fail' end");
+
+	ui_sb_msg("");
+	assert_success(cmds_dispatch1("cmd arg", curr_view, CIT_COMMAND));
+	assert_string_equal("", ui_sb_last());
+
+	GLUA_EQ(vlua, "1", "print(#argv)");
+	GLUA_EQ(vlua, "arg", "print(argv[1])");
+
+	ui_sb_msg("");
+	assert_success(cmds_dispatch1("cmd    arg1 arg2", curr_view, CIT_COMMAND));
+	assert_string_equal("", ui_sb_last());
+
+	GLUA_EQ(vlua, "2", "print(#argv)");
+	GLUA_EQ(vlua, "arg1", "print(argv[1])");
+	GLUA_EQ(vlua, "arg2", "print(argv[2])");
+}
+
 TEST(cmds_range)
 {
 	cmds_init();

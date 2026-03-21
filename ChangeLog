@@ -104,6 +104,12 @@
 	Don't offer "append the tail" conflict resolution option for al and rl
 	operations because it's inappropriate for creation of symbolic links.
 
+	Rewrote documentation about command-line ranges to make it complete and
+	more readable.  Thanks to CaptainFantastic.
+
+	Improved wording in documentation describing general behaviour of visual
+	mode.
+
 	Fixed 'trashdir' with "%r" on BSD-like systems (those with getmntinfo()
 	instead of getmntent() API).  The regression was apparently introduced in
 	v0.9.1-beta.  Thanks to sublimal.
@@ -212,6 +218,12 @@
 	Fixed rl normal mode key sometimes not moving cursor to the newly inserted
 	link and simultaneously logging partial name in the undo history message,
 	which is merely informative.
+
+	Fixed :open not entering symbolic links to directories if there is no
+	"vifm" executable in $PATH.  Thanks to CaptainFantastic.
+
+	Fixed :yank and :delete not handling optional count parameter correctly (a
+	regression since v0.11-beta).  Thanks to CaptainFantastic.
 
 0.14-beta to 0.14 (2025-02-08)
 
