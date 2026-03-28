@@ -38,7 +38,7 @@
 	symbolic links while copying.  Thanks to Jose Riha (a.k.a. jose1711) and
 	an anonymous at Vifm Q2A site.
 
-	Updated utf8proc to v2.11.2.
+	Updated utf8proc to v2.11.3.
 
 	Made documentation on which :commands can have comments a bit more
 	verbose.
@@ -109,6 +109,9 @@
 
 	Improved wording in documentation describing general behaviour of visual
 	mode.
+
+	Updated :diff command in sample vifmrc files to be more useful.  Thanks to
+	an anonymous at Vifm Q2A site.
 
 	Fixed 'trashdir' with "%r" on BSD-like systems (those with getmntinfo()
 	instead of getmntent() API).  The regression was apparently introduced in

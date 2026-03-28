@@ -1,17 +1,4 @@
---[[
-
-Provides :Gclone command that clones repository by its URL determining directory
-name from URL and enters cloned directory on success.
-
-Usage example:
-
-    Clone into directory called "vifm".
-    :Gclone https://github.com/vifm/vifm.git
-
-    Clone into directory called "vifm-dev".
-    :Gclone https://github.com/vifm/vifm.git vifm-dev
-
---]]
+local statuses = vifm.plugin.require('statuses')
 
 local M = {}
 
@@ -47,6 +34,27 @@ local function clone(info)
     end
 end
 
+local function status_column(info)
+    local e = info.entry
+
+    local node = statuses.get(e.location)
+    if not node.in_git then
+        return { text = '' }
+    end
+
+    local status = node.items[e.name]
+    if status ~= nil then
+        return { text = status }
+    end
+
+    local sub = node.subs[e.name]
+    if sub ~= nil and sub.status ~= nil then
+        return { text = sub.status }
+    end
+
+    return { text = '' }
+end
+
 -- this does NOT overwrite pre-existing user command
 local added = vifm.cmds.add {
     name = "Gclone",
@@ -57,6 +65,14 @@ local added = vifm.cmds.add {
 }
 if not added then
     vifm.sb.error("Failed to register :Gclone")
+end
+
+local added = vifm.addcolumntype {
+    name = "GitStatus",
+    handler = status_column
+}
+if not added then
+    vifm.sb.error("Failed to add view column GitStatus")
 end
 
 return M

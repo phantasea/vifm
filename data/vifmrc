@@ -1,6 +1,6 @@
 " vim: filetype=vifm :
 "
-" Sample configuration file for vifm (last updated: 11 February 2026)
+" Sample configuration file for vifm (last updated: 28 March 2026)
 "
 " You can edit this file by hand.  The " character at the beginning of a line
 " comments out the line.  Blank lines are ignored.  The basic format for each
@@ -174,13 +174,25 @@ mark h ~/
 "  see `:help vifm-macros` and `:help vifm-filename-modifiers` for more
 
 command! df df -h %m 2> /dev/null
-command! diff vim -d %f %F
 command! zip zip -r %c.zip %f
 command! run !! ./%f
 command! make !!make %a
 command! mkcd :mkdir %a | cd %a
 command! vgrep vim "+grep %a"
 command! reload :write | restart full
+
+" use Vim to diff files
+" uses selection of the current pane when it contains more than one file
+" otherwise uses left pane file and right pane file keeping order inside Vim
+command! diff : if selected() < 2
+            \ |     if paneisat('right') && paneisat('bottom')
+            \ |         execute '!vim -d %%C %%c'
+            \ |     else
+            \ |         execute '!vim -d %%c %%C'
+            \ |     endif
+            \ | else
+            \ |     execute '!vim -d %%f'
+            \ | endif
 
 " ------------------------------------------------------------------------------
 " File handlers and previewers
