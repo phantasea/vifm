@@ -14,6 +14,7 @@ set cpo-=C
 
 " General commands
 syntax keyword vifmCommand contained
+		\ select switch ratings
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
 		\ di[splay] dirs e[dit] el[se] empty en[dif] exi[t] file fin[d] fini[sh]
@@ -27,6 +28,7 @@ syntax keyword vifmCommand contained
 		\ w[rite] wq wqa[ll] xa[ll] x[it] y[ank]
 		\ nextgroup=vifmArgs
 syntax keyword vifmCommandCN contained
+		\ select switch ratings
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
 		\ di[splay] dirs e[dit] el[se] empty en[dif] exi[t] file fin[d] fini[sh]
@@ -79,6 +81,9 @@ syntax case match
 " Builtin functions
 syntax match vifmBuiltinFunction
 		\ '\(chooseopt
+		  \\|toggle
+		  \\|isactive
+		  \\|selfiles
 		  \\|escape
 		  \\|expand
 		  \\|executable
@@ -104,6 +109,7 @@ syntax match vifmOperator "\(==\|!=\|>=\?\|<=\?\|\.\|-\|+\|&&\|||\)" skipwhite
 syntax keyword vifmHiArgs contained cterm ctermfg ctermbg gui guifg guibg
 syntax case ignore
 syntax keyword vifmHiGroups contained WildMenu Border Win CmdLine CurrLine
+		\ Menu Dialog TopMid LineNrSep AuxCurrLine
 		\ OtherLine Directory Link Socket Device Executable Selected BrokenLink
 		\ TopLine TopLineSel StatusLine JobLine SuggestBox Fifo ErrorMsg WildBox
 		\ CmpMismatch CmpUnmatched CmpBlank
@@ -173,6 +179,9 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 		\ tm trash trashdir ts tuioptions to uioptions undolevels ul vicmd
 		\ viewcolumns vifminfo vimhelp vixcmd wildinc wildmenu wmnu wildstyle
 		\ wordchars wrap wrapscan ws
+		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir
+		\ vimabs topmidfiller maxundotabs previewmaxsize filenamedisplen
+		\ clipboardprg paneonetag panetwotag
 
 " Disabled boolean options
 syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
@@ -181,6 +190,7 @@ syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
 		\ nonu noquickview norelativenumber nornu noscrollbind noscb norunexec
 		\ nosmartcase noscs nosortnumbers nosyscalls notitle notrash novimhelp
 		\ nowildmenu nowmnu nowrap nowrapscan nows
+		\ noprefervsplit nofilenamedispall noredolastcmdcfm nocdaftermkdir
 
 " Inverted boolean options
 syntax keyword vifmOption contained invautocd invautochpos invcf invchaselinks
