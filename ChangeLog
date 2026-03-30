@@ -228,6 +228,8 @@
 	Fixed :yank and :delete not handling optional count parameter correctly (a
 	regression since v0.11-beta).  Thanks to CaptainFantastic.
 
+	Fixed completion of :highlight truncating long custom column names.
+
 0.14-beta to 0.14 (2025-02-08)
 
 	Improved documentation on zh/zl menu keys a bit.

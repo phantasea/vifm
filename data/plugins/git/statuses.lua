@@ -82,8 +82,12 @@ end
 local function set_file_status(node, path, status, expires)
     local slash = path:find('/')
     if slash == nil then
-        node.items[path] = status
-        update_dir_status(node, status)
+        -- a file removed from index appears twice: first as  'D ' then as '??',
+        -- keep the first status
+        if node.items[path] == nil then
+            node.items[path] = status
+            update_dir_status(node, status)
+        end
         return node.status
     end
 
