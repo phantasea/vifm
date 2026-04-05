@@ -441,7 +441,7 @@ function! vifm#synnames(...) abort
 	return reverse(map(synstack(line, col), 'synIDattr(v:val,"name")'))
 endfunction
 
-let g:vifm_help_mapping = get(g:, 'vifm_help_mapping', 'K')
+let g:vifm_help_mapping = get(g:, 'vifm_help_mapping', 'gk')
 
 augroup VifmHelpAutoCmds
 	autocmd!
