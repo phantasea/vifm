@@ -41,7 +41,7 @@ matcher_t * matcher_alloc(const char expr[], int cs_by_def, int glob_by_def,
  * comma-separated list of globs.  Works as matcher_alloc() otherwise. */
 matcher_t * matcher_alloc_glob(const char expr[], char **error);
 
-/* Makes a copy of existing matcher.  Returns the clone, or NULL on error. */
+/* Makes a copy of an existing matcher.  Returns the clone, or NULL on error. */
 matcher_t * matcher_clone(const matcher_t *matcher);
 
 /* Frees all resources allocated by the matcher.  matcher can be NULL. */

@@ -2070,16 +2070,6 @@ ui_view_reset_selection_and_reload(view_t *view)
 }
 
 void
-ui_view_reset_search_highlight(view_t *view)
-{
-	if(view->matches != 0)
-	{
-		view->matches = 0;
-		ui_view_schedule_redraw(view);
-	}
-}
-
-void
 ui_views_reload_visible_filelists(void)
 {
 	if(curr_stats.preview.on)

@@ -729,9 +729,6 @@ void ui_view_win_changed(view_t *view);
 /* Resets selection of the view and reloads it preserving cursor position. */
 void ui_view_reset_selection_and_reload(view_t *view);
 
-/* Resets search highlighting of the view and schedules reload. */
-void ui_view_reset_search_highlight(view_t *view);
-
 /* Reloads visible lists of files preserving current position of cursor. */
 void ui_views_reload_visible_filelists(void);
 

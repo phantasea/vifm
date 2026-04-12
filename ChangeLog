@@ -38,6 +38,8 @@
 	symbolic links while copying.  Thanks to Jose Riha (a.k.a. jose1711) and
 	an anonymous at Vifm Q2A site.
 
+	Added menu index to the documentation.  Patch by CaptainFantastic.
+
 	Updated utf8proc to v2.11.3.
 
 	Made documentation on which :commands can have comments a bit more
@@ -229,6 +231,9 @@
 	regression since v0.11-beta).  Thanks to CaptainFantastic.
 
 	Fixed completion of :highlight truncating long custom column names.
+
+	Fixed a Lua column disabling search highlighting for all columns to its
+	right.
 
 0.14-beta to 0.14 (2025-02-08)
 

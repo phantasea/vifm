@@ -83,7 +83,8 @@ void print_search_msg(const struct view_t *view, int backward);
 /* Prints error message about failed search to the user. */
 void print_search_fail_msg(const struct view_t *view, int backward);
 
-/* Resets information about last search match. */
+/* If there are search matches, drops them (and thus search highlighting) and
+ * schedules a redraw. */
 void reset_search_results(struct view_t *view);
 
 /* Prints the search messages for the n or N commands. */

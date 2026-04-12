@@ -111,6 +111,7 @@
 #include "plugins.h"
 #include "registers.h"
 #include "running.h"
+#include "search.h"
 #include "sort.h"
 #include "trash.h"
 #include "undo.h"
@@ -4009,7 +4010,7 @@ nnoremap_cmd(const cmd_info_t *cmd_info)
 static int
 nohlsearch_cmd(const cmd_info_t *cmd_info)
 {
-	ui_view_reset_search_highlight(curr_view);
+	reset_search_results(curr_view);
 	flist_sel_stash_if_nonempty(curr_view);
 	return 0;
 }

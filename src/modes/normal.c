@@ -622,7 +622,7 @@ cmd_ctrl_b(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info)
 {
-	ui_view_reset_search_highlight(curr_view);
+	reset_search_results(curr_view);
 	flist_sel_stash(curr_view);
 	redraw_current_view();
 }

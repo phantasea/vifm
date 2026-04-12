@@ -616,7 +616,7 @@ handle_empty_input(void)
 
 	if(input_stat.prev_mode != MENU_MODE)
 	{
-		ui_view_reset_search_highlight(curr_view);
+		reset_search_results(curr_view);
 	}
 
 	if(input_stat.prev_mode == VISUAL_MODE)

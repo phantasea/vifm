@@ -48,6 +48,25 @@ specific ones.
     wildcard that matches any character.
  2. Replacement (required).
 
+### `:Gopt` command
+
+**Syntax:** `:Gmap option...`
+
+Configures behaviour by processing one or more options.
+
+Default state (see **Parameters** section below for explanations):
+ - `unchanged`
+
+**Examples:**
+
+ * `:Gopt nounchanged` disables marking unchanged files in any way
+ * `:Gopt unchanged` enabling marking unchanged files as `GG`
+
+**Parameters:**
+
+ - `unchanged` -- mark unchanged files as `GG`
+ - `nounchanged` -- don't mark unchanged files (`  `)
+
 ### `GitStatus` view column
 
 When inside a Git repository, displays status of files and directories in a way
@@ -57,7 +76,7 @@ similar to how `git status --short` does it.
 
 | Value | Meaning
 | ----- | -------
-| `  `  | Ignored or unchanged.
+| `  `  | Ignored or unchanged (configurable, see `:Gopt`).
 | ` M`  | Modified in worktree.
 | `MM`  | Modified in index and in worktree.
 | `AM`  | Added in index, modified in worktree.
@@ -74,6 +93,7 @@ similar to how `git status --short` does it.
 | `DU`  | Deleted here, but updated in merged changes.
 | `AA`  | Added here and in merged changes.
 | `UU`  | Modified here and in merged changes.
+| `GG`  | Unchanged (configurable, see `:Gopt`).
 | `??`  | Untracked.
 
 **Possible column values for directories:**
@@ -93,14 +113,18 @@ similar to how `git status --short` does it.
 
 **Issues:**
 
- * Has a noticeable initial delay for large Git repositories due to fetching
-   statuses synchronously.
+ * Large repositories won't show complete status due to hitting pipe size limit.
+ * Git status for a submodule isn't fetched immediately after entering it.
 
 **TODO:**
 
- * Run `git status -z` asynchronously to not block directory traversal.
+ * Could make more behaviour optional via `:Gopt`:
+   - asynchronous/synchronous: as a workaround for large repositories
+   - marking ignored files
+   - discovering git repositories and showing their statuses
+ * Reuse old cache for entire subtree while it's being updated (only a specific
+   path gets to reuse it right now).
  * Make cache update faster if directory modification is detected.
- * Check behaviour with submodules.
  * Check if `!!` status can ever be seen.
  * Consider using `git status --porcelain=v2 -z` as it provides more
    information.

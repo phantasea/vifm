@@ -206,8 +206,7 @@ search_pattern(view_t *view, const char pattern[], int stash_selection,
 
 	reset_search_results(view);
 
-	/* We at least could wipe out previous search results, so schedule a
-	 * redraw. */
+	/* Assuming a redraw is needed is simpler than tracking that it is. */
 	ui_view_schedule_redraw(view);
 
 	if(pattern[0] == '\0')
@@ -269,7 +268,7 @@ search_pattern(view_t *view, const char pattern[], int stash_selection,
 	if(other->matches != 0 && strcmp(other->last_search, pattern) != 0)
 	{
 		other->last_search[0] = '\0';
-		ui_view_reset_search_highlight(other);
+		reset_search_results(other);
 	}
 	view->matches = nmatches;
 	copy_str(view->last_search, sizeof(view->last_search), pattern);
@@ -375,12 +374,19 @@ print_search_fail_msg(const view_t *view, int backward)
 void
 reset_search_results(view_t *view)
 {
+	if(view->matches == 0)
+	{
+		return;
+	}
+
 	int i;
 	for(i = 0; i < view->list_rows; ++i)
 	{
 		view->dir_entry[i].search_match = 0;
 	}
 	view->matches = 0;
+
+	ui_view_schedule_redraw(view);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
