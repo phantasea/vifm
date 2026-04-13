@@ -431,7 +431,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 
 					char *ellipsis = left_ellipsis(path, maxlen, curr_stats.ellipsis);
 					if (curr->type == FT_LINK) {
-						snprintf(buf, sizeof(buf), "\"-> %s\"", ellipsis);
+						snprintf(buf, sizeof(buf), "=> \"%s\"", ellipsis);
 					} else {
 						snprintf(buf, sizeof(buf), "\"%s\"", ellipsis);
 					}
