@@ -319,5 +319,14 @@ TEST(vifm_stdout)
 	remove_file(SANDBOX_PATH "/out");
 }
 
+TEST(vifm_redraw)
+{
+	(void)stats_update_fetch();
+
+	assert_false(stats_redraw_planned());
+	GLUA_EQ(vlua, "", "vifm.redraw()");
+	assert_true(stats_redraw_planned());
+}
+
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 : */

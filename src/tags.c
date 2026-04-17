@@ -796,6 +796,7 @@ const char *tags[] = {
 	"vifm-l_vifm.plugin.require()",
 	"vifm-l_vifm.plugins",
 	"vifm-l_vifm.plugins.all",
+	"vifm-l_vifm.redraw()",
 	"vifm-l_vifm.run()",
 	"vifm-l_vifm.sb",
 	"vifm-l_vifm.sb.error()",

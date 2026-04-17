@@ -34,6 +34,7 @@
 #include "../filelist.h"
 #include "../filename_modifiers.h"
 #include "../running.h"
+#include "../status.h"
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
 #include "api.h"
@@ -80,6 +81,7 @@ static int VLUA_API(vifm_fnamemodify)(lua_State *lua);
 static int VLUA_API(vifm_input)(lua_State *lua);
 static int VLUA_API(vifm_makepath)(lua_State *lua);
 static int VLUA_API(vifm_menus_loadcustom)(lua_State *lua);
+static int VLUA_API(vifm_redraw)(lua_State *lua);
 static int VLUA_API(vifm_run)(lua_State *lua);
 static int VLUA_API(vifm_sessions_current)(lua_State *lua);
 static int VLUA_API(vifm_stdout)(lua_State *lua);
@@ -104,6 +106,7 @@ VLUA_DECLARE_SAFE(vifm_fnamemodify);
 VLUA_DECLARE_SAFE(vifm_input);
 VLUA_DECLARE_SAFE(vifm_makepath);
 VLUA_DECLARE_UNSAFE(vifm_menus_loadcustom);
+VLUA_DECLARE_SAFE(vifm_redraw);
 VLUA_DECLARE_SAFE(vifm_run);
 VLUA_DECLARE_SAFE(vifm_sessions_current);
 VLUA_DECLARE_SAFE(vifm_stdout);
@@ -137,6 +140,7 @@ static const struct luaL_Reg vifm_methods[] = {
 	{ "fnamemodify",   VLUA_REF(vifm_fnamemodify)   },
 	{ "input",         VLUA_REF(vifm_input)         },
 	{ "makepath",      VLUA_REF(vifm_makepath)      },
+	{ "redraw",        VLUA_REF(vifm_redraw)        },
 	{ "run",           VLUA_REF(vifm_run)           },
 	{ "stdout",        VLUA_REF(vifm_stdout)        },
 
@@ -464,6 +468,14 @@ VLUA_API(vifm_menus_loadcustom)(lua_State *lua)
 fail:
 	lua_pushboolean(lua, 0);
 	return 1;
+}
+
+/* Schedules a redraw of the entire UI.  Returns nothing. */
+static int
+VLUA_API(vifm_redraw)(lua_State *lua)
+{
+	stats_redraw_later();
+	return 0;
 }
 
 /* Runs an external command similar to :!. */
