@@ -77,7 +77,7 @@ local function set_file_status(node, path, status, expires)
     if slash == nil then
         -- a file removed from index appears twice: first as  'D ' then as '??',
         -- keep the first status
-        if node.items[path] == nil then
+        if node.items[path] == nil or node.items[path] == 'GG' then
             node.items[path] = status
             update_dir_status(node, status)
         end
@@ -120,7 +120,7 @@ function update_subdir(sub_at, path, node)
         onexit = function(sub_job)
             local sub_status_all = sub_job:stdout():read('a')
             local status = sub_status_all == '' and 'GG' or sub_status_all:sub(1, 2)
-            set_file_status(node, path, status, node.expires)
+            node.items[path] = status
             redraw()
         end
     }
