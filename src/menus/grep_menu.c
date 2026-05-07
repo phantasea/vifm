@@ -107,7 +107,7 @@ show_grep_menu(view_t *view, const char args[], int invert)
 static int
 execute_grep_cb(view_t *view, menu_data_t *m)
 {
-	(void)menus_goto_file(m, view, m->items[m->pos], 1);
+	(void)menus_goto_file(m, view, m->get_spec(m, m->pos), 1);
 	return 1;
 }
 

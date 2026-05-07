@@ -68,6 +68,11 @@ typedef struct menu_data_t
 	 * to stay in menu mode. */
 	int (*execute_handler)(struct view_t *view, struct menu_data_t *m);
 
+	/* Callback that is called to query a spec at a given position.  Must never
+	 * return NULL, use an empty string for non-spec lines instead.  When unset, a
+	 * default is provided, thus this is always safe to call. */
+	const char * (*get_spec)(const struct menu_data_t *m, int pos);
+
 	/* Text displayed by menus_enter() function in case menu is empty, it can be
 	 * NULL if this cannot happen. */
 	char *empty_msg;

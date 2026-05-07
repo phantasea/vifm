@@ -88,7 +88,7 @@ execute_users_cb(view_t *view, menu_data_t *m)
 	const int navigate = m->extra_data;
 	if(navigate)
 	{
-		(void)menus_goto_file(m, view, m->items[m->pos], 0);
+		(void)menus_goto_file(m, view, m->get_spec(m, m->pos), 0);
 	}
 	return 0;
 }
