@@ -57,12 +57,8 @@ TEARDOWN()
 	opt_handlers_teardown();
 }
 
-TEST(menus_loadcustom)
+TEST(menus_loadcustom_bad_invocation)
 {
-	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), ".", "", NULL);
-	make_abs_path(rwin.curr_dir, sizeof(rwin.curr_dir), TEST_DATA_PATH, "rename",
-			NULL);
-
 	/* Missing fields. */
 	BLUA_ENDS(vlua, ": `title` key is mandatory",
 			"print(vifm.menus.loadcustom { })");
@@ -76,7 +72,10 @@ TEST(menus_loadcustom)
 	/* Items of invalid type. */
 	GLUA_EQ(vlua, "false",
 			"print(vifm.menus.loadcustom({ title = 'title', items = { {} } }))");
+}
 
+TEST(menus_loadcustom_no_navigation)
+{
 	/* Non-navigatable menu. */
 	GLUA_EQ(vlua, "true",
 			"print(vifm.menus.loadcustom { title = 't', items = { 'a', 'b' } })");
@@ -84,6 +83,13 @@ TEST(menus_loadcustom)
 	assert_true(menus_get_view(menu_get_current()) == &lwin);
 	assert_true(menu_get_view() == &lwin);
 	assert_false(menu_get_current()->extra_data);
+}
+
+TEST(menus_loadcustom_navigation)
+{
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), ".", "", NULL);
+	make_abs_path(rwin.curr_dir, sizeof(rwin.curr_dir), TEST_DATA_PATH, "rename",
+			NULL);
 
 	/* Navigatable menu. */
 	GLUA_EQ(vlua, "true",
