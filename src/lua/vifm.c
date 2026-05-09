@@ -428,6 +428,12 @@ VLUA_API(vifm_menus_loadcustom)(lua_State *lua)
 	vlua_cmn_check_field(lua, 1, "title", LUA_TSTRING);
 	const char *title = lua_tostring(lua, -1);
 
+	if(with_navigation)
+	{
+		/* This invocation is to avoid longjmp() after allocating items below. */
+		(void)vlua_cmn_check_opt_field(lua, 1, "specs", LUA_TTABLE);
+	}
+
 	vlua_cmn_check_field(lua, 1, "items", LUA_TTABLE);
 	strlist_t items = make_str_list(lua);
 	if(items.nitems < 0)
@@ -435,7 +441,19 @@ VLUA_API(vifm_menus_loadcustom)(lua_State *lua)
 		goto fail;
 	}
 
-	int success = (show_custom_menu(view, title, items, with_navigation) == 0);
+	strlist_t specs = { .items = NULL, .nitems = 0 };
+	if(with_navigation && vlua_cmn_check_opt_field(lua, 1, "specs", LUA_TTABLE))
+	{
+		specs = make_str_list(lua);
+		if(specs.nitems < 0)
+		{
+			free_string_array(items.items, items.nitems);
+			goto fail;
+		}
+	}
+
+	int success =
+		(show_custom_menu(view, title, items, specs, with_navigation) == 0);
 	lua_pushboolean(lua, success);
 	return 1;
 
