@@ -1,4 +1,4 @@
-*vifm-lua.txt*    For Vifm version 1.0  Last change: 2026 Jan 13
+*vifm-lua.txt*    For Vifm version 1.0  Last change: 2026 May 9
 
  Email for bugs and suggestions: <xaizek@posteo.net>
 
@@ -676,6 +676,11 @@ Return:~
   `true` on success.  Trying to create path that already exists is not
   considered to be an error.
 
+vifm.redraw()                                  *vifm-l_vifm.redraw()*
+Requests a redraw of the entire UI.  The requests accumulate until an explicit
+redraw happens or a point at which such requests are dispatched is hit (e.g.,
+before waiting for user input), whichever comes earlier.
+
 vifm.run({info})                               *vifm-l_vifm.run()*
 Runs an external command similar to |vifm-:!|.  Waits for it to finish if
 terminal multiplexer is not involved.
@@ -1108,6 +1113,13 @@ Possible fields of {menu}:
    Title of the menu.
  - "items" (array of strings)
    List of items.  Shouldn't be empty.
+ - "specs" (array of strings) (optional)
+   List of path specifications used for navigation.  If not provided, "items" is
+   assumed to contain the specifications.  The field is ignored if
+   "withnavigation" is false.  Must have the same length as "items".
+   Format of each item is the usual for Unix-like systems:
+     {path}[:{line}[:{column}][:{anything-else}]]
+   Menu lines that do not support navigation should be empty.
  - "view" (|vifm-l_VifmView|) (default: `vifm.currview()`)
    View associated with the menu.  Navigation will happen in this view if
    enabled.  Note: the value is currently limited to views of the current
@@ -1123,9 +1135,13 @@ Parameters:~
   {menu}  Table with information about the custom view.
 
 Return:~
-  `false` if the list of items is empty, one of the items can't be converted
-        to a string or if {menu}.view doesn't refer to the the view as
-        `vifm.currview()` or `vifm.otherview()`.
+  `false` on the following errors:
+        - if the list of items is empty
+        - if one of the items can't be converted to a string
+        - if length of items and specs don't match
+        - if one of the specs can't be converted to a string
+        - if {menu}.view doesn't refer to the same view as
+          `vifm.currview()` or `vifm.otherview()`
   `true` on success.
 
 --------------------------------------------------------------------------------
@@ -1662,6 +1678,7 @@ vifm.fnamemodify({path}, {mods}[, {base}]) |vifm-l_vifm.fnamemodify()|
 vifm.input({info})                         |vifm-l_vifm.input()|
 vifm.makepath({path})                      |vifm-l_vifm.makepath()|
 vifm.otherview()                           |vifm-l_vifm.otherview()|
+vifm.redraw()                              |vifm-l_vifm.redraw()|
 vifm.run({info})                           |vifm-l_vifm.run()|
 vifm.startjob({job})                       |vifm-l_vifm.startjob()|
 vifm.stdout()                              |vifm-l_vifm.stdout()|

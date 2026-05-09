@@ -109,9 +109,12 @@ local function exec(cmd)
     return result, job:exitcode()
 end
 
-function redraw()
-    vifm.opts.global.laststatus = not vifm.opts.global.laststatus
-    vifm.opts.global.laststatus = not vifm.opts.global.laststatus
+-- Polyfill for vifm.redraw() added in Vifm v0.15
+if vifm.redraw == nil then
+    function vifm.redraw()
+        vifm.opts.global.laststatus = not vifm.opts.global.laststatus
+        vifm.opts.global.laststatus = not vifm.opts.global.laststatus
+    end
 end
 
 function update_subdir(sub_at, path, node)
@@ -121,7 +124,7 @@ function update_subdir(sub_at, path, node)
             local sub_status_all = sub_job:stdout():read('a')
             local status = sub_status_all == '' and 'GG' or sub_status_all:sub(1, 2)
             node.items[path] = status
-            redraw()
+            vifm.redraw()
         end
     }
 end
@@ -179,7 +182,7 @@ local function fill_node(info)
             if node.pending == 0 then
                 -- Can drop the cache now.
                 node.past = nil
-                redraw()
+                vifm.redraw()
             end
         end
     }
@@ -265,7 +268,7 @@ function M.reset()
         expires = 0        -- when the cache entry expires
     }
 
-    redraw()
+    vifm.redraw()
 end
 
 M.reset()

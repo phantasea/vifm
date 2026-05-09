@@ -34,6 +34,7 @@
 #include "../filelist.h"
 #include "../filename_modifiers.h"
 #include "../running.h"
+#include "../status.h"
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
 #include "api.h"
@@ -80,6 +81,8 @@ static int VLUA_API(vifm_fnamemodify)(lua_State *lua);
 static int VLUA_API(vifm_input)(lua_State *lua);
 static int VLUA_API(vifm_makepath)(lua_State *lua);
 static int VLUA_API(vifm_menus_loadcustom)(lua_State *lua);
+static int VLUA_API(vifm_redraw)(lua_State *lua);
+static strlist_t make_str_list(lua_State *lua);
 static int VLUA_API(vifm_run)(lua_State *lua);
 static int VLUA_API(vifm_sessions_current)(lua_State *lua);
 static int VLUA_API(vifm_stdout)(lua_State *lua);
@@ -104,6 +107,7 @@ VLUA_DECLARE_SAFE(vifm_fnamemodify);
 VLUA_DECLARE_SAFE(vifm_input);
 VLUA_DECLARE_SAFE(vifm_makepath);
 VLUA_DECLARE_UNSAFE(vifm_menus_loadcustom);
+VLUA_DECLARE_SAFE(vifm_redraw);
 VLUA_DECLARE_SAFE(vifm_run);
 VLUA_DECLARE_SAFE(vifm_sessions_current);
 VLUA_DECLARE_SAFE(vifm_stdout);
@@ -137,6 +141,7 @@ static const struct luaL_Reg vifm_methods[] = {
 	{ "fnamemodify",   VLUA_REF(vifm_fnamemodify)   },
 	{ "input",         VLUA_REF(vifm_input)         },
 	{ "makepath",      VLUA_REF(vifm_makepath)      },
+	{ "redraw",        VLUA_REF(vifm_redraw)        },
 	{ "run",           VLUA_REF(vifm_run)           },
 	{ "stdout",        VLUA_REF(vifm_stdout)        },
 
@@ -423,33 +428,74 @@ VLUA_API(vifm_menus_loadcustom)(lua_State *lua)
 	vlua_cmn_check_field(lua, 1, "title", LUA_TSTRING);
 	const char *title = lua_tostring(lua, -1);
 
+	if(with_navigation)
+	{
+		/* This invocation is to avoid longjmp() after allocating items below. */
+		(void)vlua_cmn_check_opt_field(lua, 1, "specs", LUA_TTABLE);
+	}
+
 	vlua_cmn_check_field(lua, 1, "items", LUA_TTABLE);
+	strlist_t items = make_str_list(lua);
+	if(items.nitems < 0)
+	{
+		goto fail;
+	}
+
+	strlist_t specs = { .items = NULL, .nitems = 0 };
+	if(with_navigation && vlua_cmn_check_opt_field(lua, 1, "specs", LUA_TTABLE))
+	{
+		specs = make_str_list(lua);
+		if(specs.nitems < 0)
+		{
+			free_string_array(items.items, items.nitems);
+			goto fail;
+		}
+	}
+
+	int success =
+		(show_custom_menu(view, title, items, specs, with_navigation) == 0);
+	lua_pushboolean(lua, success);
+	return 1;
+
+fail:
+	lua_pushboolean(lua, 0);
+	return 1;
+}
+
+/* Turns table of strings at the top of the stack into a list of strings by
+ * making copies.  Fails if top is not a table or any of its elements isn't a
+ * string.  On error, returns list with negative number of items. */
+static strlist_t
+make_str_list(lua_State *lua)
+{
+	int i = 0;
+	strlist_t items = { .items = NULL, .nitems = -1 };
+
+	if(lua_type(lua, -1) != LUA_TTABLE)
+	{
+		goto fail;
+	}
 
 	lua_Integer len = luaL_len(lua, -1);
-	strlist_t items = {
-		.items = reallocarray(NULL, len, sizeof(char *)),
-		.nitems = len
-	};
-
+	items.items = reallocarray(NULL, len, sizeof(char *));
 	if(items.items == NULL)
 	{
 		goto fail;
 	}
 
-	int i = 0;
+	items.nitems = len;
+
 	lua_pushnil(lua);
 	while(lua_next(lua, -2) != 0)
 	{
 		if(!lua_isstring(lua, -1))
 		{
-			free_string_array(items.items, i);
 			goto fail;
 		}
 
 		char *item = strdup(lua_tostring(lua, -1));
 		if(item == NULL)
 		{
-			free_string_array(items.items, i);
 			goto fail;
 		}
 
@@ -457,13 +503,20 @@ VLUA_API(vifm_menus_loadcustom)(lua_State *lua)
 		lua_pop(lua, 1);
 	}
 
-	int success = (show_custom_menu(view, title, items, with_navigation) == 0);
-	lua_pushboolean(lua, success);
-	return 1;
+	return items;
 
 fail:
-	lua_pushboolean(lua, 0);
-	return 1;
+	free_string_array(items.items, i);
+	items.nitems = -1;
+	return items;
+}
+
+/* Schedules a redraw of the entire UI.  Returns nothing. */
+static int
+VLUA_API(vifm_redraw)(lua_State *lua)
+{
+	stats_redraw_later();
+	return 0;
 }
 
 /* Runs an external command similar to :!. */

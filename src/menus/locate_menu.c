@@ -86,7 +86,7 @@ show_locate_menu(view_t *view, const char args[])
 static int
 execute_locate_cb(view_t *view, menu_data_t *m)
 {
-	(void)menus_goto_file(m, view, m->items[m->pos], 0);
+	(void)menus_goto_file(m, view, m->get_spec(m, m->pos), 0);
 	return 0;
 }
 
