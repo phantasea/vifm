@@ -751,6 +751,15 @@ TEST(extprompt)
 	assert_string_equal("", ui_sb_last());
 }
 
+TEST(keepsel)
+{
+	assert_success(cmds_dispatch("set nokeepsel", &lwin, CIT_COMMAND));
+	assert_false(cfg.keep_sel);
+
+	assert_success(cmds_dispatch("set keepsel", &lwin, CIT_COMMAND));
+	assert_true(cfg.keep_sel);
+}
+
 static void
 print_func(const char buf[], int offset, AlignType align,
 		const char full_column[], const format_info_t *info)

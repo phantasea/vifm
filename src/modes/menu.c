@@ -103,6 +103,7 @@ static void cmd_j(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_k(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_n(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
+static strlist_t make_spec_list(const menu_data_t *m);
 static void cmd_zb(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zH(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zL(key_info_t key_info, keys_info_t *keys_info);
@@ -331,7 +332,7 @@ key_handler(wchar_t key)
 	if(pass_combination_to_khandler(shortcut) && menu->len == 0)
 	{
 		show_error_msg("No more items in the menu", "Menu will be closed");
-		leave_menu_mode(1);
+		leave_menu_mode(/*reset_selection=*/!cfg.keep_sel);
 	}
 
 	return 0;
@@ -369,7 +370,7 @@ modmenu_reenter(view_t *target_view)
 void
 modmenu_abort(void)
 {
-	leave_menu_mode(1);
+	leave_menu_mode(/*reset_selection=*/!cfg.keep_sel);
 }
 
 void
@@ -425,7 +426,7 @@ can_scroll_menu_up(const menu_data_t *menu)
 static void
 cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info)
 {
-	leave_menu_mode(1);
+	leave_menu_mode(/*reset_selection=*/!cfg.keep_sel);
 }
 
 static void
@@ -750,7 +751,7 @@ dump_into_custom_view(int very)
 		return;
 	}
 
-	leave_menu_mode(1);
+	leave_menu_mode(/*reset_selection=*/1);
 }
 
 static void
@@ -759,7 +760,7 @@ cmd_dd(key_info_t key_info, keys_info_t *keys_info)
 	if(pass_combination_to_khandler(L"dd") && menu->len == 0)
 	{
 		show_error_msg("Menu is closing", "No more items in the menu");
-		leave_menu_mode(1);
+		leave_menu_mode(/*reset_selection=*/!cfg.keep_sel);
 	}
 }
 
@@ -790,7 +791,7 @@ pass_combination_to_khandler(const wchar_t keys[])
 			ui_refresh_win(menu_win);
 			return 1;
 		case KHR_CLOSE_MENU:
-			leave_menu_mode(1);
+			leave_menu_mode(/*reset_selection=*/!cfg.keep_sel);
 			return 1;
 		case KHR_MORPHED_MENU:
 			assert(!vle_mode_is(MENU_MODE) && "Wrong use of KHR_MORPHED_MENU.");
@@ -860,19 +861,25 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 
 	/* If both first and last lines do not contain colons, treat lines as list of
 	 * file names. */
-	if(strchr(menu->items[0], ':') == NULL &&
-			strchr(menu->items[menu->len - 1], ':') == NULL)
+	if(strchr(menu->get_spec(menu, 0), ':') == NULL &&
+			strchr(menu->get_spec(menu, menu->len - 1), ':') == NULL)
 	{
 		qf = 0;
 	}
 
 	if(vlua_handler_cmd(curr_stats.vlua, vi_cmd))
 	{
-		if(vlua_edit_list(curr_stats.vlua, vi_cmd, menu->items, menu->len,
+		strlist_t specs = make_spec_list(menu);
+		if(specs.items == NULL)
+		{
+			show_error_msg("List View", "Failed to make list of specs");
+		}
+		else if(vlua_edit_list(curr_stats.vlua, vi_cmd, specs.items, specs.nitems,
 					menu->pos, qf) != 0)
 		{
 			show_error_msg("List View", "Failed to view list via handler");
 		}
+		free(specs.items);
 		return;
 	}
 
@@ -912,12 +919,37 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 
 	for(i = 0; i < menu->len; ++i)
 	{
-		fputs(menu->items[i], vim_stdin);
+		fputs(menu->get_spec(menu, i), vim_stdin);
 		putc('\n', vim_stdin);
 	}
 
 	pclose(vim_stdin);
 	recover_after_shellout();
+}
+
+/* Collects contents of a menu into a spec-list.  On error, allocated array is
+ * set to NULL (menus can never be empty, so this happens only on error). */
+static strlist_t
+make_spec_list(const menu_data_t *m)
+{
+	strlist_t result = {
+		.nitems = m->len,
+		.items = reallocarray(NULL, m->len, sizeof(*result.items))
+	};
+	if(result.items == NULL)
+	{
+		return result;
+	}
+
+	int i;
+	for(i = 0; i < m->len; ++i)
+	{
+		/* Casting away `const` as these strings should exist as long as menu
+		 * does. */
+		result.items[i] = (char *)m->get_spec(m, i);
+	}
+
+	return result;
 }
 
 static void
@@ -1087,7 +1119,7 @@ nohlsearch_cmd(const cmd_info_t *cmd_info)
 static int
 quit_cmd(const cmd_info_t *cmd_info)
 {
-	leave_menu_mode(1);
+	leave_menu_mode(/*reset_selection=*/!cfg.keep_sel);
 	return 0;
 }
 
@@ -1096,10 +1128,18 @@ static int
 write_cmd(const cmd_info_t *cmd_info)
 {
 	char *const no_tilde = expand_tilde(cmd_info->argv[0]);
+	if(no_tilde == NULL)
+	{
+		show_error_msg(":write error", "Failed to expand path.");
+		return 0;
+	}
+
 	if(write_file_of_lines(no_tilde, menu->items, menu->len) != 0)
 	{
-		show_error_msg("Failed to open output file", strerror(errno));
+		show_error_msgf(":write error", "Failed to open output file: %s",
+				strerror(errno));
 	}
+
 	free(no_tilde);
 	return 0;
 }
@@ -1151,7 +1191,7 @@ modmenu_morph_into_cline(CmdLineSubmode submode, const char input[],
 	}
 	else
 	{
-		leave_menu_mode(0);
+		leave_menu_mode(/*reset_selection=*/0);
 		modcline_enter(submode, input_copy);
 	}
 

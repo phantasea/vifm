@@ -69,6 +69,7 @@
 /* Format string used for displaying menu's position and size. */
 #define RULER_FORMAT " %d-%d "
 
+static const char * default_get_spec(const menu_data_t *m, int pos);
 static void deinit_menu_data(menu_data_t *m);
 static void show_position_in_menu(const menu_data_t *m);
 static void open_selected_file(const char path[], int line_num);
@@ -195,12 +196,21 @@ menus_init_data(menu_data_t *m, view_t *view, char title[], char empty_msg[])
 	m->data = NULL;
 	m->void_data = NULL;
 	m->key_handler = NULL;
+	m->get_spec = &default_get_spec;
 	m->extra_data = 0;
 	m->execute_handler = NULL;
 	m->empty_msg = empty_msg;
 	m->cwd = strdup(flist_get_dir(view));
 	m->state = &menu_state;
 	m->initialized = 1;
+}
+
+/* Callback for querying file specs.  Must never return NULL. */
+static const char *
+default_get_spec(const menu_data_t *m, int pos)
+{
+	/* The default behaviour is that visible lines are the specifications. */
+	return m->items[pos];
 }
 
 void
@@ -976,24 +986,25 @@ menus_get_stash(int index, int *current)
 }
 
 KHandlerResponse
-menus_def_khandler(view_t *view, menu_data_t *ms, const wchar_t keys[])
+menus_def_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
 	if(wcscmp(keys, L"gf") == 0)
 	{
-		(void)menus_goto_file(ms, view, ms->items[ms->pos], 0);
+		(void)menus_goto_file(m, view, m->get_spec(m, m->pos), 0);
 		return KHR_CLOSE_MENU;
 	}
 	else if(wcscmp(keys, L"e") == 0)
 	{
-		(void)menus_goto_file(ms, view, ms->items[ms->pos], 1);
+		(void)menus_goto_file(m, view, m->get_spec(m, m->pos), 1);
 		return KHR_REFRESH_WINDOW;
 	}
 	else if(wcscmp(keys, L"c") == 0)
 	{
 		/* Insert just file name. */
 		int line_num;
-		const char *const rel_base = get_relative_path_base(ms, view);
-		char *const path = parse_file_spec(ms->items[ms->pos], &line_num, rel_base);
+		const char *const rel_base = get_relative_path_base(m, view);
+		char *const path =
+			parse_file_spec(m->get_spec(m, m->pos), &line_num, rel_base);
 		if(path == NULL)
 		{
 			show_error_msg("Command insertion", "No valid filename found");
@@ -1028,7 +1039,7 @@ menus_to_custom_view(menu_state_t *ms, int very)
 			continue;
 		}
 
-		path = parse_file_spec(ms->d->items[i], &line_num, rel_base);
+		path = parse_file_spec(ms->d->get_spec(ms->d, i), &line_num, rel_base);
 		if(path == NULL)
 		{
 			continue;

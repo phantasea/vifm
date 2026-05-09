@@ -8,6 +8,7 @@
 #include "../../src/compat/fs_limits.h"
 #include "../../src/compat/os.h"
 #include "../../src/cfg/config.h"
+#include "../../src/engine/cmds.h"
 #include "../../src/engine/keys.h"
 #include "../../src/modes/menu.h"
 #include "../../src/modes/modes.h"
@@ -39,6 +40,7 @@ TEARDOWN()
 {
 	vle_keys_reset();
 	conf_teardown();
+	vle_cmds_reset();
 
 	view_teardown(&lwin);
 	curr_view = NULL;
@@ -85,6 +87,28 @@ TEST(menu_can_be_searched_interactively)
 	(void)vle_keys_exec_timed_out(WK_ESC);
 	(void)vle_keys_exec_timed_out(WK_ESC);
 	cfg.inc_search = 0;
+}
+
+TEST(keepsel_preserves_selection)
+{
+	conf_setup();
+	init_view_list(&lwin);
+
+	cfg.keep_sel = 0;
+	lwin.dir_entry[0].selected = 1;
+	lwin.selected_files = 1;
+	assert_success(cmds_dispatch("vifm", &lwin, CIT_COMMAND));
+	assert_success(cmds_dispatch("quit", &lwin, CIT_MENU_COMMAND));
+	assert_false(lwin.dir_entry[0].selected);
+
+	cfg.keep_sel = 1;
+	lwin.dir_entry[0].selected = 1;
+	lwin.selected_files = 1;
+	assert_success(cmds_dispatch("vifm", &lwin, CIT_COMMAND));
+	assert_success(cmds_dispatch("quit", &lwin, CIT_MENU_COMMAND));
+	assert_true(lwin.dir_entry[0].selected);
+
+	conf_teardown();
 }
 
 TEST(menu_is_built_from_a_command)

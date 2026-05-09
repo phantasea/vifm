@@ -30,6 +30,7 @@
 #include "menus.h"
 
 static const char * status_to_str(PluginLoadStatus status);
+static const char * plugs_get_spec(const menu_data_t *m, int pos);
 static KHandlerResponse plugs_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 static void show_plugin_log(view_t *view, menu_data_t *m, plug_t *plug);
@@ -44,6 +45,7 @@ show_plugins_menu(view_t *view)
 {
 	menus_init_data(&plugs_m, view, strdup("Plugins"),
 			strdup("There are no plugins"));
+	plugs_m.get_spec = &plugs_get_spec;
 	plugs_m.key_handler = &plugs_khandler;
 
 	int i;
@@ -76,23 +78,25 @@ status_to_str(PluginLoadStatus status)
 	return "";
 }
 
+/* Callback for querying plugin's location.  Must never return NULL. */
+static const char *
+plugs_get_spec(const menu_data_t *m, int pos)
+{
+	const plug_t *plug = m->void_data[pos];
+	return plug->path;
+}
+
 /* Menu-specific shortcut handler.  Returns code that specifies both taken
  * actions and what should be done next. */
 static KHandlerResponse
 plugs_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 {
-	if(wcscmp(keys, L"gf") == 0)
-	{
-		const plug_t *plug = m->void_data[m->pos];
-		(void)menus_goto_file(m, view, plug->path, 0);
-		return KHR_CLOSE_MENU;
-	}
-	else if(wcscmp(keys, L"e") == 0)
+	if(wcscmp(keys, L"e") == 0)
 	{
 		show_plugin_log(view, m, m->void_data[m->pos]);
 		return KHR_REFRESH_WINDOW;
 	}
-	return KHR_UNHANDLED;
+	return menus_def_khandler(view, m, keys);
 }
 
 /* Shows log messages of the plugin if there is something.  Switches to a

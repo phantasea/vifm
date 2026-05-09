@@ -30,10 +30,10 @@ struct view_t;
 int show_user_menu(struct view_t *view, const char command[],
 		const char title[], MacroFlags flags);
 
-/* Creates menu from a list of items.  Takes ownership of the items (including
- * freeing them on error).  Returns zero on success. */
+/* Creates menu from a list of items.  Takes ownership of the items and specs
+ * (including freeing them on error).  Returns zero on success. */
 int show_custom_menu(struct view_t *view, const char title[],
-		struct strlist_t items, int with_navigation);
+		struct strlist_t items, struct strlist_t specs, int with_navigation);
 
 #endif /* VIFM__MENUS__USERS_MENU_H__ */
 

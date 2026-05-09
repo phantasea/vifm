@@ -39,10 +39,6 @@ void flist_sel_view_to_reload(struct view_t *view, const char new_dir[]);
 /* Inverts selection of files in the view. */
 void flist_sel_invert(struct view_t *view);
 
-/* Removes selection of a view saving current one, but does nothing if none
- * files are selected.  Handles view redrawing. */
-void flist_sel_stash_if_nonempty(struct view_t *view);
-
 /* Reselects previously selected entries.  When reg is NULL, saved selection is
  * restored, otherwise list of files to restore is taken from the register. */
 void flist_sel_restore(struct view_t *view, const struct reg_t *reg);

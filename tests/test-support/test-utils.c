@@ -124,6 +124,8 @@ conf_setup(void)
 
 	cfg.dot_dirs = DD_TREE_LEAFS_PARENT;
 
+	cfg.keep_sel = 0;
+
 	if(cfg.wild_inc != NULL)
 	{
 		matcher_free(cfg.wild_inc);

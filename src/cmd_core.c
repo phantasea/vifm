@@ -380,7 +380,7 @@ post(int id)
 	 * it by resetting selection. */
 	if(!keep_view_selection && vle_mode_is(NORMAL_MODE))
 	{
-		flist_sel_stash_if_nonempty(curr_view);
+		flist_sel_stash(curr_view);
 	}
 
 	/* Marking made by this unit is for a single command only and shouldn't be
@@ -511,7 +511,10 @@ cmds_exec(const char cmd[], view_t *view, int menu, int keep_sel)
 
 	if(cmd == NULL)
 	{
-		flist_sel_stash_if_nonempty(view);
+		if(!cfg.keep_sel)
+		{
+			flist_sel_stash(view);
+		}
 		return 0;
 	}
 
@@ -522,7 +525,10 @@ cmds_exec(const char cmd[], view_t *view, int menu, int keep_sel)
 
 	if(cmd[0] == '\0' && !menu)
 	{
-		flist_sel_stash_if_nonempty(view);
+		if(!cfg.keep_sel)
+		{
+			flist_sel_stash(view);
+		}
 		return 0;
 	}
 
@@ -552,7 +558,7 @@ cmds_exec(const char cmd[], view_t *view, int menu, int keep_sel)
 		un_group_close();
 	}
 
-	keep_view_selection = keep_sel;
+	keep_view_selection = (keep_sel || cfg.keep_sel);
 	result = vle_cmds_run(cmd);
 
 	if(result >= 0)
@@ -620,7 +626,10 @@ cmds_exec(const char cmd[], view_t *view, int menu, int keep_sel)
 
 	if(!menu && vle_mode_is(NORMAL_MODE))
 	{
-		flist_sel_stash_if_nonempty(view);
+		if(!cfg.keep_sel)
+		{
+			flist_sel_stash(view);
+		}
 	}
 
 	return -1;

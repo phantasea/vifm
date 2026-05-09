@@ -1146,13 +1146,10 @@ cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info)
 	const line_stats_t old_input_stat = input_stat;
 	leave_cmdline_mode(/*cancelled=*/1);
 
-	if(old_input_stat.prev_mode == VISUAL_MODE)
+	if(old_input_stat.prev_mode == VISUAL_MODE && !old_input_stat.search_mode)
 	{
-		if(!old_input_stat.search_mode)
-		{
-			modvis_leave(curr_stats.save_msg, 1, 1);
-			fpos_set_pos(curr_view, marks_find_in_view(curr_view, '<'));
-		}
+		modvis_leave(curr_stats.save_msg, /*goto_top=*/!cfg.keep_sel,
+				/*clear_selection=*/!cfg.keep_sel);
 	}
 
 	if(old_input_stat.sub_mode == CLS_COMMAND)
@@ -1727,7 +1724,8 @@ cmd_return(key_info_t key_info, keys_info_t *keys_info)
 	if(prev_mode == VISUAL_MODE && sub_mode != CLS_VFSEARCH &&
 			sub_mode != CLS_VBSEARCH)
 	{
-		modvis_leave(curr_stats.save_msg, 1, 0);
+		modvis_leave(curr_stats.save_msg, /*goto_top=*/!cfg.keep_sel,
+				/*clear_selection=*/0);
 	}
 
 	if(sub_mode == CLS_COMMAND || sub_mode == CLS_MENU_COMMAND)

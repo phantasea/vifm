@@ -156,8 +156,9 @@ TEST(cmds_range)
 {
 	cmds_init();
 
+	view_setup(curr_view);
+	setup_grid(curr_view, /*column_count=*/1, /*list_rows=*/10, /*init=*/1);
 	curr_view->list_pos = 3;
-	curr_view->list_rows = 10;
 
 	GLUA_EQ(vlua, "",
 			"r = vifm.cmds.add {"
@@ -192,6 +193,8 @@ TEST(cmds_range)
 	assert_string_equal("2\t2", ui_sb_last());
 	assert_failure(cmds_dispatch1(".cmd", curr_view, CIT_COMMAND));
 	assert_string_equal("4\t4", ui_sb_last());
+
+	view_teardown(curr_view);
 }
 
 TEST(cmds_names_with_numbers)

@@ -197,3 +197,5 @@ CaptainFantastic added index of menus to the documentation.
 
 Steven Xu (a.k.a. stevenxxiu) provided improvements and fixes for the git
 plugin.
+
+cairo55 implemented 'keepsel' option.

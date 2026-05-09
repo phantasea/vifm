@@ -27,6 +27,7 @@
 #include "menus.h"
 
 static int execute_users_cb(view_t *view, menu_data_t *m);
+static const char * users_get_spec(const menu_data_t *m, int pos);
 static KHandlerResponse users_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 
@@ -49,7 +50,7 @@ show_user_menu(view_t *view, const char command[], const char title[],
 
 int
 show_custom_menu(view_t *view, const char title[], strlist_t items,
-		int with_navigation)
+		strlist_t specs, int with_navigation)
 {
 	static menu_data_t m;
 
@@ -57,8 +58,13 @@ show_custom_menu(view_t *view, const char title[], strlist_t items,
 	 * beforehand. */
 	if(items.nitems == 0)
 	{
-		free_string_array(items.items, items.nitems);
-		return 1;
+		goto fail;
+	}
+
+	/* Items and specs must be consistent. */
+	if(specs.nitems != 0 && specs.nitems != items.nitems)
+	{
+		goto fail;
 	}
 
 	menus_init_data(&m, view, strdup(title), strdup("No items"));
@@ -66,18 +72,24 @@ show_custom_menu(view_t *view, const char title[], strlist_t items,
 	m.extra_data = with_navigation;
 	m.stashable = with_navigation;
 	m.execute_handler = &execute_users_cb;
+	m.get_spec = &users_get_spec;
 	m.key_handler = &users_khandler;
 
 	m.len = items.nitems;
 	m.items = items.items;
+	m.data = specs.items;
 
 	if(menus_enter(&m, view) != 0)
 	{
-		free_string_array(items.items, items.nitems);
-		return 1;
+		goto fail;
 	}
 
 	return 0;
+
+fail:
+	free_string_array(items.items, items.nitems);
+	free_string_array(specs.items, specs.nitems);
+	return 1;
 }
 
 /* Callback that is called when menu item is selected.  Should return non-zero
@@ -88,9 +100,16 @@ execute_users_cb(view_t *view, menu_data_t *m)
 	const int navigate = m->extra_data;
 	if(navigate)
 	{
-		(void)menus_goto_file(m, view, m->items[m->pos], 0);
+		(void)menus_goto_file(m, view, m->get_spec(m, m->pos), 0);
 	}
 	return 0;
+}
+
+/* Callback for querying path specification.  Must never return NULL. */
+static const char *
+users_get_spec(const menu_data_t *m, int pos)
+{
+	return (m->data != NULL ? m->data[pos] : m->items[pos]);
 }
 
 /* Menu-specific shortcut handler.  Returns code that specifies both taken

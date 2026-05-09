@@ -198,6 +198,7 @@ cfg_init(void)
 	cfg.use_unicode_characters = 0;
 	cfg.color_what = CW_ONE_ROW;
 	cfg.flexible_splitter = 1;
+	cfg.keep_sel = 0;
 	cfg.display_statusline = 1;
 
 	cfg.vborder_filler = strdup(" ");

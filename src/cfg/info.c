@@ -2317,6 +2317,7 @@ store_global_options(JSON_Object *root)
 				cfg.sizefmt.ieci_prefixes ? "" : "no"));
 	append_dstr(options, format_str("%signorecase", cfg.ignore_case ? "" : "no"));
 	append_dstr(options, format_str("%sincsearch", cfg.inc_search ? "" : "no"));
+	append_dstr(options, format_str("%skeepsel", cfg.keep_sel ? "" : "no"));
 	append_dstr(options, format_str("%slaststatus",
 				cfg.display_statusline ? "" : "no"));
 	append_dstr(options, format_str("%stitle", cfg.set_title ? "" : "no"));

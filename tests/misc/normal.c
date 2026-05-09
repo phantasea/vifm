@@ -132,7 +132,7 @@ TEST(gs_memory_explicit_stash)
 	lwin.dir_entry[2].selected = 1;
 
 	/* Drop selection. */
-	flist_sel_stash_if_nonempty(&lwin);
+	flist_sel_stash(&lwin);
 
 	/* Leave directory. */
 	assert_int_equal(0, change_directory(&lwin, ".."));

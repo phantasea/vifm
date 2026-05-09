@@ -30,6 +30,7 @@
 #include "menus.h"
 
 static int execute_bmarks_cb(view_t *view, menu_data_t *m);
+static const char * bmarks_get_spec(const menu_data_t *m, int pos);
 static KHandlerResponse bmarks_khandler(view_t *view, menu_data_t *m,
 		const wchar_t keys[]);
 static void bmarks_cb(const char path[], const char tags[], time_t timestamp,
@@ -40,6 +41,7 @@ show_bmarks_menu(view_t *view, const char tags[], int go_on_single_match)
 {
 	static menu_data_t m;
 	menus_init_data(&m, view, strdup("Bookmarks"), strdup("No bookmarks found"));
+	m.get_spec = &bmarks_get_spec;
 	m.execute_handler = &execute_bmarks_cb;
 	m.key_handler = &bmarks_khandler;
 
@@ -54,12 +56,19 @@ show_bmarks_menu(view_t *view, const char tags[], int go_on_single_match)
 
 	if(go_on_single_match && m.len == 1)
 	{
-		(void)menus_goto_file(&m, view, m.data[m.pos], 0);
+		(void)menus_goto_file(&m, view, m.get_spec(&m, m.pos), 0);
 		menus_reset_data(&m);
 		return curr_stats.save_msg;
 	}
 
 	return menus_enter(&m, view);
+}
+
+/* Callback for querying bookmarked paths.  Must never return NULL. */
+static const char *
+bmarks_get_spec(const menu_data_t *m, int pos)
+{
+	return m->data[pos];
 }
 
 /* Callback for listings of bookmarks. */
@@ -105,7 +114,7 @@ bmarks_cb(const char path[], const char tags[], time_t timestamp, void *arg)
 static int
 execute_bmarks_cb(view_t *view, menu_data_t *m)
 {
-	(void)menus_goto_file(m, view, m->data[m->pos], 0);
+	(void)menus_goto_file(m, view, m->get_spec(m, m->pos), 0);
 	return 0;
 }
 
@@ -120,19 +129,7 @@ bmarks_khandler(view_t *view, menu_data_t *m, const wchar_t keys[])
 		menus_remove_current(m->state);
 		return KHR_REFRESH_WINDOW;
 	}
-	else if(wcscmp(keys, L"gf") == 0)
-	{
-		(void)menus_goto_file(m, curr_view, m->data[m->pos], 0);
-		return KHR_CLOSE_MENU;
-	}
-	else if(wcscmp(keys, L"e") == 0)
-	{
-		(void)menus_goto_file(m, curr_view, m->data[m->pos], 1);
-		return KHR_REFRESH_WINDOW;
-	}
-	/* Can't reuse menus_def_khandler() here as it works with m->items, not with
-	 * m->data. */
-	return KHR_UNHANDLED;
+	return menus_def_khandler(view, m, keys);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

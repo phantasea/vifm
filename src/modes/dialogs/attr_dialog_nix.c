@@ -31,7 +31,7 @@
 #include <stdio.h> /* snprintf() */
 #include <string.h> /* strncat() strlen() */
 
-#include "../../cfg/config.h"  //add by sim1
+#include "../../cfg/config.h"
 #include "../../compat/curses.h"
 #include "../../compat/fs_limits.h"
 #include "../../engine/keys.h"
@@ -60,7 +60,7 @@ static char * get_title(int max_width);
 static int is_one_file_selected(int first_file_index);
 static int get_first_file_index(void);
 static int get_selection_size(int first_file_index);
-static void leave_attr_mode(void);
+static void leave_attr_mode(int reset_selection);
 static void cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_return(key_info_t key_info, keys_info_t *keys_info);
 TSTATIC void set_perm_string(view_t *view, const int perms[13],
@@ -222,7 +222,7 @@ enter_attr_mode(view_t *active_view)
 	{
 		show_error_msg("Permissions change error",
 				"Selected files have no common access state");
-		leave_attr_mode();
+		leave_attr_mode(/*reset_selection=*/1);
 		return;
 	}
 
@@ -373,20 +373,9 @@ get_selection_size(int first_file_index)
 }
 
 static void
-leave_attr_mode(void)
-{
-	vle_mode_set(NORMAL_MODE, VMT_PRIMARY);
-	ui_set_cursor(/*visibility=*/0);
-	curr_stats.use_input_bar = 1;
-
-	flist_sel_stash(view);
-	ui_view_schedule_reload(view);
-}
-
-static void
 cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info)
 {
-	leave_attr_mode();
+	leave_attr_mode(/*reset_selection=*/!cfg.keep_sel);
 }
 
 static void
@@ -402,7 +391,21 @@ cmd_return(key_info_t key_info, keys_info_t *keys_info)
 	get_current_full_path(view, sizeof(path), path);
 	set_perm_string(view, perms, origin_perms, adv_perms);
 
-	leave_attr_mode();
+	leave_attr_mode(/*reset_selection=*/1);
+}
+
+static void
+leave_attr_mode(int reset_selection)
+{
+	vle_mode_set(NORMAL_MODE, VMT_PRIMARY);
+	ui_set_cursor(/*visibility=*/0);
+	curr_stats.use_input_bar = 1;
+
+	if(reset_selection)
+	{
+		flist_sel_stash(view);
+	}
+	ui_view_schedule_reload(view);
 }
 
 TSTATIC void

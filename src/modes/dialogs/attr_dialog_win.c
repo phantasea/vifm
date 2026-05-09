@@ -24,6 +24,7 @@
 #include <stddef.h> /* NULL size_t */
 #include <string.h> /* strncat() strlen() */
 
+#include "../../cfg/config.h"
 #include "../../compat/curses.h"
 #include "../../compat/fs_limits.h"
 #include "../../engine/keys.h"
@@ -65,7 +66,7 @@ static char * get_title(int max_width);
 static int is_one_file_selected(int first_file_index);
 static int get_first_file_index(void);
 static int get_selection_size(int first_file_index);
-static void leave_attr_mode(void);
+static void leave_attr_mode(int reset_selection);
 static void cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_return(key_info_t key_info, keys_info_t *keys_info);
 static void set_attrs(view_t *view, const int *attrs, const int *origin_attrs);
@@ -337,12 +338,15 @@ redraw_attr_dialog(void)
 
 /* leaves properties change dialog */
 static void
-leave_attr_mode(void)
+leave_attr_mode(int reset_selection)
 {
 	vle_mode_set(NORMAL_MODE, VMT_PRIMARY);
 	curr_stats.use_input_bar = 1;
 
-	flist_sel_stash(view);
+	if(reset_selection)
+	{
+		flist_sel_stash(view);
+	}
 	ui_view_schedule_reload(view);
 }
 
@@ -350,7 +354,7 @@ leave_attr_mode(void)
 static void
 cmd_ctrl_c(key_info_t key_info, keys_info_t *keys_info)
 {
-	leave_attr_mode();
+	leave_attr_mode(/*reset_selection=*/!cfg.keep_sel);
 }
 
 /* leaves properties change dialog after changing file attributes */
@@ -360,7 +364,7 @@ cmd_return(key_info_t key_info, keys_info_t *keys_info)
 	if(changed)
 	{
 		set_attrs(view, attrs, origin_attrs);
-		leave_attr_mode();
+		leave_attr_mode(/*reset_selection=*/1);
 	}
 }
 

@@ -1,6 +1,6 @@
 " vifm syntax file
 " Maintainer:  xaizek <xaizek@posteo.net>
-" Last Change: March 4, 2026
+" Last Change: May 5, 2026
 " Inspired By: Vim syntax file by Dr. Charles E. Campbell, Jr.
 
 if exists('b:current_syntax')
@@ -168,17 +168,17 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 		\ cdpath cd chaselinks classify columns co confirm cf cpoptions cpo
 		\ cvoptions deleteprg dotdirs dotfiles dirsize extprompt fastrun fillchars
 		\ fcs findprg followlinks fusehome gdefault grepprg histcursor history hi
-		\ hloptions hlsearch hls iec ignorecase ic iooptions incsearch is laststatus
-		\ lines locateprg ls lsoptions lsview mediaprg milleroptions millerview
-		\ mintimeoutlen mouse navoptions number nu numberwidth nuw previewoptions
-		\ previewprg quickview relativenumber rnu rulerformat ruf runexec scrollbind
-		\ scb scrolloff sessionoptions ssop so sort sortgroups sortorder sortnumbers
-		\ shell sh shellflagcmd shcf shortmess shm showtabline stal sizefmt slowfs
-		\ smartcase scs statusline stl suggestoptions syncregs syscalls tablabel
-		\ tabline tabprefix tabscope tabstop tabsuffix tal timefmt timeoutlen title
-		\ tm trash trashdir ts tuioptions to uioptions undolevels ul vicmd
-		\ viewcolumns vifminfo vimhelp vixcmd wildinc wildmenu wmnu wildstyle
-		\ wordchars wrap wrapscan ws
+		\ hloptions hlsearch hls iec ignorecase ic iooptions incsearch is keepsel
+		\ laststatus lines locateprg ls lsoptions lsview mediaprg milleroptions
+		\ millerview mintimeoutlen mouse navoptions number nu numberwidth nuw
+		\ previewoptions previewprg quickview relativenumber rnu rulerformat ruf
+		\ runexec scrollbind scb scrolloff sessionoptions ssop so sort sortgroups
+		\ sortorder sortnumbers shell sh shellflagcmd shcf shortmess shm showtabline
+		\ stal sizefmt slowfs smartcase scs statusline stl suggestoptions syncregs
+		\ syscalls tablabel tabline tabprefix tabscope tabstop tabsuffix tal timefmt
+		\ timeoutlen title tm trash trashdir ts tuioptions to uioptions undolevels
+		\ ul vicmd viewcolumns vifminfo vimhelp vixcmd wildinc wildmenu wmnu
+		\ wildstyle wordchars wrap wrapscan ws
 		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir
 		\ vimabs topmidfiller maxundotabs previewmaxsize filenamedisplen
 		\ clipboardprg paneonetag panetwotag
@@ -186,18 +186,18 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 " Disabled boolean options
 syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
 		\ nodotfiles nofastrun nofollowlinks nohlsearch nohls noiec noignorecase
-		\ noic noincsearch nois nolaststatus nols nolsview nomillerview nonumber
-		\ nonu noquickview norelativenumber nornu noscrollbind noscb norunexec
-		\ nosmartcase noscs nosortnumbers nosyscalls notitle notrash novimhelp
-		\ nowildmenu nowmnu nowrap nowrapscan nows
+		\ noic noincsearch nois nokeepsel nolaststatus nols nolsview nomillerview
+		\ nonumber nonu noquickview norelativenumber nornu noscrollbind noscb
+		\ norunexec nosmartcase noscs nosortnumbers nosyscalls notitle notrash
+		\ novimhelp nowildmenu nowmnu nowrap nowrapscan nows
 		\ noprefervsplit nofilenamedispall noredolastcmdcfm nocdaftermkdir
 
 " Inverted boolean options
 syntax keyword vifmOption contained invautocd invautochpos invcf invchaselinks
 		\ invdotfiles invfastrun invfollowlinks invhlsearch invhls inviec
-		\ invignorecase invic invincsearch invis invlaststatus invls invlsview
-		\ invmillerview invnumber invnu invquickview invrelativenumber invrnu
-		\ invscrollbind invscb invrunexec invsmartcase invscs invsortnumbers
+		\ invignorecase invic invincsearch invis invkeepsel invlaststatus invls
+		\ invlsview invmillerview invnumber invnu invquickview invrelativenumber
+		\ invrnu invscrollbind invscb invrunexec invsmartcase invscs invsortnumbers
 		\ invsyscalls invtitle invtrash invvimhelp invwildmenu invwmnu invwrap
 		\ invwrapscan invws
 

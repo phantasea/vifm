@@ -2,10 +2,15 @@
 
 #include <stdlib.h> /* free() */
 #include <string.h> /* strcpy() strdup() */
+#include <unistd.h> /* geteuid() */
 
 #include <test-utils.h>
 
 #include "../../src/cfg/config.h"
+#include "../../src/engine/cmds.h"
+#include "../../src/engine/keys.h"
+#include "../../src/modes/modes.h"
+#include "../../src/modes/wk.h"
 #include "../../src/ui/color_scheme.h"
 #include "../../src/ui/colored_line.h"
 #include "../../src/ui/column_view.h"
@@ -16,6 +21,7 @@
 #include "../../src/utils/str.h"
 #include "../../src/cmd_core.h"
 #include "../../src/filelist.h"
+#include "../../src/status.h"
 
 #include "utils.h"
 
@@ -595,6 +601,41 @@ TEST(prefix_len_is_reset_by_column_line_print)
 	vle_cmds_reset();
 	opt_handlers_teardown();
 	columns_teardown();
+}
+
+TEST(keepsel_preserves_selection)
+{
+	curr_stats.load_stage = 2;
+	curr_view = &lwin;
+	modes_init();
+	cmds_init();
+
+	dir_entry_t *entry = append_view_entry(&lwin, "dummy");
+#ifndef _WIN32
+	entry->uid = geteuid();
+#else
+	(void)entry;
+#endif
+
+	cfg.keep_sel = 0;
+	lwin.dir_entry[0].selected = 1;
+	lwin.dir_entry[0].marked = 1;
+	lwin.selected_files = 1;
+	assert_success(cmds_dispatch1("chmod", &lwin, CIT_COMMAND));
+	(void)vle_keys_exec_timed_out(WK_ESC);
+
+	cfg.keep_sel = 1;
+	lwin.dir_entry[0].selected = 1;
+	lwin.dir_entry[0].marked = 1;
+	lwin.selected_files = 1;
+	assert_success(cmds_dispatch1("chmod", &lwin, CIT_COMMAND));
+	(void)vle_keys_exec_timed_out(WK_ESC);
+	assert_true(lwin.dir_entry[0].selected);
+
+	vle_keys_reset();
+	vle_cmds_reset();
+	curr_view = NULL;
+	curr_stats.load_stage = 0;
 }
 
 static void

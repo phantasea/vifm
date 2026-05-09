@@ -683,6 +683,28 @@ TEST(wild_inc_completion)
 	cfg.wild_inc = NULL;
 }
 
+TEST(keepsel_preserves_selection)
+{
+	conf_setup();
+	init_view_list(&lwin);
+
+	cfg.keep_sel = 0;
+	lwin.dir_entry[0].selected = 1;
+	lwin.selected_files = 1;
+	(void)vle_keys_exec_timed_out(L":");
+	(void)vle_keys_exec_timed_out(WK_ESC);
+	assert_false(lwin.dir_entry[0].selected);
+
+	cfg.keep_sel = 1;
+	lwin.dir_entry[0].selected = 1;
+	lwin.selected_files = 1;
+	(void)vle_keys_exec_timed_out(L":");
+	(void)vle_keys_exec_timed_out(WK_ESC);
+	assert_true(lwin.dir_entry[0].selected);
+
+	conf_teardown();
+}
+
 static void
 prompt_callback(const char response[], void *arg)
 {

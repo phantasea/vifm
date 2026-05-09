@@ -40,6 +40,9 @@
 
 	Added menu index to the documentation.  Patch by CaptainFantastic.
 
+	Added 'keepsel' option to retain selection across mode switches.  Patch by
+	cairo55.
+
 	Updated utf8proc to v2.11.3.
 
 	Made documentation on which :commands can have comments a bit more

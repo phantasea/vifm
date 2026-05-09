@@ -48,7 +48,10 @@ void
 flist_sel_stash(view_t *view)
 {
 	save_selection(view);
-	flist_sel_drop(view);
+	if(view->selected_files != 0)
+	{
+		flist_sel_drop(view);
+	}
 }
 
 void
@@ -150,15 +153,6 @@ flist_sel_invert(view_t *view)
 			e->selected = !e->selected;
 		}
 		view->selected_files += (e->selected != 0);
-	}
-}
-
-void
-flist_sel_stash_if_nonempty(view_t *view)
-{
-	if(view->selected_files != 0)
-	{
-		flist_sel_stash(view);
 	}
 }
 
