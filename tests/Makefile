@@ -232,6 +232,7 @@ ifdef DEBUG
     ifeq ($(DEBUG),valgrind)
         TEST_RUN_PREFIX := valgrind --track-origins=yes --leak-check=full \
                            --log-file=valgrind-report --error-exitcode=5 \
+                           --num-callers=16 \
                            --suppressions=$(abspath .)/../src/.valgrind.supp
         TEST_RUN_POST := || (e=$$$$?; if [ $$$$e -eq 5 ]; then \
                                           cat valgrind-report; \
