@@ -238,6 +238,9 @@
 	Fixed a Lua column disabling search highlighting for all columns to its
 	right.
 
+	Fixed a buffer overflow in trie implementation.  Thanks to Michał
+	Majchrowicz and Marcin Wyczechowski.
+
 0.14-beta to 0.14 (2025-02-08)
 
 	Improved documentation on zh/zl menu keys a bit.
