@@ -194,9 +194,17 @@ TEST(huge_keys)
 	assert_success(trie_put(trie, a_key));
 	assert_success(trie_get(trie, a_key, &data));
 
+	/* Use a small key. */
+	assert_success(trie_put(trie, "small"));
+	assert_success(trie_get(trie, "small", &data));
+
 	/* Another large key works. */
 	assert_success(trie_put(trie, b_key));
 	assert_success(trie_get(trie, b_key, &data));
+
+	/* Small one again. */
+	assert_success(trie_put(trie, "short"));
+	assert_success(trie_get(trie, "short", &data));
 
 	/* The first one is still there. */
 	assert_success(trie_get(trie, a_key, &data));

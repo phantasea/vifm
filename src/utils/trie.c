@@ -360,13 +360,32 @@ alloc_string(trie_t *trie, const char str[], int len)
 		}
 
 		trie->str_bufs = str_bufs;
-		trie->str_bufs[trie->str_buf_count] = malloc(MAX(MIN_STR_BUF_SIZE, len));
-		if(trie->str_bufs[trie->str_buf_count] == NULL)
+
+		char *str_buf = malloc(MAX(MIN_STR_BUF_SIZE, len));
+		if(str_buf == NULL)
 		{
 			return NULL;
 		}
 
 		++trie->str_buf_count;
+
+		/* This is an optimization to avoid unnecessary fragmentation.  When the
+		 * requested size is larger than the minimal block size, the buffer is full
+		 * on the first use.  So instead of resetting offset and starting a new
+		 * block on the next call just make the newly created block penultimate to
+		 * keep using the block allocated previously for smaller allocations. */
+		if(len > MIN_STR_BUF_SIZE && trie->str_buf_count > 1 &&
+				trie->last_offset < MIN_STR_BUF_SIZE)
+		{
+			trie->str_bufs[trie->str_buf_count - 1] =
+				trie->str_bufs[trie->str_buf_count - 2];
+			trie->str_bufs[trie->str_buf_count - 2] = str_buf;
+
+			memcpy(str_buf, str, len);
+			return str_buf;
+		}
+
+		trie->str_bufs[trie->str_buf_count - 1] = str_buf;
 		trie->last_offset = 0;
 	}
 
