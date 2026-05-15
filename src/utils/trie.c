@@ -43,7 +43,6 @@
  *    calls to free()
  *  - strings are similarly appended to relatively large buffers without NUL
  *    bytes and are reused on breaking nodes (so no string copying there)
- *    Note: this puts a limit on key length, which can't be longer than buffer.
  *
  * Another optimization is caching of the first character of the key to avoid
  * pointer dereferencing when we don't need it (first character decides if we
@@ -53,8 +52,10 @@
 /* Number of elements in each trie_t::nodes[*]. */
 #define NODES_PER_BANK 1024
 
-/* Size of each trie_t::str_bufs[*]. */
-#define STR_BUF_SIZE (PATH_MAX*2)
+/* Minimal size of each trie_t::str_bufs[*].  Should be large enough to amortize
+ * the cost of memory allocations, yet it shouldn't result in lots of memory
+ * being wasted due to fragmentation. */
+#define MIN_STR_BUF_SIZE (PATH_MAX*2)
 
 /* Trie node. */
 typedef struct trie_node_t
@@ -79,7 +80,7 @@ struct trie_t
 	trie_node_t **nodes; /* Node storage (NODES_PER_BANK elements per item). */
 	int node_count;      /* Number of (allocated) nodes. */
 
-	char **str_bufs;   /* String storage (STR_BUF_SIZE bytes per item). */
+	char **str_bufs;   /* String storage (MIN_STR_BUF_SIZE or more bytes each). */
 	int str_buf_count; /* Number of string buffers. */
 	int last_offset;   /* Offset in current string buffer. */
 
@@ -149,10 +150,16 @@ clone_nodes(trie_t *new_trie, const trie_node_t *node, int *error)
 		return NULL;
 	}
 
+	new_node->key = alloc_string(new_trie, node->key, node->key_len);
+	if(new_node->key == NULL)
+	{
+		*error = 1;
+		return NULL;
+	}
+
 	new_node->left = clone_nodes(new_trie, node->left, error);
 	new_node->right = clone_nodes(new_trie, node->right, error);
 	new_node->down = clone_nodes(new_trie, node->down, error);
-	new_node->key = alloc_string(new_trie, node->key, node->key_len);
 	new_node->first = node->key[0];
 	new_node->key_len = node->key_len;
 	new_node->exists = node->exists;
@@ -237,9 +244,16 @@ trie_set(trie_t *trie, const char str[], const void *data)
 			{
 				return -1;
 			}
+
 			node->key_len = strlen(str);
-			node->key = alloc_string(trie, str, node->key_len);
 			node->first = str[0];
+
+			node->key = alloc_string(trie, str, node->key_len);
+			if(node->key == NULL)
+			{
+				return -1;
+			}
+
 			*link = node;
 			break;
 		}
@@ -336,9 +350,7 @@ make_node(trie_t *trie)
 static char *
 alloc_string(trie_t *trie, const char str[], int len)
 {
-	assert(len <= STR_BUF_SIZE && "Key is too large.");
-
-	if(trie->last_offset + len > STR_BUF_SIZE || trie->str_buf_count == 0)
+	if(trie->last_offset + len > MIN_STR_BUF_SIZE || trie->str_buf_count == 0)
 	{
 		void *str_bufs = reallocarray(trie->str_bufs, trie->str_buf_count + 1,
 				sizeof(*trie->str_bufs));
@@ -348,9 +360,32 @@ alloc_string(trie_t *trie, const char str[], int len)
 		}
 
 		trie->str_bufs = str_bufs;
-		trie->str_bufs[trie->str_buf_count] = malloc(STR_BUF_SIZE);
+
+		char *str_buf = malloc(MAX(MIN_STR_BUF_SIZE, len));
+		if(str_buf == NULL)
+		{
+			return NULL;
+		}
 
 		++trie->str_buf_count;
+
+		/* This is an optimization to avoid unnecessary fragmentation.  When the
+		 * requested size is larger than the minimal block size, the buffer is full
+		 * on the first use.  So instead of resetting offset and starting a new
+		 * block on the next call just make the newly created block penultimate to
+		 * keep using the block allocated previously for smaller allocations. */
+		if(len > MIN_STR_BUF_SIZE && trie->str_buf_count > 1 &&
+				trie->last_offset < MIN_STR_BUF_SIZE)
+		{
+			trie->str_bufs[trie->str_buf_count - 1] =
+				trie->str_bufs[trie->str_buf_count - 2];
+			trie->str_bufs[trie->str_buf_count - 2] = str_buf;
+
+			memcpy(str_buf, str, len);
+			return str_buf;
+		}
+
+		trie->str_bufs[trie->str_buf_count - 1] = str_buf;
 		trie->last_offset = 0;
 	}
 
