@@ -97,6 +97,19 @@ int win_symlink_read(const char link[], char buf[], int buf_len);
  * otherwise. */
 int win_shortcut_read(const char shortcut[], char buf[], int buf_len);
 
+/* Retrieves handle to the console output.  On success, returns the handle,
+ * which must not be closed by the caller.  On error, INVALID_HANDLE_VALUE is
+ * returned. */
+HANDLE win_conout(void);
+
+/* Enables interpretation of control sequences by the terminal.  Returns
+ * console mode that needs to be passed back to win_vterm_finish() or (DWORD)-1
+ * on error. */
+DWORD win_vterm_start(HANDLE conout);
+
+/* Disables interpretation of control sequences by the terminal. */
+void win_vterm_finish(HANDLE conout, DWORD orig_mode);
+
 /* Converts status to exit code.  Input can be -1, meaning that status is
  * unknown.  Returns the exit code or -1 for -1 status. */
 #define status_to_exit_code(status) (status)

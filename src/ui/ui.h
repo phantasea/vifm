@@ -843,6 +843,13 @@ struct strlist_t;
  * specified point on the window beforehand. */
 void ui_pass_through(const struct strlist_t *lines, WINDOW *win, int x, int y);
 
+struct preview_area_t;
+
+/* Erases pass-through graphics (e.g., sixel) using a platform/terminal-specific
+ * way to avoid graphics bleeding through after drawing something on top of
+ * it. */
+void ui_pass_through_clear(const struct preview_area_t *parea);
+
 /* Maps column name to column id.  Returns column id or -1 on error. */
 int ui_map_column_name(const char name[]);
 

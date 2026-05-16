@@ -24,3 +24,4 @@
   non-POSIX shells which have `-c` option accept a value.
 * Incrementing/decrementing file names doesn't work as expected for numbers
   outside [-2**63; -2**63) range.
+* Sixel doesn't get cleared in Windows Terminal on moving panes around.

@@ -58,6 +58,10 @@
 	expression but is used to specify patterns like `{*.pdf}!/abc/` after the
 	plus sign.  Thanks to filterfalse, tagwint and CaptainFantastic.
 
+	Added somewhat incomplete handling of Sixel for Windows Terminal.
+	Clearing doesn't happen if moving panes while Sixel is displayed, but it
+	works otherwise.  Patch by Maxim4711.
+
 	Updated utf8proc to v2.11.3.
 
 	Made documentation on which :commands can have comments a bit more

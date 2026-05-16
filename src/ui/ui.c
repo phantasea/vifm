@@ -3063,18 +3063,82 @@ ui_drop_attr(WINDOW *win)
 }
 
 void
+ui_pass_through_clear(const preview_area_t *parea)
+{
+#ifdef _WIN32
+	HANDLE hout = win_conout();
+	if(hout == INVALID_HANDLE_VALUE)
+	{
+		return;
+	}
+
+	DWORD orig_mode = win_vterm_start(hout);
+
+	const int width = parea->w;
+	const int height = parea->h;
+	const int begy = getbegy(parea->view->win) + parea->y;
+	const int begx = getbegx(parea->view->win) + parea->x;
+
+	char *blanks = malloc(width);
+	if(blanks != NULL)
+	{
+		memset(blanks, ' ', width);
+
+		int row;
+		for(row = 0; row < height; ++row)
+		{
+			COORD pos = { begx, begy + row };
+			SetConsoleCursorPosition(hout, pos);
+
+			/* SGR 0 resets colors to default (opaque), covering sixel pixels. */
+			DWORD written;
+			WriteFile(hout, "\x1b[0m", 4, &written, NULL);
+			WriteFile(hout, blanks, width, &written, NULL);
+		}
+
+		free(blanks);
+	}
+
+	win_vterm_finish(hout, orig_mode);
+#endif
+}
+
+void
 ui_pass_through(const strlist_t *lines, WINDOW *win, int x, int y)
 {
 	/* Position hardware cursor on the screen. */
 	checked_wmove(win, y, x);
 	use_wrefresh(win);
 
+#ifdef _WIN32
+	HANDLE hout = win_conout();
+	if(hout != INVALID_HANDLE_VALUE)
+	{
+		DWORD orig_mode = win_vterm_start(hout);
+
+		COORD pos = { getbegx(win) + x, getbegy(win) + y };
+
+		int i;
+		for(i = 0; i < lines->nitems; ++i)
+		{
+			COORD line_pos = { pos.X, pos.Y + i };
+			SetConsoleCursorPosition(hout, line_pos);
+
+			DWORD written;
+			const char *line = lines->items[i];
+			WriteFile(hout, line, strlen(line), &written, NULL);
+		}
+
+		win_vterm_finish(hout, orig_mode);
+	}
+#else
 	int i;
 	for(i = 0; i < lines->nitems; ++i)
 	{
 		puts(lines->items[i]);
 	}
 	fflush(stdout);
+#endif
 
 	/* Make curses synchronize its idea about where cursor is with the terminal
 	 * state. */

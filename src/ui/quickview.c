@@ -937,6 +937,11 @@ qv_cleanup_area(const preview_area_t *parea, const char cmd[])
 static void
 wipe_area(const preview_area_t *parea)
 {
+	if(curr_stats.preview.kind == VK_PASS_THROUGH)
+	{
+		ui_pass_through_clear(parea);
+	}
+
 	if(cfg.hard_graphics_clear)
 	{
 		wclear(parea->view->win);
