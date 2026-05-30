@@ -7664,6 +7664,212 @@ if test "x$ac_cv_lib_rt_shm_open" = xyes; then :
 fi
 
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
+$as_echo_n "checking for dlopen in -ldl... " >&6; }
+if ${ac_cv_lib_dl_dlopen+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ldl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char dlopen ();
+int
+main ()
+{
+return dlopen ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_dl_dlopen=yes
+else
+  ac_cv_lib_dl_dlopen=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_dl_dlopen" >&5
+$as_echo "$ac_cv_lib_dl_dlopen" >&6; }
+if test "x$ac_cv_lib_dl_dlopen" = xyes; then :
+  LIBS="$LIBS -ldl"
+fi
+
+export_some_opt=
+as_CACHEVAR=`$as_echo "ax_cv_check_ldflags__-Wl,--export-dynamic-symbol=lua_*" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,--export-dynamic-symbol=lua_*" >&5
+$as_echo_n "checking whether the linker accepts -Wl,--export-dynamic-symbol=lua_*... " >&6; }
+if eval \${$as_CACHEVAR+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -Wl,--export-dynamic-symbol=lua_*"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_CACHEVAR=yes"
+else
+  eval "$as_CACHEVAR=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags
+fi
+eval ac_res=\$$as_CACHEVAR
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_CACHEVAR"\" = x"yes"; then :
+  export_some_opt=-Wl,--export-dynamic-symbol=
+else
+  :
+fi
+
+if test -n "$OSX_HOST" && test -z "$export_some_opt"; then
+    # Not sure if underscore prefix is needed only on OS X and whether any other
+    # linker may accept `-exported_symbol` parameter, but assuming this is
+    # specific to OS X.
+    as_CACHEVAR=`$as_echo "ax_cv_check_ldflags__-Wl,-exported_symbol -Wl,_lua_*" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,-exported_symbol -Wl,_lua_*" >&5
+$as_echo_n "checking whether the linker accepts -Wl,-exported_symbol -Wl,_lua_*... " >&6; }
+if eval \${$as_CACHEVAR+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -Wl,-exported_symbol -Wl,_lua_*"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_CACHEVAR=yes"
+else
+  eval "$as_CACHEVAR=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags
+fi
+eval ac_res=\$$as_CACHEVAR
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_CACHEVAR"\" = x"yes"; then :
+  export_some_opt='-Wl,-exported_symbol -Wl,_'
+else
+  :
+fi
+
+fi
+if test -n "$export_some_opt"; then
+        LDFLAGS="$LDFLAGS ${export_some_opt}lua_* ${export_some_opt}luaL_*"
+else
+    export_all_opt=
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,-E" >&5
+$as_echo_n "checking whether the linker accepts -Wl,-E... " >&6; }
+if ${ax_cv_check_ldflags___Wl__E+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -Wl,-E"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ax_cv_check_ldflags___Wl__E=yes
+else
+  ax_cv_check_ldflags___Wl__E=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_ldflags___Wl__E" >&5
+$as_echo "$ax_cv_check_ldflags___Wl__E" >&6; }
+if test "x$ax_cv_check_ldflags___Wl__E" = xyes; then :
+  export_all_opt=-Wl,-E
+else
+  :
+fi
+
+    if test -n "$OSX_HOST" && test -z "$export_all_opt"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,-export_dynamic" >&5
+$as_echo_n "checking whether the linker accepts -Wl,-export_dynamic... " >&6; }
+if ${ax_cv_check_ldflags___Wl__export_dynamic+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -Wl,-export_dynamic"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ax_cv_check_ldflags___Wl__export_dynamic=yes
+else
+  ax_cv_check_ldflags___Wl__export_dynamic=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_ldflags___Wl__export_dynamic" >&5
+$as_echo "$ax_cv_check_ldflags___Wl__export_dynamic" >&6; }
+if test "x$ax_cv_check_ldflags___Wl__export_dynamic" = xyes; then :
+  export_all_opt=-Wl,-export_dynamic
+else
+  :
+fi
+
+    fi
+    if test -z "$export_all_opt"; then
+        as_fn_error $? "Linker doesn't support -E flag or an equivalent." "$LINENO" 5
+    fi
+    LDFLAGS="$LDFLAGS $export_all_opt"
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for a sed that does not truncate output" >&5
 $as_echo_n "checking for a sed that does not truncate output... " >&6; }
 if ${ac_cv_path_SED+:} false; then :
@@ -8748,7 +8954,6 @@ if test "x$ncurses_found" != "xyes"; then
         as_fn_error $? "libncursesw and libncurses not found" "$LINENO" 5
     fi
 fi
-LIBS=$LIBS $GUI_LINK_OPTS_TERM
 
 ac_fn_c_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
 if test "x$ac_cv_header_curses_h" = xyes; then :
@@ -9611,52 +9816,9 @@ $as_echo "#define ENABLE_REMOTE_CMDS 1" >>confdefs.h
 fi
 
 if test "$use_dyn_libX11" = "yes"; then
-    ORIG_LIBS="$LIBS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
-$as_echo_n "checking for dlopen in -ldl... " >&6; }
-if ${ac_cv_lib_dl_dlopen+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-ldl  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char dlopen ();
-int
-main ()
-{
-return dlopen ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_dl_dlopen=yes
-else
-  ac_cv_lib_dl_dlopen=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_dl_dlopen" >&5
-$as_echo "$ac_cv_lib_dl_dlopen" >&6; }
-if test "x$ac_cv_lib_dl_dlopen" = xyes; then :
-
-                 use_dyn_libX11=yes
-                 LIBS="$LIBS -ldl"
-
-else
-  use_dyn_libX11=no
-fi
-
+    if test "$ac_cv_lib_dl_dlopen" != yes; then
+        use_dyn_libX11=no
+    fi
 
     ac_fn_c_check_header_mongrel "$LINENO" "dlfcn.h" "ac_cv_header_dlfcn_h" "$ac_includes_default"
 if test "x$ac_cv_header_dlfcn_h" = xyes; then :
@@ -9682,9 +9844,8 @@ fi
 
 
     if test "$use_dyn_libX11" != "yes"; then
-        LIBS="$ORIG_LIBS"
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"libdl seems to don't work as expected.  No dynamic X11.\"" >&5
-$as_echo "$as_me: WARNING: \"libdl seems to don't work as expected.  No dynamic X11.\"" >&2;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"libdl seems to not work as expected.  No dynamic X11.\"" >&5
+$as_echo "$as_me: WARNING: \"libdl seems to not work as expected.  No dynamic X11.\"" >&2;}
     fi
 fi
 

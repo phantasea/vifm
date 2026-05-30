@@ -418,6 +418,35 @@ AC_CHECK_LIB(m, pow, [LIBS="$LIBS -lm"])
 dnl Enable POSIX shared memory
 AC_CHECK_LIB(rt, shm_open, [LIBS="$LIBS -lrt"])
 
+dnl Used for Lua's loadable C modules, not failing when not present because its
+dnl existence depends on an operating system
+AC_CHECK_LIB(dl, dlopen, [LIBS="$LIBS -ldl"])
+export_some_opt=
+AX_CHECK_LINK_FLAG([-Wl,--export-dynamic-symbol=lua_*],
+                   [export_some_opt=-Wl,--export-dynamic-symbol=])
+if test -n "$OSX_HOST" && test -z "$export_some_opt"; then
+    # Not sure if underscore prefix is needed only on OS X and whether any other
+    # linker may accept `-exported_symbol` parameter, but assuming this is
+    # specific to OS X.
+    AX_CHECK_LINK_FLAG([-Wl,-exported_symbol -Wl,_lua_*],
+                       [export_some_opt='-Wl,-exported_symbol -Wl,_'])
+fi
+if test -n "$export_some_opt"; then
+    dnl When supported, whitelist symbols to be exported by the executable
+    LDFLAGS="$LDFLAGS ${export_some_opt}lua_* ${export_some_opt}luaL_*"
+else
+    export_all_opt=
+    AX_CHECK_LINK_FLAG([-Wl,-E], [export_all_opt=-Wl,-E])
+    if test -n "$OSX_HOST" && test -z "$export_all_opt"; then
+        AX_CHECK_LINK_FLAG([-Wl,-export_dynamic],
+                           [export_all_opt=-Wl,-export_dynamic])
+    fi
+    if test -z "$export_all_opt"; then
+        AC_MSG_ERROR([Linker doesn't support -E flag or an equivalent.])
+    fi
+    LDFLAGS="$LDFLAGS $export_all_opt"
+fi
+
 dnl Use pthread library
 AX_PTHREAD([
              LIBS="$PTHREAD_LIBS $LIBS"
@@ -490,7 +519,6 @@ if test "x$ncurses_found" != "xyes"; then
         AC_MSG_ERROR([libncursesw and libncurses not found])
     fi
 fi
-LIBS=$LIBS $GUI_LINK_OPTS_TERM
 
 dnl Check for curses.h header and all its required elements.
 AC_CHECK_HEADER([curses.h], [], [AC_MSG_ERROR([curses.h header not found.])])
@@ -786,20 +814,16 @@ if test "$remote_cmds" = "yes"; then
 fi
 
 if test "$use_dyn_libX11" = "yes"; then
-    ORIG_LIBS="$LIBS"
-    AC_CHECK_LIB(dl, dlopen,
-                 [
-                 use_dyn_libX11=yes
-                 LIBS="$LIBS -ldl"
-                 ], [use_dyn_libX11=no])
+    if test "$ac_cv_lib_dl_dlopen" != yes; then
+        use_dyn_libX11=no
+    fi
 
     AC_CHECK_HEADER([dlfcn.h], [], [use_dyn_libX11=no])
     AC_CHECK_FUNC([dlsym], [], [use_dyn_libX11=no])
     AC_CHECK_FUNC([dlclose], [], [use_dyn_libX11=no])
 
     if test "$use_dyn_libX11" != "yes"; then
-        LIBS="$ORIG_LIBS"
-        AC_MSG_WARN(["libdl seems to don't work as expected.  No dynamic X11."])
+        AC_MSG_WARN(["libdl seems to not work as expected.  No dynamic X11."])
     fi
 fi
 
