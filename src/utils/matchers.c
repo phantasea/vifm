@@ -98,9 +98,10 @@ matchers_alloc(const char list[], int cs_by_def, int glob_by_def,
 		return NULL;
 	}
 
+	const MatcherExpr expr_kind = (glob_by_def ? ME_DEF_GLOB : ME_DEF_REGEX);
 	for(i = 0; i < nexprs; ++i)
 	{
-		matchers->list[i] = matcher_alloc(exprs[i], cs_by_def, glob_by_def,
+		matchers->list[i] = matcher_alloc(exprs[i], cs_by_def, expr_kind,
 				on_empty_re, error);
 		if(matchers->list[i] == NULL)
 		{

@@ -286,7 +286,8 @@ replace_matcher(matcher_t **matcher, const char expr[])
 	char *error;
 
 	matcher_free(*matcher);
-	*matcher = matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, 0, "", &error);
+	*matcher =
+		matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, "", &error);
 	free(error);
 }
 

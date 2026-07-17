@@ -22,7 +22,7 @@ TEST(empty_matcher_can_be_created)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("", 0, 0, "", &error));
+	assert_non_null(m = matcher_alloc("", 0, ME_DEF_REGEX, "", &error));
 	assert_true(matcher_is_empty(m));
 
 	assert_false(matcher_matches(m, ""));
@@ -34,7 +34,7 @@ TEST(empty_matcher_can_be_created)
 TEST(empty_matcher_matches_nothing_can_be_created)
 {
 	char *error;
-	matcher_t *m = matcher_alloc("", 0, 0, "", &error);
+	matcher_t *m = matcher_alloc("", 0, ME_DEF_REGEX, "", &error);
 	assert_true(matcher_is_empty(m));
 	assert_string_equal(NULL, error);
 
@@ -46,7 +46,7 @@ TEST(glob)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("{*.ext}", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("{*.ext}", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	check_glob(m);
@@ -59,7 +59,7 @@ TEST(regexp)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("/^x*$/", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("/^x*$/", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	check_regexp(m);
@@ -72,7 +72,7 @@ TEST(defaulted_glob)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("*.ext", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("*.ext", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	check_glob(m);
@@ -85,7 +85,7 @@ TEST(defaulted_regexp)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("^x*$", 0, 0, "", &error));
+	assert_non_null(m = matcher_alloc("^x*$", 0, ME_DEF_REGEX, "", &error));
 	assert_null(error);
 
 	check_regexp(m);
@@ -96,9 +96,8 @@ TEST(defaulted_regexp)
 TEST(full_path_glob)
 {
 	char *error;
-	matcher_t *m;
-
-	assert_non_null(m = matcher_alloc("{{/tmp/[^/].ext}}", 0, 1, "", &error));
+	matcher_t *m = matcher_alloc("{{/tmp/[^/].ext}}", 0, ME_DEF_GLOB, "", &error);
+	assert_non_null(m);
 	assert_null(error);
 
 	assert_true(matcher_matches(m, "/tmp/a.ext"));
@@ -115,10 +114,9 @@ TEST(full_path_glob)
 TEST(full_path_regexp)
 {
 	char *error;
-	matcher_t *m;
-
-	assert_non_null(m = matcher_alloc("//^/tmp/[^/]+\\.ext$//", 0, 1, "",
-				&error));
+	matcher_t *m =
+		matcher_alloc("//^/tmp/[^/]+\\.ext$//", 0, ME_DEF_GLOB, "", &error);
+	assert_non_null(m);
 	assert_null(error);
 
 	assert_true(matcher_matches(m, "/tmp/a.ext"));
@@ -137,38 +135,39 @@ TEST(matcher_negation)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("!{*.ext}", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("!{*.ext}", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "file.ext2"));
 	assert_false(matcher_matches(m, "name.ext"));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("!/^x*$/", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("!/^x*$/", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "axxxxx"));
 	assert_false(matcher_matches(m, "xxxxx"));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("!*.ext", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("!*.ext", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "!abc.ext"));
 	assert_false(matcher_matches(m, "!abc.ext2"));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("!x*$", 0, 0, "", &error));
+	assert_non_null(m = matcher_alloc("!x*$", 0, ME_DEF_REGEX, "", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "a!xx"));
 	assert_false(matcher_matches(m, "xx"));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("!{{/tmp/[^/].ext}}", 0, 1, "", &error));
+	m = matcher_alloc("!{{/tmp/[^/].ext}}", 0, ME_DEF_GLOB, "", &error);
+	assert_non_null(m);
 	assert_null(error);
 	assert_true(matcher_matches(m, "/tmp/a.ext1"));
 	assert_false(matcher_matches(m, "/tmp/a.ext"));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("!//^/tmp/[^/]+\\.ext$//", 0, 1, "",
-				&error));
+	m = matcher_alloc("!//^/tmp/[^/]+\\.ext$//", 0, ME_DEF_GLOB, "", &error);
+	assert_non_null(m);
 	assert_null(error);
 	assert_true(matcher_matches(m, "/bin/ab.ext"));
 	assert_false(matcher_matches(m, "/tmp/ab.ext"));
@@ -180,7 +179,7 @@ TEST(empty_regexp)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("", 0, 0, ".*\\.ext", &error));
+	assert_non_null(m = matcher_alloc("", 0, ME_DEF_REGEX, ".*\\.ext", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "/tmp/a.ext"));
 	assert_false(matcher_matches(m, "/tmp/a.axt"));
@@ -188,7 +187,7 @@ TEST(empty_regexp)
 	assert_string_equal(".*\\.ext", matcher_get_undec(m));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("//", 0, 1, ".*\\.ext", &error));
+	assert_non_null(m = matcher_alloc("//", 0, ME_DEF_GLOB, ".*\\.ext", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "/tmp/a.ext"));
 	assert_false(matcher_matches(m, "/tmp/a.axt"));
@@ -196,7 +195,7 @@ TEST(empty_regexp)
 	assert_string_equal(".*\\.ext", matcher_get_undec(m));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("//i", 0, 1, ".*\\.ext", &error));
+	assert_non_null(m = matcher_alloc("//i", 0, ME_DEF_GLOB, ".*\\.ext", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "/tmp/a.Ext"));
 	assert_false(matcher_matches(m, "/tmp/a.axt"));
@@ -204,7 +203,8 @@ TEST(empty_regexp)
 	assert_string_equal(".*\\.ext", matcher_get_undec(m));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("//Iii", 0, 1, ".*\\.ext", &error));
+	m = matcher_alloc("//Iii", 0, ME_DEF_GLOB, ".*\\.ext", &error);
+	assert_non_null(m);
 	assert_null(error);
 	assert_true(matcher_matches(m, "/tmp/a.Ext"));
 	assert_false(matcher_matches(m, "/tmp/a.axt"));
@@ -212,7 +212,8 @@ TEST(empty_regexp)
 	assert_string_equal(".*\\.ext", matcher_get_undec(m));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("////I", 0, 1, "tmp/.*\\.Ext", &error));
+	m = matcher_alloc("////I", 0, ME_DEF_GLOB, "tmp/.*\\.Ext", &error);
+	assert_non_null(m);
 	assert_null(error);
 	assert_true(matcher_matches(m, "/tmp/a.Ext"));
 	assert_false(matcher_matches(m, "/tmp/a.axt"));
@@ -226,7 +227,7 @@ TEST(wrong_regex_flag)
 	char *error;
 	matcher_t *m;
 
-	assert_null(m = matcher_alloc("/reg/x", 0, 1, ".*\\.ext", &error));
+	assert_null(m = matcher_alloc("/reg/x", 0, ME_DEF_GLOB, ".*\\.ext", &error));
 	assert_non_null(error);
 	free(error);
 }
@@ -236,7 +237,7 @@ TEST(expr_includes_itself)
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("*.c", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("*.c", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	assert_true(matcher_includes(m, m));
@@ -249,9 +250,9 @@ TEST(different_exprs_match_inclusion)
 	char *error;
 	matcher_t *m1, *m2;
 
-	assert_non_null(m1 = matcher_alloc("*.c", 0, 1, "", &error));
+	assert_non_null(m1 = matcher_alloc("*.c", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
-	assert_non_null(m2 = matcher_alloc("/.*\\.c/", 0, 1, "", &error));
+	assert_non_null(m2 = matcher_alloc("/.*\\.c/", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	assert_false(matcher_includes(m1, m2));
@@ -265,9 +266,9 @@ TEST(global_match_inclusion)
 	char *error;
 	matcher_t *m1, *m2;
 
-	assert_non_null(m1 = matcher_alloc("*.cpp,*.c", 0, 1, "", &error));
+	assert_non_null(m1 = matcher_alloc("*.cpp,*.c", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
-	assert_non_null(m2 = matcher_alloc("*.c", 0, 1, "", &error));
+	assert_non_null(m2 = matcher_alloc("*.c", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	assert_true(matcher_includes(m1, m2));
@@ -281,9 +282,9 @@ TEST(global_match_no_inclusion)
 	char *error;
 	matcher_t *m1, *m2;
 
-	assert_non_null(m1 = matcher_alloc("*.cpp,*.c", 0, 1, "", &error));
+	assert_non_null(m1 = matcher_alloc("*.cpp,*.c", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
-	assert_non_null(m2 = matcher_alloc("*.hpp", 0, 1, "", &error));
+	assert_non_null(m2 = matcher_alloc("*.hpp", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	assert_false(matcher_includes(m1, m2));
@@ -297,9 +298,9 @@ TEST(regex_inclusion_case_is_taken_into_account)
 	char *error;
 	matcher_t *m1, *m2;
 
-	assert_non_null(m1 = matcher_alloc("/a/I", 0, 1, "", &error));
+	assert_non_null(m1 = matcher_alloc("/a/I", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
-	assert_non_null(m2 = matcher_alloc("/A/I", 0, 1, "", &error));
+	assert_non_null(m2 = matcher_alloc("/A/I", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	assert_false(matcher_includes(m1, m2));
@@ -313,7 +314,7 @@ TEST(globs_are_cloned)
 	char *error;
 	matcher_t *m, *clone;
 
-	assert_non_null(m = matcher_alloc("{*.ext}", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("{*.ext}", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_non_null(clone = matcher_clone(m));
 
@@ -329,7 +330,7 @@ TEST(globs_are_case_insensitive)
 	char *error;
 	matcher_t *m, *clone;
 
-	assert_non_null(m = matcher_alloc("{*.ExT}", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("{*.ExT}", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_non_null(clone = matcher_clone(m));
 
@@ -345,7 +346,8 @@ TEST(fast_globs)
 	char *error;
 	matcher_t *m;
 
-	m = matcher_alloc("{*suffix,prefix*,mid*dle,literal}", 0, 1, "", &error);
+	m = matcher_alloc("{*suffix,prefix*,mid*dle,literal}", 0, ME_DEF_GLOB, "",
+			&error);
 	assert_true(matcher_is_fast(m));
 	assert_non_null(m);
 	assert_null(error);
@@ -353,15 +355,15 @@ TEST(fast_globs)
 	matcher_free(m);
 
 	/* Control against equivalent non-fast-globs. */
-	m = matcher_alloc("{*[s]uffix,[p]refix*,[m]id*dle,[l]iteral}", 0, 1, "",
-			&error);
+	m = matcher_alloc("{*[s]uffix,[p]refix*,[m]id*dle,[l]iteral}", 0, ME_DEF_GLOB,
+			"", &error);
 	assert_false(matcher_is_fast(m));
 	assert_non_null(m);
 	assert_null(error);
 	check_fast_globs(m);
 	matcher_free(m);
 
-	m = matcher_alloc("{mid\\*dle}", 0, 1, "", &error);
+	m = matcher_alloc("{mid\\*dle}", 0, ME_DEF_GLOB, "", &error);
 	assert_true(matcher_is_fast(m));
 	assert_true(matcher_matches(m, "mid*dle"));
 	assert_false(matcher_matches(m, "middle"));
@@ -373,7 +375,7 @@ TEST(regexps_are_cloned)
 	char *error;
 	matcher_t *m, *clone;
 
-	assert_non_null(m = matcher_alloc("/^x*$/", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("/^x*$/", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_non_null(clone = matcher_clone(m));
 
@@ -387,9 +389,8 @@ TEST(regexps_are_cloned)
 TEST(comma_escaping)
 {
 	char *error;
-	matcher_t *m;
-
-	assert_non_null(m = matcher_alloc("{a,,b,*.ext,c,,d}", 0, 1, "", &error));
+	matcher_t *m = matcher_alloc("{a,,b,*.ext,c,,d}", 0, ME_DEF_GLOB, "", &error);
+	assert_non_null(m);
 	assert_null(error);
 
 	check_glob(m);
@@ -430,13 +431,14 @@ TEST(mime_type_pattern, IF(has_mime_type_detection))
 	char *error;
 	matcher_t *m;
 
-	assert_non_null(m = matcher_alloc("<text/plain>", 0, 1, "", &error));
+	m = matcher_alloc("<text/plain>", 0, ME_DEF_GLOB, "", &error);
+	assert_non_null(m);
 	assert_null(error);
 	assert_true(matcher_matches(m, TEST_DATA_PATH "/read/dos-line-endings"));
 	assert_false(matcher_matches(m, TEST_DATA_PATH "/read/binary-data"));
 	matcher_free(m);
 
-	assert_non_null(m = matcher_alloc("<text/*>", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("<text/*>", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, TEST_DATA_PATH "/read/dos-line-endings"));
 	assert_false(matcher_matches(m, TEST_DATA_PATH "/read/binary-data"));
@@ -448,11 +450,11 @@ TEST(mime_type_inclusion, IF(has_mime_type_detection))
 	char *error;
 	matcher_t *m, *m1, *m2;
 
-	assert_non_null(m = matcher_alloc("<a/b,c/Dd>", 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc("<a/b,c/Dd>", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
-	assert_non_null(m1 = matcher_alloc("<c/dd>", 0, 1, "", &error));
+	assert_non_null(m1 = matcher_alloc("<c/dd>", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
-	assert_non_null(m2 = matcher_alloc("<c/d>", 0, 1, "", &error));
+	assert_non_null(m2 = matcher_alloc("<c/d>", 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 
 	assert_true(matcher_includes(m, m));
@@ -475,7 +477,7 @@ TEST(mime_type_of_link_is_that_of_its_ultimate_target,
 
 	char *expr = format_str("<%s>", get_mimetype(SANDBOX_PATH, 0));
 
-	assert_non_null(m = matcher_alloc(expr, 0, 1, "", &error));
+	assert_non_null(m = matcher_alloc(expr, 0, ME_DEF_GLOB, "", &error));
 	assert_null(error);
 	assert_true(matcher_matches(m, "link"));
 	assert_true(matcher_matches(m, "link2"));
