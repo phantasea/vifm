@@ -89,6 +89,10 @@ void name_filters_restore(struct view_t *view);
 
 /* Local filter related functions. */
 
+/* Retrieves value of the local filter of the view.  Returns a pointer to the
+ * filter's internal state. */
+const char * local_filter_get(const struct view_t *view);
+
 /* Checks whether the view has an empty (unset) local filter.  Returns non-zero
  * if so, otherwise zero is returned. */
 int local_filter_is_empty(const struct view_t *view);

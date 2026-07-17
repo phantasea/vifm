@@ -2431,7 +2431,7 @@ cmd_ctrl_xxt(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_xequals(key_info_t key_info, keys_info_t *keys_info)
 {
-	paste_str(curr_view->local_filter.filter.raw, 0);
+	paste_str(local_filter_get(curr_view), /*allow_escaping=*/0);
 }
 
 /* Inserts root/extension of the name file into current cursor position. */

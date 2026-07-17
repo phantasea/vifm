@@ -4887,7 +4887,7 @@ sync_location(const char path[], int cv, int sync_cursor_pos, int sync_filters,
 		 * of files, hence no extra work). */
 		if(sync_filters)
 		{
-			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
+			local_filter_apply(other_view, local_filter_get(curr_view));
 		}
 
 		(void)flist_clone_tree(other_view, curr_view);
@@ -4897,7 +4897,7 @@ sync_location(const char path[], int cv, int sync_cursor_pos, int sync_filters,
 		flist_custom_clone(other_view, curr_view, 0);
 		if(sync_filters)
 		{
-			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
+			local_filter_apply(other_view, local_filter_get(curr_view));
 			replace_dir_entries(other_view, &other_view->custom.entries,
 					&other_view->custom.entry_count, other_view->dir_entry,
 					other_view->list_rows);
@@ -4910,7 +4910,7 @@ sync_location(const char path[], int cv, int sync_cursor_pos, int sync_filters,
 		 * of files, hence no extra work). */
 		if(sync_filters)
 		{
-			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
+			local_filter_apply(other_view, local_filter_get(curr_view));
 		}
 
 		(void)populate_dir_list(other_view, 0);
