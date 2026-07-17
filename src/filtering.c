@@ -386,6 +386,12 @@ filters_drop_temporaries(view_t *view, dir_entry_t entries[])
 }
 
 int
+local_filter_is_empty(const view_t *view)
+{
+	return filter_is_empty(&view->local_filter.filter);
+}
+
+int
 local_filter_set(view_t *view, const char filter[])
 {
 	int result;
@@ -476,7 +482,7 @@ load_unfiltered_list(view_t *view)
 static int
 list_is_incomplete(view_t *view)
 {
-	if(view->filtered > 0 && !filter_is_empty(&view->local_filter.filter))
+	if(view->filtered > 0 && !local_filter_is_empty(view))
 	{
 		return 1;
 	}
@@ -554,7 +560,7 @@ update_filtering_lists(view_t *view, int add, int clear)
 				}
 				continue;
 			}
-			else if(!filter_is_empty(&view->local_filter.filter))
+			else if(!local_filter_is_empty(view))
 			{
 				if(clear)
 				{
@@ -712,7 +718,7 @@ local_filter_update_view(view_t *view, int rel_pos)
 	if(pos >= 0)
 	{
 		if(pos == 0 && is_parent_dir(view->dir_entry[0].name) &&
-				view->list_rows > 1 && !filter_is_empty(&view->local_filter.filter))
+				view->list_rows > 1 && !local_filter_is_empty(view))
 		{
 			++pos;
 		}

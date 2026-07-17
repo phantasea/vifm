@@ -123,7 +123,7 @@ TEST(reloading_does_not_count_as_location_change)
 	assert_int_equal(5, lwin.list_rows);
 	validate_tree(&lwin);
 
-	assert_false(filter_is_empty(&lwin.local_filter.filter));
+	assert_false(local_filter_is_empty(&lwin));
 
 	cfg.cvoptions = 0;
 }

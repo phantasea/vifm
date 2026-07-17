@@ -220,7 +220,7 @@ TEST(local_filter_is_not_set)
 	compare_two_panes(CT_NAME, LT_ALL, CF_SHOW);
 
 	cmds_dispatch1("f", &lwin, CIT_FILTER_PATTERN);
-	assert_true(filter_is_empty(&lwin.local_filter.filter));
+	assert_true(local_filter_is_empty(&lwin));
 
 	modcline_enter(CLS_FILTER, lwin.local_filter.filter.raw);
 	assert_true(vle_mode_is(NORMAL_MODE));
