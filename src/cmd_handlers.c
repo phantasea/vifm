@@ -2962,7 +2962,7 @@ highlight_file(const cmd_info_t *cmd_info)
 
 	(void)extract_part(cmd_info->args, " \t", pattern);
 
-	matchers = matchers_alloc(pattern, 0, 1, "", &error);
+	matchers = matchers_alloc(pattern, pattern, 0, 1, "", &error);
 	if(matchers == NULL)
 	{
 		ui_sb_errf("Pattern error: %s", error);

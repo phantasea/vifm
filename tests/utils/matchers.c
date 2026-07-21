@@ -6,6 +6,8 @@
 #include "../../src/utils/matchers.h"
 #include "../../src/utils/string_array.h"
 
+static matchers_t * make_matchers(const char expr[], char **error);
+
 TEST(freeing_null_matchers_does_nothing)
 {
 	matchers_free(NULL);
@@ -23,7 +25,7 @@ TEST(empty_patterns_are_disallowed)
 TEST(wrong_expr_produces_error)
 {
 	char *error = NULL;
-	assert_null(matchers_alloc("/*/{?}", 0, 1, "", &error));
+	assert_null(make_matchers("/*/{?}", &error));
 	assert_non_null(error);
 	free(error);
 }
@@ -31,7 +33,7 @@ TEST(wrong_expr_produces_error)
 TEST(none_matchers_match)
 {
 	char *error = NULL;
-	matchers_t *const ms = matchers_alloc("{[a]}{?}", 0, 1, "", &error);
+	matchers_t *const ms = make_matchers("{[a]}{?}", &error);
 	assert_string_equal(NULL, error);
 	assert_false(matchers_match(ms, "xx"));
 	matchers_free(ms);
@@ -40,7 +42,7 @@ TEST(none_matchers_match)
 TEST(only_first_matches)
 {
 	char *error = NULL;
-	matchers_t *const ms = matchers_alloc("{ab}{?}", 0, 1, "", &error);
+	matchers_t *const ms = make_matchers("{ab}{?}", &error);
 	assert_string_equal(NULL, error);
 	assert_false(matchers_match(ms, "ab"));
 	matchers_free(ms);
@@ -49,7 +51,7 @@ TEST(only_first_matches)
 TEST(only_second_matches)
 {
 	char *error = NULL;
-	matchers_t *const ms = matchers_alloc("{ab}{?}", 0, 1, "", &error);
+	matchers_t *const ms = make_matchers("{ab}{?}", &error);
 	assert_string_equal(NULL, error);
 	assert_false(matchers_match(ms, "a"));
 	matchers_free(ms);
@@ -58,18 +60,20 @@ TEST(only_second_matches)
 TEST(both_matchers_match)
 {
 	char *error = NULL;
-	matchers_t *const ms = matchers_alloc("{[a]}{?}", 0, 1, "", &error);
+	matchers_t *const ms = make_matchers("{[a]}{?}", &error);
 	assert_string_equal(NULL, error);
 	assert_true(matchers_match(ms, "a"));
 	matchers_free(ms);
 }
 
-TEST(get_expr_returns_original_expr)
+TEST(get_expr_returns_expr)
 {
 	char *error = NULL;
-	matchers_t *const ms = matchers_alloc("{[a]}{?}", 0, 1, "", &error);
+	matchers_t *const ms = matchers_alloc("pretty", "{[a]}{?}", /*cs_by_def=*/0,
+			/*glob_by_def=*/1, /*on_empty_re=*/"", &error);
+
 	assert_string_equal(NULL, error);
-	assert_string_equal("{[a]}{?}", matchers_get_expr(ms));
+	assert_string_equal("pretty", matchers_get_expr(ms));
 	matchers_free(ms);
 }
 
@@ -211,7 +215,7 @@ TEST(matchers_are_cloned)
 	char *error = NULL;
 	matchers_t *ms, *clone;
 
-	assert_non_null(ms = matchers_alloc("{*.ext}/.*/", 0, 1, "", &error));
+	assert_non_null(ms = make_matchers("{*.ext}/.*/", &error));
 	assert_null(error);
 
 	assert_non_null(clone = matchers_clone(ms));
@@ -230,10 +234,9 @@ TEST(inclusion_check_works)
 	char *error = NULL;
 	matchers_t *ms1, *ms2;
 
-	assert_non_null(
-			ms1 = matchers_alloc("<*.cpp,*.c><*.cpp,*.d>", 0, 1, "", &error));
+	assert_non_null(ms1 = make_matchers("<*.cpp,*.c><*.cpp,*.d>", &error));
 	assert_null(error);
-	assert_non_null(ms2 = matchers_alloc("<*.c><*.cpp>", 0, 1, "", &error));
+	assert_non_null(ms2 = make_matchers("<*.c><*.cpp>", &error));
 	assert_null(error);
 
 	assert_true(matchers_includes(ms1, ms1));
@@ -257,6 +260,13 @@ TEST(breaking_list_of_lists)
 		assert_string_equal("{{x,,y}}", matchers[3]);
 	}
 	free_string_array(matchers, nmatchers);
+}
+
+static matchers_t *
+make_matchers(const char expr[], char **error)
+{
+	return matchers_alloc(expr, expr, /*cs_by_def=*/0, /*glob_by_def=*/1,
+			/*on_empty_re=*/"", error);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

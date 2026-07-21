@@ -78,11 +78,11 @@ static void load_token(parsing_state_t *state, int single_char);
 static int get_token_width(TokenType tok);
 
 matchers_t *
-matchers_alloc(const char expr[], int cs_by_def, int glob_by_def,
-		const char on_empty_re[], char **error)
+matchers_alloc(const char expr[], const char list[], int cs_by_def,
+		int glob_by_def, const char on_empty_re[], char **error)
 {
 	int nsubs;
-	char **subs = break_into_matchers(expr, &nsubs, /*is_list=*/0);
+	char **subs = break_into_matchers(list, &nsubs, /*is_list=*/0);
 
 	MatcherExpr expr_kind = (glob_by_def ? ME_DEF_GLOB : ME_DEF_REGEX);
 	matchers_t *matchers = matchers_init(expr, subs, nsubs, cs_by_def,
