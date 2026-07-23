@@ -426,6 +426,37 @@ TEST(empty_forced_glob_matcher_matches_nothing)
 	matcher_free(m);
 }
 
+TEST(regex_only_matcher)
+{
+	char *error;
+	matcher_t *m;
+
+	/* Interprets input as a regular expression. */
+	assert_non_null(m = matcher_alloc("<txt.*>", 0, ME_ONLY_REGEX, "", &error));
+	assert_true(matcher_matches(m, "<txt>"));
+	assert_true(matcher_matches(m, "prefix<txt>suffix"));
+	matcher_free(m);
+}
+
+TEST(glob_only_matcher)
+{
+	char *error;
+	matcher_t *m;
+
+	/* Interprets input as a glob. */
+	assert_non_null(m = matcher_alloc("<txt*>", 0, ME_ONLY_GLOB, "", &error));
+	assert_false(matcher_matches(m, "prefix<txt>suffix"));
+	assert_true(matcher_matches(m, "<txt>"));
+	assert_true(matcher_matches(m, "<txt.ext>"));
+	matcher_free(m);
+
+	/* Accepts empty input. */
+	assert_non_null(m = matcher_alloc("", 0, ME_ONLY_GLOB, "", &error));
+	assert_true(matcher_is_empty(m));
+	assert_false(matcher_matches(m, ""));
+	matcher_free(m);
+}
+
 TEST(mime_type_pattern, IF(has_mime_type_detection))
 {
 	char *error;

@@ -28,8 +28,10 @@
 
 /* Specifies how to interpret a matcher expression. */
 typedef enum {
-	ME_DEF_REGEX, /* Handle undecorated form as a regular expression. */
-	ME_DEF_GLOB,  /* Handle undecorated form as a glob. */
+	ME_DEF_REGEX,  /* Handle undecorated form as a regular expression. */
+	ME_DEF_GLOB,   /* Handle undecorated form as a glob. */
+	ME_ONLY_REGEX, /* Assume a regular expression. */
+	ME_ONLY_GLOB,  /* Assume a glob and allow it to be empty. */
 } MatcherExpr;
 
 /* Opaque matcher type. */
@@ -43,8 +45,8 @@ matcher_t * matcher_alloc(const char expr[], int cs_by_def,
 		MatcherExpr expr_kind, const char on_empty_re[], char **error);
 
 /* Creates a glob matcher not processing any decorations.  Expression is either
- * an empty string (matches nothing, not allowed by matcher_alloc()) or a
- * comma-separated list of globs.  Works as matcher_alloc() otherwise. */
+ * an empty string (matches nothing) or a comma-separated list of globs.  Works
+ * as matcher_alloc() otherwise. */
 matcher_t * matcher_alloc_glob(const char expr[], char **error);
 
 /* Makes a copy of an existing matcher.  Returns the clone, or NULL on error. */

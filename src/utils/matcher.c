@@ -80,12 +80,21 @@ matcher_alloc(const char expr[], int cs_by_def, MatcherExpr expr_kind,
 		const char on_empty_re[], char **error)
 {
 	const char *orig_expr = expr;
-	const int negated = is_negated(&expr);
-	const int re = is_re_expr(expr, 1), glob = is_globs_expr(expr);
-	int strip;
-	const int full_path = is_full_path(expr, re, glob, &strip);
+	const int plain = (expr_kind == ME_ONLY_REGEX || expr_kind == ME_ONLY_GLOB);
+	const int negated = (!plain && is_negated(&expr));
+	const int re = (expr_kind == ME_ONLY_REGEX || is_re_expr(expr, 1));
+	const int glob = (expr_kind == ME_ONLY_GLOB || is_globs_expr(expr));
+
+	int strip = 0;
+	const int full_path = (!plain && is_full_path(expr, re, glob, &strip));
 
 	MType type = determine_type(expr, re, glob, expr_kind == ME_DEF_GLOB, &strip);
+	if(expr_kind == ME_ONLY_GLOB && expr[0] == '\0')
+	{
+		/* Allow such glob matchers to be empty and not match anything. */
+		type = MT_REGEX;
+	}
+
 	matcher_t template = {
 		.type = type,
 		.raw = strdup(expr + strip),
@@ -100,21 +109,8 @@ matcher_alloc(const char expr[], int cs_by_def, MatcherExpr expr_kind,
 matcher_t *
 matcher_alloc_glob(const char expr[], char **error)
 {
-	matcher_t template = {
-		.type = MT_GLOBS,
-		.raw = strdup(expr),
-		.negated = 0,
-		.full_path = 0,
-	};
-
-	if(expr[0] == '\0')
-	{
-		/* Allow such glob matchers to be empty and not match anything. */
-		template.type = MT_REGEX;
-	}
-
-	return alloc_matcher(template, expr, /*cs_by_def=*/0, /*on_empty_re=*/"",
-			/*strip=*/0, error);
+	return matcher_alloc(expr, /*cs_by_def=*/0, ME_ONLY_GLOB, /*on_empty_re=*/"",
+			error);
 }
 
 /* Parses matcher expression and allocates a matcher based on a passed in
