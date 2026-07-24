@@ -58,7 +58,7 @@ TEST(sync_syncs_local_filter)
 
 	assert_success(cmds_dispatch("sync! location filters", curr_view,
 				CIT_COMMAND));
-	assert_string_equal("a", other_view->local_filter.filter.raw);
+	assert_string_equal("a", local_filter_get(other_view));
 }
 
 TEST(sync_syncs_filelist)
@@ -234,7 +234,7 @@ TEST(tree_syncing_applies_properties_of_destination_view)
 
 	assert_success(cmds_dispatch("sync! tree", curr_view, CIT_COMMAND));
 	assert_int_equal(2, other_view->list_rows);
-	assert_string_equal("", other_view->local_filter.filter.raw);
+	assert_string_equal("", local_filter_get(other_view));
 
 	assert_true(flist_custom_active(other_view));
 	curr_stats.load_stage = 2;
@@ -242,7 +242,7 @@ TEST(tree_syncing_applies_properties_of_destination_view)
 	curr_stats.load_stage = 0;
 
 	assert_int_equal(2, other_view->list_rows);
-	assert_string_equal("", other_view->local_filter.filter.raw);
+	assert_string_equal("", local_filter_get(other_view));
 
 	columns_teardown();
 }
@@ -354,7 +354,7 @@ TEST(sync_all_applies_filters_in_trees)
 	local_filter_apply(curr_view, "a");
 	assert_success(cmds_dispatch("sync! all", curr_view, CIT_COMMAND));
 
-	assert_string_equal("a", other_view->local_filter.filter.raw);
+	assert_string_equal("a", local_filter_get(other_view));
 
 	columns_teardown();
 	opt_handlers_teardown();

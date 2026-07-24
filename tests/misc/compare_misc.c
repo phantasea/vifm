@@ -10,7 +10,6 @@
 #include "../../src/modes/cmdline.h"
 #include "../../src/modes/modes.h"
 #include "../../src/ui/ui.h"
-#include "../../src/utils/filter.h"
 #include "../../src/utils/fs.h"
 #include "../../src/cmd_core.h"
 #include "../../src/compare.h"
@@ -220,9 +219,9 @@ TEST(local_filter_is_not_set)
 	compare_two_panes(CT_NAME, LT_ALL, CF_SHOW);
 
 	cmds_dispatch1("f", &lwin, CIT_FILTER_PATTERN);
-	assert_true(filter_is_empty(&lwin.local_filter.filter));
+	assert_true(local_filter_is_empty(&lwin));
 
-	modcline_enter(CLS_FILTER, lwin.local_filter.filter.raw);
+	modcline_enter(CLS_FILTER, local_filter_get(&lwin));
 	assert_true(vle_mode_is(NORMAL_MODE));
 }
 

@@ -269,7 +269,8 @@ view_setup(view_t *view)
 	view->column_count = 1;
 
 	assert_success(filter_init(&view->local_filter.filter, 1));
-	assert_non_null(view->manual_filter = matcher_alloc("", 0, 0, "", &error));
+	view->manual_filter = matcher_alloc("", 0, ME_DEF_REGEX, "", &error);
+	assert_non_null(view->manual_filter);
 	assert_success(filter_init(&view->auto_filter, 1));
 
 	strcpy(view->curr_dir, "/path");
@@ -646,7 +647,8 @@ replace_matcher(matcher_t **matcher, const char expr[])
 	char *error;
 
 	matcher_free(*matcher);
-	*matcher = matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, 0, "", &error);
+	*matcher =
+		matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, "", &error);
 	free(error);
 
 	return (*matcher == NULL);

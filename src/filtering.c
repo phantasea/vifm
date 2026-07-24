@@ -286,7 +286,8 @@ replace_matcher(matcher_t **matcher, const char expr[])
 	char *error;
 
 	matcher_free(*matcher);
-	*matcher = matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, 0, "", &error);
+	*matcher =
+		matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, "", &error);
 	free(error);
 }
 
@@ -384,6 +385,18 @@ filters_drop_temporaries(view_t *view, dir_entry_t entries[])
 	view->list_rows = list_size;
 }
 
+const char *
+local_filter_get(const view_t *view)
+{
+	return view->local_filter.filter.raw;
+}
+
+int
+local_filter_is_empty(const view_t *view)
+{
+	return filter_is_empty(&view->local_filter.filter);
+}
+
 int
 local_filter_set(view_t *view, const char filter[])
 {
@@ -435,7 +448,7 @@ load_unfiltered_list(view_t *view)
 
 	view->local_filter.in_progress = 1;
 
-	view->local_filter.saved = strdup(view->local_filter.filter.raw);
+	view->local_filter.saved = strdup(local_filter_get(view));
 
 	if(list_is_incomplete(view))
 	{
@@ -475,7 +488,7 @@ load_unfiltered_list(view_t *view)
 static int
 list_is_incomplete(view_t *view)
 {
-	if(view->filtered > 0 && !filter_is_empty(&view->local_filter.filter))
+	if(view->filtered > 0 && !local_filter_is_empty(view))
 	{
 		return 1;
 	}
@@ -553,7 +566,7 @@ update_filtering_lists(view_t *view, int add, int clear)
 				}
 				continue;
 			}
-			else if(!filter_is_empty(&view->local_filter.filter))
+			else if(!local_filter_is_empty(view))
 			{
 				if(clear)
 				{
@@ -711,7 +724,7 @@ local_filter_update_view(view_t *view, int rel_pos)
 	if(pos >= 0)
 	{
 		if(pos == 0 && is_parent_dir(view->dir_entry[0].name) &&
-				view->list_rows > 1 && !filter_is_empty(&view->local_filter.filter))
+				view->list_rows > 1 && !local_filter_is_empty(view))
 		{
 			++pos;
 		}
@@ -789,7 +802,7 @@ local_filter_accept(view_t *view, int update_history)
 
 	if(update_history)
 	{
-		hists_filter_save(view->local_filter.filter.raw);
+		hists_filter_save(local_filter_get(view));
 	}
 
 	/* Some of previously selected files could be filtered out, update number of
@@ -808,7 +821,7 @@ local_filter_apply(view_t *view, const char filter[])
 
 	int case_sensitive = !regexp_should_ignore_case(filter);
 	(void)filter_change(&view->local_filter.filter, filter, case_sensitive);
-	hists_filter_save(view->local_filter.filter.raw);
+	hists_filter_save(local_filter_get(view));
 
 	flist_custom_save(view);
 
@@ -849,7 +862,7 @@ local_filter_finish(view_t *view)
 void
 local_filter_remove(view_t *view)
 {
-	(void)replace_string(&view->local_filter.prev, view->local_filter.filter.raw);
+	(void)replace_string(&view->local_filter.prev, local_filter_get(view));
 	filter_clear(&view->local_filter.filter);
 	ui_view_schedule_reload(view);
 }

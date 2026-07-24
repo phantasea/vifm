@@ -1929,7 +1929,7 @@ str_to_classify(const char str[], char type_decs[FT_COUNT][2][9])
 		else if(expr != NULL)
 		{
 			char *error;
-			matchers_t *const ms = matchers_alloc(expr, 0, 1, "", &error);
+			matchers_t *const ms = matchers_alloc(expr, expr, 0, 1, "", &error);
 			if(ms == NULL)
 			{
 				vle_tb_append_linef(vle_err, "Wrong pattern (%s): %s", expr, error);

@@ -47,7 +47,7 @@ SETUP()
 	char *error;
 	matcher_free(curr_view->manual_filter);
 	assert_non_null(curr_view->manual_filter =
-			matcher_alloc("{filt}", 0, 0, "", &error));
+			matcher_alloc("{filt}", 0, ME_DEF_REGEX, "", &error));
 	assert_success(filter_set(&curr_view->auto_filter, "auto-filter"));
 	assert_success(filter_set(&curr_view->local_filter.filter, "local-filter"));
 

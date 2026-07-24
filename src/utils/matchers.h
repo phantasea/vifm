@@ -24,10 +24,14 @@
 /* Opaque matchers type. */
 typedef struct matchers_t matchers_t;
 
-/* Arguments and return value match matcher_alloc() except for first argument,
- * which is a list here. */
-matchers_t * matchers_alloc(const char list[], int cs_by_def, int glob_by_def,
-		const char on_empty_re[], char **error);
+/* Parses a conjunction (AND) of matcher expressions and allocates matchers.
+ * The expr parameter is what matchers_is_expr() will return, the list parameter
+ * is what gets parsed.  on_empty_re string is used if passed in regexp is
+ * empty.  Returns a new instance on success and sets *error to NULL, otherwise
+ * NULL is returned and *error is initialized with a newly allocated string
+ * describing the error. */
+matchers_t * matchers_alloc(const char expr[], const char list[], int cs_by_def,
+		int glob_by_def, const char on_empty_re[], char **error);
 
 /* Makes a copy of existing matchers.  Returns the clone, or NULL on error. */
 matchers_t * matchers_clone(const matchers_t *matchers);
@@ -43,7 +47,8 @@ int matchers_match(const matchers_t *matchers, const char path[]);
  * directories.  Returns non-zero if so, otherwise zero is returned. */
 int matchers_match_dir(const matchers_t *matchers, const char path[]);
 
-/* Retrieves original matcher expression.  Returns the expression. */
+/* Retrieves original matcher expression (may not exactly match the value, see
+ * matchers_alloc()).  Returns the expression. */
 const char * matchers_get_expr(const matchers_t *matchers);
 
 /* Checks whether matchers matches at least superset of what like is matching.

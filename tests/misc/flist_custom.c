@@ -385,7 +385,7 @@ TEST(custom_view_does_not_reset_local_state)
 		assert_int_equal(-SK_BY_TARGET, lwin.sort[0]);
 		setup_custom_view(&lwin, very);
 		assert_int_equal(very ? SK_NONE : -SK_BY_TARGET, lwin.sort[0]);
-		assert_false(filter_is_empty(&lwin.local_filter.filter));
+		assert_false(local_filter_is_empty(&lwin));
 
 		cdt.entry = &lwin.dir_entry[0];
 		cdt.line_hi_group = 1;
@@ -400,7 +400,7 @@ TEST(custom_view_does_not_reset_local_state)
 
 		/* Nor on leaving it. */
 		assert_int_equal(very ? -SK_BY_TARGET : -SK_BY_TYPE, lwin.sort[0]);
-		assert_false(filter_is_empty(&lwin.local_filter.filter));
+		assert_false(local_filter_is_empty(&lwin));
 
 		cdt.line_hi_group = 2;
 		columns_format_line(lwin.columns, &cdt, MAX_WIDTH);

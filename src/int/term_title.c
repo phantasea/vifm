@@ -179,10 +179,23 @@ ensure_initialized(void)
 		return;
 	}
 
-	title_state.kind = query_title_kind();
+	const char *term = env_get_def("TERM", "");
+	if(strcmp(term, "tmux") == 0 || starts_with_lit(term, "tmux-"))
+	{
+		/* tmux defines "tsl" and "fsl" in its terminfo entry, but they do not set
+		 * title of a tmux window or terminal's title.  Escape sequences used by
+		 * GNU Screen set title of tmux window and need to be set here before
+		 * query_title_kind() to have an effect. */
+		title_state.kind = TK_SCREEN;
+		apply_term_guess(title_state.kind);
+	}
 	if(title_state.kind == TK_ABSENT)
 	{
-		title_state.kind = title_kind_for_termenv(env_get_def("TERM", ""));
+		title_state.kind = query_title_kind();
+	}
+	if(title_state.kind == TK_ABSENT)
+	{
+		title_state.kind = title_kind_for_termenv(term);
 		apply_term_guess(title_state.kind);
 	}
 
@@ -260,8 +273,7 @@ title_kind_for_termenv(const char term[])
 		return TK_REGULAR;
 	}
 
-	if(strcmp(term, "screen") == 0 || starts_with_lit(term, "screen-") ||
-			strcmp(term, "tmux") == 0 || starts_with_lit(term, "tmux-"))
+	if(strcmp(term, "screen") == 0 || starts_with_lit(term, "screen-"))
 	{
 		return TK_SCREEN;
 	}
