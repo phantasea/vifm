@@ -252,6 +252,61 @@ matchers_includes(const matchers_t *matchers, const matchers_t *like)
 }
 
 int
+matchers_is_empty(const matchers_t *matchers)
+{
+	int i;
+	for(i = 0; i < matchers->count; ++i)
+	{
+		if(matcher_is_empty(matchers->list[i]))
+		{
+			/* An empty matcher makes conjunction match nothing, so we only need one
+			 * of these. */
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int
+matchers_ignore_case(const matchers_t *matchers)
+{
+	int yes = 0;
+	int no = 0;
+
+	int i;
+	for(i = 0; i < matchers->count; ++i)
+	{
+		if(matcher_ignores_case(matchers->list[i]))
+		{
+			yes = 1;
+		}
+		else
+		{
+			no = 1;
+		}
+	}
+
+	return (yes && no) ? -1 : yes;
+}
+
+int
+matchers_is_full_path(const matchers_t *matchers)
+{
+	int i;
+	for(i = 0; i < matchers->count; ++i)
+	{
+		if(matcher_is_full_path(matchers->list[i]))
+		{
+			/* Need to report whether full path should be passed.  If any matcher
+			 * needs it, then their conjunction needs it too.  Matchers that don't
+			 * need it will use only the last path component. */
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int
 matchers_is_expr(const char str[])
 {
 	parsing_state_t state = { .input = str, .tok = BEGIN };

@@ -55,6 +55,20 @@ const char * matchers_get_expr(const matchers_t *matchers);
  * Returns non-zero if so, otherwise zero is returned. */
 int matchers_includes(const matchers_t *matchers, const matchers_t *like);
 
+/* Checks whether at least one of the matchers is empty (resulting in the
+ * conjunction always evaluating to false).  Returns non-zero if so, otherwise
+ * zero is returned. */
+int matchers_is_empty(const matchers_t *matchers);
+
+/* Checks whether matchers are consistent with regard to ignoring case and how.
+ * Returns a positive number if case is consistently ignored, zero if it's
+ * consistently respected and a negative value on inconsistent matchers. */
+int matchers_ignore_case(const matchers_t *matchers);
+
+/* Checks whether any matcher is a full path matcher.  Returns non-zero if so,
+ * otherwise zero is returned. */
+int matchers_is_full_path(const matchers_t *matchers);
+
 /* Checks whether given string is a list of match expressions.  Returns non-zero
  * if so, otherwise zero is returned. */
 int matchers_is_expr(const char str[]);

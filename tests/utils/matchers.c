@@ -262,6 +262,66 @@ TEST(breaking_list_of_lists)
 	free_string_array(matchers, nmatchers);
 }
 
+TEST(how_matchers_are_checked_for_emptiness)
+{
+	matchers_t *ms;
+	char *error;
+
+	/* Empty. */
+	assert_non_null(ms = make_matchers("//", &error));
+	assert_true(matchers_is_empty(ms));
+	assert_null(error);
+	matchers_free(ms);
+
+	/* Non-empty. */
+	assert_non_null(ms = make_matchers("abc", &error));
+	assert_false(matchers_is_empty(ms));
+	assert_null(error);
+	matchers_free(ms);
+}
+
+TEST(how_matchers_ignore_case)
+{
+	matchers_t *ms;
+	char *error;
+
+	/* Case is consistently ignored. */
+	assert_non_null(ms = make_matchers("{*.ext}/.*/i", &error));
+	assert_true(matchers_ignore_case(ms) > 0);
+	assert_null(error);
+	matchers_free(ms);
+
+	/* Case is consistently respected. */
+	assert_non_null(ms = make_matchers("/abc/I/.*/I", &error));
+	assert_true(matchers_ignore_case(ms) == 0);
+	assert_null(error);
+	matchers_free(ms);
+
+	/* Case handling is mixed. */
+	assert_non_null(ms = make_matchers("/abc/i/.*/I", &error));
+	assert_true(matchers_ignore_case(ms) < 0);
+	assert_null(error);
+	matchers_free(ms);
+}
+
+TEST(how_matchers_need_full_path)
+{
+	matchers_t *ms;
+	char *error;
+
+	/* No full path matchers. */
+	assert_non_null(ms = make_matchers("{*.ext}/.*/i", &error));
+	assert_false(matchers_is_full_path(ms));
+	assert_null(error);
+	matchers_free(ms);
+
+	/* One full path matcher. */
+	assert_non_null(ms = make_matchers("/abc/I//.*//I", &error));
+	assert_true(matchers_is_full_path(ms));
+	assert_null(error);
+	matchers_free(ms);
+}
+
 static matchers_t *
 make_matchers(const char expr[], char **error)
 {
