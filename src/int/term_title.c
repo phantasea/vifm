@@ -179,10 +179,23 @@ ensure_initialized(void)
 		return;
 	}
 
-	title_state.kind = query_title_kind();
+	const char *term = env_get_def("TERM", "");
+	if(strcmp(term, "tmux") == 0 || starts_with_lit(term, "tmux-"))
+	{
+		/* tmux defines "tsl" and "fsl" in its terminfo entry, but they do not set
+		 * title of a tmux window or terminal's title.  Escape sequences used by
+		 * GNU Screen set title of tmux window and need to be set here before
+		 * query_title_kind() to have an effect. */
+		title_state.kind = TK_SCREEN;
+		apply_term_guess(title_state.kind);
+	}
 	if(title_state.kind == TK_ABSENT)
 	{
-		title_state.kind = title_kind_for_termenv(env_get_def("TERM", ""));
+		title_state.kind = query_title_kind();
+	}
+	if(title_state.kind == TK_ABSENT)
+	{
+		title_state.kind = title_kind_for_termenv(term);
 		apply_term_guess(title_state.kind);
 	}
 
@@ -394,12 +407,12 @@ set_terminal_title(const char path[])
 	SetConsoleTitleW(utf16);
 	free(utf16);
 #else
-	char *const fmt = (title_state.kind == TK_REGULAR)
-	                ? "\033]2;%.*s - VIFM\007"
-	                : "\033k%.*s - VIFM\033\134";
-	char *const title = format_str(fmt, MAX_TITLE_MSG_LEN, path);
+	char *const title = format_str("%.*s - VIFM", MAX_TITLE_MSG_LEN, path);
 
+	/* Apparently tsl can take column in some cases. */
+	putp(tgoto(title_state.tsl, 0, 0));
 	putp(title);
+	putp(title_state.fsl);
 	fflush(stdout);
 
 	free(title);

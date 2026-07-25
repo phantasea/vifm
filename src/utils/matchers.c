@@ -64,6 +64,9 @@ typedef struct
 }
 parsing_state_t;
 
+static matchers_t * matchers_init(const char expr[], char *subs[], int nsubs,
+		int cs_by_def, MatcherExpr expr_kind, const char on_empty_re[],
+		char **error);
 TSTATIC char ** break_into_matchers(const char concat[], int *count,
 		int is_list);
 static int find_patterns(parsing_state_t *state);
@@ -75,40 +78,57 @@ static void load_token(parsing_state_t *state, int single_char);
 static int get_token_width(TokenType tok);
 
 matchers_t *
-matchers_alloc(const char list[], int cs_by_def, int glob_by_def,
-		const char on_empty_re[], char **error)
+matchers_alloc(const char expr[], const char list[], int cs_by_def,
+		int glob_by_def, const char on_empty_re[], char **error)
 {
-	char **exprs;
-	int nexprs;
-	int i;
-
-	matchers_t *const matchers = malloc(sizeof(*matchers));
-
 	*error = NULL;
 
-	exprs = break_into_matchers(list, &nexprs, 0);
-	matchers->count = nexprs;
-	matchers->list = reallocarray(NULL, nexprs, sizeof(matcher_t *));
-	matchers->expr = strdup(list);
+	int nsubs;
+	char **subs = break_into_matchers(list, &nsubs, /*is_list=*/0);
+	if(subs == NULL)
+	{
+		return NULL;
+	}
+
+	MatcherExpr expr_kind = (glob_by_def ? ME_DEF_GLOB : ME_DEF_REGEX);
+	matchers_t *matchers = matchers_init(expr, subs, nsubs, cs_by_def,
+			expr_kind, on_empty_re, error);
+
+	free_string_array(subs, nsubs);
+
+	return matchers;
+}
+
+/* Allocates and initializes an instance of matchers.  Returns a newly
+ * allocated instance or NULL. */
+static matchers_t *
+matchers_init(const char expr[], char *subs[], int nsubs, int cs_by_def,
+		MatcherExpr expr_kind, const char on_empty_re[], char **error)
+{
+	*error = NULL;
+
+	matchers_t *const matchers = malloc(sizeof(*matchers));
+	matchers->count = nsubs;
+	matchers->list = reallocarray(NULL, nsubs, sizeof(*matchers->list));
+	matchers->expr = strdup(expr);
 	if(matchers->list == NULL || matchers->expr == NULL)
 	{
 		matchers->count = 0;
 		matchers_free(matchers);
-		free_string_array(exprs, nexprs);
 		return NULL;
 	}
 
-	for(i = 0; i < nexprs; ++i)
+	int i;
+	for(i = 0; i < nsubs; ++i)
 	{
-		matchers->list[i] = matcher_alloc(exprs[i], cs_by_def, glob_by_def,
+		matchers->list[i] = matcher_alloc(subs[i], cs_by_def, expr_kind,
 				on_empty_re, error);
 		if(matchers->list[i] == NULL)
 		{
-			char *const err = format_str("%s: %s", exprs[i], *error);
+			char *const err = format_str("%s: %s", subs[i], *error);
 
 			matchers->count = i;
 			matchers_free(matchers);
-			free_string_array(exprs, nexprs);
 
 			free(*error);
 			*error = err;
@@ -116,7 +136,6 @@ matchers_alloc(const char list[], int cs_by_def, int glob_by_def,
 		}
 	}
 
-	free_string_array(exprs, nexprs);
 	return matchers;
 }
 

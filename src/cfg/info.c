@@ -1303,14 +1303,16 @@ set_manual_filter(view_t *view, const char value[])
 	matcher_t *matcher;
 
 	(void)replace_string(&view->prev_manual_filter, value);
-	matcher = matcher_alloc(value, FILTER_DEF_CASE_SENSITIVITY, 0, "", &error);
+	matcher =
+		matcher_alloc(value, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, "", &error);
 	free(error);
 
 	/* If setting filter value has failed, try to setup an empty value instead. */
 	if(matcher == NULL)
 	{
 		(void)replace_string(&view->prev_manual_filter, "");
-		matcher = matcher_alloc("", FILTER_DEF_CASE_SENSITIVITY, 0, "", &error);
+		matcher =
+			matcher_alloc("", FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, "", &error);
 		free(error);
 		assert(matcher != NULL && "Can't init manual filter.");
 	}

@@ -2682,7 +2682,7 @@ set_view_filter(view_t *view, const char filter[], const char fallback[],
 {
 	char *error;
 	matcher_t *const matcher = matcher_alloc(filter, FILTER_DEF_CASE_SENSITIVITY,
-			0, fallback, &error);
+			ME_DEF_REGEX, fallback, &error);
 	if(matcher == NULL)
 	{
 		ui_sb_errf("Name filter not set: %s", error);
@@ -2983,7 +2983,7 @@ highlight_file(const cmd_info_t *cmd_info)
 
 	(void)extract_part(cmd_info->args, " \t", pattern);
 
-	matchers = matchers_alloc(pattern, 0, 1, "", &error);
+	matchers = matchers_alloc(pattern, pattern, 0, 1, "", &error);
 	if(matchers == NULL)
 	{
 		ui_sb_errf("Pattern error: %s", error);
@@ -4928,7 +4928,7 @@ sync_location(const char path[], int cv, int sync_cursor_pos, int sync_filters,
 		 * of files, hence no extra work). */
 		if(sync_filters)
 		{
-			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
+			local_filter_apply(other_view, local_filter_get(curr_view));
 		}
 
 		(void)flist_clone_tree(other_view, curr_view);
@@ -4938,7 +4938,7 @@ sync_location(const char path[], int cv, int sync_cursor_pos, int sync_filters,
 		flist_custom_clone(other_view, curr_view, 0);
 		if(sync_filters)
 		{
-			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
+			local_filter_apply(other_view, local_filter_get(curr_view));
 			replace_dir_entries(other_view, &other_view->custom.entries,
 					&other_view->custom.entry_count, other_view->dir_entry,
 					other_view->list_rows);
@@ -4951,7 +4951,7 @@ sync_location(const char path[], int cv, int sync_cursor_pos, int sync_filters,
 		 * of files, hence no extra work). */
 		if(sync_filters)
 		{
-			local_filter_apply(other_view, curr_view->local_filter.filter.raw);
+			local_filter_apply(other_view, local_filter_get(curr_view));
 		}
 
 		(void)populate_dir_list(other_view, 0);

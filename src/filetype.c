@@ -1055,7 +1055,7 @@ ft_mg_from_string(const char str[], matchers_group_t *mg, char **error)
 	for(i = 0; i < nexprs; ++i, ++result.count)
 	{
 		char *matcher_error;
-		result.list[i] = matchers_alloc(exprs[i], /*cs_by_def=*/0,
+		result.list[i] = matchers_alloc(exprs[i], exprs[i], /*cs_by_def=*/0,
 				/*glob_by_def=*/1, /*on_empty_re=*/"", &matcher_error);
 		if(result.list[i] == NULL)
 		{

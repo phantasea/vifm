@@ -20,6 +20,7 @@
 #include "../../src/cmd_core.h"
 #include "../../src/event_loop.h"
 #include "../../src/filelist.h"
+#include "../../src/filtering.h"
 #include "../../src/flist_hist.h"
 #include "../../src/status.h"
 
@@ -187,12 +188,12 @@ TEST(each_filtering_prompt_gets_clean_state)
 	 * prompt. */
 
 	(void)vle_keys_exec_timed_out(L"=a");
-	assert_string_equal("a", curr_view->local_filter.filter.raw);
+	assert_string_equal("a", local_filter_get(curr_view));
 	(void)vle_keys_exec_timed_out(WK_ESC);
-	assert_string_equal("", curr_view->local_filter.filter.raw);
+	assert_string_equal("", local_filter_get(curr_view));
 
 	(void)vle_keys_exec_timed_out(L"=a");
-	assert_string_equal("a", curr_view->local_filter.filter.raw);
+	assert_string_equal("a", local_filter_get(curr_view));
 	(void)vle_keys_exec_timed_out(WK_ESC);
 
 	conf_teardown();
@@ -390,7 +391,7 @@ TEST(normal_in_autocmd_does_not_break_filter_navigation)
 	populate_dir_list(curr_view, /*reload=*/0);
 
 	(void)vle_keys_exec_timed_out(L"=" WK_C_y WK_C_m);
-	assert_string_equal("", curr_view->local_filter.filter.raw);
+	assert_string_equal("", local_filter_get(curr_view));
 
 	assert_success(cmds_dispatch1("autocmd!", curr_view, CIT_COMMAND));
 	wait_for_bg();

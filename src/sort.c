@@ -173,7 +173,7 @@ sort_view(view_t *v)
 	/* When local filter isn't empty, parent directories disappear and sorting
 	 * stops being aware of tree structure to some degree.  Perform one more round
 	 * of stable sorting of origins to group child nodes. */
-	if(!filter_is_empty(&v->local_filter.filter))
+	if(!local_filter_is_empty(v))
 	{
 		flist_custom_uncompress_tree(v);
 	}
@@ -202,7 +202,7 @@ sort_view(view_t *v)
 	/* Done with linking data by now. */
 	cleanup_linking();
 
-	if(filter_is_empty(&v->local_filter.filter))
+	if(local_filter_is_empty(v))
 	{
 		dynarray_free(unsorted_list);
 	}

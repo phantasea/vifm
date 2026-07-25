@@ -15,6 +15,7 @@
 #include "../../src/ui/ui.h"
 #include "../../src/cmd_core.h"
 #include "../../src/filelist.h"
+#include "../../src/filtering.h"
 #include "../../src/status.h"
 
 static line_stats_t *stats;
@@ -84,9 +85,9 @@ TEST(lfilter_hist_does_not_split_at_bar)
 	hists_filter_save("a|b");
 	assert_success(show_filterhistory_menu(&lwin));
 
-	assert_string_equal("", lwin.local_filter.filter.raw);
+	assert_string_equal("", local_filter_get(&lwin));
 	(void)vle_keys_exec(WK_CR);
-	assert_string_equal("a|b", lwin.local_filter.filter.raw);
+	assert_string_equal("a|b", local_filter_get(&lwin));
 }
 
 TEST(menu_commands_hist_runs_on_enter)

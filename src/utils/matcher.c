@@ -76,7 +76,7 @@ static int is_mime_expr(const char expr[]);
 TSTATIC int matcher_is_fast(const matcher_t *matcher);
 
 matcher_t *
-matcher_alloc(const char expr[], int cs_by_def, int glob_by_def,
+matcher_alloc(const char expr[], int cs_by_def, MatcherExpr expr_kind,
 		const char on_empty_re[], char **error)
 {
 	const char *orig_expr = expr;
@@ -85,7 +85,7 @@ matcher_alloc(const char expr[], int cs_by_def, int glob_by_def,
 	int strip;
 	const int full_path = is_full_path(expr, re, glob, &strip);
 
-	MType type = determine_type(expr, re, glob, glob_by_def, &strip);
+	MType type = determine_type(expr, re, glob, expr_kind == ME_DEF_GLOB, &strip);
 	matcher_t template = {
 		.type = type,
 		.raw = strdup(expr + strip),

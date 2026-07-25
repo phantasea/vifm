@@ -4568,7 +4568,7 @@ add_directory_leaf(view_t *view, const char path[], int parent_pos)
 
 	/* If local filter isn't empty, assume that user is looking for something and
 	 * leafs will get in his way. */
-	if(!filter_is_empty(&view->local_filter.filter))
+	if(!local_filter_is_empty(view))
 	{
 		return 0;
 	}

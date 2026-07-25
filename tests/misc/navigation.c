@@ -71,7 +71,7 @@ TEST(local_filter_is_reset_in_cv_to_follow_mark)
 	assert_success(marks_goto(&lwin, 'a'));
 
 	assert_true(flist_custom_active(&lwin));
-	assert_true(filter_is_empty(&lwin.local_filter.filter));
+	assert_true(local_filter_is_empty(&lwin));
 }
 
 TEST(following_resets_cv)

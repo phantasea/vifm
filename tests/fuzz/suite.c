@@ -255,19 +255,19 @@ fuzz_matchers(const char input[])
 
 	matchers_t *ms;
 
-	ms = matchers_alloc(input, 0, 0, "", &error);
+	ms = matchers_alloc(input, input, 0, 0, "", &error);
 	free(error);
 	matchers_free(ms);
 
-	ms = matchers_alloc(input, 0, 1, "", &error);
+	ms = matchers_alloc(input, input, 0, 1, "", &error);
 	free(error);
 	matchers_free(ms);
 
-	ms = matchers_alloc(input, 1, 0, "", &error);
+	ms = matchers_alloc(input, input, 1, 0, "", &error);
 	free(error);
 	matchers_free(ms);
 
-	ms = matchers_alloc(input, 1, 1, "", &error);
+	ms = matchers_alloc(input, input, 1, 1, "", &error);
 	free(error);
 	matchers_free(ms);
 

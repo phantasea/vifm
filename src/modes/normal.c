@@ -1534,7 +1534,7 @@ cmd_percent(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_equal(key_info_t key_info, keys_info_t *keys_info)
 {
-	modcline_enter(CLS_FILTER, curr_view->local_filter.filter.raw);
+	modcline_enter(CLS_FILTER, local_filter_get(curr_view));
 }
 
 /* Continues navigation to word which starts with specified character in
