@@ -105,8 +105,6 @@ static matchers_t *
 matchers_init(const char expr[], char *subs[], int nsubs, int cs_by_def,
 		MatcherExpr expr_kind, const char on_empty_re[], char **error)
 {
-	*error = NULL;
-
 	matchers_t *const matchers = malloc(sizeof(*matchers));
 	matchers->count = nsubs;
 	matchers->list = reallocarray(NULL, nsubs, sizeof(*matchers->list));
