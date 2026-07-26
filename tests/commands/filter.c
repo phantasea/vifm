@@ -55,10 +55,11 @@ TEST(filter_prints_non_empty_filters)
 #else
 	                       "Explicit    i        abc\n"
 #endif
-	                       "Implicit             ";
+	                       "Implicit    I        ^xyz$";
 
 	assert_success(cmds_dispatch("filter abc", &lwin, CIT_COMMAND));
 	local_filter_apply(&lwin, "local");
+	assert_success(filter_append(&lwin.auto_filter, "xyz"));
 
 	ui_sb_msg("");
 	assert_failure(cmds_dispatch("filter?", &lwin, CIT_COMMAND));

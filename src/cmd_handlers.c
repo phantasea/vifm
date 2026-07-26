@@ -2638,13 +2638,9 @@ get_matchers_info(const char name[], const matchers_t *matchers)
 static char *
 get_filter_info(const char name[], const filter_t *filter)
 {
-	const char *flags_str;
+	const char *flags_str = "";
 
-	if(filter_is_empty(filter))
-	{
-		flags_str = "";
-	}
-	else
+	if(!filter_is_empty(filter))
 	{
 		flags_str = (filter->cflags & REG_ICASE) ? "i" : "I";
 	}
