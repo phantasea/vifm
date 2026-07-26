@@ -284,11 +284,15 @@ static void
 replace_matcher(matcher_t **matcher, const char expr[])
 {
 	char *error;
-
-	matcher_free(*matcher);
-	*matcher =
+	matcher_t *new_matcher =
 		matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, "", &error);
 	free(error);
+
+	if(new_matcher != NULL)
+	{
+		matcher_free(*matcher);
+		*matcher = new_matcher;
+	}
 }
 
 void
