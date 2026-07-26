@@ -19,6 +19,7 @@
 #ifndef VIFM__UTILS__MATCHERS_H__
 #define VIFM__UTILS__MATCHERS_H__
 
+#include "matcher.h"
 #include "test_helpers.h"
 
 /* Opaque matchers type. */
@@ -32,6 +33,12 @@ typedef struct matchers_t matchers_t;
  * describing the error. */
 matchers_t * matchers_alloc(const char expr[], const char list[], int cs_by_def,
 		int glob_by_def, const char on_empty_re[], char **error);
+
+/* A version of matchers_alloc() that handles a single expression rather than a
+ * list.  Meant for maintaining compatibility where parsing a list won't produce
+ * the same result as a single expression. */
+matchers_t * matchers_alloc1(const char expr[], int cs_by_def,
+		MatcherExpr expr_kind, const char on_empty_re[], char **error);
 
 /* Makes a copy of existing matchers.  Returns the clone, or NULL on error. */
 matchers_t * matchers_clone(const matchers_t *matchers);

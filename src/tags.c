@@ -904,6 +904,7 @@ const char *tags[] = {
 	"vifm-m_zz",
 	"vifm-macros",
 	"vifm-mappings",
+	"vifm-match-expressions",
 	"vifm-menus-and-dialogs",
 	"vifm-menus-history",
 	"vifm-menus-index",

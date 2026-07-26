@@ -335,8 +335,8 @@ struct cv_data_t
 /* Various parameters related to local filter. */
 struct local_filter_t
 {
-	/* Local filename filter. */
-	filter_t filter;
+	/* Matchers used for filtering. */
+	struct matchers_t *matchers;
 	/* Whether interactive filtering in progress. */
 	int in_progress;
 	/* Removed value of local filename filter.  Stored for restore operation. */

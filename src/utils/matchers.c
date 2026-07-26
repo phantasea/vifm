@@ -23,6 +23,7 @@
 #include <string.h> /* strdup() */
 
 #include "../compat/reallocarray.h"
+#include "macros.h"
 #include "matcher.h"
 #include "str.h"
 #include "string_array.h"
@@ -97,6 +98,17 @@ matchers_alloc(const char expr[], const char list[], int cs_by_def,
 	free_string_array(subs, nsubs);
 
 	return matchers;
+}
+
+matchers_t *
+matchers_alloc1(const char expr[], int cs_by_def, MatcherExpr expr_kind,
+		const char on_empty_re[], char **error)
+{
+	*error = NULL;
+
+	char *subs[] = { (char *)expr };
+	return matchers_init(expr, subs, ARRAY_LEN(subs), cs_by_def, expr_kind,
+			on_empty_re, error);
 }
 
 /* Allocates and initializes an instance of matchers.  Returns a newly
