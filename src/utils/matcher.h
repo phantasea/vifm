@@ -64,6 +64,10 @@ int matcher_matches(const matcher_t *matcher, const char path[]);
  * returned. */
 int matcher_is_empty(const matcher_t *matcher);
 
+/* Checks whether matcher ignores case.  Returns non-zero if so, otherwise zero
+ * is returned. */
+int matcher_ignores_case(const matcher_t *matcher);
+
 /* Retrieves matcher expression exactly as it was specified on creation.
  * Returns the expression. */
 const char * matcher_get_expr(const matcher_t *matcher);

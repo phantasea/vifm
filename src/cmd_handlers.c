@@ -2634,7 +2634,12 @@ get_filter_info(const char name[], const filter_t *filter)
 static char *
 get_matcher_info(const char name[], const matcher_t *matcher)
 {
-	const char *const flags = matcher_is_empty(matcher) ? "" : "---->";
+	const char *flags = "";
+	if(!matcher_is_empty(matcher))
+	{
+		flags = matcher_ignores_case(matcher) ? "i" : "I";
+	}
+
 	const char *const value = matcher_get_expr(matcher);
 	return format_str("%-8s    %-5s    %s", name, flags, value);
 }

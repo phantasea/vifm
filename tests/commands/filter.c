@@ -50,7 +50,11 @@ TEST(filter_prints_non_empty_filters)
 {
 	const char *expected = "  Filter -- Flags -- Value\n"
 	                       "Local       I        local\n"
-	                       "Explicit    ---->    abc\n"
+#ifndef _WIN32
+	                       "Explicit    I        abc\n"
+#else
+	                       "Explicit    i        abc\n"
+#endif
 	                       "Implicit             ";
 
 	assert_success(cmds_dispatch("filter abc", &lwin, CIT_COMMAND));
@@ -65,7 +69,7 @@ TEST(filter_with_empty_value_reuses_last_search)
 {
 	const char *expected = "  Filter -- Flags -- Value\n"
 	                       "Local                \n"
-	                       "Explicit    ---->    /pattern/I\n"
+	                       "Explicit    I        /pattern/I\n"
 	                       "Implicit             ";
 
 	cfg_resize_histories(5);
@@ -87,7 +91,7 @@ TEST(filter_prints_whole_manual_filter_expression)
 {
 	const char *expected = "  Filter -- Flags -- Value\n"
 	                       "Local                \n"
-	                       "Explicit    ---->    /abc/i\n"
+	                       "Explicit    i        /abc/i\n"
 	                       "Implicit             ";
 
 	assert_success(cmds_dispatch("filter /abc/i", &lwin, CIT_COMMAND));

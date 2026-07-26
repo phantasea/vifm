@@ -457,6 +457,37 @@ TEST(glob_only_matcher)
 	matcher_free(m);
 }
 
+TEST(matcher_reports_case_state)
+{
+	char *error;
+	matcher_t *m;
+
+	/* Case-insensitive by default. */
+	assert_non_null(m = matcher_alloc("/a/", 0, ME_DEF_REGEX, "", &error));
+	assert_true(matcher_ignores_case(m));
+	matcher_free(m);
+
+	/* Case-sensitive by default. */
+	assert_non_null(m = matcher_alloc("/a/", 1, ME_DEF_REGEX, "", &error));
+	assert_false(matcher_ignores_case(m));
+	matcher_free(m);
+
+	/* Case-insensitive by choice. */
+	assert_non_null(m = matcher_alloc("/a/i", 1, ME_DEF_REGEX, "", &error));
+	assert_true(matcher_ignores_case(m));
+	matcher_free(m);
+
+	/* Case-sensitive by choice. */
+	assert_non_null(m = matcher_alloc("/a/I", 0, ME_DEF_REGEX, "", &error));
+	assert_false(matcher_ignores_case(m));
+	matcher_free(m);
+
+	/* Globs are always case-insensitive. */
+	assert_non_null(m = matcher_alloc("{*.ext}", 1, ME_DEF_REGEX, "", &error));
+	assert_true(matcher_ignores_case(m));
+	matcher_free(m);
+}
+
 TEST(mime_type_pattern, IF(has_mime_type_detection))
 {
 	char *error;

@@ -12,6 +12,9 @@
 	opened as before).  Thanks to David Sierra DiazGranados (a.k.a.
 	davidsierradz).
 
+	Changed output of `:filter?` to always state flags of the explicit filter
+	instead of referring to the value via `---->`.
+
 	Added <help> :*map argument that enables providing description for the
 	mapping with the same curly braces syntax as used by :file[x]type.
 

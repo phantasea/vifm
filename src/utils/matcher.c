@@ -511,6 +511,12 @@ matcher_is_empty(const matcher_t *matcher)
 	return (matcher->raw[0] == '\0');
 }
 
+int
+matcher_ignores_case(const matcher_t *matcher)
+{
+	return matcher->fglobs || (matcher->cflags & REG_ICASE);
+}
+
 const char *
 matcher_get_expr(const matcher_t *matcher)
 {
