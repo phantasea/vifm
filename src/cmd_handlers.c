@@ -2601,7 +2601,11 @@ display_filters_info(const view_t *view)
 	char *const manualf = get_matcher_info("Explicit", view->manual_filter);
 	char *const autof = get_filter_info("Implicit", &view->auto_filter);
 
-	ui_sb_msgf("  Filter -- Flags -- Value\n%s\n%s\n%s", localf, manualf, autof);
+	if(localf != NULL && manualf != NULL && autof != NULL)
+	{
+		ui_sb_msgf("  Filter -- Flags -- Value\n%s\n%s\n%s", localf, manualf,
+				autof);
+	}
 
 	free(localf);
 	free(manualf);
