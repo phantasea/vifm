@@ -550,14 +550,9 @@ update_filtering_lists(view_t *view, int add, int clear)
 
 	for(i = 0; i < view->local_filter.unfiltered_count; ++i)
 	{
-		/* FIXME: some very long file names won't be matched against some
-		 * regexps. */
-		char name_with_slash[NAME_MAX + 1 + 1];
-
 		dir_entry_t *const entry = &view->local_filter.unfiltered[i];
-		const char *name = entry->name;
 
-		if(is_parent_dir(name))
+		if(is_parent_dir(entry->name))
 		{
 			if(entry->child_pos == 0)
 			{
@@ -580,16 +575,10 @@ update_filtering_lists(view_t *view, int add, int clear)
 			}
 		}
 
-		if(fentry_is_dir(entry))
-		{
-			append_slash(name, name_with_slash, sizeof(name_with_slash));
-			name = name_with_slash;
-		}
-
 		/* tag links to position of nodes passed through filter in list of visible
 		 * files.  Nodes that didn't pass have -1. */
 		entry->tag = -1;
-		if(filter_matches(&view->local_filter.filter, name) != 0)
+		if(local_filter_matches(view, entry))
 		{
 			if(add)
 			{
