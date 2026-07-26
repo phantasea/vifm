@@ -972,5 +972,11 @@ load_plugins(struct plugs_t *plugs, const char cfg_dir[])
 	free_string_array(plugins_dirs.items, plugins_dirs.nitems);
 }
 
+void
+set_local_filter(view_t *view, const char expr[])
+{
+	assert_success(filter_set(&view->local_filter.filter, expr));
+}
+
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */
