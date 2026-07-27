@@ -256,6 +256,25 @@ TEST(cursor_is_not_moved_from_parent_dir_initially)
 	cfg.dot_dirs = 0;
 }
 
+TEST(remaining_parent_dir_not_matching_is_not_counted_by_local_filter)
+{
+	cfg.dot_dirs = DD_NONROOT_PARENT;
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "read",
+			cwd);
+	load_dir_list(&lwin, /*reload=*/0);
+
+	/* local_filter_set() returns 1 when everything is filtered, but parent dir is
+	 * an exception. */
+	assert_int_equal(1, local_filter_set(&lwin, "nothing matches this"));
+	local_filter_update_view(&lwin, 0);
+	assert_int_equal(1, lwin.list_rows);
+	assert_string_equal("..", lwin.dir_entry[0].name);
+	local_filter_cancel(&lwin);
+
+	cfg.dot_dirs = 0;
+}
+
 TEST(cursor_is_moved_to_nearest_neighbour)
 {
 	char path[PATH_MAX + 1];
