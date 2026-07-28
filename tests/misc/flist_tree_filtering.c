@@ -92,7 +92,7 @@ TEST(tree_accounts_for_manual_filter)
 
 TEST(tree_accounts_for_local_filter)
 {
-	(void)filter_set(&lwin.local_filter.filter, "file|dir");
+	set_local_filter(&lwin, "file|dir");
 	assert_success(load_tree(&lwin, TEST_DATA_PATH "/tree", cwd));
 	assert_int_equal(10, lwin.list_rows);
 	validate_tree(&lwin);
@@ -100,7 +100,7 @@ TEST(tree_accounts_for_local_filter)
 
 TEST(leafs_are_suppressed_by_local_filtering)
 {
-	(void)filter_set(&lwin.local_filter.filter, "dir");
+	set_local_filter(&lwin, "dir");
 	assert_success(load_tree(&lwin, TEST_DATA_PATH "/tree", cwd));
 	assert_int_equal(5, lwin.list_rows);
 	validate_tree(&lwin);
@@ -170,7 +170,7 @@ TEST(local_filter_does_not_block_visiting_directories)
 	/* Set manual filter to make sure that local filter doesn't dominate it. */
 	(void)replace_matcher(&lwin.manual_filter, "2");
 
-	(void)filter_set(&lwin.local_filter.filter, "file");
+	set_local_filter(&lwin, "file");
 	load_dir_list(&lwin, 1);
 	assert_int_equal(2, lwin.list_rows);
 	validate_tree(&lwin);
@@ -189,7 +189,7 @@ TEST(dot_filter_dominates_local_filter_in_tree)
 	assert_string_equal("..", lwin.dir_entry[0].name);
 	validate_tree(&lwin);
 
-	(void)filter_set(&lwin.local_filter.filter, "a");
+	set_local_filter(&lwin, "a");
 	load_dir_list(&lwin, 1);
 	assert_int_equal(1, lwin.list_rows);
 	assert_string_equal("..", lwin.dir_entry[0].name);
@@ -201,7 +201,7 @@ TEST(dot_filter_dominates_local_filter_in_tree)
 
 TEST(non_matching_local_filter_results_in_single_dummy)
 {
-	(void)filter_set(&lwin.local_filter.filter, "no matches");
+	set_local_filter(&lwin, "no matches");
 	assert_success(load_tree(&lwin, TEST_DATA_PATH "/tree", cwd));
 	assert_int_equal(1, lwin.list_rows);
 	assert_string_equal("..", lwin.dir_entry[0].name);
@@ -292,7 +292,7 @@ TEST(filtering_does_not_hide_parent_refs)
 
 TEST(filtering_and_nesting_limit)
 {
-	(void)filter_set(&lwin.local_filter.filter, "^[^1]+$");
+	set_local_filter(&lwin, "^[^1]+$");
 
 	assert_success(load_limited_tree(&lwin, TEST_DATA_PATH "/tree", cwd, 0));
 	assert_int_equal(2, lwin.list_rows);

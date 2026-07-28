@@ -193,6 +193,7 @@ static int add_assoc(const cmd_info_t *cmd_info, int viewer, int for_x);
 static int filter_cmd(const cmd_info_t *cmd_info);
 static int update_filter(view_t *view, const cmd_info_t *cmd_info);
 static void display_filters_info(const view_t *view);
+static char * get_matchers_info(const char name[], const matchers_t *matchers);
 static char * get_filter_info(const char name[], const filter_t *filter);
 static char * get_matcher_info(const char name[], const matcher_t *matcher);
 static int set_view_filter(view_t *view, const char filter[],
@@ -2597,15 +2598,38 @@ update_filter(view_t *view, const cmd_info_t *cmd_info)
 static void
 display_filters_info(const view_t *view)
 {
-	char *const localf = get_filter_info("Local", &view->local_filter.filter);
+	char *const localf = get_matchers_info("Local", view->local_filter.matchers);
 	char *const manualf = get_matcher_info("Explicit", view->manual_filter);
 	char *const autof = get_filter_info("Implicit", &view->auto_filter);
 
-	ui_sb_msgf("  Filter -- Flags -- Value\n%s\n%s\n%s", localf, manualf, autof);
+	if(localf != NULL && manualf != NULL && autof != NULL)
+	{
+		ui_sb_msgf("  Filter -- Flags -- Value\n%s\n%s\n%s", localf, manualf,
+				autof);
+	}
 
 	free(localf);
 	free(manualf);
 	free(autof);
+}
+
+/* Composes a description string for matchers.  Returns NULL on out of memory
+ * error, otherwise a newly allocated string is returned. */
+static char *
+get_matchers_info(const char name[], const matchers_t *matchers)
+{
+	const char *flags = "";
+	if(!matchers_is_empty(matchers))
+	{
+		int ignores = matchers_ignore_case(matchers);
+		if(ignores >= 0)
+		{
+			flags = ignores ? "i" : "I";
+		}
+	}
+
+	const char *const value = matchers_get_expr(matchers);
+	return format_str("%-8s    %-5s    %s", name, flags, value);
 }
 
 /* Composes a description string for given filter.  Returns NULL on out of
@@ -2614,13 +2638,9 @@ display_filters_info(const view_t *view)
 static char *
 get_filter_info(const char name[], const filter_t *filter)
 {
-	const char *flags_str;
+	const char *flags_str = "";
 
-	if(filter_is_empty(filter))
-	{
-		flags_str = "";
-	}
-	else
+	if(!filter_is_empty(filter))
 	{
 		flags_str = (filter->cflags & REG_ICASE) ? "i" : "I";
 	}
@@ -2634,7 +2654,12 @@ get_filter_info(const char name[], const filter_t *filter)
 static char *
 get_matcher_info(const char name[], const matcher_t *matcher)
 {
-	const char *const flags = matcher_is_empty(matcher) ? "" : "---->";
+	const char *flags = "";
+	if(!matcher_is_empty(matcher))
+	{
+		flags = matcher_ignores_case(matcher) ? "i" : "I";
+	}
+
 	const char *const value = matcher_get_expr(matcher);
 	return format_str("%-8s    %-5s    %s", name, flags, value);
 }
@@ -4960,8 +4985,10 @@ sync_filters(void)
 	other_view->prev_invert = curr_view->prev_invert;
 	other_view->invert = curr_view->invert;
 
-	(void)filter_assign(&other_view->local_filter.filter,
-			&curr_view->local_filter.filter);
+	matchers_free(other_view->local_filter.matchers);
+	other_view->local_filter.matchers =
+		matchers_clone(curr_view->local_filter.matchers);
+
 	matcher_free(other_view->manual_filter);
 	other_view->manual_filter = matcher_clone(curr_view->manual_filter);
 	(void)filter_assign(&other_view->auto_filter, &curr_view->auto_filter);

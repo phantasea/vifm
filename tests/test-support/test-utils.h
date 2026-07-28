@@ -205,6 +205,9 @@ struct plugs_t;
  * there. */
 void load_plugins(struct plugs_t *plugs, const char cfg_dir[]);
 
+/* Assigns value of the local filter of the view. */
+void set_local_filter(struct view_t *view, const char expr[]);
+
 #endif /* VIFM_TESTS__TEST_SUPPORT__TEST_UTILS_H__ */
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

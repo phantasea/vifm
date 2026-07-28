@@ -388,7 +388,16 @@ TEST(title_support_is_detected_correctly)
 
 	static char *SCREEN_LIKE[] = {
 		"screen", "screen-bce", "screen-256color", "screen-256color-bce",
-		"screen-anything"
+		"screen-anything",
+
+		/*
+		 * Not testing tmux because it has tsl and fsl sequences which need to be
+		 * overwritten with screen sequences to affect tmux window.  That must be
+		 * done earlier than title_kind_for_termenv() is applied to work properly so
+		 * title_kind_for_termenv() doesn't handle these $TERM values.
+		 *
+		 * "tmux", "tmux-256color", "tmux-direct", "tmux-anything",
+		 */
 	};
 
 #ifdef _WIN32
