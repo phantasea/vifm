@@ -1920,7 +1920,7 @@ free_list_of_file_indexes(keys_info_t *keys_info)
 	keys_info->count = 0;
 }
 
-/* Filter the files matching the filename filter. */
+/* Restore all filters (the opposite of zR). */
 static void
 cmd_zM(key_info_t key_info, keys_info_t *keys_info)
 {
