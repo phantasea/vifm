@@ -100,7 +100,7 @@ TEST(symlinks_are_loaded_as_files, IF(not_windows))
 	assert_int_equal(0, lwin.filtered);
 	validate_tree(&lwin);
 
-	(void)filter_set(&lwin.local_filter.filter, "a");
+	set_local_filter(&lwin, "a");
 
 	assert_success(load_tree(&lwin, SANDBOX_PATH, cwd));
 	assert_int_equal(1, lwin.list_rows);
@@ -118,7 +118,7 @@ TEST(reloading_does_not_count_as_location_change)
 	assert_int_equal(12, lwin.list_rows);
 	validate_tree(&lwin);
 
-	(void)filter_set(&lwin.local_filter.filter, "dir");
+	set_local_filter(&lwin, "dir");
 	load_view(&lwin);
 	assert_int_equal(5, lwin.list_rows);
 	validate_tree(&lwin);
@@ -442,7 +442,7 @@ TEST(short_paths_consider_tree_structure)
 
 	memset(&cfg.type_decs, '\0', sizeof(cfg.type_decs));
 
-	(void)filter_set(&lwin.local_filter.filter, "2");
+	set_local_filter(&lwin, "2");
 	assert_success(load_tree(&lwin, TEST_DATA_PATH "/tree", cwd));
 	assert_int_equal(2, lwin.list_rows);
 	validate_tree(&lwin);

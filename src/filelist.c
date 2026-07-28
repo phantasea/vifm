@@ -285,8 +285,11 @@ flist_free_view(view_t *view)
 	update_string(&view->local_filter.prev, NULL);
 	free(view->local_filter.poshist);
 	view->local_filter.poshist = NULL;
+	/* Non-zero value may imply non-NULL poshist field, so reset it. */
+	view->local_filter.poshist_len = 0;
 
-	filter_dispose(&view->local_filter.filter);
+	matchers_free(view->local_filter.matchers);
+	view->local_filter.matchers = NULL;
 	filter_dispose(&view->auto_filter);
 	matcher_free(view->manual_filter);
 	view->manual_filter = NULL;

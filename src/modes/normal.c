@@ -2307,7 +2307,7 @@ cmd_zm(key_info_t key_info, keys_info_t *keys_info)
 	dot_filter_set(curr_view, 0);
 }
 
-/* Filter the files matching the filename filter. */
+/* Restore all filters (the opposite of zR). */
 static void
 cmd_zM(key_info_t key_info, keys_info_t *keys_info)
 {

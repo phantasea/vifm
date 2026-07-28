@@ -68,11 +68,6 @@ int filter_set(filter_t *filter, const char value[]);
  * returned. */
 int filter_assign(filter_t *filter, const filter_t *source);
 
-/* Sets filter and its case sensitivity to given values.  Case sensitivity is
- * updated even on error.  Returns zero on success, otherwise non-zero is
- * returned. */
-int filter_change(filter_t *filter, const char value[], int case_sensitive);
-
 /* Appends non-empty value to filter expression (using logical or and whole
  * pattern matching).  Returns zero on success, otherwise non-zero is
  * returned. */

@@ -268,7 +268,7 @@ view_setup(view_t *view)
 	view->top_line = 0;
 	view->column_count = 1;
 
-	assert_success(filter_init(&view->local_filter.filter, 1));
+	set_local_filter(view, "");
 	view->manual_filter = matcher_alloc("", 0, ME_DEF_REGEX, "", &error);
 	assert_non_null(view->manual_filter);
 	assert_success(filter_init(&view->auto_filter, 1));
@@ -970,6 +970,25 @@ load_plugins(struct plugs_t *plugs, const char cfg_dir[])
 	plugs_load(plugs, plugins_dirs);
 
 	free_string_array(plugins_dirs.items, plugins_dirs.nitems);
+}
+
+void
+set_local_filter(view_t *view, const char expr[])
+{
+	char *error;
+	matchers_t *matchers = matchers_alloc(expr, expr, FILTER_DEF_CASE_SENSITIVITY,
+			/*glob_by_def=*/0, "", &error);
+	assert_non_null(matchers);
+	assert_string_equal(NULL, error);
+	free(error);
+
+	if(matchers == NULL)
+	{
+		return;
+	}
+
+	matchers_free(view->local_filter.matchers);
+	view->local_filter.matchers = matchers;
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

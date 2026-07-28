@@ -23,6 +23,7 @@
 #include <string.h> /* strdup() */
 
 #include "../compat/reallocarray.h"
+#include "macros.h"
 #include "matcher.h"
 #include "str.h"
 #include "string_array.h"
@@ -99,14 +100,23 @@ matchers_alloc(const char expr[], const char list[], int cs_by_def,
 	return matchers;
 }
 
+matchers_t *
+matchers_alloc1(const char expr[], int cs_by_def, MatcherExpr expr_kind,
+		const char on_empty_re[], char **error)
+{
+	*error = NULL;
+
+	char *subs[] = { (char *)expr };
+	return matchers_init(expr, subs, ARRAY_LEN(subs), cs_by_def, expr_kind,
+			on_empty_re, error);
+}
+
 /* Allocates and initializes an instance of matchers.  Returns a newly
  * allocated instance or NULL. */
 static matchers_t *
 matchers_init(const char expr[], char *subs[], int nsubs, int cs_by_def,
 		MatcherExpr expr_kind, const char on_empty_re[], char **error)
 {
-	*error = NULL;
-
 	matchers_t *const matchers = malloc(sizeof(*matchers));
 	matchers->count = nsubs;
 	matchers->list = reallocarray(NULL, nsubs, sizeof(*matchers->list));
@@ -249,6 +259,61 @@ matchers_includes(const matchers_t *matchers, const matchers_t *like)
 		}
 	}
 	return 1;
+}
+
+int
+matchers_is_empty(const matchers_t *matchers)
+{
+	int i;
+	for(i = 0; i < matchers->count; ++i)
+	{
+		if(matcher_is_empty(matchers->list[i]))
+		{
+			/* An empty matcher makes conjunction match nothing, so we only need one
+			 * of these. */
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int
+matchers_ignore_case(const matchers_t *matchers)
+{
+	int yes = 0;
+	int no = 0;
+
+	int i;
+	for(i = 0; i < matchers->count; ++i)
+	{
+		if(matcher_ignores_case(matchers->list[i]))
+		{
+			yes = 1;
+		}
+		else
+		{
+			no = 1;
+		}
+	}
+
+	return (yes && no) ? -1 : yes;
+}
+
+int
+matchers_is_full_path(const matchers_t *matchers)
+{
+	int i;
+	for(i = 0; i < matchers->count; ++i)
+	{
+		if(matcher_is_full_path(matchers->list[i]))
+		{
+			/* Need to report whether full path should be passed.  If any matcher
+			 * needs it, then their conjunction needs it too.  Matchers that don't
+			 * need it will use only the last path component. */
+			return 1;
+		}
+	}
+	return 0;
 }
 
 int

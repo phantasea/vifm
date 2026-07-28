@@ -256,6 +256,25 @@ TEST(cursor_is_not_moved_from_parent_dir_initially)
 	cfg.dot_dirs = 0;
 }
 
+TEST(remaining_parent_dir_not_matching_is_not_counted_by_local_filter)
+{
+	cfg.dot_dirs = DD_NONROOT_PARENT;
+
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "read",
+			cwd);
+	load_dir_list(&lwin, /*reload=*/0);
+
+	/* local_filter_set() returns 1 when everything is filtered, but parent dir is
+	 * an exception. */
+	assert_int_equal(1, local_filter_set(&lwin, "nothing matches this"));
+	local_filter_update_view(&lwin, 0);
+	assert_int_equal(1, lwin.list_rows);
+	assert_string_equal("..", lwin.dir_entry[0].name);
+	local_filter_cancel(&lwin);
+
+	cfg.dot_dirs = 0;
+}
+
 TEST(cursor_is_moved_to_nearest_neighbour)
 {
 	char path[PATH_MAX + 1];
@@ -474,6 +493,53 @@ TEST(case_is_ignored_by_noninteractive_local_filter)
 	assert_string_equal("compare", lwin.dir_entry[0].name);
 
 	cfg.ignore_case = 0;
+}
+
+TEST(local_filter_accepts_match_expressions)
+{
+	make_abs_path(lwin.curr_dir, sizeof(lwin.curr_dir), TEST_DATA_PATH, "read",
+			cwd);
+	load_dir_list(&lwin, /*reload=*/0);
+	assert_int_equal(6, lwin.list_rows);
+
+	/* Empty match expression filters nothing. */
+	local_filter_apply(&lwin, "+");
+	load_dir_list(&lwin, /*reload=*/1);
+	assert_int_equal(6, lwin.list_rows);
+
+	/* Undecorated pattern is a glob. */
+	local_filter_apply(&lwin, "+b*");
+	load_dir_list(&lwin, /*reload=*/1);
+	assert_int_equal(1, lwin.list_rows);
+	assert_string_equal("binary-data", lwin.dir_entry[0].name);
+
+	/* Or rather a list of globs. */
+	local_filter_apply(&lwin, "+b*,t*");
+	load_dir_list(&lwin, /*reload=*/1);
+	assert_int_equal(2, lwin.list_rows);
+	assert_string_equal("binary-data", lwin.dir_entry[0].name);
+	assert_string_equal("two-lines", lwin.dir_entry[1].name);
+
+	/* Decoration allows negation. */
+	local_filter_apply(&lwin, "+!{b*}");
+	load_dir_list(&lwin, /*reload=*/1);
+	assert_int_equal(5, lwin.list_rows);
+
+	/* Decoration allows chaining. */
+	local_filter_apply(&lwin, "+/i//B/i");
+	load_dir_list(&lwin, /*reload=*/1);
+	assert_int_equal(1, lwin.list_rows);
+	assert_string_equal("binary-data", lwin.dir_entry[0].name);
+
+	/* Full path matching. */
+	local_filter_apply(&lwin, "+{{*ad/dos*}}");
+	load_dir_list(&lwin, /*reload=*/1);
+	assert_int_equal(2, lwin.list_rows);
+
+	/* Full path matching with interactive filtering. */
+	assert_int_equal(0, local_filter_set(&lwin, "+!{{*ad/dos*}}"));
+	local_filter_accept(&lwin, /*update_history=*/0);
+	assert_int_equal(4, lwin.list_rows);
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

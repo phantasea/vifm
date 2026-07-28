@@ -19,12 +19,16 @@
 #include "../../src/utils/path.h"
 #include "../../src/utils/str.h"
 #include "../../src/filelist.h"
+#include "../../src/filtering.h"
 #include "../../src/flist_sel.h"
 #include "../../src/fops_common.h"
 #include "../../src/registers.h"
 #include "../../src/status.h"
 
 #include "utils.h"
+
+static void check_filters(int dot, const char local[], const char name_auto[],
+		const char name_manual[]);
 
 static char cwd[PATH_MAX + 1];
 
@@ -272,6 +276,66 @@ TEST(selection_is_primary)
 	assert_string_ends_with("/binary-data", def_reg->files[0]);
 
 	regs_reset();
+}
+
+TEST(saving_and_restoring_filters)
+{
+	filters_view_reset(curr_view);
+	dot_filter_set(curr_view, /*visible=*/0);
+	set_local_filter(curr_view, "local-filter");
+	assert_success(filter_append(&curr_view->auto_filter, "auto"));
+	assert_success(replace_matcher(&curr_view->manual_filter, "manual"));
+
+	check_filters(1, "local-filter", "^auto$", "manual");
+
+	/* Remove all filters. */
+	(void)vle_keys_exec_timed_out(L"zR");
+	check_filters(0, "", "", "");
+
+	/* Restore all filters. */
+	(void)vle_keys_exec_timed_out(L"zM");
+	check_filters(1, "local-filter", "^auto$", "manual");
+
+	/* Remove only name filters. */
+	(void)vle_keys_exec_timed_out(L"zO");
+	check_filters(1, "local-filter", "", "");
+
+	/* Additionally remove local filter. */
+	(void)vle_keys_exec_timed_out(L"zr");
+	check_filters(1, "", "", "");
+
+	/* Restore all filters. */
+	(void)vle_keys_exec_timed_out(L"zM");
+	check_filters(1, "local-filter", "^auto$", "manual");
+}
+
+TEST(controlling_dot_filter)
+{
+	filters_view_reset(curr_view);
+	dot_filter_set(curr_view, /*visible=*/0);
+	set_local_filter(curr_view, "local-filter");
+	assert_success(filter_append(&curr_view->auto_filter, "auto"));
+	assert_success(replace_matcher(&curr_view->manual_filter, "manual"));
+
+	check_filters(1, "local-filter", "^auto$", "manual");
+
+	/* Show dot files. */
+	(void)vle_keys_exec_timed_out(L"zo");
+	check_filters(0, "local-filter", "^auto$", "manual");
+	(void)vle_keys_exec_timed_out(L"zo");
+	check_filters(0, "local-filter", "^auto$", "manual");
+
+	/* Hide dot files. */
+	(void)vle_keys_exec_timed_out(L"zm");
+	check_filters(1, "local-filter", "^auto$", "manual");
+	(void)vle_keys_exec_timed_out(L"zm");
+	check_filters(1, "local-filter", "^auto$", "manual");
+
+	/* Toggle dot files. */
+	(void)vle_keys_exec_timed_out(L"za");
+	check_filters(0, "local-filter", "^auto$", "manual");
+	(void)vle_keys_exec_timed_out(L"za");
+	check_filters(1, "local-filter", "^auto$", "manual");
 }
 
 TEST(yy_one_file)
@@ -540,6 +604,42 @@ TEST(al_rl, IF(not_windows), REPEAT(2))
 	remove_file(SANDBOX_PATH "/binary-data");
 
 	regs_reset();
+}
+
+static void
+check_filters(int dot, const char local[], const char name_auto[],
+		const char name_manual[])
+{
+	if(dot)
+	{
+		assert_true(curr_view->hide_dot);
+	}
+	else
+	{
+		assert_false(curr_view->hide_dot);
+	}
+
+	assert_string_equal(local, local_filter_get(curr_view));
+
+	assert_string_equal(name_auto, curr_view->auto_filter.raw);
+	if(name_auto[0] == '\0')
+	{
+		assert_true(filter_is_empty(&curr_view->auto_filter));
+	}
+	else
+	{
+		assert_false(filter_is_empty(&curr_view->auto_filter));
+	}
+
+	assert_string_equal(name_manual, matcher_get_expr(curr_view->manual_filter));
+	if(name_manual[0] == '\0')
+	{
+		assert_true(matcher_is_empty(curr_view->manual_filter));
+	}
+	else
+	{
+		assert_false(matcher_is_empty(curr_view->manual_filter));
+	}
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

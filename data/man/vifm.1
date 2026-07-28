@@ -1,4 +1,4 @@
-.TH VIFM 1 "11 July 2026" "vifm 0.15"
+.TH VIFM 1 "28 July 2026" "vifm 0.15"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
@@ -512,11 +512,12 @@ views zd hides group of adjacent identical files, count can be specified as 1 to
 exclude just single file or selected items instead.  Files excluded this way are
 not counted as filtered out and can't be returned unless view is reloaded.
 .TP
-.BI "=regular expression"
+.BI "=match expression"
 only keep files matching the regular expression.  This is called a local
 filter.  Whether view is updated as regular expression is changed depends
 on the value of the \(aqincsearch\(aq option.  This kind of filter is
-automatically reset on a directory change.
+automatically reset on a directory change.  See "Match expressions" section
+for syntax details.
 .\" ---------------------------------------------------------------------------
 .SH Tree-related Keys
 .\" ---------------------------------------------------------------------------
@@ -4003,9 +4004,59 @@ Otherwise, an error is reported, because handlers differ and they don't support
 parallel execution.
 .RE
 .\" ---------------------------------------------------------------------------
+.SH Match expressions
+.\" ---------------------------------------------------------------------------
+A match expression is an extension on top of a regular expression syntax that
+allows negation and mixing in glob and mime-type forms of matching.  This is
+achieved by treating invalid regular expressions in a special way.  A few
+invalid regular expressions that don't match anything do match something in
+places that support this extension.
+
+The approach taken is using a leading quantifier of a regular expression as a
+marker requesting a different kind of matching.  Currently, the only such
+marker is a leading `+` sign which signifies the use of patterns with
+glob matching by default.
+
+In other words:
+.RS 2
+.IP \- 2
+any valid regular expression is a match expression
+.IP \- 2
+a match expression starting with `+` is processed as a pattern (see
+"Patterns" section) after stripping the `+`; undecorated pattern is treated as
+a list of name globs
+.RE
+
+Regular expressions used in this context default to being case sensitive on
+*nix and case insensitive on Windows.
+
+Examples of local filter (=) values, which is the only place such
+expressions are currently handled:
+.RS 2
+.IP \- 2
+`=+` is the same as empty input (`=`)
+.IP \- 2
+`=abc` is a regular expression that matches a file name containing `abc`
+.IP \- 2
+`=+abc` is a glob that matches a file named `abc`
+.IP \- 2
+`=+abc,def` is a glob that matches files named `abc` or `def`
+.IP \- 2
+`=+*.pdf` is a glob that matches files that end with `.pdf`
+.IP \- 2
+`=+//xyz//` is a path regular expression that matches files with `xyz`
+anywhere in their paths
+.IP \- 2
+`=+{*.mp3}!/the/` is a combination of a glob and a negated regular
+expression which matches files that end with `.mp3` and do not contain
+`the` in their names
+.IP \- 2
+`=+<application/pdf>` matches PDF files by their mime-type
+.RE
+.\" ---------------------------------------------------------------------------
 .SH Patterns
 .\" ---------------------------------------------------------------------------
-Some commands and options use a special pattern syntax to accept globs,
+Some commands, options and prompts use a special pattern syntax to accept globs,
 regular expressions or mime types.  This allows matching files by their names,
 paths and/or content type.
 
@@ -4041,6 +4092,7 @@ The patterns are accepted in the following places:
   :highlight             unsupported
   :select        {comma-separated-name-globs}
   :unselect      {comma-separated-name-globs}
+  =              {comma-separated-name-globs}
 
 During a match:
 .RS 2
@@ -4625,7 +4677,7 @@ default: 15
 .br
 Maximum number of stored items in all histories.
 .TP
-.BI vifm-'hloptions'
+.BI 'hloptions'
 type: string list
 .br
 default: "filehi:onerow"

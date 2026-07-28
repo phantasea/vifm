@@ -417,7 +417,7 @@ TEST(lazy_unfolding)
 
 TEST(lazy_unfolding_and_filtering)
 {
-	(void)filter_set(&lwin.local_filter.filter, "^[^1]+$");
+	set_local_filter(&lwin, "^[^1]+$");
 
 	assert_success(load_limited_tree(&lwin, TEST_DATA_PATH "/tree", cwd, 0));
 	assert_int_equal(2, lwin.list_rows);

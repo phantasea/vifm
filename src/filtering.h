@@ -138,7 +138,8 @@ void local_filter_restore(struct view_t *view);
 
 /* Checks whether given entry matches currently set local filter.  Returns
  * non-zero if file should be left in the view, and zero otherwise. */
-int local_filter_matches(struct view_t *view, const struct dir_entry_t *entry);
+int local_filter_matches(const struct view_t *view,
+		const struct dir_entry_t *entry);
 
 #endif /* VIFM__FILTERING_H__ */
 

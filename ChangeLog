@@ -12,6 +12,9 @@
 	opened as before).  Thanks to David Sierra DiazGranados (a.k.a.
 	davidsierradz).
 
+	Changed output of `:filter?` to always state flags of the explicit filter
+	instead of referring to the value via `---->`.
+
 	Added <help> :*map argument that enables providing description for the
 	mapping with the same curly braces syntax as used by :file[x]type.
 
@@ -50,6 +53,10 @@
 
 	Added angle-bracket notation for combinations Alt with comma and period.
 	Thanks to fugue.
+
+	Added +pattern syntax to local filter.  It is not a valid regular
+	expression but is used to specify patterns like `{*.pdf}!/abc/` after the
+	plus sign.  Thanks to filterfalse, tagwint and CaptainFantastic.
 
 	Updated utf8proc to v2.11.3.
 

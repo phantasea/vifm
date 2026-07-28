@@ -52,6 +52,9 @@ static int extract_previously_selected_pos(view_t *view);
 static void clear_local_filter_hist_after(view_t *view, int pos);
 static int find_nearest_neighour(const view_t *view);
 static void local_filter_finish(view_t *view);
+static void reset_matchers(matchers_t **matchers);
+static int replace_matchers(matchers_t **matchers, const char expr[]);
+static int passes_matchers(const matchers_t *matchers, const char path[]);
 static void append_slash(const char name[], char buf[], size_t buf_size);
 
 void
@@ -66,7 +69,7 @@ filters_view_reset(view_t *view)
 	reset_filter(&view->auto_filter);
 
 	(void)replace_string(&view->local_filter.prev, "");
-	reset_filter(&view->local_filter.filter);
+	reset_matchers(&view->local_filter.matchers);
 	view->local_filter.in_progress = 0;
 	view->local_filter.saved = NULL;
 	view->local_filter.poshist = NULL;
@@ -381,11 +384,15 @@ static void
 replace_matcher(matcher_t **matcher, const char expr[])
 {
 	char *error;
-
-	matcher_free(*matcher);
-	*matcher =
+	matcher_t *new_matcher =
 		matcher_alloc(expr, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, "", &error);
 	free(error);
+
+	if(new_matcher != NULL)
+	{
+		matcher_free(*matcher);
+		*matcher = new_matcher;
+	}
 }
 
 void
@@ -402,7 +409,6 @@ filters_file_is_visible(const view_t *view, const char dir[], const char name[],
 {
 	/* FIXME: some very long file names won't be matched against some regexps. */
 	char name_with_slash[NAME_MAX + 1 + 1];
-	char path[PATH_MAX + sizeof(name_with_slash)];
 
 	if(is_dir)
 	{
@@ -415,24 +421,30 @@ filters_file_is_visible(const view_t *view, const char dir[], const char name[],
 		return 0;
 	}
 
-	if(apply_local_filter &&
-			filter_matches(&view->local_filter.filter, name) == 0)
-	{
-		return 0;
-	}
-
-	if(matcher_is_empty(view->manual_filter))
+	const int local_empty = local_filter_is_empty(view);
+	const int manual_empty = matcher_is_empty(view->manual_filter);
+	if(local_empty && manual_empty)
 	{
 		return 1;
 	}
 
-	if(matcher_is_full_path(view->manual_filter))
+	const int full_local = !local_empty
+	                    && matchers_is_full_path(view->local_filter.matchers);
+	const int full_manual = !manual_empty
+	                     && matcher_is_full_path(view->manual_filter);
+	char path[PATH_MAX + sizeof(name_with_slash)];
+	if(full_local || full_manual)
 	{
 		build_path(path, sizeof(path), dir, name);
-		name = path;
 	}
 
-	return matcher_matches(view->manual_filter, name)
+	if(apply_local_filter &&
+			!passes_matchers(view->local_filter.matchers, full_local ? path : name))
+	{
+		return 0;
+	}
+
+	return matcher_matches(view->manual_filter, full_manual ? path : name)
 	     ? !view->invert
 	     : view->invert;
 }
@@ -440,7 +452,7 @@ filters_file_is_visible(const view_t *view, const char dir[], const char name[],
 void
 filters_dir_updated(view_t *view)
 {
-	filter_clear(&view->local_filter.filter);
+	reset_matchers(&view->local_filter.matchers);
 }
 
 void
@@ -485,13 +497,13 @@ filters_drop_temporaries(view_t *view, dir_entry_t entries[])
 const char *
 local_filter_get(const view_t *view)
 {
-	return view->local_filter.filter.raw;
+	return matchers_get_expr(view->local_filter.matchers);
 }
 
 int
 local_filter_is_empty(const view_t *view)
 {
-	return filter_is_empty(&view->local_filter.filter);
+	return matchers_is_empty(view->local_filter.matchers);
 }
 
 int
@@ -507,8 +519,8 @@ local_filter_set(view_t *view, const char filter[])
 		store_local_filter_position(view, current_file_pos);
 	}
 
-	result = (filter_change(&view->local_filter.filter, filter,
-			!regexp_should_ignore_case(filter)) ? -1 : 0);
+	result =
+		(replace_matchers(&view->local_filter.matchers, filter) != 0 ? -1 : 0);
 
 	if(update_filtering_lists(view, 1, 0) != 0 && result == 0)
 	{
@@ -554,7 +566,7 @@ load_unfiltered_list(view_t *view)
 
 		get_current_full_path(view, sizeof(full_path), full_path);
 
-		filter_clear(&view->local_filter.filter);
+		reset_matchers(&view->local_filter.matchers);
 		(void)populate_dir_list(view, 1);
 
 		/* Resolve current file position in updated list. */
@@ -643,14 +655,9 @@ update_filtering_lists(view_t *view, int add, int clear)
 
 	for(i = 0; i < view->local_filter.unfiltered_count; ++i)
 	{
-		/* FIXME: some very long file names won't be matched against some
-		 * regexps. */
-		char name_with_slash[NAME_MAX + 1 + 1];
-
 		dir_entry_t *const entry = &view->local_filter.unfiltered[i];
-		const char *name = entry->name;
 
-		if(is_parent_dir(name))
+		if(is_parent_dir(entry->name))
 		{
 			if(entry->child_pos == 0)
 			{
@@ -673,16 +680,10 @@ update_filtering_lists(view_t *view, int add, int clear)
 			}
 		}
 
-		if(fentry_is_dir(entry))
-		{
-			append_slash(name, name_with_slash, sizeof(name_with_slash));
-			name = name_with_slash;
-		}
-
 		/* tag links to position of nodes passed through filter in list of visible
 		 * files.  Nodes that didn't pass have -1. */
 		entry->tag = -1;
-		if(filter_matches(&view->local_filter.filter, name) != 0)
+		if(local_filter_matches(view, entry))
 		{
 			if(add)
 			{
@@ -723,7 +724,7 @@ update_filtering_lists(view_t *view, int add, int clear)
 		ensure_filtered_list_not_empty(view, parent_entry);
 		return list_size == 0U
 		    || (list_size == 1U && parent_added &&
-						(filter_matches(&view->local_filter.filter, "../") == 0));
+						!passes_matchers(view->local_filter.matchers, "../"));
 	}
 	return 0;
 }
@@ -916,8 +917,11 @@ local_filter_apply(view_t *view, const char filter[])
 		return;
 	}
 
-	int case_sensitive = !regexp_should_ignore_case(filter);
-	(void)filter_change(&view->local_filter.filter, filter, case_sensitive);
+	if(replace_matchers(&view->local_filter.matchers, filter) != 0)
+	{
+		return;
+	}
+
 	hists_filter_save(local_filter_get(view));
 
 	flist_custom_save(view);
@@ -933,13 +937,18 @@ local_filter_cancel(view_t *view)
 		return;
 	}
 
-	(void)filter_set(&view->local_filter.filter, view->local_filter.saved);
+	/* No need to update file list if the filter wasn't updated, but worth
+	 * finishing the filtering anyway to reach the state the caller expects. */
+	if(replace_matchers(&view->local_filter.matchers,
+				view->local_filter.saved) == 0)
+	{
+		dynarray_free(view->dir_entry);
+		view->dir_entry = NULL;
+		view->list_rows = 0;
 
-	dynarray_free(view->dir_entry);
-	view->dir_entry = NULL;
-	view->list_rows = 0;
+		update_filtering_lists(view, 1, 1);
+	}
 
-	update_filtering_lists(view, 1, 1);
 	local_filter_finish(view);
 }
 
@@ -960,19 +969,69 @@ void
 local_filter_remove(view_t *view)
 {
 	(void)replace_string(&view->local_filter.prev, local_filter_get(view));
-	filter_clear(&view->local_filter.filter);
+	reset_matchers(&view->local_filter.matchers);
 	ui_view_schedule_reload(view);
+}
+
+/* Replaces matchers with an empty one. */
+static void
+reset_matchers(matchers_t **matchers)
+{
+	(void)replace_matchers(matchers, "");
 }
 
 void
 local_filter_restore(view_t *view)
 {
-	(void)filter_set(&view->local_filter.filter, view->local_filter.prev);
-	(void)replace_string(&view->local_filter.prev, "");
+	if(replace_matchers(&view->local_filter.matchers,
+				view->local_filter.prev) == 0)
+	{
+		(void)replace_string(&view->local_filter.prev, "");
+	}
+}
+
+/* Replaces matchers with a new one created from the specified expression.
+ * Returns zero on success. */
+static int
+replace_matchers(matchers_t **matchers, const char expr[])
+{
+	const int case_sensitive = !regexp_should_ignore_case(expr);
+
+	char *error;
+	matchers_t *new_matchers;
+
+	if(expr[0] == '+')
+	{
+		/* Complex form that accepts conjunction of matchers after a "+" sign.
+		 *
+		 * Globs can't be empty, but "+" is logically equivalent to "" input, so
+		 * make it work by using an empty regexp. */
+		const int glob_by_def = (expr[1] == '\0' ? 0 : 1);
+		new_matchers =
+			matchers_alloc(expr, expr + 1, case_sensitive, glob_by_def, "", &error);
+	}
+	else
+	{
+		/* Simpler form that treats input as a single regular expression. */
+		new_matchers =
+			matchers_alloc1(expr, case_sensitive, ME_ONLY_REGEX, "", &error);
+	}
+
+	free(error);
+
+	if(new_matchers == NULL)
+	{
+		return 1;
+	}
+
+	matchers_free(*matchers);
+	*matchers = new_matchers;
+
+	return 0;
 }
 
 int
-local_filter_matches(view_t *view, const dir_entry_t *entry)
+local_filter_matches(const view_t *view, const dir_entry_t *entry)
 {
 	/* FIXME: some very long file names won't be matched against some regexps. */
 	char name_with_slash[NAME_MAX + 1 + 1];
@@ -983,7 +1042,22 @@ local_filter_matches(view_t *view, const dir_entry_t *entry)
 		filename = name_with_slash;
 	}
 
-	return filter_matches(&view->local_filter.filter, filename) != 0;
+	char path[PATH_MAX + sizeof(name_with_slash)];
+	if(matchers_is_full_path(view->local_filter.matchers))
+	{
+		build_path(path, sizeof(path), entry->origin, filename);
+		filename = path;
+	}
+
+	return passes_matchers(view->local_filter.matchers, filename);
+}
+
+/* Checks whether matchers match specific path.  Returns non-zero if so. */
+static int
+passes_matchers(const matchers_t *matchers, const char path[])
+{
+	/* Empty set matchers means an unset filter that filters out nothing. */
+	return matchers_is_empty(matchers) || matchers_match(matchers, path);
 }
 
 /* Appends slash to the name and stores result in the buffer. */
