@@ -50,7 +50,7 @@ var_t getvar(const char varname[]);
 int setvar(const char varname[], var_t var);
 
 /* Removes all variables and resets environment variables to their initial
- * values.  Doesn't remove builtin variables. */
+ * values. */
 void clear_variables(void);
 
 /* Removes all defined environment variables and resets environment variables to
