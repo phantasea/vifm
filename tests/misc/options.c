@@ -595,6 +595,14 @@ TEST(previewoptions)
 	assert_false(cfg.hard_graphics_clear);
 	assert_int_equal(0, cfg.max_tree_depth);
 	assert_false(cfg.top_tree_stats);
+
+	/* Verify that all possible values are printed back correctly. */
+	assert_success(cmds_dispatch("set previewoptions=hardgraphicsclear,"
+				"toptreestats,maxtreedepth:2,graphicsdelay:20", &lwin, CIT_COMMAND));
+	ui_sb_msg("");
+	assert_failure(cmds_dispatch("set previewoptions", &lwin, CIT_COMMAND));
+	assert_string_equal("  previewoptions=hardgraphicsclear,toptreestats,"
+			"maxtreedepth:2,graphicsdelay:20", ui_sb_last());
 }
 
 TEST(autocd)
