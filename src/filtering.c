@@ -303,7 +303,7 @@ void filter_directorys(view_t *view)
 	filter_files(view, iter_directory_entries);
 }
 
-void name_filters_add_selection(view_t *view)
+void filter_selections(view_t *view)
 {
 	filter_files(view, iter_selection_or_current);
 }
