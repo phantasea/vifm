@@ -2286,37 +2286,34 @@ cmd_zu(key_info_t key_info, keys_info_t *keys_info)
 	flist_toggle_fold(curr_view);
 }
 
-//=================================================
+/*********************************
+1. dot files filter
+2. local filter (see "=" norm_cmd)
+3. name/perm filter
+   :filter -- explicit/manu filter
+   "zf/zs" -- implicit/auto filter
+*********************************/
 
-/* Restore local filter. */
+extern void auto_name_filters_remove(view_t *view);
+extern void auto_name_filters_restore(view_t *view);
+
+/* Restore local and auto name filters. */
 static void
 cmd_zi(key_info_t key_info, keys_info_t *keys_info)
 {
 	local_filter_restore(curr_view);
+	auto_name_filters_restore(curr_view);
 }
 
-/* Remove local filter. */
+/* Remove local and auto name filters. */
 static void
 cmd_zo(key_info_t key_info, keys_info_t *keys_info)
 {
 	local_filter_remove(curr_view);
+	auto_name_filters_remove(curr_view);
 }
 
-/* Restore name filter. */
-static void
-cmd_zm(key_info_t key_info, keys_info_t *keys_info)
-{
-	name_filters_restore(curr_view);
-}
-
-/* Remove name filter. */
-static void
-cmd_zr(key_info_t key_info, keys_info_t *keys_info)
-{
-	name_filters_remove(curr_view);
-}
-
-/* Restore local and name filters */
+/* Restore local and auto+manual name filters */
 static void
 cmd_zI(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -2324,9 +2321,27 @@ cmd_zI(key_info_t key_info, keys_info_t *keys_info)
 	name_filters_restore(curr_view);
 }
 
-/* Remove local and name filters */
+/* Remove local and auto+manual name filters */
 static void
 cmd_zO(key_info_t key_info, keys_info_t *keys_info)
+{
+	local_filter_remove(curr_view);
+	name_filters_remove(curr_view);
+}
+
+//-------------------------------------------------
+
+/* Restore local and name filters. */
+static void
+cmd_zm(key_info_t key_info, keys_info_t *keys_info)
+{
+	local_filter_restore(curr_view);
+	name_filters_restore(curr_view);
+}
+
+/* Remove local and name filters. */
+static void
+cmd_zr(key_info_t key_info, keys_info_t *keys_info)
 {
 	local_filter_remove(curr_view);
 	name_filters_remove(curr_view);

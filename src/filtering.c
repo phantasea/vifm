@@ -378,6 +378,46 @@ name_filters_restore(view_t *view)
 	ui_view_schedule_reload(view);
 }
 
+//add by sim1  ++++++++++++++++++++++++++++++++++++++++++++
+void
+auto_name_filters_drop(view_t *view)
+{
+	filter_clear(&view->auto_filter);
+	view->invert = 1;
+}
+
+void
+auto_name_filters_remove(view_t *view)
+{
+	if(filter_is_empty(&view->auto_filter))
+	{
+		return;
+	}
+
+	(void)replace_string(&view->prev_auto_filter, view->auto_filter.raw);
+	view->prev_invert = view->invert;
+
+	auto_name_filters_drop(view);
+	view->invert = cfg.filter_inverted_by_default ? 1 : 0;
+
+	ui_view_schedule_reload(view);
+}
+
+void
+auto_name_filters_restore(view_t *view)
+{
+	if(view->prev_auto_filter[0] == '\0')
+	{
+		return;
+	}
+
+	(void)filter_set(&view->auto_filter, view->prev_auto_filter);
+	view->invert = view->prev_invert;
+
+	ui_view_schedule_reload(view);
+}
+//add by sim1  --------------------------------------------
+
 /* Changes *matcher to have the value of the expr.  The operation is assumed to
  * succeed, but it's not guaranteed. */
 static void
