@@ -2287,21 +2287,6 @@ cmd_zu(key_info_t key_info, keys_info_t *keys_info)
 }
 
 //=================================================
-/* Restore dot files filter */
-static void
-cmd_zI(key_info_t key_info, keys_info_t *keys_info)
-{
-	dot_filter_set(curr_view, 0);
-}
-
-/* Remove dot files filter */
-static void
-cmd_zO(key_info_t key_info, keys_info_t *keys_info)
-{
-	dot_filter_set(curr_view, 1);
-}
-
-//-------------------------------------------------
 
 /* Restore local filter. */
 static void
@@ -2331,20 +2316,38 @@ cmd_zr(key_info_t key_info, keys_info_t *keys_info)
 	name_filters_remove(curr_view);
 }
 
-/* Restore name and local filters. */
+/* Restore local and name filters */
 static void
-cmd_zM(key_info_t key_info, keys_info_t *keys_info)
+cmd_zI(key_info_t key_info, keys_info_t *keys_info)
 {
 	local_filter_restore(curr_view);
 	name_filters_restore(curr_view);
 }
 
-/* Remove name and local filters. */
+/* Remove local and name filters */
+static void
+cmd_zO(key_info_t key_info, keys_info_t *keys_info)
+{
+	local_filter_remove(curr_view);
+	name_filters_remove(curr_view);
+}
+
+/* Restore all filters. */
+static void
+cmd_zM(key_info_t key_info, keys_info_t *keys_info)
+{
+	local_filter_restore(curr_view);
+	name_filters_restore(curr_view);
+	dot_filter_set(curr_view, 0);
+}
+
+/* Remove all filters. */
 static void
 cmd_zR(key_info_t key_info, keys_info_t *keys_info)
 {
 	local_filter_remove(curr_view);
 	name_filters_remove(curr_view);
+	dot_filter_set(curr_view, 1);
 }
 //mod by sim1 -------------------------------------
 
