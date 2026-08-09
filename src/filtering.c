@@ -344,10 +344,7 @@ name_filters_remove(view_t *view)
 	name_filters_drop(view);
 
 	//add by sim1
-	if(view->prev_config_filter[0] != '\0')
-	{
-		replace_matcher(&view->manual_filter, view->prev_config_filter);
-	}
+	replace_matcher(&view->manual_filter, view->prev_config_filter);
 
 	view->invert = cfg.filter_inverted_by_default ? 1 : 0;
 
