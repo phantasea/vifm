@@ -423,6 +423,14 @@ auto_name_filters_restore(view_t *view)
 
 	ui_view_schedule_reload(view);
 }
+
+void
+config_filters_init()
+{
+	//store the initial manual name filters set in vifmrc
+	(void)replace_string(&curr_view->prev_config_filter, matcher_get_expr(curr_view->manual_filter));
+	(void)replace_string(&other_view->prev_config_filter, matcher_get_expr(other_view->manual_filter));
+}
 //add by sim1  --------------------------------------------
 
 /* Changes *matcher to have the value of the expr.  The operation is assumed to

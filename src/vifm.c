@@ -373,8 +373,8 @@ vifm_main(int argc, char *argv[])
 	update_screen(stats_update_fetch());
 
 	//add by sim1: store the initial manual name filters set in vifmrc
-	(void)replace_string(&curr_view->prev_config_filter, matcher_get_expr(curr_view->manual_filter));
-	(void)replace_string(&other_view->prev_config_filter, matcher_get_expr(other_view->manual_filter));
+	extern void config_filters_init();
+	config_filters_init();
 
 	event_loop(&quit, /*manage_marking=*/1);
 
