@@ -294,6 +294,7 @@ flist_free_view(view_t *view)
 	matcher_free(view->manual_filter);
 	view->manual_filter = NULL;
 	update_string(&view->prev_manual_filter, NULL);
+	update_string(&view->prev_config_filter, NULL);  //add by sim1
 	update_string(&view->prev_auto_filter, NULL);
 
 	view->custom.type = CV_REGULAR;

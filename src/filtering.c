@@ -337,12 +337,18 @@ name_filters_remove(view_t *view)
 		return;
 	}
 
-	(void)replace_string(&view->prev_manual_filter,
-			matcher_get_expr(view->manual_filter));
+	(void)replace_string(&view->prev_manual_filter, matcher_get_expr(view->manual_filter));
 	(void)replace_string(&view->prev_auto_filter, view->auto_filter.raw);
 	view->prev_invert = view->invert;
 
 	name_filters_drop(view);
+
+	//add by sim1
+	if(view->prev_config_filter[0] != '\0')
+	{
+		replace_matcher(&view->manual_filter, view->prev_config_filter);
+	}
+
 	view->invert = cfg.filter_inverted_by_default ? 1 : 0;
 
 	ui_view_schedule_reload(view);
@@ -374,7 +380,9 @@ name_filters_restore(view_t *view)
 	replace_matcher(&view->manual_filter, view->prev_manual_filter);
 
 	(void)filter_set(&view->auto_filter, view->prev_auto_filter);
+
 	view->invert = view->prev_invert;
+
 	ui_view_schedule_reload(view);
 }
 

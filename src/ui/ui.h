@@ -453,6 +453,9 @@ struct view_t
 	 * possible.  Always not NULL. */
 	char *prev_manual_filter;
 
+	/* Store previous raw value of the manual_filter set in vifmrc */
+	char *prev_config_filter;  //add by sim1
+
 	/* Filter which is controlled automatically and never filled by user. */
 	filter_t auto_filter;
 	/* Stores previous raw value of the auto_filter to make filter restoring
