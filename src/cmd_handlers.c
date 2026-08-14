@@ -350,9 +350,13 @@ static int get_reg_and_count(const cmd_info_t *cmd_info, int *reg);
 static int get_reg(const char arg[], int *reg);
 static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
-static int explore_cmd(const cmd_info_t *cmd_info);  //add by sim1
-static int switch_cmd(const cmd_info_t *cmd_info);   //add by sim1
-static int ratings_cmd(const cmd_info_t *cmd_info);  //add by sim1
+//add by sim1 +++++++++++++++++++++++++++++++++++++++
+static int explore_cmd(const cmd_info_t *cmd_info);
+static int ratings_cmd(const cmd_info_t *cmd_info);
+static int switch_cmd(const cmd_info_t *cmd_info);
+static int debugshow_cmd(const cmd_info_t *cmd_info);
+static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
+//add by sim1 ---------------------------------------
 
 const cmd_add_t cmds_list[] = {
 	{ .name = "",                  .abbr = NULL,    .id = COM_GOTO,
@@ -492,6 +496,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "unmap user keys in cmdline mode",
 	  .flags = HAS_RAW_ARGS,
 	  .handler = &cunmap_cmd,      .min_args = 1,   .max_args = 1, },
+	{ .name = "debugshow",         .abbr = NULL,    .id = -1,
+	  .descr = "debug to show global vars",
+	  .flags = 0,
+	  .handler = &debugshow_cmd,   .min_args = 0,   .max_args = 0, },
 	{ .name = "delete",            .abbr = "d",     .id = -1,
 	  .descr = "delete files",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_SELECTION_SCOPE,
@@ -2611,8 +2619,16 @@ update_filter(view_t *view, const cmd_info_t *cmd_info)
 		fallback = "";
 	}
 
-	return set_view_filter(view, cmd_info->args, fallback,
-			get_filter_inversion_state(cmd_info)) != 0;
+	//mod by sim1
+	if (view->prev_config_filter != NULL) {
+		if (cmd_info->argc != 0) {
+			return set_view_filter_cfg(view, cmd_info->args, fallback, get_filter_inversion_state(cmd_info)) != 0;
+		}
+
+		return set_view_filter(view, view->prev_config_filter, fallback, get_filter_inversion_state(cmd_info)) != 0;
+	}
+
+	return set_view_filter(view, cmd_info->args, fallback, get_filter_inversion_state(cmd_info)) != 0;
 }
 
 /* Displays state of all filters on the status bar. */
@@ -2698,6 +2714,43 @@ get_filter_inversion_state(const cmd_info_t *cmd_info)
 	return invert_filter;
 }
 
+//add by sim1
+static int
+set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert)
+{
+	char *new_filter = strdup(filter);
+	char *cfg_filter = strdup(view->prev_config_filter);
+
+	if(new_filter != NULL && new_filter[0] == '/') {
+		new_filter += 1;
+	}
+
+	size_t cfg_len = strlen(cfg_filter);
+	cfg_filter[cfg_len - 1] = '|';
+
+	cfg_filter = extend_string(cfg_filter, new_filter, &cfg_len);
+	if(!ends_with_slash(cfg_filter)) {
+		cfg_filter = extend_string(cfg_filter, "/", &cfg_len);
+	}
+
+	char *error;
+	matcher_t *const matcher = matcher_alloc(cfg_filter, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, fallback, &error);
+
+	if(matcher == NULL)
+	{
+		ui_sb_errf("Name filter not set: %s", error);
+		free(error);
+		return CMDS_ERR_CUSTOM;
+	}
+
+	view->invert = invert;
+	matcher_free(view->manual_filter);
+	view->manual_filter = matcher;
+	(void)filter_clear(&view->auto_filter);
+	ui_view_schedule_reload(view);
+	return 0;
+}
+
 /* Tries to update filter of the view rejecting incorrect regular expression.
  * On empty pattern fallback is used.  Returns non-zero if message on the
  * status bar should be saved, otherwise zero is returned. */
@@ -2706,8 +2759,8 @@ set_view_filter(view_t *view, const char filter[], const char fallback[],
 		int invert)
 {
 	char *error;
-	matcher_t *const matcher = matcher_alloc(filter, FILTER_DEF_CASE_SENSITIVITY,
-			ME_DEF_REGEX, fallback, &error);
+	matcher_t *const matcher = matcher_alloc(filter, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, fallback, &error);
+
 	if(matcher == NULL)
 	{
 		ui_sb_errf("Name filter not set: %s", error);
@@ -6088,6 +6141,15 @@ switch_cmd(const cmd_info_t *cmd_info)
 
 	go_to_other_pane();
 	return 0;
+}
+
+static int
+debugshow_cmd(const cmd_info_t *cmd_info)
+{
+	ui_sb_msgf("=%s", curr_view->prev_config_filter);
+
+	//if "return 0", the cmdline msg disappears, "messages" cmd shows it
+	return 1;
 }
 //add by sim1 -----------------------
 
