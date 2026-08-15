@@ -439,6 +439,9 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 					free(ellipsis);
 					break;
 				}
+			case 'B':
+				copy_str(buf, sizeof(buf), view == &lwin ? cfg.pane_one_tag : cfg.pane_two_tag);
+				break;
 			//add by sim1: --------------------------------------------------------
 			case 'A':
 #ifndef _WIN32

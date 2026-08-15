@@ -193,7 +193,8 @@ static int is_in_miller_view(const view_t *view);
 static int is_forced_list_mode(const view_t *view);
 
 /* List of macros that are expanded in the ruler. */
-static const char RULER_MACROS[] = "-HraEFxlLPS%[]";  //mod by sim1: add char HraE
+//mod by sim1: add char 'BHraE'
+static const char RULER_MACROS[] = "-BHraEFxlLPS%[]";
 
 void
 ui_ruler_update(view_t *view, int lazy_redraw)
@@ -216,7 +217,7 @@ ui_ruler_update(view_t *view, int lazy_redraw)
 	free(expanded);
 }
 
-//****************************************************************
+//*****************************TODO*******************************
 void
 ui_input_set_systime()
 {
