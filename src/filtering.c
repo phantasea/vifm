@@ -1025,6 +1025,14 @@ local_filter_remove(view_t *view)
 {
 	(void)replace_string(&view->local_filter.prev, local_filter_get(view));
 	reset_matchers(&view->local_filter.matchers);
+
+	//add by sim1
+	filter_t *filter = &view->local_filter.filter;
+	filter->filter_directorys   = 0;
+	filter->filter_nondirectory = 0;
+	filter->filter_nonsymlinks  = 0;
+	filter->filter_nonratings   = 0;
+
 	ui_view_schedule_reload(view);
 }
 
