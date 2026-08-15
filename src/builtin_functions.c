@@ -89,7 +89,6 @@ static var_t system_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
 static var_t isactive_builtin(const call_info_t *call_info);
 static var_t filesize_builtin(const call_info_t *call_info);
-static var_t selfiles_builtin(const call_info_t *call_info);
 static var_t isdotfile_builtin(const call_info_t *call_info);
 static var_t toggle_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
@@ -117,7 +116,6 @@ static const function_t functions[] = {
 	{ "layoutis",    "query current layout",       {1,1}, &layoutis_builtin },
 	{ "paneisat",    "query pane location",        {1,1}, &paneisat_builtin },
 	{ "selected",    "retrieve selection size",    {0,0}, &selected_builtin },
-	{ "selfiles",    "selected file number",       {0,0}, &selfiles_builtin },   //add by sim1
 	{ "system",      "execute external command",   {1,1}, &system_builtin },
 	{ "tabpagenr",   "number of current/last tab", {0,1}, &tabpagenr_builtin },
 	{ "toggle",      "toggle function",            {1,1}, &toggle_builtin },     //add by sim1
@@ -705,12 +703,6 @@ filesize_builtin(const call_info_t *call_info)
 	}
 
 	return var_from_int(0);
-}
-
-static var_t
-selfiles_builtin(const call_info_t *call_info)
-{
-	return var_from_int(curr_view->selected_files);
 }
 
 static var_t
