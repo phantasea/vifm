@@ -217,21 +217,6 @@ ui_ruler_update(view_t *view, int lazy_redraw)
 	free(expanded);
 }
 
-//*****************************TODO*******************************
-void
-ui_input_set_systime()
-{
-	time_t t = time(NULL);
-	struct tm *tm_ptr = localtime(&t);
-	char curr_time[128] = {0};
-
-	strftime(curr_time, sizeof(curr_time), "%y-%m-%d %H:%M", tm_ptr);
-	werase(input_win);
-	mvwaddstr(input_win, 0, 0, curr_time);
-	wnoutrefresh(input_win);
-}
-//****************************************************************
-
 void
 ui_ruler_set(const char val[])
 {
@@ -2674,12 +2659,12 @@ print_view_title(const view_t *view, int active_view, char title[])
 
 	snprintf(buf, sizeof(buf), "%s@%s:%s", username, hostname, ellipsis);
 	wprint(view->title, buf);
-	//add by sim1: add pane tag shown at the right-most of the pane
+
+	//add by sim1: tag shown at the right-most title bar
 	if (!middle_border_is_visible())
 	{
-		//mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? " ㈠" : " ㈡");
-		//mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? " ①" : " ②");
-		mvwaddstr(view->title, 0, (title_width - pane_tag_len), view == &lwin ? cfg.pane_one_tag : cfg.pane_two_tag);
+		mvwaddstr(view->title, 0, (title_width - pane_tag_len),
+				view == &lwin ? cfg.pane_one_tag : cfg.pane_two_tag);
 	}
 	//mod by sim1 *******************************
 

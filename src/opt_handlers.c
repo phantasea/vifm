@@ -268,6 +268,9 @@ static void vimabs_handler(OPT_OP op, optval_t val);
 static void cdaftermkdir_handler(OPT_OP op, optval_t val);
 static void paneonetag_handler(OPT_OP op, optval_t val);
 static void panetwotag_handler(OPT_OP op, optval_t val);
+static void showsystime_handler(OPT_OP op, optval_t val);
+static void sbaronetag_handler(OPT_OP op, optval_t val);
+static void sbartwotag_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 /* Possible values of 'caseoptions'. */
@@ -802,13 +805,25 @@ options[] = {
 	  OPT_BOOL, 0, NULL, &cdaftermkdir_handler, NULL,
 	  { .ref.bool_val = &cfg.cd_after_mkdir },
 	},
-	{ "paneonetag", "", "tag of pane#1",
+	{ "paneonetag", "", "tag of pane#1 on title bar",
 	  OPT_STR, 0, NULL, &paneonetag_handler, NULL,
 	  { .ref.str_val = &cfg.pane_one_tag },
 	},
-	{ "panetwotag", "", "tag of pane#2",
+	{ "panetwotag", "", "tag of pane#2 on title bar",
 	  OPT_STR, 0, NULL, &panetwotag_handler, NULL,
 	  { .ref.str_val = &cfg.pane_two_tag },
+	},
+	{ "showsystime", "", "show system time",
+	  OPT_BOOL, 0, NULL, &showsystime_handler, NULL,
+	  { .ref.bool_val = &cfg.show_systime },
+	},
+	{ "sbaronetag", "", "tag of pane#1 on status bar",
+	  OPT_STR, 0, NULL, &sbaronetag_handler, NULL,
+	  { .ref.str_val = &cfg.sbar_one_tag },
+	},
+	{ "sbartwotag", "", "tag of pane#2 on status bar",
+	  OPT_STR, 0, NULL, &sbartwotag_handler, NULL,
+	  { .ref.str_val = &cfg.sbar_two_tag },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "mouse", "", "which modes handle mouse",
@@ -4306,6 +4321,24 @@ static void
 panetwotag_handler(OPT_OP op, optval_t val)
 {
 	(void)replace_string(&cfg.pane_two_tag, val.str_val);
+}
+
+static void
+showsystime_handler(OPT_OP op, optval_t val)
+{
+	cfg.show_systime = val.bool_val;
+}
+
+static void
+sbaronetag_handler(OPT_OP op, optval_t val)
+{
+	(void)replace_string(&cfg.sbar_one_tag, val.str_val);
+}
+
+static void
+sbartwotag_handler(OPT_OP op, optval_t val)
+{
+	(void)replace_string(&cfg.sbar_two_tag, val.str_val);
 }
 //add by sim1 *******************************************************************************
 

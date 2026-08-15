@@ -390,7 +390,7 @@ typedef struct config_t
 	int case_override; /* Flag set here means the fact of the override. */
 	int case_ignore;   /* Flag here means case should be either always ignored or
 	                      always respected. */
-	//add by sim1 **********************************************
+	//add by sim1 ************************************************
 	int prefer_vsplit;       /* whether prefer vsplit */
 	int max_undo_tabs;       /* max number for undo tabs */
 	int preview_max_size;    /* max file size(kB) for preview */
@@ -398,9 +398,12 @@ typedef struct config_t
 	char *top_mid_filler;    /* top middle border filler */
 	char *clipboard_prg;     /* how to obtain the clipboard */
 	int cd_after_mkdir;      /* cd after mkdir */
-	char *pane_one_tag;      /* tag for pane#1 */
-	char *pane_two_tag;      /* tag for pane#2 */
-	//add by sim1 **********************************************
+	char *pane_one_tag;      /* tag for pane#1 on title bar */
+	char *pane_two_tag;      /* tag for pane#2 on title bar */
+	int show_systime;        /* if show systime on status bar */
+	char *sbar_one_tag;      /* tag for pane#1 on status bar */
+	char *sbar_two_tag;      /* tag for pane#2 on status bar */
+	//add by sim1 ************************************************
 
 	/* Settings of size formatting. */
 	struct
