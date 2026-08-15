@@ -2736,6 +2736,9 @@ set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], in
 	char *error;
 	matcher_t *const matcher = matcher_alloc(cfg_filter, FILTER_DEF_CASE_SENSITIVITY, ME_DEF_REGEX, fallback, &error);
 
+	free(new_filter);
+	free(cfg_filter);
+
 	if(matcher == NULL)
 	{
 		ui_sb_errf("Name filter not set: %s", error);
