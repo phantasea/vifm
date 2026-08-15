@@ -2353,16 +2353,21 @@ cmd_zM(key_info_t key_info, keys_info_t *keys_info)
 {
 	local_filter_restore(curr_view);
 	name_filters_restore(curr_view);
-	dot_filter_set(curr_view, 0);
+	//dot_filter_set(curr_view, 0);
 }
 
 /* Remove all filters. */
 static void
 cmd_zR(key_info_t key_info, keys_info_t *keys_info)
 {
+	char *temp = strdup(curr_view->prev_config_filter);
+	(void)replace_string(&curr_view->prev_config_filter, "");
+
 	local_filter_remove(curr_view);
 	name_filters_remove(curr_view);
-	dot_filter_set(curr_view, 1);
+	//dot_filter_set(curr_view, 1);
+
+	(void)replace_string(&curr_view->prev_config_filter, temp);
 }
 //mod by sim1 -------------------------------------
 
