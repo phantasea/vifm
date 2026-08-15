@@ -91,7 +91,6 @@ static var_t isactive_builtin(const call_info_t *call_info);
 static var_t filesize_builtin(const call_info_t *call_info);
 static var_t selfiles_builtin(const call_info_t *call_info);
 static var_t isdotfile_builtin(const call_info_t *call_info);
-static var_t getvar_builtin(const call_info_t *call_info);
 static var_t toggle_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
 static var_t tabpagenr_builtin(const call_info_t *call_info);
@@ -112,7 +111,6 @@ static const function_t functions[] = {
 	{ "filesize",    "retrieve size of a file",    {1,1}, &filesize_builtin },   //add by sim1
 	{ "fnameescape", "escapes string for a :cmd",  {1,1}, &fnameescape_builtin },
 	{ "getpanetype", "retrieve type of file list", {0,0}, &getpanetype_builtin},
-	{ "getvar",      "get variable for test",      {0,0}, &getvar_builtin},      //add by sim1
 	{ "has",         "check for specific ability", {1,1}, &has_builtin },
 	{ "input",       "prompt user for input",      {1,3}, &input_builtin },
 	{ "isdotfile",   "check if file a dot file",   {1,1}, &isdotfile_builtin },  //add by sim1
@@ -733,20 +731,21 @@ static var_t
 toggle_builtin(const call_info_t *call_info)
 {
 	static int bold = 0;
+	static int test = 0;
+
 	if (!strcmp(var_to_str(call_info->argv[0]), "bold"))
 	{
 		bold = !bold;
 		return var_from_bool(bold);
 	}
 
-	return var_from_bool(0);
-}
+	if (!strcmp(var_to_str(call_info->argv[0]), "test"))
+	{
+		test = !test;
+		return var_from_bool(test);
+	}
 
-int temptestforint = 0;
-static var_t
-getvar_builtin(const call_info_t *call_info)
-{
-	return var_from_int(temptestforint);
+	return var_from_bool(0);
 }
 //add by sim1 ------------------------
 
