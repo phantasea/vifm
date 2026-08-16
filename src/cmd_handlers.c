@@ -5229,6 +5229,15 @@ static int
 touch_cmd(const cmd_info_t *cmd_info)
 {
 	const int at = get_at(curr_view, cmd_info);
+
+	//add by sim1
+	//ui_sb_errf("==%i==%s==", cmd_info->argc, cmd_info->argv[0]);
+	if (cmd_info->argc == 1 &&
+			cmd_info->argv[0][strlen(cmd_info->argv[0]) - 1] == '/')
+	{
+		return mkdir_cmd(cmd_info);
+	}
+
 	return fops_mkfiles(curr_view, at, cmd_info->argv, cmd_info->argc) != 0;
 }
 
