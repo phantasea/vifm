@@ -2426,6 +2426,7 @@ store_global_options(JSON_Object *root)
 	append_dstr(options, format_str("sbaronetag=%s", cfg.sbar_one_tag));
 	append_dstr(options, format_str("sbartwotag=%s", cfg.sbar_two_tag));
 	append_dstr(options, format_str("%sshowsystime", cfg.show_systime ? "" : "no"));
+	append_dstr(options, format_str("systimeoffset=%d", cfg.systime_offset));
 	append_dstr(options, format_str("systimeprefix=%s", cfg.systime_prefix));
 	append_dstr(options, format_str("systimesuffix=%s", cfg.systime_suffix));
 	//add by sim1 **************************************************

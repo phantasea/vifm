@@ -271,6 +271,7 @@ static void panetwotag_handler(OPT_OP op, optval_t val);
 static void sbaronetag_handler(OPT_OP op, optval_t val);
 static void sbartwotag_handler(OPT_OP op, optval_t val);
 static void showsystime_handler(OPT_OP op, optval_t val);
+static void systimeoffset_handler(OPT_OP op, optval_t val);
 static void systimeprefix_handler(OPT_OP op, optval_t val);
 static void systimesuffix_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
@@ -815,10 +816,6 @@ options[] = {
 	  OPT_STR, 0, NULL, &panetwotag_handler, NULL,
 	  { .ref.str_val = &cfg.pane_two_tag },
 	},
-	{ "showsystime", "", "show system time",
-	  OPT_BOOL, 0, NULL, &showsystime_handler, NULL,
-	  { .ref.bool_val = &cfg.show_systime },
-	},
 	{ "sbaronetag", "", "tag of pane#1 on status bar",
 	  OPT_STR, 0, NULL, &sbaronetag_handler, NULL,
 	  { .ref.str_val = &cfg.sbar_one_tag },
@@ -826,6 +823,14 @@ options[] = {
 	{ "sbartwotag", "", "tag of pane#2 on status bar",
 	  OPT_STR, 0, NULL, &sbartwotag_handler, NULL,
 	  { .ref.str_val = &cfg.sbar_two_tag },
+	},
+	{ "showsystime", "", "show system time",
+	  OPT_BOOL, 0, NULL, &showsystime_handler, NULL,
+	  { .ref.bool_val = &cfg.show_systime },
+	},
+	{ "systimeoffset", "", "offset of updating systime",
+	  OPT_INT, 0, NULL, &systimeoffset_handler, NULL,
+	  { .ref.int_val = &cfg.systime_offset },
 	},
 	{ "systimeprefix", "", "prefix of systime",
 	  OPT_STR, 0, NULL, &systimeprefix_handler, NULL,
@@ -4258,7 +4263,7 @@ maxundotabs_handler(OPT_OP op, optval_t val)
 {
 	if ((val.int_val < 0) || (val.int_val > 8))
 	{
-		vle_tb_append_linef(vle_err, "maxundotabs=%d, but it must be [0, 8]", val.int_val);
+		vle_tb_append_linef(vle_err, "maxundotabs=%d, must be [0, 8]!", val.int_val);
 		error = 1;
 		cfg.max_undo_tabs = 0;
 		return;
@@ -4272,7 +4277,7 @@ previewmaxsize_handler(OPT_OP op, optval_t val)
 {
 	if (val.int_val < 0)
 	{
-		vle_tb_append_linef(vle_err, "previewmaxsize=%d, but it must be non-negative", val.int_val);
+		vle_tb_append_linef(vle_err, "previewmaxsize=%d, must be non-negative!", val.int_val);
 		error = 1;
 		cfg.preview_max_size = 0;
 		return;
@@ -4334,12 +4339,6 @@ panetwotag_handler(OPT_OP op, optval_t val)
 }
 
 static void
-showsystime_handler(OPT_OP op, optval_t val)
-{
-	cfg.show_systime = val.bool_val;
-}
-
-static void
 sbaronetag_handler(OPT_OP op, optval_t val)
 {
 	(void)replace_string(&cfg.sbar_one_tag, val.str_val);
@@ -4349,6 +4348,26 @@ static void
 sbartwotag_handler(OPT_OP op, optval_t val)
 {
 	(void)replace_string(&cfg.sbar_two_tag, val.str_val);
+}
+
+static void
+showsystime_handler(OPT_OP op, optval_t val)
+{
+	cfg.show_systime = val.bool_val;
+}
+
+static void
+systimeoffset_handler(OPT_OP op, optval_t val)
+{
+	if ((val.int_val < 5) || (val.int_val > 60))
+	{
+		vle_tb_append_linef(vle_err, "systimeoffset=%d, must be [5, 60]!", val.int_val);
+		error = 1;
+		cfg.systime_offset = 30;
+		return;
+	}
+
+	cfg.systime_offset = val.int_val;
 }
 
 static void

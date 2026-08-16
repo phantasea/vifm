@@ -129,7 +129,7 @@ event_loop(const int *quit, int manage_marking)
 
 		//add by sim1
 		time_t curr_time = time(NULL);
-		if (curr_time - last_time >= 30) {
+		if (curr_time - last_time >= cfg.systime_offset) {
 			format_sys_time();
 			last_time = curr_time;
 		}

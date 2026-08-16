@@ -403,6 +403,7 @@ typedef struct config_t
 	char *sbar_one_tag;      /* tag for pane#1 on status bar */
 	char *sbar_two_tag;      /* tag for pane#2 on status bar */
 	int show_systime;        /* if show systime on status bar */
+	int systime_offset;      /* how often systime is updated*/
 	char *systime_prefix;    /* prefix for showing systime */
 	char *systime_suffix;    /* suffix for showing systime */
 	//add by sim1 ************************************************

@@ -260,6 +260,7 @@ cfg_init(void)
 	cfg.sbar_one_tag = strdup("[1]");
 	cfg.sbar_two_tag = strdup("[2]");
 	cfg.show_systime = 0;
+	cfg.systime_offset = 30;
 	cfg.systime_prefix = strdup("[");
 	cfg.systime_suffix = strdup("]");
 	//add by sim1 *******************

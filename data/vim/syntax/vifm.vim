@@ -186,7 +186,7 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir
 		\ vimabs topmidfiller maxundotabs previewmaxsize filenamedisplen
 		\ paneonetag panetwotag sbaronetag sbartwotag systimeprefix systimesuffix
-		\ clipboardprg showsystime
+		\ clipboardprg showsystime systimeoffset
 
 " Disabled boolean options
 syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
