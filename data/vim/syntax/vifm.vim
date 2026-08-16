@@ -15,6 +15,8 @@ set cpo-=C
 " General commands
 syntax keyword vifmCommand contained
 		\ select switch ratings
+		\ ffvids ffwebs ffpics fferos ffauds fffave ffedit ffgoto ffdirs
+		\ filter colorscheme touch manhelp
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
 		\ di[splay] dirs e[dit] el[se] empty en[dif] exi[t] file fin[d] fini[sh]
@@ -29,6 +31,8 @@ syntax keyword vifmCommand contained
 		\ nextgroup=vifmArgs
 syntax keyword vifmCommandCN contained
 		\ select switch ratings
+		\ ffvids ffwebs ffpics fferos ffauds fffave ffedit ffgoto ffdirs
+		\ filter colorscheme touch manhelp
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
 		\ di[splay] dirs e[dit] el[se] empty en[dif] exi[t] file fin[d] fini[sh]
@@ -179,9 +183,9 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 		\ timeoutlen title tm trash trashdir ts tuioptions to uioptions undolevels
 		\ ul vicmd viewcolumns vifminfo vimhelp vixcmd wildinc wildmenu wmnu
 		\ wildstyle wordchars wrap wrapscan ws
-		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir
+		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir showsystime
 		\ vimabs topmidfiller maxundotabs previewmaxsize filenamedisplen
-		\ clipboardprg paneonetag panetwotag
+		\ clipboardprg paneonetag panetwotag sbaronetag sbartwotag
 
 " Disabled boolean options
 syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
@@ -189,8 +193,8 @@ syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
 		\ noic noincsearch nois nokeepsel nolaststatus nols nolsview nomillerview
 		\ nonumber nonu noquickview norelativenumber nornu noscrollbind noscb
 		\ norunexec nosmartcase noscs nosortnumbers nosyscalls notitle notrash
-		\ novimhelp nowildmenu nowmnu nowrap nowrapscan nows
-		\ noprefervsplit nofilenamedispall noredolastcmdcfm nocdaftermkdir
+		\ novimhelp nowildmenu nowmnu nowrap nowrapscan nows nogdefault
+		\ noprefervsplit nofilenamedispall noredolastcmdcfm nocdaftermkdir noshowsystime
 
 " Inverted boolean options
 syntax keyword vifmOption contained invautocd invautochpos invcf invchaselinks
@@ -488,8 +492,8 @@ highlight link vifmAutocmdCommand Statement
 highlight link vifmPatternCommands Statement
 highlight link vifmComment Comment
 highlight link vifmInlineComment Comment
-highlight link vifmCommand Statement
-highlight link vifmCommandCN Statement
+highlight link vifmCommand Constant
+highlight link vifmCommandCN Constant
 highlight link vifmPrefixCommands Statement
 highlight link vifmCdCommand Statement
 highlight link vifmCmdCommand Statement
@@ -516,7 +520,7 @@ highlight link vifmPattern String
 highlight link vifmHiStyles PreProc
 highlight link vifmHiColors Special
 highlight link vifmOption PreProc
-highlight link vifmNotation Special
+highlight link vifmNotation Macro
 highlight link vifmMapArgList Special
 highlight link vifmString String
 highlight link vifmStringInExpr String
