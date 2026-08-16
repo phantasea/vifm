@@ -57,9 +57,9 @@ void ui_sb_reinit()
 	waddstr(status_bar, curr_view == &lwin ? cfg.sbar_one_tag : cfg.sbar_two_tag);
 
 	if (cfg.show_systime) {
-		//waddstr(status_bar, cfg.systime_prefix);
+		waddstr(status_bar, cfg.systime_prefix);
 		waddstr(status_bar, sys_time);
-		//waddstr(status_bar, cfg.systime_suffix);
+		waddstr(status_bar, cfg.systime_suffix);
 	}
 }
 

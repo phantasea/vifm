@@ -183,9 +183,10 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 		\ timeoutlen title tm trash trashdir ts tuioptions to uioptions undolevels
 		\ ul vicmd viewcolumns vifminfo vimhelp vixcmd wildinc wildmenu wmnu
 		\ wildstyle wordchars wrap wrapscan ws
-		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir showsystime
+		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir
 		\ vimabs topmidfiller maxundotabs previewmaxsize filenamedisplen
-		\ clipboardprg paneonetag panetwotag sbaronetag sbartwotag
+		\ paneonetag panetwotag sbaronetag sbartwotag systimeprefix systimesuffix
+		\ clipboardprg showsystime
 
 " Disabled boolean options
 syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
@@ -194,7 +195,8 @@ syntax keyword vifmOption contained noautocd noautochpos nocf nochaselinks
 		\ nonumber nonu noquickview norelativenumber nornu noscrollbind noscb
 		\ norunexec nosmartcase noscs nosortnumbers nosyscalls notitle notrash
 		\ novimhelp nowildmenu nowmnu nowrap nowrapscan nows nogdefault
-		\ noprefervsplit nofilenamedispall noredolastcmdcfm nocdaftermkdir noshowsystime
+		\ noprefervsplit nofilenamedispall noredolastcmdcfm nocdaftermkdir
+		\ noshowsystime
 
 " Inverted boolean options
 syntax keyword vifmOption contained invautocd invautochpos invcf invchaselinks

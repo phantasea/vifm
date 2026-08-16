@@ -268,9 +268,11 @@ static void vimabs_handler(OPT_OP op, optval_t val);
 static void cdaftermkdir_handler(OPT_OP op, optval_t val);
 static void paneonetag_handler(OPT_OP op, optval_t val);
 static void panetwotag_handler(OPT_OP op, optval_t val);
-static void showsystime_handler(OPT_OP op, optval_t val);
 static void sbaronetag_handler(OPT_OP op, optval_t val);
 static void sbartwotag_handler(OPT_OP op, optval_t val);
+static void showsystime_handler(OPT_OP op, optval_t val);
+static void systimeprefix_handler(OPT_OP op, optval_t val);
+static void systimesuffix_handler(OPT_OP op, optval_t val);
 //add by sim1 ***********************************************
 
 /* Possible values of 'caseoptions'. */
@@ -824,6 +826,14 @@ options[] = {
 	{ "sbartwotag", "", "tag of pane#2 on status bar",
 	  OPT_STR, 0, NULL, &sbartwotag_handler, NULL,
 	  { .ref.str_val = &cfg.sbar_two_tag },
+	},
+	{ "systimeprefix", "", "prefix of systime",
+	  OPT_STR, 0, NULL, &systimeprefix_handler, NULL,
+	  { .ref.str_val = &cfg.systime_prefix },
+	},
+	{ "systimesuffix", "", "suffix of systime",
+	  OPT_STR, 0, NULL, &systimesuffix_handler, NULL,
+	  { .ref.str_val = &cfg.systime_suffix },
 	},
 	//add by sim1 ----------------------------------------------------
 	{ "mouse", "", "which modes handle mouse",
@@ -4339,6 +4349,20 @@ static void
 sbartwotag_handler(OPT_OP op, optval_t val)
 {
 	(void)replace_string(&cfg.sbar_two_tag, val.str_val);
+}
+
+static void
+systimeprefix_handler(OPT_OP op, optval_t val)
+{
+	replace_string(&cfg.systime_prefix, val.str_val);
+	stats_redraw_later();
+}
+
+static void
+systimesuffix_handler(OPT_OP op, optval_t val)
+{
+	replace_string(&cfg.systime_suffix, val.str_val);
+	stats_redraw_later();
 }
 //add by sim1 *******************************************************************************
 

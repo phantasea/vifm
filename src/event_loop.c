@@ -118,6 +118,7 @@ event_loop(const int *quit, int manage_marking)
 	(void)vifm_chdir(flist_get_dir(curr_view));
 
 	//add by sim1
+	format_sys_time();
 	time_t last_time = time(NULL);
 
 	while(!*quit)

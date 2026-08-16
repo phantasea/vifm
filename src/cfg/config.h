@@ -400,9 +400,11 @@ typedef struct config_t
 	int cd_after_mkdir;      /* cd after mkdir */
 	char *pane_one_tag;      /* tag for pane#1 on title bar */
 	char *pane_two_tag;      /* tag for pane#2 on title bar */
-	int show_systime;        /* if show systime on status bar */
 	char *sbar_one_tag;      /* tag for pane#1 on status bar */
 	char *sbar_two_tag;      /* tag for pane#2 on status bar */
+	int show_systime;        /* if show systime on status bar */
+	char *systime_prefix;    /* prefix for showing systime */
+	char *systime_suffix;    /* suffix for showing systime */
 	//add by sim1 ************************************************
 
 	/* Settings of size formatting. */

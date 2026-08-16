@@ -257,9 +257,11 @@ cfg_init(void)
 	cfg.cd_after_mkdir = 0;
 	cfg.pane_one_tag = strdup("[1]");
 	cfg.pane_two_tag = strdup("[2]");
-	cfg.show_systime = 0;
 	cfg.sbar_one_tag = strdup("[1]");
 	cfg.sbar_two_tag = strdup("[2]");
+	cfg.show_systime = 0;
+	cfg.systime_prefix = strdup("[");
+	cfg.systime_suffix = strdup("]");
 	//add by sim1 *******************
 
 	cfg.sizefmt.base = 1024;
