@@ -312,7 +312,7 @@ menus_set_pos(menu_state_t *ms, int pos)
 		show_position_in_menu(m);
 	}
 
-	checked_wmove(menu_win, ms->current, 2);
+	checked_wmove(menu_win, ms->current, 1);
 }
 
 /* Displays current menu position on a ruler. */
@@ -507,20 +507,20 @@ draw_menu_item(menu_state_t *ms, int pos, int line, int clear)
 	}
 
 	/* Truncate the item to fit the screen if needed. */
-	if(utf8_strsw(item_tail) > (size_t)(width - 2))
+	if(utf8_strsw(item_tail) > (size_t)width)
 	{
-		char *ellipsed = right_ellipsis(item_tail, width - 2, curr_stats.ellipsis);
+		char *ellipsed = right_ellipsis(item_tail, width, curr_stats.ellipsis);
 		free(escaped);
 		escaped = ellipsed;
 		item_tail = ellipsed;
 	}
 	else
 	{
-		const size_t len = utf8_nstrsnlen(item_tail, width - 2 + 1);
+		const size_t len = utf8_nstrsnlen(item_tail, width + 1);
 		item_tail[len] = '\0';
 	}
 
-	checked_wmove(menu_win, line, 2);
+	checked_wmove(menu_win, line, 1);
 	wprint(menu_win, item_tail);
 
 	if(ms->search_highlight && ms->matches != NULL && ms->matches[pos][0] >= 0)
@@ -553,7 +553,7 @@ draw_search_match(char str[], int start, int end, int line, int width,
 	{
 		/* Match is completely on the left. */
 
-		checked_wmove(menu_win, line, 2);
+		checked_wmove(menu_win, line, 1);
 		wprinta(menu_win, "<<<", attrs, A_REVERSE);
 	}
 	else if(start >= len)
@@ -585,7 +585,7 @@ draw_search_match(char str[], int start, int end, int line, int width,
 		match_start = utf8_strsw(str);
 		str[start] = c;
 
-		checked_wmove(menu_win, line, 2 + match_start);
+		checked_wmove(menu_win, line, 1 + match_start);
 		wprinta(menu_win, str + start, attrs, A_REVERSE | A_UNDERLINE);
 	}
 }
@@ -618,7 +618,7 @@ draw_menu_frame(const menu_state_t *ms)
 
 	box(menu_win, 0, 0);
 	wattron(menu_win, A_BOLD);
-	checked_wmove(menu_win, 0, 3);
+	checked_wmove(menu_win, 0, 2);
 	wprint(menu_win, " ");
 	wprint(menu_win, ellipsed);
 	wprint(menu_win, " ");
