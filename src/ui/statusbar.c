@@ -51,18 +51,15 @@ static int multiline_status_bar;
 /* Whether status bar is currently in a locked state. */
 static int is_locked;
 
-//add by sim1 *****************************************
+//add by sim1 *******************************************
 void ui_sb_reinit()
 {
 	waddstr(status_bar, curr_view == &lwin ? cfg.sbar_one_tag : cfg.sbar_two_tag);
 
 	if (cfg.show_systime) {
-		time_t t = time(NULL);
-		struct tm *tm_ptr = localtime(&t);
-		char curr_time[128] = {0};
-
-		strftime(curr_time, sizeof(curr_time), "【%y-%m-%d %H:%M】", tm_ptr);
-		waddstr(status_bar, curr_time);
+		//waddstr(status_bar, cfg.systime_prefix);
+		waddstr(status_bar, sys_time);
+		//waddstr(status_bar, cfg.systime_suffix);
 	}
 }
 

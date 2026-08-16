@@ -49,6 +49,7 @@ void filters_drop_temporaries(struct view_t *view, struct dir_entry_t *entries);
 void filters_dir_updated(struct view_t *view);
 
 //add by sim1
+void config_filters_init();
 typedef int (*iter_view_entry)(struct view_t *view, struct dir_entry_t **entry);
 void filter_directorys(struct view_t *view);
 void filter_nondirectory(struct view_t *view);

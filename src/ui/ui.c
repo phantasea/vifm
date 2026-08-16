@@ -138,6 +138,9 @@ WINDOW *change_win;
 WINDOW *error_win;
 WINDOW *tab_line;
 
+//add by sim1
+char sys_time[64] = {0};
+
 static WINDOW *mtop_line;
 static WINDOW *mborder;
 

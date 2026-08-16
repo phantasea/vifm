@@ -543,6 +543,9 @@ extern WINDOW *change_win;
 extern WINDOW *error_win;
 extern WINDOW *tab_line;
 
+//add by sim1
+extern char sys_time[64];
+
 /* Updates the ruler with information from the view (possibly lazily). */
 void ui_ruler_update(view_t *view, int lazy_redraw);
 

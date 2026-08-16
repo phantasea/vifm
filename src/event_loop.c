@@ -117,11 +117,21 @@ event_loop(const int *quit, int manage_marking)
 	 * desired state even before any events are processed. */
 	(void)vifm_chdir(flist_get_dir(curr_view));
 
+	//add by sim1
+	time_t last_time = time(NULL);
+
 	while(!*quit)
 	{
 		wint_t c;
 		size_t counter;
 		int got_input;
+
+		//add by sim1
+		time_t curr_time = time(NULL);
+		if (curr_time - last_time >= 30) {
+			format_sys_time();
+			last_time = curr_time;
+		}
 
 		if(manage_marking)
 		{

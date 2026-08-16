@@ -232,6 +232,9 @@ void write_marked_paths(FILE *file, struct view_t *view, int null_sep);
  * error. */
 void format_iso_time(time_t t, char buf[], size_t buf_size);
 
+//add by sim1
+void format_sys_time();
+
 /* Checks line for path in it.  Ignores empty lines and attempts to parse it as
  * location line (path followed by a colon and optional line and column
  * numbers).  Returns canonicalized path as a newly allocated string or NULL. */

@@ -372,7 +372,7 @@ vifm_main(int argc, char *argv[])
 	 * has no effect and doesn't reset cursor position after `+"goto path"`. */
 	update_screen(stats_update_fetch());
 
-	//add by sim1: store the initial manual name filters set in vifmrc
+	//add by sim1: store the initial filters set in vifmrc
 	extern void config_filters_init();
 	config_filters_init();
 

@@ -1021,6 +1021,19 @@ format_iso_time(time_t t, char buf[], size_t buf_size)
 	strftime(buf, buf_size, "%a, %d %b %Y %H:%M:%S", tm);
 }
 
+//add by sim1
+void format_sys_time()
+{
+	time_t t = time(NULL);
+	struct tm *tm_ptr = localtime(&t);
+	if (tm_ptr == NULL) {
+		copy_str(sys_time, sizeof(sys_time), "");
+		return;
+	}
+
+	strftime(sys_time, sizeof(sys_time), "%y-%m-%d %H:%M:%S", tm_ptr);
+}
+
 char *
 posix_like_escape(const char string[], int type)
 {

@@ -74,7 +74,8 @@ static const char * format_job_bar(void);
 static char ** take_job_descr_snapshot(void);
 
 /* List of macros that are expanded in the status line. */
-static const char STATUS_LINE_MACROS[] = "nrtTfacAugsEdD-xlLoPSz%[]{*";  //mod by sim1: adding nr
+//mod by sim1: adding nr
+static const char STATUS_LINE_MACROS[] = "nrtTfacAugsEdD-xlLoPSz%[]{*";
 
 /* Number of background jobs. */
 static size_t nbar_jobs;
