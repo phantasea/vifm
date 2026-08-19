@@ -45,7 +45,7 @@
 #define SORT_WIN_WIDTH 32
 
 /* Width of the input window (located to the left of the ruler). */
-#define INPUT_WIN_WIDTH 6
+#define INPUT_WIN_WIDTH 5
 
 /* Minimal width of the position window (located in the right corner of status
  * line). */

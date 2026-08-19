@@ -1443,9 +1443,11 @@ update_statusbar_layout(void)
 	int screen_x, screen_y;
 	getmaxyx(stdscr, screen_y, screen_x);
 
-	int max_ruler_width = screen_x - INPUT_WIN_WIDTH - 1;
-	int ruler_width =
-		MIN(MAX(POS_WIN_MIN_WIDTH, get_ruler_width()), max_ruler_width);
+	//mod by sim1:
+	//int max_ruler_width = screen_x - INPUT_WIN_WIDTH - 1;
+	//int ruler_width = MIN(MAX(POS_WIN_MIN_WIDTH, get_ruler_width()), max_ruler_width);
+	int ruler_width = screen_x/2 - INPUT_WIN_WIDTH - 2;
+
 	/* The minimal start position is 1, not 0, because otherwise the ruler is
 	 * hidden by a single-character status bar window. */
 	int fields_pos = screen_x - (INPUT_WIN_WIDTH + ruler_width);
@@ -2105,7 +2107,7 @@ void print_top_mid_filler(void)
 	ui_set_bg(mtop_line, &cfg.cs.color[TOP_MID_COLOR], cfg.cs.pair[TOP_MID_COLOR]);
 	werase(mtop_line);
 
-	char topmidstr[10] = {0};
+	char topmidstr[4] = {0};
 	for(int i = 0; i < getmaxx(mtop_line); ++i)
 	{
 		strcat(topmidstr, cfg.top_mid_filler);

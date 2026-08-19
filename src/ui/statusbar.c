@@ -61,6 +61,21 @@ void ui_sb_reinit()
 		waddstr(status_bar, sys_time);
 		waddstr(status_bar, cfg.systime_suffix);
 	}
+
+	if (!cfg.flexible_splitter) {
+		return;
+	}
+
+	char mid_str[4] = {0};
+	int max_width = getmaxx(stdscr);
+	int mid_width = 2 - max_width%2;
+	for (int i = 0; i < mid_width; ++i)
+	{
+		strcat(mid_str, cfg.top_mid_filler);
+	}
+
+	int start_pos = max_width/2 - (max_width%2 ? 0 : 1);
+	mvwaddstr(status_bar, 0, start_pos, mid_str);
 }
 
 void
