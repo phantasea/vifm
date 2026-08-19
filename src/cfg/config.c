@@ -253,6 +253,7 @@ cfg_init(void)
 	cfg.preview_max_size = 0;
 	cfg.redo_last_cmd_cfm = 0;
 	cfg.top_mid_filler = strdup(" ");
+	cfg.bot_mid_filler = strdup("");
 	cfg.clipboard_prg = strdup("");
 	cfg.cd_after_mkdir = 0;
 	cfg.pane_one_tag = strdup("[1]");

@@ -396,6 +396,7 @@ typedef struct config_t
 	int preview_max_size;    /* max file size(kB) for preview */
 	int redo_last_cmd_cfm;   /* if confirm before redo last cmd */
 	char *top_mid_filler;    /* top middle border filler */
+	char *bot_mid_filler;    /* cmdline/statusbar middle filler */
 	char *clipboard_prg;     /* how to obtain the clipboard */
 	int cd_after_mkdir;      /* cd after mkdir */
 	char *pane_one_tag;      /* tag for pane#1 on title bar */

@@ -1446,10 +1446,10 @@ update_statusbar_layout(void)
 	//mod by sim1:
 	//int max_ruler_width = screen_x - INPUT_WIN_WIDTH - 1;
 	//int ruler_width = MIN(MAX(POS_WIN_MIN_WIDTH, get_ruler_width()), max_ruler_width);
-	int ruler_width = screen_x/2 - INPUT_WIN_WIDTH - 2;
-
 	/* The minimal start position is 1, not 0, because otherwise the ruler is
 	 * hidden by a single-character status bar window. */
+	int ruler_width = screen_x/2 - INPUT_WIN_WIDTH - 2;
+
 	int fields_pos = screen_x - (INPUT_WIN_WIDTH + ruler_width);
 
 	wresize(ruler_win, 1, ruler_width);

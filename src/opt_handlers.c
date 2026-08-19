@@ -262,6 +262,7 @@ static void prefervsplit_handler(OPT_OP op, optval_t val);
 static void maxundotabs_handler(OPT_OP op, optval_t val);
 static void previewmaxsize_handler(OPT_OP op, optval_t val);
 static void topmidfiller_handler(OPT_OP op, optval_t val);
+static void botmidfiller_handler(OPT_OP op, optval_t val);
 static void redolastcmdcfm_handler(OPT_OP op, optval_t val);
 static void clipboardprg_handler(OPT_OP op, optval_t val);
 static void vimabs_handler(OPT_OP op, optval_t val);
@@ -791,6 +792,10 @@ options[] = {
 	{ "topmidfiller", "tmf", "top middle border filler",
 	  OPT_STR, 0, NULL, &topmidfiller_handler, NULL,
 	  { .ref.str_val = &cfg.top_mid_filler },
+	},
+	{ "botmidfiller", "bmf", "bottom line middle filler",
+	  OPT_STR, 0, NULL, &botmidfiller_handler, NULL,
+	  { .ref.str_val = &cfg.bot_mid_filler },
 	},
 	{ "redolastcmdcfm", "rlcc", "confirm before redo last cmd",
 	  OPT_BOOL, 0, NULL, &redolastcmdcfm_handler, NULL,
@@ -4289,16 +4294,27 @@ previewmaxsize_handler(OPT_OP op, optval_t val)
 static void
 topmidfiller_handler(OPT_OP op, optval_t val)
 {
-	size_t wcslen = mbstowcs(NULL, val.str_val, 0);
-	if ((wcslen == (size_t) - 1) || (wcslen > 1) || (wcslen == 0))
-	{
-		vle_tb_append_linef(vle_err, "topmidfiller=\"%s\"(%zu), but it should be one char/wchar", val.str_val, wcslen);
+	int slen = strlen(val.str_val);
+	if (slen == 0 || slen > 1) {
+		vle_tb_append_linef(vle_err, "botmidfiller=\"%s\", must be one ASCII char!", val.str_val);
 		error = 1;
-		(void)replace_string(&cfg.top_mid_filler, " ");
 		return;
 	}
 
 	(void)replace_string(&cfg.top_mid_filler, val.str_val);
+}
+
+static void
+botmidfiller_handler(OPT_OP op, optval_t val)
+{
+	size_t wcslen = mbstowcs(NULL, val.str_val, 0);
+	if ((wcslen > 1) || (wcslen == (size_t) - 1)) {
+		vle_tb_append_linef(vle_err, "botmidfiller=\"%s\"(%zu), must be one char or wchar!", val.str_val, wcslen);
+		error = 1;
+		return;
+	}
+
+	(void)replace_string(&cfg.bot_mid_filler, val.str_val);
 }
 
 static void

@@ -66,12 +66,12 @@ void ui_sb_reinit()
 		return;
 	}
 
-	char mid_str[4] = {0};
+	char mid_str[8] = "";
 	int max_width = getmaxx(stdscr);
 	int mid_width = 2 - max_width%2;
 	for (int i = 0; i < mid_width; ++i)
 	{
-		strcat(mid_str, cfg.top_mid_filler);
+		strcat(mid_str, cfg.bot_mid_filler);
 	}
 
 	int start_pos = max_width/2 - (max_width%2 ? 0 : 1);

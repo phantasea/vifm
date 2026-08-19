@@ -2418,6 +2418,7 @@ store_global_options(JSON_Object *root)
 	append_dstr(options, format_str("maxundotabs=%d", cfg.max_undo_tabs));
 	append_dstr(options, format_str("previewmaxsize=%d", cfg.preview_max_size));
 	append_dstr(options, format_str("topmidfiller=%s", cfg.top_mid_filler));
+	append_dstr(options, format_str("botmidfiller=%s", cfg.bot_mid_filler));
 	append_dstr(options, format_str("%sredolastcmdcfm", cfg.redo_last_cmd_cfm ? "" : "no"));
 	append_dstr(options, format_str("clipboardprg=%s", cfg.clipboard_prg));
 	append_dstr(options, format_str("%scdaftermkdir", cfg.cd_after_mkdir ? "" : "no"));
