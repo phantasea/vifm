@@ -560,9 +560,7 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				if(curr_stats.number_of_windows == 1)
 				{
 					view_t *const other = (view == curr_view) ? other_view : curr_view;
-					//mod by sim1
-					//copy_str(buf, sizeof(buf), replace_home_part(other->curr_dir));
-					snprintf(buf, sizeof(buf), " ‖ %s", replace_home_part(other->curr_dir));
+					copy_str(buf, sizeof(buf), replace_home_part(other->curr_dir));
 				}
 				break;
 			case '[':

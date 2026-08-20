@@ -1309,7 +1309,8 @@ draw_line_number(const column_data_t *cdt, int column)
 
 	const int mixed = cdt->line_pos == cdt->current_pos
 	               && view->num_type == NT_MIX;
-	const char *const format = mixed ? "%-*d" : "%*d";  //mod by sim1: line number without space
+  //mod by sim1: line number without space
+	const char *const format = mixed ? "%-*d" : "%*d";
 	const int num = (view->num_type & NT_REL) && !mixed
 	              ? abs(cdt->line_pos - cdt->current_pos)
 	              : cdt->line_pos + 1;
@@ -1323,7 +1324,7 @@ draw_line_number(const column_data_t *cdt, int column)
 	cchar_t cch =
 		prepare_col_color(view, 0, 1, cdt, /*real_id=*/-1, /*filling=*/0);
 	wprinta(view->win, num_str, &cch, 0);
-	//add by sim1: line number has diff color with the space separator
+	//add by sim1: line number color
 	cch = prepare_col_color(view, 0, -1, cdt, -1, 0);
 	wprinta(view->win, " ", &cch, 0);
 }
@@ -1778,7 +1779,7 @@ format_time(void *data, size_t buf_len, char buf[], const format_info_t *info)
 	{
 		//mod by sim1 ***************************************
 		//strftime(buf, buf_len + 1, cfg.time_format, tm_ptr);
-		char tmp[40] = {0};
+		char tmp[64] = {0};
 		strftime(tmp, sizeof(tmp), cfg.time_format, tm_ptr);
 		snprintf(buf, buf_len + 1, " | ");
 		strcat(buf, tmp);

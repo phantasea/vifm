@@ -128,10 +128,12 @@ event_loop(const int *quit, int manage_marking)
 		int got_input;
 
 		//add by sim1
-		time_t curr_time = time(NULL);
-		if (curr_time - last_time >= cfg.systime_offset) {
-			format_sys_time();
-			last_time = curr_time;
+		if (cfg.show_systime) {
+			time_t curr_time = time(NULL);
+			if (curr_time - last_time >= cfg.systime_offset) {
+				format_sys_time();
+				last_time = curr_time;
+			}
 		}
 
 		if(manage_marking)

@@ -196,8 +196,8 @@ static int is_in_miller_view(const view_t *view);
 static int is_forced_list_mode(const view_t *view);
 
 /* List of macros that are expanded in the ruler. */
-//mod by sim1: add char 'HraE'
-static const char RULER_MACROS[] = "-HraEFxlLPS%[]";
+//mod by sim1: add char 'HaE'
+static const char RULER_MACROS[] = "-HaEFxlLPS%[]";
 
 void
 ui_ruler_update(view_t *view, int lazy_redraw)
@@ -1503,7 +1503,7 @@ get_fileview_ruler_width(view_t *view)
 	view->list_pos = (view->list_rows == 0) ? 0 : (view->list_rows - 1);
 
 	char *expanded = expand_ruler_macros(view, cfg.ruler_format);
-	int len = strlen(expanded) + 7;  //mod by sim1 for rating stars
+	int len = strlen(expanded);
 	free(expanded);
 
 	view->list_pos = list_pos;
