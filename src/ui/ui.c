@@ -1444,18 +1444,19 @@ update_statusbar_layout(void)
 
 	//mod by sim1: *****************************
 	//here must be -2, or the topline affected
-	int ruler_width = screen_x/2 - 2;
+	int ruler_width = screen_x/2 - INPUT_WIN_WIDTH - 2;
 	int ruler_start = screen_x - ruler_width;
+	int input_start = screen_x/2 + 2;
 
 	wresize(ruler_win, 1, ruler_width);
 	mvwin(ruler_win, screen_y - 1, ruler_start);
 
 	wresize(input_win, 1, INPUT_WIN_WIDTH);
-	mvwin(input_win, screen_y - 1, ruler_start);
+	mvwin(input_win, screen_y - 1, input_start);
 
 	if(are_statusbar_widgets_visible())
 	{
-		wresize(status_bar, 1, ruler_start);
+		wresize(status_bar, 1, input_start);
 		mvwin(status_bar, screen_y - 1, 0);
 
 		wnoutrefresh(ruler_win);

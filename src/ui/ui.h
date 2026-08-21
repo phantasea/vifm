@@ -57,8 +57,7 @@
 #define MIN_TERM_WIDTH (INPUT_WIN_WIDTH + 1 + POS_WIN_MIN_WIDTH)
 
 /* Width of the ruler and input windows. */
-//mod by sim1
-#define FIELDS_WIDTH() (getmaxx(ruler_win))
+#define FIELDS_WIDTH() (INPUT_WIN_WIDTH + getmaxx(ruler_win))
 
 /* New values should be added at the end of enumeration to do not brake sort
  * settings stored in vifminfo files.  Also SK_LAST and SK_COUNT should be
