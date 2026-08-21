@@ -493,13 +493,13 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 				{
 					filter_t filter = curr_view->local_filter.filter;
 					if (filter.filter_directorys == TRUE) {
-						copy_str(buf, sizeof(buf), "files");
+						copy_str(buf, sizeof(buf), "F");
 					} else if (filter.filter_nondirectory == TRUE) {
-						copy_str(buf, sizeof(buf), "dirs");
+						copy_str(buf, sizeof(buf), "D");
 					} else if (filter.filter_nonsymlinks == TRUE) {
-						copy_str(buf, sizeof(buf), "symlinks");
+						copy_str(buf, sizeof(buf), "S");
 					} else if (filter.filter_nonratings == TRUE) {
-						copy_str(buf, sizeof(buf), "ratings");
+						copy_str(buf, sizeof(buf), "R");
 					} else if (filter.raw != NULL && filter.raw[0] != '\0') {
 						copy_str(buf, sizeof(buf), filter.raw);
 					}
