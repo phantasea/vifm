@@ -44,20 +44,21 @@
 
 #define SORT_WIN_WIDTH 32
 
-/* Width of the input window (located to the left of the ruler). */
+/* Width of the input window (for keys input). */
 #define INPUT_WIN_WIDTH 5
 
-/* Minimal width of the position window (located in the right corner of status
- * line). */
+/* Minimal width of the position window (right corner of status line). */
 #define POS_WIN_MIN_WIDTH 13
 
 /* Menus don't look like menus as all if height is less than 5. */
 #define MIN_TERM_HEIGHT 5
+
 /* There is a lower limit on status bar width. */
 #define MIN_TERM_WIDTH (INPUT_WIN_WIDTH + 1 + POS_WIN_MIN_WIDTH)
 
 /* Width of the ruler and input windows. */
-#define FIELDS_WIDTH() (INPUT_WIN_WIDTH + getmaxx(ruler_win))
+//mod by sim1
+#define FIELDS_WIDTH() (getmaxx(ruler_win))
 
 /* New values should be added at the end of enumeration to do not brake sort
  * settings stored in vifminfo files.  Also SK_LAST and SK_COUNT should be

@@ -1435,34 +1435,27 @@ update_term_size(void)
 #endif
 }
 
-/* Re-layouts windows located on status bar (status bar itself, input and the
- * ruler). */
+/* Re-layout windows on cmdline (status_bar + input_bar + ruler_bar) */
 static void
 update_statusbar_layout(void)
 {
 	int screen_x, screen_y;
 	getmaxyx(stdscr, screen_y, screen_x);
 
-	//mod by sim1:
-	//int max_ruler_width = screen_x - INPUT_WIN_WIDTH - 1;
-	//int ruler_width = MIN(MAX(POS_WIN_MIN_WIDTH, get_ruler_width()), max_ruler_width);
-	/* The minimal start position is 1, not 0, because otherwise the ruler is
-	 * hidden by a single-character status bar window. */
-	int ruler_width = screen_x/2 - INPUT_WIN_WIDTH - 2;
-
-	int fields_pos = screen_x - (INPUT_WIN_WIDTH + ruler_width);
+	//mod by sim1: *****************************
+	//here must be -2, or the topline affected
+	int ruler_width = screen_x/2 - 2;
+	int ruler_start = screen_x - ruler_width;
 
 	wresize(ruler_win, 1, ruler_width);
-	mvwin(ruler_win, screen_y - 1, fields_pos + INPUT_WIN_WIDTH);
+	mvwin(ruler_win, screen_y - 1, ruler_start);
 
 	wresize(input_win, 1, INPUT_WIN_WIDTH);
-	mvwin(input_win, screen_y - 1, fields_pos);
+	mvwin(input_win, screen_y - 1, ruler_start);
 
-	/* We might be in command-line mode in which case we shouldn't change visible
-	 * parts of the layout. */
 	if(are_statusbar_widgets_visible())
 	{
-		wresize(status_bar, 1, fields_pos);
+		wresize(status_bar, 1, ruler_start);
 		mvwin(status_bar, screen_y - 1, 0);
 
 		wnoutrefresh(ruler_win);
