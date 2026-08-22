@@ -376,6 +376,13 @@ modmenu_abort(void)
 void
 modmenu_pre(void)
 {
+	//add by sim1
+	if(curr_stats.save_msg == 0)
+	{
+		ui_sb_msgf("-- MENU --");
+		curr_stats.save_msg = 2;
+	}
+
 	touchwin(ruler_win);
 	ui_refresh_win(ruler_win);
 }
