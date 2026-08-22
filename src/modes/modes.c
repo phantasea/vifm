@@ -431,8 +431,7 @@ print_compare_stats(void)
 
 	if(flags & CF_GROUP_PATHS)
 	{
-		ui_sb_msgf("(on compare) "
-				"%cidentical: %d, %cdifferent: %d, %c/%cunique: %d/%d",
+		ui_sb_msgf("[-- DIFF --] %csame:%d, %cdiff:%d, %c/%cuniq:%d/%d",
 				flags & CF_SHOW_IDENTICAL ? '+' : '-',
 				stats->identical,
 				flags & CF_SHOW_DIFFERENT ? '+' : '-',
@@ -444,7 +443,7 @@ print_compare_stats(void)
 	}
 	else
 	{
-		ui_sb_msgf("(on compare) %cidentical: %d, %c/%cunique: %d/%d",
+		ui_sb_msgf("[-- DIFF --] %csame:%d, %c/%cuniq:%d/%d",
 				flags & CF_SHOW_IDENTICAL ? '+' : '-',
 				stats->identical,
 				flags & CF_SHOW_UNIQUE_LEFT ? '+' : '-',

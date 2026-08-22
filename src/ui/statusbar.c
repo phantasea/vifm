@@ -66,6 +66,10 @@ void ui_sb_reinit()
 		return;
 	}
 
+	if (!strlen(cfg.bot_mid_filler)) {
+		return;
+	}
+
 	char mid_str[8] = "";
 	int max_width = getmaxx(stdscr);
 	int mid_width = 2 - max_width%2;
