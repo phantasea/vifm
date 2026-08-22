@@ -1524,10 +1524,11 @@ static void
 cmd_percent(key_info_t key_info, keys_info_t *keys_info)
 {
 	int line;
-	if(key_info.count == NO_COUNT_GIVEN)
-		return;
 	if(key_info.count > 100)
 		return;
+	//mod by sim1
+	if(key_info.count == NO_COUNT_GIVEN)
+		key_info.count = 50;
 	line = (key_info.count * curr_view->list_rows)/100;
 	pick_or_move(keys_info, line - 1);
 }
