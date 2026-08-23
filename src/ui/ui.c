@@ -2204,7 +2204,8 @@ print_tabline(WINDOW *win, view_t *view, col_attr_t base_col, path_func pf)
 		for(i = 0; i < info.count; ++i)
 		{
 			col_attr_t col = base_col;
-			if(i == info.current - info.skipped)
+			//mod by sim1 (https://q2a.vifm.info/2496)
+			if((i == info.current - info.skipped) && (view == curr_view))
 			{
 				cs_mix_colors(&col, &cfg.cs.color[TAB_LINE_SEL_COLOR]);
 			}
