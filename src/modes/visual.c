@@ -853,6 +853,10 @@ static void
 cmd_gM(key_info_t key_info, keys_info_t *keys_info)
 {
 	int offset = (view->list_pos - start_pos) / 2;
+	if (offset == 0) {
+		return;
+	}
+
 	goto_pos(start_pos + offset);
 }
 
