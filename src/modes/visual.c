@@ -175,6 +175,7 @@ static int move_pos(int pos);
 static void handle_mouse_event(key_info_t key_info, keys_info_t *keys_info);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+static void cmd_gM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
@@ -249,8 +250,11 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_g WK_j,     {{&cmd_j},  .descr = "go to item below"}},
 	{WK_g WK_k,     {{&cmd_k},  .descr = "go to item above"}},
 	{WK_g WK_l,     {{&cmd_gl}, .descr = "open selection"}},
-	{WK_g WK_t,     {{&cmd_gt}, .descr = "next or n-th tab"}},   //add by sim1
-	{WK_g WK_T,     {{&cmd_gT}, .descr = "n-th previous tab"}},  //add by sim1
+	//add by sim1 +++++++
+	{WK_g WK_M,     {{&cmd_gM}, .descr = "go to the midlle of visual selection"}},
+	{WK_g WK_t,     {{&cmd_gt}, .descr = "next or n-th tab"}},
+	{WK_g WK_T,     {{&cmd_gT}, .descr = "n-th previous tab"}},
+	//add by sim1 -------
 	{WK_g WK_U,     {{&cmd_gU}, .descr = "convert to uppercase"}},
 	{WK_g WK_u,     {{&cmd_gu}, .descr = "convert to lowercase"}},
 	{WK_g WK_v,     {{&cmd_gv}, .descr = "restore previous selection"}},
@@ -645,10 +649,14 @@ static void
 cmd_percent(key_info_t key_info, keys_info_t *keys_info)
 {
 	int line;
-	if(key_info.count == NO_COUNT_GIVEN)
-		return;
-	if(key_info.count > 100)
-		return;
+
+	//mod by sim1
+	if (key_info.count == NO_COUNT_GIVEN) {
+		key_info.count = 50;
+	} else if (key_info.count > 100) {
+		key_info.count = 100;
+	}
+
 	line = (key_info.count * view->list_rows)/100;
 	goto_pos(line - 1);
 }
@@ -841,6 +849,13 @@ cmd_gl(key_info_t key_info, keys_info_t *keys_info)
 }
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++++
+static void
+cmd_gM(key_info_t key_info, keys_info_t *keys_info)
+{
+	int offset = abs(view->list_pos - start_pos) / 2;
+	goto_pos(start_pos + offset);
+}
+
 /* Switches either to the next tab or to tab specified by its number [count]. */
 static void
 cmd_gt(key_info_t key_info, keys_info_t *keys_info)
