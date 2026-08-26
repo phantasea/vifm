@@ -852,7 +852,7 @@ cmd_gl(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_gM(key_info_t key_info, keys_info_t *keys_info)
 {
-	int offset = abs(view->list_pos - start_pos) / 2;
+	int offset = (view->list_pos - start_pos) / 2;
 	goto_pos(start_pos + offset);
 }
 

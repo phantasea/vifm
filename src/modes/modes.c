@@ -431,6 +431,7 @@ print_compare_stats(void)
 
 	if(flags & CF_GROUP_PATHS)
 	{
+		//mod by sim1
 		ui_sb_msgf("[-- DIFF --] %csame:%d, %cdiff:%d, %c/%cuniq:%d/%d",
 				flags & CF_SHOW_IDENTICAL ? '+' : '-',
 				stats->identical,
@@ -443,6 +444,7 @@ print_compare_stats(void)
 	}
 	else
 	{
+		//mod by sim1
 		ui_sb_msgf("[-- DIFF --] %csame:%d, %c/%cuniq:%d/%d",
 				flags & CF_SHOW_IDENTICAL ? '+' : '-',
 				stats->identical,
