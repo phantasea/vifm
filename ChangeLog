@@ -303,6 +303,9 @@
 	Fixed graphics from miller preview staying visible after switching away
 	from a file entry.
 
+	Fixed graphics from miller preview staying visible after switching
+	'millerview' off.
+
 0.14-beta to 0.14 (2025-02-08)
 
 	Improved documentation on zh/zl menu keys a bit.
