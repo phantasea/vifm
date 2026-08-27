@@ -300,6 +300,9 @@
 
 	Fixed miller columns not being filled on Windows for UNC paths.
 
+	Fixed graphics from miller preview staying visible after switching away
+	from a file entry.
+
 0.14-beta to 0.14 (2025-02-08)
 
 	Improved documentation on zh/zl menu keys a bit.

@@ -198,7 +198,6 @@ static char * format_view_title(const view_t *view, path_func pf,
 		int consider_qv);
 static void print_view_title(const view_t *view, int active_view, char title[]);
 static col_attr_t fixup_titles_attributes(const view_t *view, int active_view);
-static int is_in_miller_view(const view_t *view);
 static int is_forced_list_mode(const view_t *view);
 
 /* List of macros that are expanded in the ruler. */
@@ -2804,7 +2803,7 @@ int
 ui_view_displays_columns(const view_t *view)
 {
 	return !view->ls_view
-	    || is_in_miller_view(view)
+	    || ui_view_is_in_miller_view(view)
 	    || is_forced_list_mode(view);
 }
 
@@ -2827,7 +2826,7 @@ ui_view_left_reserved(const view_t *view)
 {
 	const int total = view->miller_ratios[0] + view->miller_ratios[1]
 	                + view->miller_ratios[2];
-	return is_in_miller_view(view)
+	return ui_view_is_in_miller_view(view)
 	     ? (view->window_cols*view->miller_ratios[0])/total : 0;
 }
 
@@ -2836,7 +2835,7 @@ ui_view_right_reserved(const view_t *view)
 {
 	dir_entry_t *const entry = get_current_entry(view);
 
-	if(!is_in_miller_view(view) || is_parent_dir(entry->name))
+	if(!ui_view_is_in_miller_view(view) || is_parent_dir(entry->name))
 	{
 		return 0;
 	}
@@ -2852,10 +2851,8 @@ ui_view_right_reserved(const view_t *view)
 	return (view->window_cols*view->miller_ratios[2])/total;
 }
 
-/* Whether miller columns should be displayed.  Returns non-zero if so,
- * otherwise zero is returned. */
-static int
-is_in_miller_view(const view_t *view)
+int
+ui_view_is_in_miller_view(const view_t *view)
 {
 	return view->miller_view
 	    && !flist_custom_active(view);
