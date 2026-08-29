@@ -19,8 +19,8 @@ syntax keyword vifmCommand contained
 		\ filter colorscheme touch manhelp
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
-		\ di[splay] dirs e[dit] el[se] empty en[dif] exi[t] file fin[d] fini[sh]
-		\ go[to] gr[ep] h[elp] hideui histnext his[tory] histprev keepsel jobs
+		\ di[splay] dirs e[dit] el[seif] empty en[dif] exi[t] file fin[d] fini[sh]
+		\ go[to] gr[ep] h[elp] hideui histnext his[tory] histprev if keepsel jobs
 		\ locate ls lstrash marks media mes[sages] mkdir m[ove] noh[lsearch]
 		\ on[ly] o[pen] plugin plugins popd pushd pu[t] pw[d] qa[ll] q[uit] redr[aw]
 		\ rege[dit] reg[isters] regular rename restart restore rlink screen sh[ell]
@@ -35,8 +35,8 @@ syntax keyword vifmCommandCN contained
 		\ filter colorscheme touch manhelp
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
-		\ di[splay] dirs e[dit] el[se] empty en[dif] exi[t] file fin[d] fini[sh]
-		\ go[to] gr[ep] h[elp] hideui histnext his[tory] histprev keepsel jobs
+		\ di[splay] dirs e[dit] el[seif] empty en[dif] exi[t] file fin[d] fini[sh]
+		\ go[to] gr[ep] h[elp] hideui histnext his[tory] histprev if keepsel jobs
 		\ locate ls lstrash marks media mes[sages] mkdir m[ove] noh[lsearch]
 		\ on[ly] o[pen] plugin plugins popd pushd pu[t] pw[d] qa[ll] q[uit] redr[aw]
 		\ rege[dit] reg[isters] regular rename restart restore rlink screen sh[ell]
@@ -71,7 +71,7 @@ syntax keyword vifmSetCommand contained se[t] setl[ocal] setg[lobal]
 syntax keyword vifmSoCommand contained so[urce]
 syntax keyword vifmMarkCommand contained ma[rk]
 syntax keyword vifmFtCommand contained filet[ype] filex[type] filev[iewer]
-syntax keyword vifmExprCommand contained if cal[l] ec[ho] elsei[f] exe[cute]
+syntax keyword vifmExprCommand contained cal[l] ec[ho] exe[cute]
 syntax keyword vifmNormalCommand contained norm[al]
 		\ nextgroup=vifmColonSubcommand
 syntax match vifmPatternCommands contained /\<\(filter\(!\|\>\)\|select\(!\|\>\)\|unselect\>\)/ skipwhite
@@ -281,7 +281,7 @@ syntax region vifmCMapSt
 		\ skip='\(\n\s*\\\)\|\(\n\s*".*$\)' end='$' keepend
 		\ contains=vifmCMapAbbr
 syntax region vifmExprCommandSt
-		\ start='\<\(if\|cal\%[l]\|ec\%[ho]\|elsei\%[f]\|exe\%[cute]\)\>'
+		\ start='\<\(cal\%[l]\|ec\%[ho]\|exe\%[cute]\)\>'
 		\ end='$\||'
 		\ contains=vifmExprCommand,vifmString,vifmStringInExpr,vifmBuiltinFunction
 		\,vifmOperator,vifmEnvVar,vifmNumber
