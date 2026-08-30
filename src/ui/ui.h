@@ -760,6 +760,10 @@ int ui_view_is_visible(const view_t *view);
  * zero is returned. */
 int ui_view_displays_columns(const view_t *view);
 
+/* Whether miller columns should be displayed.  Returns non-zero if so,
+ * otherwise zero is returned. */
+int ui_view_is_in_miller_view(const view_t *view);
+
 /* Gets width of part of the view that is available for the main file list.
  * Returns the width. */
 int ui_view_main_area(const view_t *view);
@@ -842,6 +846,13 @@ struct strlist_t;
 /* Outputs lines into terminal circumventing curses.  Positions cursor at the
  * specified point on the window beforehand. */
 void ui_pass_through(const struct strlist_t *lines, WINDOW *win, int x, int y);
+
+struct preview_area_t;
+
+/* Erases pass-through graphics (e.g., sixel) using a platform/terminal-specific
+ * way to avoid graphics bleeding through after drawing something on top of
+ * it. */
+void ui_pass_through_clear(const struct preview_area_t *parea);
 
 /* Maps column name to column id.  Returns column id or -1 on error. */
 int ui_map_column_name(const char name[]);

@@ -57,6 +57,11 @@
 #include "test_helpers.h"
 #include "utf8.h"
 
+// This macro may not be available in some toolchains.
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#  define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+
 #define PE_HDR_SIGNATURE 0x00004550U
 #define PE_HDR_OFFSET 0x3cU
 #define PE_HDR_SUBSYSTEM_OFFSET 0x5cU
@@ -1371,6 +1376,77 @@ create_new_file(const char path[], mode_t mode, int auto_delete)
 	}
 
 	return fd;
+}
+
+HANDLE
+win_conout(void)
+{
+	/* The buffer (see below) shouldn't change, so there should be no need to
+	 * open it more than once. */
+	static HANDLE conout;
+
+	if(conout == NULL || conout == INVALID_HANDLE_VALUE)
+	{
+		/* On Windows, PDCurses calls SetConsoleActiveScreenBuffer() during
+		 * initscr(), so GetStdHandle(STD_OUTPUT_HANDLE) returns the old inactive
+		 * buffer and writing there is invisible.  Open CONOUT$ to get the currently
+		 * active screen buffer (whichever one PDCurses is rendering into). */
+		conout = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE,
+				FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	}
+
+	return conout;
+}
+
+DWORD
+win_vterm_start(HANDLE conout)
+{
+	/* Not failing on errors, they are unlikely to happen and shouldn't break
+	 * further operation too much. */
+
+	/* PDCurses sets output mode to ENABLE_LVB_GRID_WORLDWIDE (0x10) by default
+	 * and sometimes resets it to different values, so can't rely on the state
+	 * being as expected.  ENABLE_PROCESSED_OUTPUT is needed to have ESC
+	 * interpreted as a control character and ENABLE_VIRTUAL_TERMINAL_PROCESSING
+	 * is needed to interpret escape sequences.  The latter has no effect without
+	 * the former. */
+	DWORD orig_mode;
+	if(GetConsoleMode(conout, &orig_mode))
+	{
+		DWORD last_error = GetLastError();
+		LOG_ERROR_MSG("Failed to get console mode of CONOUT (%p).", conout);
+		LOG_WERROR(last_error);
+	}
+	else
+	{
+		orig_mode = 0;
+	}
+
+	DWORD new_mode = orig_mode
+	               | ENABLE_PROCESSED_OUTPUT
+	               | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	if(SetConsoleMode(conout, new_mode))
+	{
+		DWORD last_error = GetLastError();
+		LOG_ERROR_MSG("Failed to set console mode (0x%08lx) of CONOUT (%p).",
+				new_mode, conout);
+		LOG_WERROR(last_error);
+	}
+
+	return orig_mode;
+}
+
+void
+win_vterm_finish(HANDLE conout, DWORD orig_mode)
+{
+	/* Restore PDCurses' original console mode. */
+	if(!SetConsoleMode(conout, orig_mode))
+	{
+		DWORD last_error = GetLastError();
+		LOG_ERROR_MSG("Failed to restore original console mode (0x%08lx) of "
+				"CONOUT (%p).", orig_mode, conout);
+		LOG_WERROR(last_error);
+	}
 }
 
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */

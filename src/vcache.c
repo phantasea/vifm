@@ -208,6 +208,14 @@ vcache_lookup(const char full_path[], const char viewer[], MacroFlags flags,
 		wait_async_finish(centry);
 	}
 
+	if(kind == VK_PASS_THROUGH && !centry->complete)
+	{
+		/* An incomplete pass-through output must never be returned to not confuse
+		 * the terminal. */
+		strlist_t empty_list = {};
+		return empty_list;
+	}
+
 	if(kind != VK_PASS_THROUGH && centry->lines.nitems == 0 &&
 			centry->job != NULL)
 	{
@@ -260,10 +268,12 @@ wait_async_finish(vcache_entry_t *centry)
 		/* Reading is performed in conditional expression. */
 	}
 
+	centry->complete = 1;
 	if(ui_cancellation_requested())
 	{
 		centry->lines.nitems = add_to_string_array(&centry->lines.items,
 				centry->lines.nitems, "[cancelled]");
+		centry->complete = 0;
 	}
 	ui_cancellation_pop();
 
