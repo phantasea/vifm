@@ -201,3 +201,5 @@ plugin.
 cairo55 implemented 'keepsel' option.
 
 Vladimir Baranov exposed `os.remove()` in Lua.
+
+Maxim4711 provided a patch to make dispalaying Sixel on Windows Terminal work.

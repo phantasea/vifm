@@ -192,7 +192,6 @@ static char * format_view_title(const view_t *view, path_func pf,
 		int consider_qv);
 static void print_view_title(const view_t *view, int active_view, char title[]);
 static col_attr_t fixup_titles_attributes(const view_t *view, int active_view);
-static int is_in_miller_view(const view_t *view);
 static int is_forced_list_mode(const view_t *view);
 
 /* List of macros that are expanded in the ruler. */
@@ -2778,7 +2777,7 @@ int
 ui_view_displays_columns(const view_t *view)
 {
 	return !view->ls_view
-	    || is_in_miller_view(view)
+	    || ui_view_is_in_miller_view(view)
 	    || is_forced_list_mode(view);
 }
 
@@ -2801,7 +2800,7 @@ ui_view_left_reserved(const view_t *view)
 {
 	const int total = view->miller_ratios[0] + view->miller_ratios[1]
 	                + view->miller_ratios[2];
-	return is_in_miller_view(view)
+	return ui_view_is_in_miller_view(view)
 	     ? (view->window_cols*view->miller_ratios[0])/total : 0;
 }
 
@@ -2810,7 +2809,7 @@ ui_view_right_reserved(const view_t *view)
 {
 	dir_entry_t *const entry = get_current_entry(view);
 
-	if(!is_in_miller_view(view) || is_parent_dir(entry->name))
+	if(!ui_view_is_in_miller_view(view) || is_parent_dir(entry->name))
 	{
 		return 0;
 	}
@@ -2826,10 +2825,8 @@ ui_view_right_reserved(const view_t *view)
 	return (view->window_cols*view->miller_ratios[2])/total;
 }
 
-/* Whether miller columns should be displayed.  Returns non-zero if so,
- * otherwise zero is returned. */
-static int
-is_in_miller_view(const view_t *view)
+int
+ui_view_is_in_miller_view(const view_t *view)
 {
 	return view->miller_view
 	    && !flist_custom_active(view);
@@ -3037,17 +3034,82 @@ ui_drop_attr(WINDOW *win)
 }
 
 void
+ui_pass_through_clear(const preview_area_t *parea)
+{
+#ifdef _WIN32
+	HANDLE hout = win_conout();
+	if(hout == INVALID_HANDLE_VALUE)
+	{
+		return;
+	}
+
+	DWORD orig_mode = win_vterm_start(hout);
+
+	const int width = parea->w;
+	const int height = parea->h;
+	const int begy = getbegy(parea->view->win) + parea->y;
+	const int begx = getbegx(parea->view->win) + parea->x;
+
+	char *blanks = malloc(width);
+	if(blanks != NULL)
+	{
+		memset(blanks, ' ', width);
+
+		int row;
+		for(row = 0; row < height; ++row)
+		{
+			COORD pos = { begx, begy + row };
+			SetConsoleCursorPosition(hout, pos);
+
+			/* SGR 0 resets colors to default (opaque), covering sixel pixels. */
+			DWORD written;
+			WriteFile(hout, "\x1b[0m", 4, &written, NULL);
+			WriteFile(hout, blanks, width, &written, NULL);
+		}
+
+		free(blanks);
+	}
+
+	win_vterm_finish(hout, orig_mode);
+#endif
+}
+
+void
 ui_pass_through(const strlist_t *lines, WINDOW *win, int x, int y)
 {
 	/* Position hardware cursor on the screen. */
 	checked_wmove(win, y, x);
 	use_wrefresh(win);
 
+#ifdef _WIN32
+	HANDLE hout = win_conout();
+	if(hout != INVALID_HANDLE_VALUE)
+	{
+		DWORD orig_mode = win_vterm_start(hout);
+
+		COORD pos = { getbegx(win) + x, getbegy(win) + y };
+
+		int i;
+		for(i = 0; i < lines->nitems; ++i)
+		{
+			COORD line_pos = { pos.X, pos.Y + i };
+			SetConsoleCursorPosition(hout, line_pos);
+
+			DWORD written;
+			const char *line = lines->items[i];
+			WriteFile(hout, line, strlen(line), &written, NULL);
+		}
+
+		win_vterm_finish(hout, orig_mode);
+	}
+#else
 	int i;
 	for(i = 0; i < lines->nitems; ++i)
 	{
 		puts(lines->items[i]);
 	}
+	fflush(stdout);
+#endif
 
 	/* Make curses synchronize its idea about where cursor is with the terminal
 	 * state. */
