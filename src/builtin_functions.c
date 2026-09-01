@@ -87,8 +87,9 @@ static var_t paneisat_builtin(const call_info_t *call_info);
 static var_t selected_builtin(const call_info_t *call_info);
 static var_t system_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
-static var_t isactive_builtin(const call_info_t *call_info);
 static var_t filesize_builtin(const call_info_t *call_info);
+static var_t isactive_builtin(const call_info_t *call_info);
+static var_t isdir_builtin(const call_info_t *call_info);
 static var_t isdotfile_builtin(const call_info_t *call_info);
 static var_t toggle_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
@@ -112,6 +113,7 @@ static const function_t functions[] = {
 	{ "getpanetype", "retrieve type of file list", {0,0}, &getpanetype_builtin},
 	{ "has",         "check for specific ability", {1,1}, &has_builtin },
 	{ "input",       "prompt user for input",      {1,3}, &input_builtin },
+	{ "isdir",       "check if the entry is dir",  {1,1}, &isdir_builtin },      //add by sim1
 	{ "isdotfile",   "check if file a dot file",   {1,1}, &isdotfile_builtin },  //add by sim1
 	{ "layoutis",    "query current layout",       {1,1}, &layoutis_builtin },
 	{ "paneisat",    "query pane location",        {1,1}, &paneisat_builtin },
@@ -703,6 +705,20 @@ filesize_builtin(const call_info_t *call_info)
 	}
 
 	return var_from_int(0);
+}
+
+static var_t
+isdir_builtin(const call_info_t *call_info)
+{
+	const int fnum = get_fnum(call_info->argv[0]);
+	if(fnum < 0)
+	{
+		return var_from_bool(1);
+	}
+
+	const dir_entry_t *entry = &curr_view->dir_entry[fnum];
+
+	return var_from_bool(fentry_is_dir(entry));
 }
 
 static var_t
