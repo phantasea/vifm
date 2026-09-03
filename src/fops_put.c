@@ -1124,17 +1124,7 @@ prompt_what_to_do(const char fname[], const char caused_by[])
 			.variants = responses,
 			.block_center = block_center,
 		};
-
-		//mod by sim1: gp/gP for paste with overwrite
-		extern int resp_overwrite;
-		if (resp_overwrite == 0)
-		{
-			response = fops_options_prompt(&prompt);
-		}
-		else
-		{
-			response = 'o';
-		}
+		response = fops_options_prompt(&prompt);
 	}
 	free(title);
 
