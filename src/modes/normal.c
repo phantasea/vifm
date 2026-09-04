@@ -253,17 +253,23 @@ static void set_pos_in_curr_view(int pos);
 static void handle_mouse_event(key_info_t key_info, keys_info_t *keys_info);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-static int  g_seltype = 0;
-static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
+static int g_sel_type = 0;
+static int g_tag_stat = 0;
+static int sel_continous(view_t *view, int *sel_init, int *sel_last);
+
+static void update_ui(view_t *view);
+
 static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_U(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_O(key_info_t key_info, keys_info_t *keys_info);
+
 static void cmd_zi(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zI(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_gM(key_info_t key_info, keys_info_t *keys_info);
-
 static void cmd_zA(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zD(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zF(key_info_t key_info, keys_info_t *keys_info);
@@ -361,6 +367,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_L,             {{&cmd_L}, .descr = "go to bottom of viewport"}},
 	{WK_M,             {{&cmd_M}, .descr = "go to middle of viewport"}},
 	{WK_N,             {{&cmd_N}, .descr = "go to previous search match"}},
+	{WK_O,             {{&cmd_O}, .descr = "selection boundary switch"}},  //add by sim1
 	{WK_P,             {{&cmd_P}, .descr = "put files by moving them"}},
 	{WK_U,             {{&cmd_U}, .descr = "undo tab close"}},  //add by sim1
 	{WK_V,             {{&cmd_V}, .descr = "go to visual mode"}},
@@ -1231,7 +1238,7 @@ cmd_gs(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_gS(key_info_t key_info, keys_info_t *keys_info)
 {
-	if (g_seltype == 0)
+	if (g_sel_type == 0)
 	{
 		cmd_gs(key_info, keys_info);
 	}
@@ -1287,6 +1294,84 @@ cmd_U(key_info_t key_info, keys_info_t *keys_info)
 	}
 
 	tabs_undo(key_info.count);
+}
+
+//function algorithm from google AI
+static int
+sel_continous(view_t *view, int *sel_init, int *sel_last)
+{
+	int blocks = 0;
+	int prev_sel = 0;
+	int curr_sel = 0;
+	int all_sels = 0;
+
+	if (view->selected_files <= 1) {
+		return 0;
+	}
+
+	*sel_init = 0;
+	*sel_last = 0;
+
+	for (int i = 0; i < view->list_rows; ++i) {
+		curr_sel = view->dir_entry[i].selected;
+		if (curr_sel) {
+			if (!prev_sel) {
+				blocks++;
+				if (blocks > 1) {
+					return 0;
+				}
+
+				*sel_init = i;
+			}
+			*sel_last = i;
+
+			all_sels++;
+			if (all_sels >= view->selected_files) {
+				break;
+			}
+		}
+		prev_sel = curr_sel;
+	}
+
+	//return TRUE if exactly one contiguous block was found
+	return (blocks == 1);
+}
+
+static void
+update_ui(view_t *view)
+{
+	fpos_set_pos(view, view->list_pos);
+	redraw_view(view);
+	ui_ruler_update(view, 1);
+}
+
+/* continous selection boundary switch */
+static void
+cmd_O(key_info_t key_info, keys_info_t *keys_info)
+{
+	static int tag_stat = 0;
+	static int pos_curr = 0;
+	static int pos_init = 0;
+	static int pos_last = 0;
+
+	if (tag_stat != g_tag_stat || tag_stat == 0) {
+		tag_stat = g_tag_stat;
+		if (!sel_continous(curr_view, &pos_init, &pos_last)) {
+			ui_sb_msg("There is no file selected!");
+			curr_stats.save_msg = 1;
+			return;
+		}
+	}
+
+	pos_curr = curr_view->list_pos;
+	if (pos_curr == pos_init) {
+		curr_view->list_pos = pos_last;
+	}
+	else {
+		curr_view->list_pos = pos_init;
+	}
+
+	update_ui(curr_view);
 }
 //add by sim1 -----------------------------------------
 
@@ -1427,8 +1512,8 @@ cmd_V(key_info_t key_info, keys_info_t *keys_info)
 	modvis_enter(VS_NORMAL);
 
 	//add by sim1: smart restore tag-selection or visual-selection
-	if (g_seltype != 1) {
-		g_seltype = 1;
+	if (g_sel_type != 1) {
+		g_sel_type = 1;
 	}
 }
 
@@ -2052,9 +2137,11 @@ cmd_t(key_info_t key_info, keys_info_t *keys_info)
 	fview_cursor_redraw(curr_view);
 
 	//add by sim1: smart restore tag-selection or visual-selection
-	if (g_seltype != 0) {
-		g_seltype = 0;
+	if (g_sel_type != 0) {
+		g_sel_type = 0;
 	}
+
+	g_tag_stat++;
 }
 
 /* Undo last command group. */
