@@ -1305,7 +1305,7 @@ sel_continous(view_t *view, int *sel_init, int *sel_last)
 	int curr_sel = 0;
 	int all_sels = 0;
 
-	if (view->selected_files <= 1) {
+	if (view->selected_files == 0) {
 		return 0;
 	}
 
@@ -1354,16 +1354,27 @@ cmd_O(key_info_t key_info, keys_info_t *keys_info)
 	static int pos_init = 0;
 	static int pos_last = 0;
 
+	if (curr_view->selected_files == 0) {
+		cmd_zO(key_info, keys_info);
+		return;
+	}
+
 	if (tag_stat != g_tag_stat || tag_stat == 0) {
 		tag_stat = g_tag_stat;
 		if (!sel_continous(curr_view, &pos_init, &pos_last)) {
-			ui_sb_msg("There is no file selected!");
+			ui_sb_msg("No any file selected!");
 			curr_stats.save_msg = 1;
 			return;
 		}
 	}
 
 	pos_curr = curr_view->list_pos;
+	if (pos_last == pos_init && pos_curr == pos_init) {
+		ui_sb_msg("Only one file selected!");
+		curr_stats.save_msg = 1;
+		return;
+	}
+
 	if (pos_curr == pos_init) {
 		curr_view->list_pos = pos_last;
 	}
@@ -2394,6 +2405,15 @@ cmd_zI(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_zO(key_info_t key_info, keys_info_t *keys_info)
 {
+	if (local_filter_is_empty(curr_view) &&
+		filter_is_empty(&curr_view->auto_filter) &&
+		!strcmp(matcher_get_expr(curr_view->manual_filter), curr_view->prev_config_filter))
+	{
+		ui_sb_msg("There are no local/name filters!");
+		curr_stats.save_msg = 1;
+		return;
+	}
+
 	local_filter_remove(curr_view);
 	name_filters_remove(curr_view);
 }
