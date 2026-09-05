@@ -177,7 +177,7 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 		\ millerview mintimeoutlen mouse navoptions number nu numberwidth nuw
 		\ previewoptions previewprg quickview relativenumber rnu rulerformat ruf
 		\ runexec scrollbind scb scrolloff sessionoptions ssop so sort sortgroups
-		\ sortorder sortnumbers shell sh shellflagcmd shcf shortmess shm showtabline
+		\ sortorder sortnumbers shell sh shellcmdflag shcf shortmess shm showtabline
 		\ stal sizefmt slowfs smartcase scs statusline stl suggestoptions syncregs
 		\ syscalls tablabel tabline tabprefix tabscope tabstop tabsuffix tal timefmt
 		\ timeoutlen title tm trash trashdir ts tuioptions to uioptions undolevels
