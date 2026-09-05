@@ -256,6 +256,7 @@ static void handle_mouse_event(key_info_t key_info, keys_info_t *keys_info);
 static int g_sel_type = 0;
 static int g_tag_stat = 0;
 static int sel_continous(view_t *view, int *init, int *last);
+static int sel_blocks(view_t *view, int init[], int last[]);
 
 static void update_ui(view_t *view);
 
@@ -267,6 +268,7 @@ static void cmd_gM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_U(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_O(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gO(key_info_t key_info, keys_info_t *keys_info);
 
 static void cmd_zi(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zI(key_info_t key_info, keys_info_t *keys_info);
@@ -398,6 +400,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_g WK_j,        {{&cmd_j},  .descr = "go to item below"}},
 	{WK_g WK_k,        {{&cmd_k},  .descr = "go to item above"}},
 	{WK_g WK_l,        {{&cmd_return}, .descr = "open current item(s)"}},
+	{WK_g WK_O,        {{&cmd_gO}, .descr = "cycle thru selections boundaries"}},  //add by sim1
 	{WK_g WK_s,        {{&cmd_gs}, .descr = "restore/make selection"}},
 	{WK_g WK_S,        {{&cmd_gS}, .descr = "smart restore selection"}},       //add by sim1
 	{WK_g WK_t,        {{&cmd_gt}, .descr = "next or n-th tab"}},
@@ -1337,6 +1340,44 @@ sel_continous(view_t *view, int *init, int *last)
 	return (bnum == 1);
 }
 
+static int
+sel_blocks(view_t *view, int init[], int last[])
+{
+	int all_rows = view->list_rows;
+	int all_sels = view->selected_files;
+	if (all_sels == 0 || all_sels > all_rows) {
+		return 0;
+	}
+
+	int bnum = 0;
+	int prev = 0;
+	int sels = 0;
+	for (int i = 0; i < all_rows; ++i) {
+		if (view->dir_entry[i].selected) {
+			if (!prev) {
+				init[bnum] = i;
+				prev = 1;
+			}
+
+			sels++;
+			if (sels >= view->selected_files) {
+				last[bnum] = i;
+				bnum++;
+				return bnum;
+			}
+		}
+		else {
+			if (prev) {
+				last[bnum] = i-1;
+				bnum++;
+				prev = 0;
+			}
+		}
+	}
+
+	return bnum;
+}
+
 static void
 update_ui(view_t *view)
 {
@@ -1389,6 +1430,63 @@ cmd_O(key_info_t key_info, keys_info_t *keys_info)
 	}
 	else {
 		curr_view->list_pos = pos_last;
+	}
+
+	update_ui(curr_view);
+}
+
+/* cycle thru several selections' boundaries */
+static void
+cmd_gO(key_info_t key_info, keys_info_t *keys_info)
+{
+	static int cyc_indx = 0;
+	static int tag_stat = 0;
+	static int sels = 0;
+	static int init[64] = {0};
+	static int last[64] = {0};
+
+	//cancle all filters
+	if (curr_view->selected_files == 0) {
+		cmd_zO(key_info, keys_info);
+		return;
+	}
+
+	if (tag_stat == 0 || tag_stat != g_tag_stat) {
+		tag_stat = g_tag_stat;
+		memset(init, 0, sizeof(init));
+		memset(last, 0, sizeof(last));
+
+		sels = sel_blocks(curr_view, init, last);
+		if (sels == 0) {
+			ui_sb_msg("No any file is selected!");
+			curr_stats.save_msg = 1;
+			return;
+		}
+
+		cyc_indx = sels - 1;
+	}
+
+	int *curr = &curr_view->list_pos;
+	if (sels == 1 && last[0] == init[0] && *curr == init[0]) {
+		ui_sb_msg("Only one file is selected!");
+		curr_stats.save_msg = 1;
+		return;
+	}
+
+	if (*curr == last[cyc_indx]) {
+		if (init[cyc_indx] == last[cyc_indx]) {
+			cyc_indx = (cyc_indx + sels - 1) % sels;
+			*curr = last[cyc_indx];
+		} else {
+			*curr = init[cyc_indx];
+		}
+	}
+	else if (*curr == init[cyc_indx]) {
+		cyc_indx = (cyc_indx + sels - 1) % sels;
+		*curr = last[cyc_indx];
+	}
+	else {
+		*curr = last[cyc_indx];
 	}
 
 	update_ui(curr_view);
