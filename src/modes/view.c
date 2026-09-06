@@ -1586,14 +1586,7 @@ display_error(const char error_msg[])
 static void
 cmd_q(key_info_t key_info, keys_info_t *keys_info)
 {
-	int old_expmode = curr_view->explore_mode;  //add by sim1
-
 	modview_leave();
-
-	//add by sim1: smart quit quick view without explore mode
-	if (!old_expmode) {
-		qv_hide();
-	}
 }
 
 static void
@@ -1652,25 +1645,24 @@ cmd_W(key_info_t key_info, keys_info_t *keys_info)
 }
 
 //smart toggle split&only layout under view/explore mode
-extern void set_millerview(int mv);  //defined in normal.c
+extern void set_millerview(int mv);
 static void
 cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 {
-	int old_expmode = 0;
 	if (curr_stats.number_of_windows != 1)
 	{
-		old_expmode = curr_view->explore_mode;
-		if (!old_expmode) {
-			modview_leave();
-			qv_hide();
+		int prev = (curr_stats.preview.on ? 1 : 0);
+		if (prev) {
+			qv_toggle();  //quit preview mode
 		}
 
 		set_millerview(TRUE);
 		only();
 
-		if (!old_expmode) {
-			modview_enter(curr_view, 1);
+		if (prev) {
+			modview_enter(curr_view, 1);  //enter explore mode
 		}
+
 		return;
 	}
 

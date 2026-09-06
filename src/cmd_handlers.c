@@ -351,12 +351,16 @@ static int get_reg_and_count(const cmd_info_t *cmd_info, int *reg);
 static int get_reg(const char arg[], int *reg);
 static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
+//
 //add by sim1 +++++++++++++++++++++++++++++++++++++++
 static int explore_cmd(const cmd_info_t *cmd_info);
 static int ratings_cmd(const cmd_info_t *cmd_info);
 static int switch_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
+
+extern void modview_enter(view_t *view, int explore);
+extern int  show_ratings_menu(view_t *view);
 //add by sim1 ---------------------------------------
 
 const cmd_add_t cmds_list[] = {
@@ -3852,8 +3856,6 @@ marks_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 *******************************************
-extern int show_ratings_menu(view_t *view);
-
 static int
 ratings_cmd(const cmd_info_t *cmd_info)
 {
@@ -6196,19 +6198,20 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 	return save_msg;
 }
 
-//add by sim1 -----------------------
-extern void modview_enter(view_t *view, int explore);
-
+//add by sim1 ++++++++++++++++++++++++++++++
+//the same as native normal cmd 'e'(explore)
 static int
 explore_cmd(const cmd_info_t *cmd_info)
 {
 	if(curr_stats.preview.on)
 	{
-		ui_sb_err("Another type of file viewing is activated");
+		ui_sb_err("Quickview is activated!");
 		curr_stats.save_msg = 1;
 		return 1;
 	}
 
+	//"1" means quickview in curr-pane
+	//"0" means quickview in peer-pane
 	modview_enter(curr_view, 1);
 	return 0;
 }
@@ -6229,12 +6232,16 @@ switch_cmd(const cmd_info_t *cmd_info)
 static int
 debugshow_cmd(const cmd_info_t *cmd_info)
 {
-	ui_sb_msgf("=%s", curr_view->prev_config_filter);
+	ui_sb_msgf("curr_expmode=%s", curr_view->prev_config_filter);
+	/*******
+	ui_sb_msgf("curr_exp=%i, peer_exp=%i, curr_preview=%i.",
+			curr_view->explore_mode, other_view->explore_mode, curr_stats.preview.on);
+	*******/
 
-	//if "return 0", the cmdline msg disappears, "messages" cmd shows it
+	//if "return 0", the cmdline msg disappears, ":messages" cmd shows it
 	return 1;
 }
-//add by sim1 -----------------------
+//add by sim1 ------------------------------
 
 /* Checks for background mark and trims it from the command.  Returns non-zero
  * if mark is found, and zero otherwise. */

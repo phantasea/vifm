@@ -279,6 +279,14 @@ static void cmd_zL(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zS(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zs(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zu(key_info_t key_info, keys_info_t *keys_info);
+
+extern void auto_name_filters_remove(view_t *view);
+extern void auto_name_filters_restore(view_t *view);
+extern void filter_nonsymlinks(view_t *view);
+extern void filter_nondotfiles(view_t *view);
+extern void filter_nondirectory(view_t *view);
+extern void filter_nonratings(view_t *view);
+extern void filter_selections(view_t *view);
 //add by sim1 -------------------------------------------------------
 
 static int last_fast_search_char;
@@ -586,8 +594,9 @@ cmd_v(key_info_t key_info, keys_info_t *keys_info)
 		return;
 	}
 
-	if (!curr_stats.preview.on && !qv_can_show())
+	if (!curr_stats.preview.on && other_view->explore_mode)
 	{
+		cmd_e(key_info, keys_info);
 		return;
 	}
 
@@ -898,8 +907,18 @@ cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info)
 {
 	if (curr_stats.number_of_windows != 1)
 	{
+		int prev = (curr_stats.preview.on ? 1 : 0);
+		if (prev) {
+			qv_toggle();
+		}
+
 		set_millerview(TRUE);
 		only();
+
+		if (prev) {
+			cmd_e(key_info, keys_info);
+		}
+
 		return;
 	}
 
@@ -2377,12 +2396,6 @@ free_list_of_file_indexes(keys_info_t *keys_info)
 }
 
 //mod by sim1 +++++++++++++++++++++++++++++++++++++
-extern void filter_nonsymlinks(view_t *view);
-extern void filter_nondotfiles(view_t *view);
-extern void filter_nondirectory(view_t *view);
-extern void filter_nonratings(view_t *view);
-extern void filter_selections(view_t *view);
-
 //show only dot files
 static void
 cmd_zA(key_info_t key_info, keys_info_t *keys_info)
@@ -2480,9 +2493,6 @@ cmd_zu(key_info_t key_info, keys_info_t *keys_info)
    :filter -- explicit/manu filter
    "zf/zs" -- implicit/auto filter
 *********************************/
-
-extern void auto_name_filters_remove(view_t *view);
-extern void auto_name_filters_restore(view_t *view);
 
 /* Restore local and auto name filters. */
 static void
