@@ -1242,8 +1242,12 @@ rn_ext(view_t *view, const char cmd[], const char title[], MacroFlags flags,
 	}
 	else if(ma_flags_present(flags, MF_PREVIEW_OUTPUT))
 	{
+		/*mod by sim1************************************************
 		view_t *other = (view == curr_view ? other_view : curr_view);
 		*save_msg = output_to_preview(other, cmd, flags);
+		************************************************************/
+		*save_msg = output_to_preview(curr_view, cmd, flags);
+
 		return -1;
 	}
 	else if(ma_flags_present(flags, MF_IGNORE))
@@ -1364,6 +1368,13 @@ output_to_statusbar(const char cmd[], view_t *view, MacroFlags flags)
 static int
 output_to_preview(view_t *view, const char cmd[], MacroFlags flags)
 {
+	//add by sim1: %q use explore mode
+	extern void modview_explore(const char cmd[], MacroFlags flags);
+	if (view == curr_view) {
+		modview_explore(cmd, flags);
+		return 0;
+	}
+
 	if(qv_ensure_is_shown() != 0)
 	{
 		return 1;

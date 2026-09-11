@@ -6232,11 +6232,11 @@ switch_cmd(const cmd_info_t *cmd_info)
 static int
 debugshow_cmd(const cmd_info_t *cmd_info)
 {
-	ui_sb_msgf("curr_expmode=%s", curr_view->prev_config_filter);
 	/*******
+	ui_sb_msgf("curr_expmode=%s", curr_view->prev_config_filter);
+	*******/
 	ui_sb_msgf("curr_exp=%i, peer_exp=%i, curr_preview=%i.",
 			curr_view->explore_mode, other_view->explore_mode, curr_stats.preview.on);
-	*******/
 
 	//if "return 0", the cmdline msg disappears, ":messages" cmd shows it
 	return 1;

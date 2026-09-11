@@ -426,6 +426,31 @@ modview_detached_make(view_t *view, const char cmd[], MacroFlags flags)
 	modview_redraw();
 }
 
+//add by sim1: %q using the explore mode instead of quickview mode
+void
+modview_explore(const char cmd[], MacroFlags flags)
+{
+	pick_vi(1);
+	reset_view_info(vi);
+
+	vi->view = curr_view;
+	vi->filename = strdup("");
+	vi->ext_viewer = strdup(cmd);
+	vi->flags = flags;
+
+	if (load_view_data(vi, "Command output viewing", "", NOSILENT))
+	{
+		reset_view_info(vi);
+		return;
+	}
+
+	curr_view->explore_mode = 1;
+	vle_mode_set(VIEW_MODE, VMT_SECONDARY);
+
+	ui_views_update_titles();
+	modview_redraw();
+}
+
 /* Either makes use of detached view or prunes it.  Returns zero on success,
  * otherwise non-zero is returned. */
 static int
