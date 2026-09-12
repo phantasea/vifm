@@ -1858,14 +1858,13 @@ cmd_av(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_cW(key_info_t key_info, keys_info_t *keys_info)
 {
-	//add by sim1 +++++++++++++++++++++++++++++++++++++
-	if(curr_view->selected_files > 1)
+	//add by sim1: in case of selected
+	if(curr_view->selected_files >= 1)
 	{
-		flist_set_marking(curr_view, 0);
-		fops_rename(curr_view, NULL, 0, 0);
+		ui_sb_errf("Only for cursor file (selected=%d)", curr_view->selected_files);
+		curr_stats.save_msg = 1;
 		return;
 	}
-	//add by sim1 -------------------------------------
 
 	fops_rename_current(curr_view, 1);
 }
@@ -1944,7 +1943,8 @@ modnorm_cp(view_t *view, key_info_t key_info)
 static void
 cmd_cw(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(curr_view->selected_files > 1)
+	//mod by sim1: in case of selected
+	if(curr_view->selected_files >= 1)
 	{
 		flist_set_marking(curr_view, 0);
 		fops_rename(curr_view, NULL, 0, 0);
