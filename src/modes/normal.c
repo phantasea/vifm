@@ -254,10 +254,11 @@ static void handle_mouse_event(key_info_t key_info, keys_info_t *keys_info);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 static int g_sel_type = 0;
-static int g_tag_stat = 0;
+static int g_sel_stat = 0;
 static int sel_continous(view_t *view, int *init, int *last);
 static int sel_blocks(view_t *view, int init[], int last[]);
 
+void update_sel_stat();
 static void update_ui(view_t *view);
 
 static void cmd_ctrl_wS(key_info_t key_info, keys_info_t *keys_info);
@@ -1397,6 +1398,11 @@ sel_blocks(view_t *view, int init[], int last[])
 	return bnum;
 }
 
+void update_sel_stat()
+{
+	g_sel_stat++;
+}
+
 static void
 update_ui(view_t *view)
 {
@@ -1409,7 +1415,7 @@ update_ui(view_t *view)
 static void
 cmd_O(key_info_t key_info, keys_info_t *keys_info)
 {
-	static int tag_stat = 0;
+	static int sel_stat = 0;
 	static int pos_curr = 0;
 	static int pos_init = 0;
 	static int pos_last = 0;
@@ -1419,8 +1425,8 @@ cmd_O(key_info_t key_info, keys_info_t *keys_info)
 		return;
 	}
 
-	if (tag_stat == 0 || tag_stat != g_tag_stat) {
-		tag_stat = g_tag_stat;
+	if (sel_stat == 0 || sel_stat != g_sel_stat) {
+		sel_stat = g_sel_stat;
 		pos_init = 0;
 		pos_last = 0;
 
@@ -1459,7 +1465,7 @@ static void
 cmd_gO(key_info_t key_info, keys_info_t *keys_info)
 {
 	static int cyc_indx = 0;
-	static int tag_stat = 0;
+	static int sel_stat = 0;
 	static int sels = 0;
 	static int init[64] = {0};
 	static int last[64] = {0};
@@ -1470,8 +1476,8 @@ cmd_gO(key_info_t key_info, keys_info_t *keys_info)
 		return;
 	}
 
-	if (tag_stat == 0 || tag_stat != g_tag_stat) {
-		tag_stat = g_tag_stat;
+	if (sel_stat == 0 || sel_stat != g_sel_stat) {
+		sel_stat = g_sel_stat;
 		memset(init, 0, sizeof(init));
 		memset(last, 0, sizeof(last));
 
@@ -2278,7 +2284,7 @@ cmd_t(key_info_t key_info, keys_info_t *keys_info)
 		g_sel_type = 0;
 	}
 
-	g_tag_stat++;
+	g_sel_stat++;
 }
 
 /* Undo last command group. */

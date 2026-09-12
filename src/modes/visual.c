@@ -175,6 +175,7 @@ static int move_pos(int pos);
 static void handle_mouse_event(key_info_t key_info, keys_info_t *keys_info);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+extern void update_sel_stat();
 static void cmd_gM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
@@ -502,6 +503,9 @@ cmd_return(key_info_t key_info, keys_info_t *keys_info)
 	{
 		vle_mode_set(NORMAL_MODE, VMT_PRIMARY);
 	}
+
+	//add by sim1
+	update_sel_stat();
 }
 
 static void
