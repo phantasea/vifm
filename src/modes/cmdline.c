@@ -3584,5 +3584,18 @@ handle_mouse_event(key_info_t key_info, keys_info_t *keys_info)
 	}
 }
 
+//add by sim1: +++++++++++++++++++
+void move_cursor_backward(int len)
+{
+	if (input_stat.index <= 0 || len <= 0) {
+		return;
+	}
+
+	input_stat.index -= len;
+	input_stat.curs_pos -= len;
+	update_cursor();
+}
+//add by sim1: -------------------
+
 /* vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab cinoptions-=(0 : */
 /* vim: set cinoptions+=t0 filetype=c : */

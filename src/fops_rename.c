@@ -96,6 +96,19 @@ fops_rename_current(view_t *view, int name_only)
 	flist_sel_stash(view);
 	fops_prompt_path(name_only ? "New name root: " : "New full name: ", filename,
 		  &rename_file_cb, rename_file_ext, &complete_filename_only);
+
+	//add by sim1: ++++++++++++++++++++++++++++++++
+	extern void move_cursor_backward(int len);
+	const char *const dot = strrchr(filename, '.');
+	if (dot == NULL) {
+		return;
+	}
+
+	int len = strlen(dot);
+	if (len > 1 && !name_only) {
+		move_cursor_backward(len);
+	}
+	//add by sim1: --------------------------------
 }
 
 /* Callback for processing file rename query. */
