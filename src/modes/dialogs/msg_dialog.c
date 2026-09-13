@@ -805,6 +805,35 @@ confirm_deletion(char *files[], int nfiles, int use_trash)
 	return 1;
 }
 
+//add by sim1: confirm before operation
+int
+confirm_dialog(const char *title, const char *msg)
+{
+	if (title == NULL || msg == NULL)
+	{
+		return 0;
+	}
+
+	dialog_data_t data = {
+		.details = {
+			.title = title,
+			.message = msg,
+		},
+		.kind = D_QUERY_CENTER_FIRST,
+		.accept_mask = MASK(DR_OK, DR_YES, DR_CLOSE, DR_NO),
+	};
+	prompt_msg_internal(&data);
+
+	curr_stats.confirmed = 0;
+	if(!ONE_OF(data.result, DR_OK, DR_YES))
+	{
+		return 0;
+	}
+
+	curr_stats.confirmed = 1;
+	return 1;
+}
+
 void
 show_errors_from_file(FILE *ef, const char title[])
 {

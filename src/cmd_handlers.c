@@ -361,6 +361,7 @@ static int set_view_filter_cfg(view_t *view, const char filter[], const char fal
 
 extern void modview_enter(view_t *view, int explore);
 extern int  show_ratings_menu(view_t *view);
+extern int  confirm_dialog(const char *title, const char *msg);
 //add by sim1 ---------------------------------------
 
 const cmd_add_t cmds_list[] = {
@@ -2436,6 +2437,14 @@ elseif_cmd(const cmd_info_t *cmd_info)
 static int
 empty_cmd(const cmd_info_t *cmd_info)
 {
+	//add by sim1: confirm before empty
+	const char *title = "Trash Deletion";
+	const char *msg = "Confirm you wanna empty trash?";
+	if (!confirm_dialog(title, msg))
+	{
+		return 0;
+	}
+
 	trash_empty_all();
 	return 0;
 }
