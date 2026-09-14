@@ -197,6 +197,7 @@ static void update_with_half_win(key_info_t *key_info);
 static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_w(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_W(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
+static void cmd_Q(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_z(key_info_t key_info, keys_info_t *keys_info);
 static void update_with_win(key_info_t *key_info);
 static int is_trying_the_same_file(void);
@@ -283,7 +284,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_F,             {{&cmd_F}, .descr = "toggle automatic forward scroll"}},
 	{WK_G,             {{&cmd_G}, .descr = "scroll to the end"}},
 	{WK_N,             {{&cmd_N}, .descr = "go to previous search match"}},
-	{WK_Q,             {{&cmd_q}, .descr = "leave view mode"}},
+	{WK_Q,             {{&cmd_Q}, .descr = "leave view mode smartly"}},  //mod by sim1
 	{WK_P,             {{&cmd_P}, .descr = "preserve the current viewer choice"}},
 	{WK_R,             {{&cmd_R}, .descr = "reload view contents"}},
 	{WK_Z WK_Q,        {{&cmd_q}, .descr = "leave view mode"}},
@@ -562,6 +563,14 @@ modview_leave(void)
 	{
 		view->explore_mode = 0;
 		redraw_current_view();
+
+		/************
+		//add by sim1
+		if (curr_stats.number_of_windows != 1 && !other_view->explore_mode)
+		{
+			redraw_view(other_view);
+		}
+		************/
 	}
 	else
 	{
@@ -1613,6 +1622,19 @@ cmd_q(key_info_t key_info, keys_info_t *keys_info)
 {
 	modview_leave();
 }
+
+//add by sim1 ++++++++++++++++++++++++++++++++++++
+static void
+cmd_Q(key_info_t key_info, keys_info_t *keys_info)
+{
+	modview_leave();
+
+	if (curr_stats.number_of_windows != 1 && curr_stats.preview.on)
+	{
+		qv_hide();
+	}
+}
+//add by sim1 ------------------------------------
 
 static void
 cmd_u(key_info_t key_info, keys_info_t *keys_info)
