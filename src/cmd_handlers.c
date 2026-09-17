@@ -356,6 +356,8 @@ static int parse_bg_mark(char cmd[]);
 static int explore_cmd(const cmd_info_t *cmd_info);
 static int ratings_cmd(const cmd_info_t *cmd_info);
 static int switch_cmd(const cmd_info_t *cmd_info);
+static int chglink_cmd(const cmd_info_t *cmd_info);
+static int symlink_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
 
@@ -456,6 +458,12 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_COMMENT | HAS_SELECTION_SCOPE,
 	  .handler = &chmod_cmd,       .min_args = 0,   .max_args = 0, },
 #endif
+	//add by sim1 ------------------------------------------
+	{ .name = "chglink",           .abbr = NULL,    .id = -1,
+	  .descr = "change symbolic link",
+	  .flags = 0,
+	  .handler = &chglink_cmd,     .min_args = 0,   .max_args = 0, },
+	//add by sim1 ------------------------------------------
 	{ .name = "clone",             .abbr = NULL,    .id = COM_CLONE,
 	  .descr = "clone selection",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_QUOTED_ARGS | HAS_COMMENT
@@ -897,10 +905,14 @@ const cmd_add_t cmds_list[] = {
 	         | HAS_SELECTION_SCOPE,
 	  .handler = &substitute_cmd,  .min_args = 0,   .max_args = 3, },
 	//add by sim1 ------------------------------------------
-	{ .name = "switch",              .abbr = "sw",    .id = -1,
+	{ .name = "switch",            .abbr = "sw",    .id = -1,
 	  .descr = "switch pane, like cmd_shift_tab",
 	  .flags = 0,
-	  .handler = &switch_cmd,        .min_args = 0,   .max_args = 0, },
+	  .handler = &switch_cmd,      .min_args = 0,   .max_args = 0, },
+	{ .name = "symlink",           .abbr = NULL,    .id = -1,
+	  .descr = "create or change symbolic link",
+	  .flags = 0,
+	  .handler = &symlink_cmd,     .min_args = 0,   .max_args = 0, },
 	//add by sim1 ------------------------------------------
 	{ .name = "sync",              .abbr = NULL,    .id = COM_SYNC,
 	  .descr = "synchronize properties of views",
@@ -6212,7 +6224,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 static int
 explore_cmd(const cmd_info_t *cmd_info)
 {
-	if(curr_stats.preview.on)
+	if (curr_stats.preview.on)
 	{
 		ui_sb_err("Quickview is activated!");
 		curr_stats.save_msg = 1;
@@ -6228,14 +6240,86 @@ explore_cmd(const cmd_info_t *cmd_info)
 static int
 switch_cmd(const cmd_info_t *cmd_info)
 {
-	if(curr_stats.preview.on)
+	if (curr_stats.preview.on)
 	{
 		modview_enter(other_view, 0);
-		return 0;
+	}
+	else
+	{
+		go_to_other_pane();
 	}
 
-	go_to_other_pane();
 	return 0;
+}
+
+static int
+chglink_cmd(const cmd_info_t *cmd_info)
+{
+	if (curr_view->selected_files > 0)
+	{
+		flist_set_marking(curr_view, 0);
+	}
+	else
+	{
+		clear_marking(curr_view);
+	}
+
+	curr_stats.save_msg = fops_retarget(curr_view);
+	return curr_stats.save_msg;
+}
+
+static int
+symlink_cmd(const cmd_info_t *cmd_info)
+{
+	dir_entry_t *entry = NULL;
+	entry = get_current_entry(curr_view);
+	if (entry == NULL)
+	{
+		return 1;
+	}
+
+	if (curr_view->selected_files == 0)
+	{
+		if (entry->type == FT_LINK)
+		{
+			return chglink_cmd(cmd_info);
+		}
+
+		return alink_cmd(cmd_info);
+	}
+
+	int non_links = 0;
+	int sym_links = 0;
+	for (int i = 0; i < curr_view->list_rows; ++i)
+	{
+		entry = &curr_view->dir_entry[i];
+		if (!entry->selected)
+		{
+			continue;
+		}
+
+		if (entry->type == FT_LINK)
+		{
+			sym_links++;
+		}
+		else
+		{
+			non_links++;
+		}
+	}
+
+	if (curr_view->selected_files == sym_links)
+	{
+		return chglink_cmd(cmd_info);
+	}
+
+	if (curr_view->selected_files == non_links)
+	{
+		return alink_cmd(cmd_info);
+	}
+
+	ui_sb_msgf("Cancelled: symlinks=%i, nonlinks=%i!", sym_links, non_links);
+	return 1;
 }
 
 static int
