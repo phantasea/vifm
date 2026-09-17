@@ -356,7 +356,9 @@ static int parse_bg_mark(char cmd[]);
 static int explore_cmd(const cmd_info_t *cmd_info);
 static int ratings_cmd(const cmd_info_t *cmd_info);
 static int switch_cmd(const cmd_info_t *cmd_info);
+static int chgperm_cmd(const cmd_info_t *cmd_info);
 static int chglink_cmd(const cmd_info_t *cmd_info);
+static int chgperm_cmd(const cmd_info_t *cmd_info);
 static int symlink_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
@@ -463,6 +465,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "change symbolic link",
 	  .flags = 0,
 	  .handler = &chglink_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "chgperm",           .abbr = NULL,    .id = -1,
+	  .descr = "change file permission",
+	  .flags = 0,
+	  .handler = &chgperm_cmd,     .min_args = 0,   .max_args = 0, },
 	//add by sim1 ------------------------------------------
 	{ .name = "clone",             .abbr = NULL,    .id = COM_CLONE,
 	  .descr = "clone selection",
@@ -6249,6 +6255,13 @@ switch_cmd(const cmd_info_t *cmd_info)
 		go_to_other_pane();
 	}
 
+	return 0;
+}
+
+static int
+chgperm_cmd(const cmd_info_t *cmd_info)
+{
+	enter_attr_mode(curr_view);
 	return 0;
 }
 
