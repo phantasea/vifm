@@ -211,8 +211,24 @@ fops_cpmv(view_t *view, char *list[], int nlines, CopyMoveLikeOp op, int flags)
 		free_string_array(list, nlines);
 	}
 
-	ui_sb_msgf("%d item%s successfully processed%s", ops->succeeded,
-			psuffix(ops->succeeded), fops_get_cancellation_suffix());
+	//add by sim1
+	char op_type[32] = {0};
+	if (op == CMLO_COPY)
+	{
+		strcpy(op_type, "copied to the other pane");
+	}
+	else if (op == CMLO_MOVE)
+	{
+		strcpy(op_type, "moved to the other pane");
+	}
+	else if (op == CMLO_LINK_ABS || op == CMLO_LINK_REL)
+	{
+		strcpy(op_type, "linked to the other pane");
+	}
+
+	//mod by sim1
+	ui_sb_msgf("%d item%s %s!%s", ops->succeeded, psuffix(ops->succeeded),
+			op_type[0] == '\0' ? "processed" : op_type, fops_get_cancellation_suffix());
 
 	fops_free_ops(ops);
 
