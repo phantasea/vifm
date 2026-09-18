@@ -358,7 +358,7 @@ static int ratings_cmd(const cmd_info_t *cmd_info);
 static int switch_cmd(const cmd_info_t *cmd_info);
 static int chgperm_cmd(const cmd_info_t *cmd_info);
 static int chglink_cmd(const cmd_info_t *cmd_info);
-static int chgperm_cmd(const cmd_info_t *cmd_info);
+static int abslink_cmd(const cmd_info_t *cmd_info);
 static int symlink_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
@@ -383,6 +383,12 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_QUOTED_ARGS | HAS_COMMENT
 	         | HAS_QMARK_NO_ARGS | HAS_SELECTION_SCOPE,
 	  .handler = &alink_cmd,       .min_args = 0,   .max_args = NOT_DEF, },
+	//add by sim1 ------------------------------------------
+	{ .name = "abslink",           .abbr = NULL,    .id = -1,
+	  .descr = "create absolute symlinks",
+	  .flags = 0,
+	  .handler = &abslink_cmd,     .min_args = 0,   .max_args = 0, },
+	//add by sim1 ------------------------------------------
 	{ .name = "amap",              .abbr = NULL,    .id = COM_AMAP,
 	  .descr = "map keys in navigation mode",
 	  .flags = HAS_RAW_ARGS,
@@ -6282,6 +6288,12 @@ chglink_cmd(const cmd_info_t *cmd_info)
 }
 
 static int
+abslink_cmd(const cmd_info_t *cmd_info)
+{
+	return link_cmd(cmd_info, 1);
+}
+
+static int
 symlink_cmd(const cmd_info_t *cmd_info)
 {
 	dir_entry_t *entry = NULL;
@@ -6297,12 +6309,14 @@ symlink_cmd(const cmd_info_t *cmd_info)
 		{
 			return chglink_cmd(cmd_info);
 		}
-
-		return alink_cmd(cmd_info);
+		else
+		{
+			return abslink_cmd(cmd_info);
+		}
 	}
 
-	int non_links = 0;
-	int sym_links = 0;
+	int nonlinks = 0;
+	int symlinks = 0;
 	for (int i = 0; i < curr_view->list_rows; ++i)
 	{
 		entry = &curr_view->dir_entry[i];
@@ -6313,25 +6327,25 @@ symlink_cmd(const cmd_info_t *cmd_info)
 
 		if (entry->type == FT_LINK)
 		{
-			sym_links++;
+			symlinks++;
 		}
 		else
 		{
-			non_links++;
+			nonlinks++;
 		}
 	}
 
-	if (curr_view->selected_files == sym_links)
+	if (curr_view->selected_files == symlinks)
 	{
 		return chglink_cmd(cmd_info);
 	}
 
-	if (curr_view->selected_files == non_links)
+	if (curr_view->selected_files == nonlinks)
 	{
-		return alink_cmd(cmd_info);
+		return abslink_cmd(cmd_info);
 	}
 
-	ui_sb_msgf("Cancelled: symlinks=%i, nonlinks=%i!", sym_links, non_links);
+	ui_sb_msgf("Cancelled: symlinks=%i, nonlinks=%i!", symlinks, nonlinks);
 	return 1;
 }
 
