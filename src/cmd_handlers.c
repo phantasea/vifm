@@ -360,6 +360,7 @@ static int chgperm_cmd(const cmd_info_t *cmd_info);
 static int chglink_cmd(const cmd_info_t *cmd_info);
 static int abslink_cmd(const cmd_info_t *cmd_info);
 static int symlink_cmd(const cmd_info_t *cmd_info);
+static int putlink_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
 
@@ -383,12 +384,6 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_QUOTED_ARGS | HAS_COMMENT
 	         | HAS_QMARK_NO_ARGS | HAS_SELECTION_SCOPE,
 	  .handler = &alink_cmd,       .min_args = 0,   .max_args = NOT_DEF, },
-	//add by sim1 ------------------------------------------
-	{ .name = "abslink",           .abbr = NULL,    .id = -1,
-	  .descr = "create absolute symlinks",
-	  .flags = 0,
-	  .handler = &abslink_cmd,     .min_args = 0,   .max_args = 0, },
-	//add by sim1 ------------------------------------------
 	{ .name = "amap",              .abbr = NULL,    .id = COM_AMAP,
 	  .descr = "map keys in navigation mode",
 	  .flags = HAS_RAW_ARGS,
@@ -466,16 +461,6 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_COMMENT | HAS_SELECTION_SCOPE,
 	  .handler = &chmod_cmd,       .min_args = 0,   .max_args = 0, },
 #endif
-	//add by sim1 ------------------------------------------
-	{ .name = "chglink",           .abbr = NULL,    .id = -1,
-	  .descr = "change symbolic link",
-	  .flags = 0,
-	  .handler = &chglink_cmd,     .min_args = 0,   .max_args = 0, },
-	{ .name = "chgperm",           .abbr = NULL,    .id = -1,
-	  .descr = "change file permission",
-	  .flags = 0,
-	  .handler = &chgperm_cmd,     .min_args = 0,   .max_args = 0, },
-	//add by sim1 ------------------------------------------
 	{ .name = "clone",             .abbr = NULL,    .id = COM_CLONE,
 	  .descr = "clone selection",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_QUOTED_ARGS | HAS_COMMENT
@@ -592,12 +577,6 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "execute expressions as :commands",
 	  .flags = 0,
 	  .handler = &exe_cmd,         .min_args = 0,   .max_args = NOT_DEF, },
-	//add by sim1 ------------------------------------------
-	{ .name = "explore",           .abbr = "exp",   .id = -1,
-	  .descr = "control visibility of explore",
-	  .flags = 0,
-	  .handler = &explore_cmd,     .min_args = 0,   .max_args = 0, },
-	//add by sim1 ------------------------------------------
 	{ .name = "exit",              .abbr = "exi",   .id = -1,
 	  .descr = "exit the application",
 	  .flags = HAS_EMARK | HAS_COMMENT,
@@ -818,12 +797,6 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "unmap user keys in preview mode",
 	  .flags = HAS_RAW_ARGS,
 	  .handler = &qunmap_cmd,      .min_args = 1,   .max_args = 1, },
-	//add by sim1 ------------------------------------------
-	{ .name = "ratings",           .abbr = NULL,    .id = -1,
-	  .descr = "show star ratings info",
-	  .flags = 0,
-	  .handler = &ratings_cmd,     .min_args = 0,   .max_args = 0, },
-	//add by sim1 ------------------------------------------
 	{ .name = "redraw",            .abbr = "redr",  .id = -1,
 	  .descr = "force screen redraw",
 	  .flags = HAS_COMMENT,
@@ -916,16 +889,6 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_RANGE | HAS_REGEXP_ARGS | HAS_COMMENT | HAS_CUST_SEP
 	         | HAS_SELECTION_SCOPE,
 	  .handler = &substitute_cmd,  .min_args = 0,   .max_args = 3, },
-	//add by sim1 ------------------------------------------
-	{ .name = "switch",            .abbr = "sw",    .id = -1,
-	  .descr = "switch pane, like cmd_shift_tab",
-	  .flags = 0,
-	  .handler = &switch_cmd,      .min_args = 0,   .max_args = 0, },
-	{ .name = "symlink",           .abbr = NULL,    .id = -1,
-	  .descr = "create or change symbolic link",
-	  .flags = 0,
-	  .handler = &symlink_cmd,     .min_args = 0,   .max_args = 0, },
-	//add by sim1 ------------------------------------------
 	{ .name = "sync",              .abbr = NULL,    .id = COM_SYNC,
 	  .descr = "synchronize properties of views",
 	  .flags = HAS_EMARK | HAS_COMMENT | HAS_MACROS_FOR_CMD,
@@ -1071,6 +1034,40 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_RANGE | HAS_QUOTED_ARGS | HAS_MACROS_FOR_CMD
 	         | HAS_SELECTION_SCOPE,
 	  .handler = &usercmd_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
+	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++
+	{ .name = "explore",           .abbr = NULL,    .id = -1,
+	  .descr = "control visibility of explore",
+	  .flags = 0,
+	  .handler = &explore_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "ratings",           .abbr = NULL,    .id = -1,
+	  .descr = "show star ratings info",
+	  .flags = 0,
+	  .handler = &ratings_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "switch",            .abbr = NULL,    .id = -1,
+	  .descr = "switch pane, like cmd_shift_tab",
+	  .flags = 0,
+	  .handler = &switch_cmd,      .min_args = 0,   .max_args = 0, },
+	{ .name = "chgperm",           .abbr = NULL,    .id = -1,
+	  .descr = "change file permission",
+	  .flags = 0,
+	  .handler = &chgperm_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "abslink",           .abbr = NULL,    .id = -1,
+	  .descr = "create absolute symlinks",
+	  .flags = 0,
+	  .handler = &abslink_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "chglink",           .abbr = NULL,    .id = -1,
+	  .descr = "change symbolic link",
+	  .flags = 0,
+	  .handler = &chglink_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "symlink",           .abbr = NULL,    .id = -1,
+	  .descr = "create or change symbolic link",
+	  .flags = 0,
+	  .handler = &symlink_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "putlink",           .abbr = NULL,    .id = -1,
+	  .descr = "put symlink from copied file",
+	  .flags = 0,
+	  .handler = &putlink_cmd,     .min_args = 0,   .max_args = 0, },
+	//add by sim1 ---------------------------------------------------
 };
 const size_t cmds_list_size = ARRAY_LEN(cmds_list);
 
@@ -6347,6 +6344,15 @@ symlink_cmd(const cmd_info_t *cmd_info)
 
 	ui_sb_msgf("Cancelled: symlinks=%i, nonlinks=%i!", symlinks, nonlinks);
 	return 1;
+}
+
+static int
+putlink_cmd(const cmd_info_t *cmd_info)
+{
+	curr_stats.save_msg = fops_put_links(curr_view, DEFAULT_REG_NAME, 0);
+	ui_views_reload_filelists();
+
+	return curr_stats.save_msg;
 }
 
 static int
