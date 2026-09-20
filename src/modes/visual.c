@@ -1256,8 +1256,13 @@ update_marks(view_t *view)
 	upwards_range = view->list_pos < start_pos;
 	delta = upwards_range ? +1 : -1;
 
+	//mod by sim1
+	/************
 	start_mark = upwards_range ? '<' : '>';
 	end_mark = upwards_range ? '>' : '<';
+	************/
+	start_mark = '<';
+	end_mark = '>';
 
 	start_entry = &view->dir_entry[view->list_pos];
 	end_entry = &view->dir_entry[start_pos];
