@@ -249,7 +249,7 @@ static int mkdir_cmd(const cmd_info_t *cmd_info);
 static int mmap_cmd(const cmd_info_t *cmd_info);
 static int mnoremap_cmd(const cmd_info_t *cmd_info);
 static int move_cmd(const cmd_info_t *cmd_info);
-static int cpmv_cmd(const cmd_info_t *cmd_info, int move);
+static int cpmv_cmd(const cmd_info_t *cmd_info, int move, view_t *view);
 static int munmap_cmd(const cmd_info_t *cmd_info);
 static int nmap_cmd(const cmd_info_t *cmd_info);
 static int nnoremap_cmd(const cmd_info_t *cmd_info);
@@ -353,6 +353,10 @@ static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
 //
 //add by sim1 +++++++++++++++++++++++++++++++++++++++
+static int copyin_cmd(const cmd_info_t *cmd_info);
+static int movein_cmd(const cmd_info_t *cmd_info);
+static int copyout_cmd(const cmd_info_t *cmd_info);
+static int moveout_cmd(const cmd_info_t *cmd_info);
 static int explore_cmd(const cmd_info_t *cmd_info);
 static int ratings_cmd(const cmd_info_t *cmd_info);
 static int switch_cmd(const cmd_info_t *cmd_info);
@@ -1034,7 +1038,27 @@ const cmd_add_t cmds_list[] = {
 	  .flags = HAS_RANGE | HAS_QUOTED_ARGS | HAS_MACROS_FOR_CMD
 	         | HAS_SELECTION_SCOPE,
 	  .handler = &usercmd_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
-	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++++
+	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++
+	{ .name = "copyin",            .abbr = NULL,    .id = COM_COPY,
+	  .descr = "copy files from other pane to current pane",
+	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
+	         | HAS_QMARK_NO_ARGS | HAS_SELECTION_SCOPE,
+	  .handler = &copyin_cmd,      .min_args = 0,   .max_args = NOT_DEF, },
+	{ .name = "copyout",           .abbr = NULL,    .id = COM_COPY,
+	  .descr = "copy files from current pane to other pane",
+	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
+	         | HAS_QMARK_NO_ARGS | HAS_SELECTION_SCOPE,
+	  .handler = &copyout_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
+	{ .name = "movein",            .abbr = NULL,    .id = COM_MOVE,
+	  .descr = "move files from other pane to current pane",
+	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
+	         | HAS_QMARK_NO_ARGS | HAS_SELECTION_SCOPE,
+	  .handler = &movein_cmd,      .min_args = 0,   .max_args = NOT_DEF, },
+	{ .name = "moveout",           .abbr = NULL,    .id = COM_MOVE,
+	  .descr = "move files from current pane to other pane",
+	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
+	         | HAS_QMARK_NO_ARGS | HAS_SELECTION_SCOPE,
+	  .handler = &moveout_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "explore",           .abbr = NULL,    .id = -1,
 	  .descr = "control visibility of explore",
 	  .flags = 0,
@@ -1974,7 +1998,7 @@ command_cmd(const cmd_info_t *cmd_info)
 static int
 copy_cmd(const cmd_info_t *cmd_info)
 {
-	return cpmv_cmd(cmd_info, 0);
+	return cpmv_cmd(cmd_info, 0, curr_view);
 }
 
 /* Same as :quit, but also aborts directory choosing and mandatory returns
@@ -3959,16 +3983,16 @@ mnoremap_cmd(const cmd_info_t *cmd_info)
 static int
 move_cmd(const cmd_info_t *cmd_info)
 {
-	return cpmv_cmd(cmd_info, 1);
+	return cpmv_cmd(cmd_info, 1, curr_view);
 }
 
 /* Common part of copy and move commands interface implementation. */
 static int
-cpmv_cmd(const cmd_info_t *cmd_info, int move)
+cpmv_cmd(const cmd_info_t *cmd_info, int move, view_t *view)
 {
 	const CopyMoveLikeOp op = move ? CMLO_MOVE : CMLO_COPY;
 
-	flist_set_marking(curr_view, 0);
+	flist_set_marking(view, 0);
 
 	int argc = cmd_info->argc;
 	char **argv = cmd_info->argv;
@@ -3995,18 +4019,18 @@ cpmv_cmd(const cmd_info_t *cmd_info, int move)
 
 		if(cmd_info->bg)
 		{
-			return fops_cpmv_bg(curr_view, NULL, -1, move, flags) != 0;
+			return fops_cpmv_bg(view, NULL, -1, move, flags) != 0;
 		}
 
-		return fops_cpmv(curr_view, NULL, -1, op, flags) != 0;
+		return fops_cpmv(view, NULL, -1, op, flags) != 0;
 	}
 
 	if(cmd_info->bg)
 	{
-		return fops_cpmv_bg(curr_view, argv, argc, move, flags) != 0;
+		return fops_cpmv_bg(view, argv, argc, move, flags) != 0;
 	}
 
-	return fops_cpmv(curr_view, argv, argc, op, flags) != 0;
+	return fops_cpmv(view, argv, argc, op, flags) != 0;
 }
 
 static int
@@ -6229,6 +6253,30 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 ++++++++++++++++++++++++++++++
+static int
+copyin_cmd(const cmd_info_t *cmd_info)
+{
+	return cpmv_cmd(cmd_info, 0, other_view);
+}
+
+static int
+copyout_cmd(const cmd_info_t *cmd_info)
+{
+	return cpmv_cmd(cmd_info, 0, curr_view);
+}
+
+static int
+movein_cmd(const cmd_info_t *cmd_info)
+{
+	return cpmv_cmd(cmd_info, 1, other_view);
+}
+
+static int
+moveout_cmd(const cmd_info_t *cmd_info)
+{
+	return cpmv_cmd(cmd_info, 1, curr_view);
+}
+
 //the same as native normal cmd 'e'(explore)
 static int
 explore_cmd(const cmd_info_t *cmd_info)

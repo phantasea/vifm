@@ -215,15 +215,27 @@ fops_cpmv(view_t *view, char *list[], int nlines, CopyMoveLikeOp op, int flags)
 	char op_type[32] = {0};
 	if (op == CMLO_COPY)
 	{
-		strcpy(op_type, "copied to the other pane");
+		if (view == curr_view) {
+			strcpy(op_type, "copied to other pane");
+		} else {
+			strcpy(op_type, "copied to current pane");
+		}
 	}
 	else if (op == CMLO_MOVE)
 	{
-		strcpy(op_type, "moved to the other pane");
+		if (view == curr_view) {
+			strcpy(op_type, "moved to other pane");
+		} else {
+			strcpy(op_type, "moved to current pane");
+		}
 	}
 	else if (op == CMLO_LINK_ABS || op == CMLO_LINK_REL)
 	{
-		strcpy(op_type, "linked to the other pane");
+		if (view == curr_view) {
+			strcpy(op_type, "linked to other pane");
+		} else {
+			strcpy(op_type, "linked to current pane");
+		}
 	}
 
 	//mod by sim1

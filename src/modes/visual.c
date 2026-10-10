@@ -91,7 +91,6 @@ static void sug_quote(vle_keys_list_cb cb);
 static void cmd_dollar(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_percent(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_comma(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_dot(key_info_t key_info, keys_info_t *keys_info);    //add by sim1
 static void cmd_zero(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_colon(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_semicolon(key_info_t key_info, keys_info_t *keys_info);
@@ -179,10 +178,12 @@ extern void update_sel_stat();
 static void cmd_gM(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ZZ(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_dot(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_hash(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_star(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_space(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info);
 //add by sim1 -------------------------------------------------------
 
 static view_t *view;
@@ -218,6 +219,7 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_PERCENT,    {{&cmd_percent},   .descr = "go to [count]% position"}},
 	{WK_COMMA,      {{&cmd_comma},     .descr = "repeat char-search backward"}},
 	{WK_DOT,        {{&cmd_dot},       .descr = "repeat last cmdline command"}},  //add by sim1
+	{WK_SPACE,      {{&cmd_space},     .descr = "switch pane"}},  //add by sim1
 	{WK_ZERO,       {{&cmd_zero},      .descr = "go to first column"}},
 	{WK_COLON,      {{&cmd_colon},     .descr = "go to cmdline mode"}},
 	{WK_SCOLON,     {{&cmd_semicolon}, .descr = "repeat char-search forward"}},
@@ -677,22 +679,6 @@ cmd_comma(key_info_t key_info, keys_info_t *keys_info)
 	}
 }
 
-//add by sim1 ++++++++++++++++++++++++++++++++++++++
-static void
-cmd_dot(key_info_t key_info, keys_info_t *keys_info)
-{
-	update_marks(view);
-	cmds_vars_set_count(key_info.count);
-
-	if (cfg.redo_last_cmd_cfm) {
-		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command);
-	} else {
-		curr_stats.save_msg = cmds_dispatch(curr_stats.last_cmdline_command, curr_view, CIT_COMMAND);
-		reject_and_leave();
-	}
-}
-//add by sim1 --------------------------------------
-
 /* Move cursor to the first column in ls-view sub-mode selecting or unselecting
  * files while moving. */
 static void
@@ -851,69 +837,6 @@ cmd_gl(key_info_t key_info, keys_info_t *keys_info)
 	flist_sel_stash(view);
 	redraw_view(view);
 }
-
-//add by sim1 +++++++++++++++++++++++++++++++++++++++++
-static void
-cmd_gM(key_info_t key_info, keys_info_t *keys_info)
-{
-	int offset = (view->list_pos - start_pos) / 2;
-	if (offset == 0) {
-		return;
-	}
-
-	goto_pos(start_pos + offset);
-}
-
-/* Switches either to the next tab or to tab specified by its number [count]. */
-static void
-cmd_gt(key_info_t key_info, keys_info_t *keys_info)
-{
-	reject_and_leave();
-
-	if(key_info.count == NO_COUNT_GIVEN)
-	{
-		tabs_next(1);
-	}
-	else
-	{
-		tabs_goto(key_info.count - 1);
-	}
-}
-
-/* Switches to [count]-th previous tab ([count] is 1 by default). */
-static void
-cmd_gT(key_info_t key_info, keys_info_t *keys_info)
-{
-	reject_and_leave();
-
-	tabs_previous(def_count(key_info.count));
-}
-
-/* Switch to the last tab */
-static void
-cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info)
-{
-	reject_and_leave();
-
-	if(key_info.count == NO_COUNT_GIVEN)
-	{
-		tabs_goto(-1);
-	}
-	else
-	{
-		tabs_goto(key_info.count - 1);
-	}
-}
-
-/* Exits the application saving vifminfo file or closes a tab. */
-static void
-cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
-{
-	reject_and_leave();
-
-	ui_quit(1, 0);
-}
-//add by sim1 -----------------------------------------
 
 /* Changes letters in filenames to upper case. */
 static void
@@ -1168,7 +1091,88 @@ change_amend_type(AmendType new_amend_type)
 	modvis_update();
 }
 
-//Add by sim1 **************************************************
+//add by sim1 ++++++++++++++++++++++++++++++++++++++++
+static void
+cmd_space(key_info_t key_info, keys_info_t *keys_info)
+{
+	go_to_other_pane();
+}
+
+static void
+cmd_gM(key_info_t key_info, keys_info_t *keys_info)
+{
+	int offset = (view->list_pos - start_pos) / 2;
+	if (offset == 0) {
+		return;
+	}
+
+	goto_pos(start_pos + offset);
+}
+
+/* Switch to next tab or N-th tab */
+static void
+cmd_gt(key_info_t key_info, keys_info_t *keys_info)
+{
+	reject_and_leave();
+
+	if(key_info.count == NO_COUNT_GIVEN)
+	{
+		tabs_next(1);
+	}
+	else
+	{
+		tabs_goto(key_info.count - 1);
+	}
+}
+
+/* Switch to previous or N-th tab */
+static void
+cmd_gT(key_info_t key_info, keys_info_t *keys_info)
+{
+	reject_and_leave();
+
+	tabs_previous(def_count(key_info.count));
+}
+
+/* Switch to the last tab */
+static void
+cmd_ctrl_h(key_info_t key_info, keys_info_t *keys_info)
+{
+	reject_and_leave();
+
+	if(key_info.count == NO_COUNT_GIVEN)
+	{
+		tabs_goto(-1);
+	}
+	else
+	{
+		tabs_goto(key_info.count - 1);
+	}
+}
+
+/* Exit saving vifminfo file or closes a tab */
+static void
+cmd_ZZ(key_info_t key_info, keys_info_t *keys_info)
+{
+	reject_and_leave();
+
+	ui_quit(1, 0);
+}
+
+static void
+cmd_dot(key_info_t key_info, keys_info_t *keys_info)
+{
+	update_marks(view);
+	cmds_vars_set_count(key_info.count);
+
+	if (cfg.redo_last_cmd_cfm) {
+		modcline_enter(CLS_COMMAND, curr_stats.last_cmdline_command);
+	} else {
+		curr_stats.save_msg = cmds_dispatch(curr_stats.last_cmdline_command, curr_view, CIT_COMMAND);
+		reject_and_leave();
+	}
+}
+
 static void
 cmd_star(key_info_t key_info, keys_info_t *keys_info)
 {
@@ -1200,7 +1204,7 @@ cmd_hash(key_info_t key_info, keys_info_t *keys_info)
 	draw_dir_list(curr_view);
 	return;
 }
-//Add by sim1 **************************************************
+//add by sim1 ---------------------------------------
 
 /* Yanks files. */
 static void
