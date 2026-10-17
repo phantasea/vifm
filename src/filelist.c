@@ -19,9 +19,10 @@
 
 #include "filelist.h"
 
+#include <fcntl.h>
+
 #ifdef _WIN32
 #include <windows.h>
-#include <fcntl.h>
 #include <lm.h>
 #include <winioctl.h>
 #endif
@@ -981,6 +982,21 @@ fill_dir_entry(dir_entry_t *entry, const char path[], const struct dirent *d)
 			entry->mode = s.st_mode;
 		}
 	}
+
+	//add by sim1: get lsattr immutable flag ++++++++++
+	entry->immut = 0;
+
+	struct statx stxbuf;
+	int flags = AT_SYMLINK_NOFOLLOW;
+	unsigned int mask = STATX_BASIC_STATS;
+	if (!statx(AT_FDCWD, path, flags, mask, &stxbuf))
+	{
+		if (stxbuf.stx_attributes & STATX_ATTR_IMMUTABLE)
+		{
+			entry->immut = 1;
+		}
+	}
+	//add by sim1: ------------------------------------
 
 	return 0;
 }
