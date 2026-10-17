@@ -1027,7 +1027,7 @@ op_mkdir(ops_t *ops, void *data, const char src[], const char dst[])
 	io_args_t args = {
 		.arg1.path = src,
 		.arg2.process_parents = make_parents,
-		.arg3.mode = 0755,
+		.arg3.mode = 0700,  //mod by sim1
 	};
 	return exec_io_op(ops, &iop_mkdir, &args, 0);
 }
