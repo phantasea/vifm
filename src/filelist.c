@@ -984,17 +984,12 @@ fill_dir_entry(dir_entry_t *entry, const char path[], const struct dirent *d)
 	}
 
 	//add by sim1: get lsattr immutable flag ++++++++++
-	entry->immut = 0;
+	entry->statx_attrs = 0;
 
 	struct statx stxbuf;
-	int flags = AT_SYMLINK_NOFOLLOW;
-	unsigned int mask = STATX_BASIC_STATS;
-	if (!statx(AT_FDCWD, path, flags, mask, &stxbuf))
+	if (!statx(AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS, &stxbuf))
 	{
-		if (stxbuf.stx_attributes & STATX_ATTR_IMMUTABLE)
-		{
-			entry->immut = 1;
-		}
+		entry->statx_attrs = stxbuf.stx_attributes;
 	}
 	//add by sim1: ------------------------------------
 

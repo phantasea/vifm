@@ -240,7 +240,7 @@ struct dir_entry_t
 	uid_t uid;        /* Owning user id. */
 	gid_t gid;        /* Owning group id. */
 	mode_t mode;      /* Mode of the file. */
-	int immut;        //add by sim1: lsattr immutable flag
+	uint64_t statx_attrs;  //add by sim1: lsattr flags
 #else
 	uint32_t attrs;   /* Attributes of the file. */
 #endif

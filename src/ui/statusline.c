@@ -445,8 +445,10 @@ parse_view_macros(view_t *view, const char **format, const char macros[],
 #ifndef _WIN32
 				get_perm_string(buf, sizeof(buf), curr->mode);
 				//add by sim1: see in func: fill_dir_entry
-				if (curr->immut) {
+				if (curr->statx_attrs & STATX_ATTR_IMMUTABLE) {
 					buf[0] = 'i';
+				} else if (curr->statx_attrs & STATX_ATTR_APPEND) {
+					buf[0] = 'a';
 				}
 #else
 				copy_str(buf, sizeof(buf), attr_str_long(curr->attrs));
