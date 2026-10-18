@@ -1,6 +1,6 @@
 " vifm syntax file
 " Maintainer:  xaizek <xaizek@posteo.net>
-" Last Change: September 2, 2026
+" Last Change: October 1, 2026
 " Inspired By: Vim syntax file by Dr. Charles E. Campbell, Jr.
 
 if exists('b:current_syntax')
@@ -182,7 +182,7 @@ syntax keyword vifmOption contained aproposprg autocd autochpos caseoptions
 		\ syscalls tablabel tabline tabprefix tabscope tabstop tabsuffix tal timefmt
 		\ timeoutlen title tm trash trashdir ts tuioptions to uioptions undolevels
 		\ ul vicmd viewcolumns vifminfo vimhelp vixcmd wildinc wildmenu wmnu
-		\ wildstyle wordchars wrap wrapscan ws
+		\ wildstyle wordchars wrap wrapscan ws fileoptions
 		\ prefervsplit filenamedispall redolastcmdcfm cdaftermkdir
 		\ vimabs topmidfiller maxundotabs previewmaxsize filenamedisplen
 		\ paneonetag panetwotag sbaronetag sbartwotag systimeprefix systimesuffix
