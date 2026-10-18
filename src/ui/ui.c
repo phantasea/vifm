@@ -165,8 +165,9 @@ static void update_window_lazy(WINDOW *win);
 static void update_term_size(void);
 static void update_statusbar_layout(void);
 static int are_statusbar_widgets_visible(void);
-static int get_ruler_width(void);
-static int get_fileview_ruler_width(view_t *view);
+//del by sim1
+//static int get_ruler_width(void);
+//static int get_fileview_ruler_width(view_t *view);
 static char * expand_ruler_macros(view_t *view, const char format[]);
 static int locate_view(unsigned int id, int *tab_idx, view_t **side);
 static void switch_panes_content(void);
@@ -1473,7 +1474,8 @@ are_statusbar_widgets_visible(void)
 	return !ui_sb_multiline() && !ui_sb_locked();
 }
 
-/* Gets "recommended" width for the ruler.  Returns the width. */
+/*del by sim1 *******************************
+//Gets "recommended" width for the ruler
 static int
 get_ruler_width(void)
 {
@@ -1488,12 +1490,12 @@ get_ruler_width(void)
 	return get_fileview_ruler_width(curr_view);
 }
 
-/* Computes "recommended" width for a fileview ruler.  Returns the width. */
+//Computes "recommended" width for a fileview ruler
 static int
 get_fileview_ruler_width(view_t *view)
 {
-	/* Size must correspond to the "worst case" of the last list item.
-	 * XXX: would be great to avoid modifying view for this. */
+	//Size must correspond to the "worst case" of the last list item.
+	//XXX: would be great to avoid modifying view for this
 	int list_pos = view->list_pos;
 	view->list_pos = (view->list_rows == 0) ? 0 : (view->list_rows - 1);
 
@@ -1505,6 +1507,7 @@ get_fileview_ruler_width(view_t *view)
 
 	return len;
 }
+********************************************/
 
 /* Expands view macros to be displayed on the ruler line according to the format
  * string.  Returns newly allocated string, which should be freed by the caller,

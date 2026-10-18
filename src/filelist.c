@@ -2986,7 +2986,11 @@ poll_watcher(fswatch_t *watch, const char path[])
 			{
 				/* Re-enter current directory (vifm_chdir() can skip system call thus
 				 * not synchronizing location with updated file-system data). */
-				(void)os_chdir(path);
+
+				//mod by sim1: suppress the warn_unused_result warning
+				//(void)os_chdir(path);
+				int unused = os_chdir(path);
+				(void)unused;
 			}
 		}
 	}
