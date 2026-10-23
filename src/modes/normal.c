@@ -145,7 +145,6 @@ static void pick_or_move(keys_info_t *keys_info, int new_pos);
 static void cmd_N(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_P(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_V(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_ZT(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_ZQ(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_ZZ(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_al(key_info_t key_info, keys_info_t *keys_info);
@@ -180,7 +179,6 @@ static void cmd_gh(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gr(key_info_t key_info, keys_info_t *keys_info);
 #endif
 static void cmd_gs(key_info_t key_info, keys_info_t *keys_info);
-static void cmd_gS(key_info_t key_info, keys_info_t *keys_info);  //add by sim1
 static void cmd_gt(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gT(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gU(key_info_t key_info, keys_info_t *keys_info);
@@ -270,6 +268,7 @@ static void cmd_v(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_U(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_O(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_gO(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_gS(key_info_t key_info, keys_info_t *keys_info);
 
 static void cmd_zi(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zI(key_info_t key_info, keys_info_t *keys_info);
@@ -280,6 +279,7 @@ static void cmd_zL(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zS(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zs(key_info_t key_info, keys_info_t *keys_info);
 static void cmd_zu(key_info_t key_info, keys_info_t *keys_info);
+static void cmd_ZT(key_info_t key_info, keys_info_t *keys_info);
 
 extern void auto_name_filters_remove(view_t *view);
 extern void auto_name_filters_restore(view_t *view);
@@ -409,9 +409,9 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_g WK_j,        {{&cmd_j},  .descr = "go to item below"}},
 	{WK_g WK_k,        {{&cmd_k},  .descr = "go to item above"}},
 	{WK_g WK_l,        {{&cmd_return}, .descr = "open current item(s)"}},
-	{WK_g WK_O,        {{&cmd_gO}, .descr = "cycle thru selections boundaries"}},  //add by sim1
-	{WK_g WK_s,        {{&cmd_gs}, .descr = "restore/make selection"}},
-	{WK_g WK_S,        {{&cmd_gS}, .descr = "smart restore selection"}},       //add by sim1
+	{WK_g WK_O,        {{&cmd_gO}, .descr = "cycle thru sel boundaries"}},  //add by sim1
+	{WK_g WK_s,        {{&cmd_gs}, .descr = "restore selection"}},
+	{WK_g WK_S,        {{&cmd_gS}, .descr = "smart restore selection"}},  //add by sim1
 	{WK_g WK_t,        {{&cmd_gt}, .descr = "next or n-th tab"}},
 	{WK_g WK_M,        {{&cmd_gM}, .descr = "jump to middle position depends on mode"}},
 	{WK_g WK_T,        {{&cmd_gT}, .descr = "n-th previous tab"}},
@@ -441,25 +441,25 @@ static keys_add_info_t builtin_cmds[] = {
 	{WK_u,             {{&cmd_u},            .descr = "undo file operation"}},
 	{WK_y WK_y,        {{&cmd_yy}, .nim = 1, .descr = "yank files"}},
 	{WK_y,             {{&cmd_y_selector}, FOLLOWED_BY_SELECTOR, .descr = "yank files"}},
-	{WK_v,             {{&cmd_v},  .descr = "go to view mode"}},       //mod by sim1
-	{WK_z WK_A,        {{&cmd_zA}, .descr = "show only dot files"}},
-	{WK_z WK_D,        {{&cmd_zD}, .descr = "show only directorys"}},
-	{WK_z WK_F,        {{&cmd_zF}, .descr = "show only files"}},       //add by sim1
-	{WK_z WK_I,        {{&cmd_zI}, .descr = "restore local filter"}},  //add by sim1
-	{WK_z WK_L,        {{&cmd_zL}, .descr = "show only symlinks"}},    //add by sim1
-	{WK_z WK_M,        {{&cmd_zM}, .descr = "restore all filters"}},
-	{WK_z WK_O,        {{&cmd_zO}, .descr = "reset permanent filter"}},
-	{WK_z WK_R,        {{&cmd_zR}, .descr = "save and reset all filters"}},
-	{WK_z WK_S,        {{&cmd_zS}, .descr = "show only rating files"}},  //add by sim1
+	{WK_v,             {{&cmd_v},  .descr = "smart quickview or explore"}},//mod by sim1
+	{WK_z WK_A,        {{&cmd_zA}, .descr = "show only dot files"}},       //mod by sim1
+	{WK_z WK_D,        {{&cmd_zD}, .descr = "show only directorys"}},      //mod by sim1
+	{WK_z WK_F,        {{&cmd_zF}, .descr = "show only files"}},           //add by sim1
+	{WK_z WK_I,        {{&cmd_zI}, .descr = "restore local filter"}},      //add by sim1
+	{WK_z WK_L,        {{&cmd_zL}, .descr = "show only symlinks"}},        //add by sim1
+	{WK_z WK_M,        {{&cmd_zM}, .descr = "restore all filters"}},       //mod by sim1
+	{WK_z WK_O,        {{&cmd_zO}, .descr = "reset permanent filter"}},    //mod by sim1
+	{WK_z WK_R,        {{&cmd_zR}, .descr = "remove local/name filters"}}, //mod by sim1
+	{WK_z WK_S,        {{&cmd_zS}, .descr = "show only rating files"}},    //add by sim1
 	{WK_z WK_a,        {{&cmd_za}, .descr = "toggle dot files visibility"}},
-	{WK_z WK_d,        {{&cmd_zd}, .descr = "hide all directorys"}},   //mod by sim1
+	{WK_z WK_d,        {{&cmd_zd}, .descr = "hide all directorys"}},       //mod by sim1
 	{WK_z WK_f,        {{&cmd_zf}, .descr = "add current file to filter"}},
-	{WK_z WK_i,        {{&cmd_zi}, .descr = "restore name filter"}},   //add by sim1
+	{WK_z WK_i,        {{&cmd_zi}, .descr = "restore name filter"}},       //add by sim1
 	{WK_z WK_m,        {{&cmd_zm}, .descr = "hide dot files"}},
 	{WK_z WK_o,        {{&cmd_zo}, .descr = "show dot files"}},
 	{WK_z WK_r,        {{&cmd_zr}, .descr = "clear local filter"}},
-	{WK_z WK_s,        {{&cmd_zs}, .descr = "filter selected files"}}, //add by sim1
-	{WK_z WK_u,        {{&cmd_zu}, .descr = "exclude custom view entry"}},  //add by sim1
+	{WK_z WK_s,        {{&cmd_zs}, .descr = "filter selected files"}},     //add by sim1
+	{WK_z WK_u,        {{&cmd_zu}, .descr = "exclude custom view entry"}}, //add by sim1
 	{WK_z WK_x,        {{&cmd_zx}, .descr = "toggle directory fold"}},
 	{WK_z WK_b,        {{&modnorm_zb},      .descr = "push cursor to the bottom"}},
 	{WK_z WK_t,        {{&modnorm_zt},      .descr = "push cursor to the top"}},
@@ -1858,6 +1858,11 @@ static void
 cmd_av(key_info_t key_info, keys_info_t *keys_info)
 {
 	modvis_enter(VS_AMEND);
+
+	//add by sim1: smart restore tag-selection or vis-selection
+	if (g_sel_type != 1) {
+		g_sel_type = 1;
+	}
 }
 
 /* Change word (rename file without extension). */
