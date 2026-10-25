@@ -365,12 +365,15 @@ static int chglink_cmd(const cmd_info_t *cmd_info);
 static int abslink_cmd(const cmd_info_t *cmd_info);
 static int symlink_cmd(const cmd_info_t *cmd_info);
 static int putlink_cmd(const cmd_info_t *cmd_info);
+static int boundary_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
+
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
 
 extern void modview_enter(view_t *view, int explore);
 extern int  show_ratings_menu(view_t *view);
 extern int  confirm_dialog(const char *title, const char *msg);
+extern int  fpos_find_boundary(const view_t *view, int same);
 //add by sim1 ---------------------------------------
 
 const cmd_add_t cmds_list[] = {
@@ -1091,6 +1094,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "put symlink from copied file",
 	  .flags = 0,
 	  .handler = &putlink_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "boundary",          .abbr = NULL,    .id = -1,
+	  .descr = "jump to the dir/file boundary",
+	  .flags = HAS_EMARK,
+	  .handler = &boundary_cmd,    .min_args = 0,   .max_args = 0, },
 	//add by sim1 ---------------------------------------------------
 };
 const size_t cmds_list_size = ARRAY_LEN(cmds_list);
@@ -6405,6 +6412,26 @@ putlink_cmd(const cmd_info_t *cmd_info)
 	ui_views_reload_filelists();
 
 	return curr_stats.save_msg;
+}
+
+static int
+boundary_cmd(const cmd_info_t *cmd_info)
+{
+	int same = 1;
+	if (cmd_info->emark)
+	{
+		same = 0;
+	}
+
+	//find the same/diff dir|file boundary
+	int pos = fpos_find_boundary(curr_view, same);
+	if (pos < 0) {
+		ui_sb_msgf("No diff boundary for only dirs or files!");
+		return 1;
+	}
+
+	fpos_set_pos(curr_view, pos);
+	return 0;
 }
 
 static int

@@ -666,6 +666,39 @@ fpos_find_dir_group(const view_t *view, int next)
 	return pos;
 }
 
+//add by sim1: find the dir|file boundary
+int
+fpos_find_boundary(const view_t *view, int same)
+{
+	int pos = view->list_pos;
+	dir_entry_t *pentry = &view->dir_entry[pos];
+	int is_dir = fentry_is_dir(pentry);
+	if (is_dir)
+	{
+		pos = fpos_find_dir_group(view, 1);
+		pentry = &view->dir_entry[pos];
+		is_dir = fentry_is_dir(pentry);
+		if (same) {
+			return is_dir ? pos : (pos-1);
+		}
+		else {
+			return is_dir ? -1 : pos;
+		}
+	}
+	else
+	{
+		pos = fpos_find_dir_group(view, 0);
+		pentry = &view->dir_entry[pos];
+		is_dir = fentry_is_dir(pentry);
+		if (same) {
+			return is_dir ? (pos+1) : pos;
+		}
+		else {
+			return is_dir ? pos : -1;
+		}
+	}
+}
+
 int
 fpos_first_sibling(const view_t *view)
 {
