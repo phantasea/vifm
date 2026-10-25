@@ -1456,13 +1456,16 @@ keys_suggest(const key_chunk_t *root, const wchar_t keys[],
 			/* Branch into matching selectors at every step to handle situation when
 			 * multichar selector and multichar command continuation are available at
 			 * the same time.. */
+			//del by sim1: don't show builtin selectors
+			/****************************************************
 			if(curr->type == BUILTIN_WAIT_POINT &&
 					curr->conf.followed == FOLLOWED_BY_SELECTOR)
 			{
-				/* Suggest selectors. */
-				keys_suggest(&selectors_root[vle_mode_get()], keys, L"sel: ", cb,
-						custom_only, fold_subkeys);
+				//suggest selectors
+				keys_suggest(&selectors_root[vle_mode_get()], keys,
+						L"sel: ", cb, custom_only, fold_subkeys);
 			}
+			****************************************************/
 
 			continue;
 		}
