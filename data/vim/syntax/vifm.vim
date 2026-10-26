@@ -14,9 +14,10 @@ set cpo-=C
 
 " General commands
 syntax keyword vifmCommand contained
-		\ select switch ratings
+		\ select switch ratings boundary copyin copyout movein moveout
+		\ abslink symlink putlink chglink chgperm explore
 		\ ffvids ffwebs ffpics fferos ffauds fffave ffedit ffgoto ffdirs
-		\ filter colorscheme touch manhelp
+		\ filter colorscheme touch manhelp unselect
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
 		\ di[splay] dirs e[dit] el[seif] empty en[dif] exi[t] file fin[d] fini[sh]
@@ -30,9 +31,14 @@ syntax keyword vifmCommand contained
 		\ w[rite] wq wqa[ll] xa[ll] x[it] y[ank]
 		\ nextgroup=vifmArgs
 syntax keyword vifmCommandCN contained
-		\ select switch ratings
+		\ select switch ratings boundary copyin copyout movein moveout
+		\ abslink symlink putlink chglink chgperm explore
+		\ smartdiff smarttabmove smartsortbytime smartsortbysize
+		\ toggletab togglewide togglezcmd cyclesort cyclenumber cyclesplit
+		\ fileinfo stardict yankrootname yankbasename yankfullname yankpathname
+		\ vswinmoveleft vswinmoverite naviview extract archive imgall imgrall
 		\ ffvids ffwebs ffpics fferos ffauds fffave ffedit ffgoto ffdirs
-		\ filter colorscheme touch manhelp
+		\ filter colorscheme touch manhelp unselect
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
 		\ di[splay] dirs e[dit] el[seif] empty en[dif] exi[t] file fin[d] fini[sh]
@@ -87,6 +93,7 @@ syntax match vifmBuiltinFunction
 		\ '\(chooseopt
 		  \\|toggle
 		  \\|isactive
+		  \\|isdir
 		  \\|selfiles
 		  \\|escape
 		  \\|expand
