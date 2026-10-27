@@ -33,7 +33,7 @@ syntax keyword vifmCommand contained
 syntax keyword vifmCommandCN contained
 		\ select switch ratings boundary copyin copyout movein moveout
 		\ abslink symlink putlink chglink chgperm explore
-		\ smartdiff smarttabmove smartsortbytime smartsortbysize
+		\ smartdiff smarttabmove smartsortbytime smartsortbysize smartHI smartLO
 		\ toggletab togglewide togglezcmd cyclesort cyclenumber cyclesplit
 		\ fileinfo stardict yankrootname yankbasename yankfullname yankpathname
 		\ vswinmoveleft vswinmoverite naviview extract archive imgall imgrall
