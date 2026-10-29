@@ -660,11 +660,32 @@ cmd_ctrl_d(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_e(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(fpos_can_scroll_fwd(curr_view) && fpos_scroll_down(curr_view, 1))
-	{
-		fview_scroll_fwd_by(curr_view, 1);
-		redraw_current_view();
+	//mod by sim1
+	if (key_info.count == NO_COUNT_GIVEN) {
+		if(fpos_can_scroll_fwd(curr_view) && fpos_scroll_down(curr_view, 1))
+		{
+			fview_scroll_fwd_by(curr_view, 1);
+			redraw_current_view();
+		}
+
+		return;
 	}
+
+	int new_pos = curr_view->list_pos + key_info.count;
+	if (new_pos >= curr_view->list_rows) {
+		return;
+	}
+
+	dir_entry_t *pentry = &curr_view->dir_entry[new_pos];
+	if (!fentry_is_dir(pentry)) {
+		return;
+	}
+
+	fpos_set_pos(curr_view, new_pos);
+
+	rn_open(curr_view, FHE_RUN);
+	flist_sel_stash(curr_view);
+	redraw_current_view();
 }
 
 static void
@@ -1077,11 +1098,32 @@ cmd_ctrl_x(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_ctrl_y(key_info_t key_info, keys_info_t *keys_info)
 {
-	if(fpos_can_scroll_back(curr_view) && fpos_scroll_up(curr_view, 1))
-	{
-		fview_scroll_back_by(curr_view, 1);
-		redraw_current_view();
+	//mod by sim1
+	if (key_info.count == NO_COUNT_GIVEN) {
+		if(fpos_can_scroll_back(curr_view) && fpos_scroll_up(curr_view, 1))
+		{
+			fview_scroll_back_by(curr_view, 1);
+			redraw_current_view();
+		}
+
+		return;
 	}
+
+	int new_pos = curr_view->list_pos - key_info.count;
+	if (new_pos < 0) {
+		return;
+	}
+
+	dir_entry_t *pentry = &curr_view->dir_entry[new_pos];
+	if (!fentry_is_dir(pentry)) {
+		return;
+	}
+
+	fpos_set_pos(curr_view, new_pos);
+
+	rn_open(curr_view, FHE_RUN);
+	flist_sel_stash(curr_view);
+	redraw_current_view();
 }
 
 static void
@@ -1578,54 +1620,14 @@ cmd_gv(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_H(key_info_t key_info, keys_info_t *keys_info)
 {
-	//mod by sim1: smart H
-	if (key_info.count == NO_COUNT_GIVEN) {
-		pick_or_move(keys_info, fpos_get_top_pos(curr_view));
-		return;
-	}
-
-	int new_pos = curr_view->list_pos - key_info.count;
-	if (new_pos < 0) {
-		return;
-	}
-
-	dir_entry_t *pentry = &curr_view->dir_entry[new_pos];
-	if (!fentry_is_dir(pentry)) {
-		return;
-	}
-
-	fpos_set_pos(curr_view, new_pos);
-
-	rn_open(curr_view, FHE_RUN);
-	flist_sel_stash(curr_view);
-	redraw_current_view();
+	pick_or_move(keys_info, fpos_get_top_pos(curr_view));
 }
 
 /* Go to the last file in window. */
 static void
 cmd_L(key_info_t key_info, keys_info_t *keys_info)
 {
-	//mod by sim1: smart L
-	if (key_info.count == NO_COUNT_GIVEN) {
-		pick_or_move(keys_info, fpos_get_bottom_pos(curr_view));
-		return;
-	}
-
-	int new_pos = curr_view->list_pos + key_info.count;
-	if (new_pos >= curr_view->list_rows) {
-		return;
-	}
-
-	dir_entry_t *pentry = &curr_view->dir_entry[new_pos];
-	if (!fentry_is_dir(pentry)) {
-		return;
-	}
-
-	fpos_set_pos(curr_view, new_pos);
-
-	rn_open(curr_view, FHE_RUN);
-	flist_sel_stash(curr_view);
-	redraw_current_view();
+	pick_or_move(keys_info, fpos_get_bottom_pos(curr_view));
 }
 
 /* Go to middle line of window. */
