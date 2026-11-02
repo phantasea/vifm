@@ -803,7 +803,8 @@ get_view_columns(const view_t *view, int truncated)
 		.align = AT_LEFT,        .sizing = ST_AUTO,    .cropping = CT_ELLIPSIS,
 	};
 	static const column_info_t id_column = {
-		.column_id = SK_BY_ID,  .full_width = 7UL,     .text_width = 7UL,
+		//mod by sim1: reduce the ID width
+		.column_id = SK_BY_ID,  .full_width = 4UL,     .text_width = 4UL,
 		.align = AT_LEFT,       .sizing = ST_ABSOLUTE, .cropping = CT_ELLIPSIS,
 	};
 
@@ -1884,7 +1885,7 @@ static void
 format_id(void *data, size_t buf_len, char buf[], const format_info_t *info)
 {
 	const column_data_t *cdt = info->data;
-	snprintf(buf, buf_len, "#%d", cdt->entry->id);
+	snprintf(buf, buf_len, "#%03d", cdt->entry->id);  //mod by sim1
 }
 
 void
