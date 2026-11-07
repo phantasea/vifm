@@ -31,8 +31,8 @@ syntax keyword vifmCommand contained
 		\ w[rite] wq wqa[ll] xa[ll] x[it] y[ank]
 		\ nextgroup=vifmArgs
 syntax keyword vifmCommandCN contained
-		\ select switch ratings boundary copyin copyout movein moveout
-		\ abslink symlink putlink chglink chgperm explore
+		\ select switch ratings boundary copyin copyout movein moveout systcopy systmove
+		\ abslink symlink putlink chglink chgperm explore cnewer colder filelist
 		\ smartdiff smarttabmove smartsortbytime smartsortbysize smartHI smartLO
 		\ toggletab togglewide togglezcmd cyclesort cyclenumber cyclesplit
 		\ fileinfo stardict yankrootname yankbasename yankfullname yankpathname

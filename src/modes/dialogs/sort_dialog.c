@@ -245,10 +245,12 @@ redraw_sort_dialog(void)
 	mvwaddstr(sort_win, cy++, 2, " [   ] R Group Name");
 	mvwaddstr(sort_win, cy++, 2, " [   ] M Mode");
 	mvwaddstr(sort_win, cy++, 2, " [   ] p Permissions");
+	/******* del by sim1
 	mvwaddstr(sort_win, cy++, 2, " [   ] o Owner ID");
 	mvwaddstr(sort_win, cy++, 2, " [   ] O Owner Name");
 	mvwaddstr(sort_win, cy++, 2, " [   ] L Links Count");
 	mvwaddstr(sort_win, cy++, 2, " [   ] I Inode");
+	*******************/
 #endif
 	mvwaddstr(sort_win, cy++, 2, " [   ] s Size");
 	mvwaddstr(sort_win, cy++, 2, " [   ] i Item Count");
