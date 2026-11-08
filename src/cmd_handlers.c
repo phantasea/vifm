@@ -5634,7 +5634,7 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 
 	const char *args = cmd_info->args;
 	int with_help;
-	//mod by sim1
+	//mod by sim1: all cmds are handled as <silent>
 	int flags = (no_remap ? KEYS_FLAG_NOREMAP : KEYS_FLAG_NONE)
 	                | parse_map_args(&args, &with_help);
 
@@ -5663,12 +5663,13 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 
 	wchar_t *keys = substitute_specs(args);
 	wchar_t *mapping = substitute_specs(rhs);
-	//add by sim1 +++++++++++++++
-	if (wcschr(mapping, ':') != NULL)
+
+	//add by sim1: all handled as <silent> except for <help>
+	if (wcschr(mapping, ':') != NULL && with_help == 0)
 	{
 		flags |= KEYS_FLAG_SILENT;
 	}
-	//add by sim1 ---------------
+
 	if(keys != NULL && mapping != NULL)
 	{
 		if(vle_keys_user_add(keys, mapping, descr, mode, flags) != 0)
