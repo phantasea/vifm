@@ -6275,20 +6275,36 @@ static int
 global_cmd(const cmd_info_t *cmd_info)
 {
 	/***********
-	[range]g[lobal][!]/{pattern}/{action}
+	g[lobal][!]/{pattern}/{command}
 
 	g/pat/d          2; pat, d; /pat/d
-	g!/pat/d!        2; pat, d!; /pat/d!
-	g/pat/d xx       3; pat, d, xx; /pat/d xx
+	g/pat/d!         2; pat, d!; /pat/d!
 	g/pat1/v/pat2/d  2; pat, v/pat2/d; /pat1/v/pat2/d
-	***********/
+	g/pat/d xx       3; pat, d, xx; /pat/d xx
+
 	ui_sb_msgf("%d; %s, %s; %s",
 			cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
+	***********/
 
-	//pattern = /pat
-	int error = 1; //flist_sel_by_pattern(curr_view, pattern, cmd_info->emark, 1);
+	int error;
+	cmds_preserve_selection();
 
-	return (error ? CMDS_ERR_CUSTOM : 0);
+	if (cmd_info->argc != 2) {
+		ui_sb_msgf("g[!]/pat/cmd");
+		return 1;
+	}
+
+	char selpat[strlen(cmd_info->argv[0]) + 3];
+	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
+	//ui_sb_msgf("%d; %s; %s", cmd_info->argc, cmd_info->argv[0], selpat);
+
+	error = flist_sel_by_pattern(curr_view, selpat, cmd_info->emark, 1);
+	if (error != 0) {
+		return error;
+	}
+
+	error = vle_cmds_run(cmd_info->argv[1]);
+	return error;
 }
 
 static int
