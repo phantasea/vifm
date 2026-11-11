@@ -6289,8 +6289,14 @@ global_cmd(const cmd_info_t *cmd_info)
 	int error;
 	cmds_preserve_selection();
 
+	if(cmd_info->begin != NOT_DEF)
+	{
+		ui_sb_err("Range is not supported!");
+		return 1;
+	}
+
 	if (cmd_info->argc != 2) {
-		ui_sb_msgf("g[!]/pat/cmd");
+		ui_sb_err("g[!]/pat/cmd");
 		return 1;
 	}
 
