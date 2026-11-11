@@ -351,8 +351,9 @@ static int get_reg_and_count(const cmd_info_t *cmd_info, int *reg);
 static int get_reg(const char arg[], int *reg);
 static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
-//
+
 //add by sim1 +++++++++++++++++++++++++++++++++++++++
+static int global_cmd(const cmd_info_t *cmd_info);
 static int copyin_cmd(const cmd_info_t *cmd_info);
 static int movein_cmd(const cmd_info_t *cmd_info);
 static int copyout_cmd(const cmd_info_t *cmd_info);
@@ -1042,6 +1043,10 @@ const cmd_add_t cmds_list[] = {
 	         | HAS_SELECTION_SCOPE,
 	  .handler = &usercmd_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
 	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++
+	{ .name = "global",            .abbr = "g",     .id = COM_SELECT,
+	  .descr = "select files to do specified action",
+	  .flags = HAS_EMARK | HAS_RANGE | HAS_REGEXP_ARGS,
+	  .handler = &global_cmd,      .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "copyin",            .abbr = NULL,    .id = COM_COPY,
 	  .descr = "copy files from other pane to current pane",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
@@ -6266,6 +6271,26 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 ++++++++++++++++++++++++++++++
+static int
+global_cmd(const cmd_info_t *cmd_info)
+{
+	/***********
+	[range]g[lobal][!]/{pattern}/{action}
+
+	g/pat/d          2; pat, d; /pat/d
+	g!/pat/d!        2; pat, d!; /pat/d!
+	g/pat/d xx       3; pat, d, xx; /pat/d xx
+	g/pat1/v/pat2/d  2; pat, v/pat2/d; /pat1/v/pat2/d
+	***********/
+	ui_sb_msgf("%d; %s, %s; %s",
+			cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
+
+	//pattern = /pat
+	int error = 1; //flist_sel_by_pattern(curr_view, pattern, cmd_info->emark, 1);
+
+	return (error ? CMDS_ERR_CUSTOM : 0);
+}
+
 static int
 copyin_cmd(const cmd_info_t *cmd_info)
 {
