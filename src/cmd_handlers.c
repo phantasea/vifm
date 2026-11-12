@@ -6271,42 +6271,45 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 ++++++++++++++++++++++++++++++
+/******************************
+g[lobal][!]/{pattern}/{command}
+
+g/pat/d          2; pat, d; /pat/d
+g/pat/d!         2; pat, d!; /pat/d!
+g/pat1/v/pat2/d  2; pat, v/pat2/d; /pat1/v/pat2/d
+g/pat/d xx       3; pat, d, xx; /pat/d xx
+
+ui_sb_msgf("%d; %s, %s; %s",
+		cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
+******************************/
 static int
 global_cmd(const cmd_info_t *cmd_info)
 {
-	/***********
-	g[lobal][!]/{pattern}/{command}
-
-	g/pat/d          2; pat, d; /pat/d
-	g/pat/d!         2; pat, d!; /pat/d!
-	g/pat1/v/pat2/d  2; pat, v/pat2/d; /pat1/v/pat2/d
-	g/pat/d xx       3; pat, d, xx; /pat/d xx
-
-	ui_sb_msgf("%d; %s, %s; %s",
-			cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
-	***********/
-
-	int error;
 	cmds_preserve_selection();
 
 	if(cmd_info->begin != NOT_DEF)
 	{
-		ui_sb_err("Range is not supported!");
+		ui_sb_err("global_cmd: range not supported!");
 		return 1;
 	}
 
 	if (cmd_info->argc != 2) {
-		ui_sb_err("g[!]/pat/cmd");
+		ui_sb_err("global_cmd: g[!]/pat/cmd");
 		return 1;
 	}
 
 	char selpat[strlen(cmd_info->argv[0]) + 3];
+	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
-	//ui_sb_msgf("%d; %s; %s", cmd_info->argc, cmd_info->argv[0], selpat);
 
-	error = flist_sel_by_pattern(curr_view, selpat, cmd_info->emark, 1);
-	if (error != 0) {
+	int error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
+	if (error) {
 		return error;
+	}
+
+	if (cmd_info->emark) {
+		flist_sel_invert(curr_view);
+		redraw_view(curr_view);
 	}
 
 	error = vle_cmds_run(cmd_info->argv[1]);
