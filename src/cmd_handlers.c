@@ -354,6 +354,7 @@ static int parse_bg_mark(char cmd[]);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++
 static int global_cmd(const cmd_info_t *cmd_info);
+static int vglobal_cmd(const cmd_info_t *cmd_info);
 static int copyin_cmd(const cmd_info_t *cmd_info);
 static int movein_cmd(const cmd_info_t *cmd_info);
 static int copyout_cmd(const cmd_info_t *cmd_info);
@@ -1045,8 +1046,12 @@ const cmd_add_t cmds_list[] = {
 	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++
 	{ .name = "global",            .abbr = "g",     .id = COM_SELECT,
 	  .descr = "select files to do specified action",
-	  .flags = HAS_EMARK | HAS_RANGE | HAS_REGEXP_ARGS,
-	  .handler = &global_cmd,      .min_args = 0,   .max_args = NOT_DEF, },
+	  .flags = HAS_EMARK | HAS_REGEXP_ARGS,
+	  .handler = &global_cmd,      .min_args = 2,   .max_args = 2, },
+	{ .name = "vglobal",           .abbr = "v",     .id = COM_SELECT,
+	  .descr = "invert selection to do specified action",
+	  .flags = HAS_REGEXP_ARGS,
+	  .handler = &vglobal_cmd,     .min_args = 2,   .max_args = 2, },
 	{ .name = "copyin",            .abbr = NULL,    .id = COM_COPY,
 	  .descr = "copy files from other pane to current pane",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
@@ -6287,17 +6292,6 @@ global_cmd(const cmd_info_t *cmd_info)
 {
 	cmds_preserve_selection();
 
-	if(cmd_info->begin != NOT_DEF)
-	{
-		ui_sb_err("global_cmd: range not supported!");
-		return 1;
-	}
-
-	if (cmd_info->argc != 2) {
-		ui_sb_err("global_cmd: g[!]/pat/cmd");
-		return 1;
-	}
-
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
@@ -6309,8 +6303,29 @@ global_cmd(const cmd_info_t *cmd_info)
 
 	if (cmd_info->emark) {
 		flist_sel_invert(curr_view);
-		redraw_view(curr_view);
+		//redraw_view(curr_view);
 	}
+
+	error = vle_cmds_run(cmd_info->argv[1]);
+	return error;
+}
+
+static int
+vglobal_cmd(const cmd_info_t *cmd_info)
+{
+	cmds_preserve_selection();
+
+	char selpat[strlen(cmd_info->argv[0]) + 3];
+	memset(selpat, 0, sizeof(selpat));
+	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
+
+	int error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
+	if (error) {
+		return error;
+	}
+
+	//invert the selection
+	flist_sel_invert(curr_view);
 
 	error = vle_cmds_run(cmd_info->argv[1]);
 	return error;
