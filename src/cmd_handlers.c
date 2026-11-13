@@ -6288,8 +6288,6 @@ int gcmd_running = 0;
 static int
 global_cmd(const cmd_info_t *cmd_info)
 {
-	cmds_preserve_selection();
-
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
@@ -6299,10 +6297,22 @@ global_cmd(const cmd_info_t *cmd_info)
 		return error;
 	}
 
+	int sels = curr_view->selected_files;
+	if (sels <= 0 || sels >= curr_view->list_rows) {
+		return 0;
+	}
+
 	if (cmd_info->emark) {
 		flist_sel_invert(curr_view);
 		//redraw_view(curr_view);
+
+		sels = curr_view->selected_files;
+		if (sels <= 0 || sels >= curr_view->list_rows) {
+			return 0;
+		}
 	}
+
+	cmds_preserve_selection();
 
 	gcmd_running = 1;
 	error = vle_cmds_run(cmd_info->argv[1]);
@@ -6314,8 +6324,6 @@ global_cmd(const cmd_info_t *cmd_info)
 static int
 vglobal_cmd(const cmd_info_t *cmd_info)
 {
-	cmds_preserve_selection();
-
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
@@ -6324,20 +6332,35 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	if (!gcmd_running)
 	{
 		error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
-		if (error) {
-			return error;
-		}
-
-		//invert the selection
-		flist_sel_invert(curr_view);
 	}
 	else
 	{
 		error = flist_sel_by_pattern(curr_view, selpat, 0, 0);
-		if (error) {
-			return error;
+	}
+
+	if (error)
+	{
+		return error;
+	}
+
+	int sels = curr_view->selected_files;
+	if (sels <= 0 || sels >= curr_view->list_rows)
+	{
+		return 0;
+	}
+
+	if (!gcmd_running)
+	{
+		flist_sel_invert(curr_view);
+
+		sels = curr_view->selected_files;
+		if (sels <= 0 || sels >= curr_view->list_rows)
+		{
+			return 0;
 		}
 	}
+
+	cmds_preserve_selection();
 
 	error = vle_cmds_run(cmd_info->argv[1]);
 	return error;
