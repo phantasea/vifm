@@ -3591,8 +3591,31 @@ void move_cursor_backward(int len)
 		return;
 	}
 
-	input_stat.index -= len;
 	input_stat.curs_pos -= len;
+	if (input_stat.curs_pos < 1) {
+		input_stat.curs_pos = 1;
+	}
+
+	input_stat.index -= len;
+	if (input_stat.index < 0) {
+		input_stat.index = 0;
+	}
+
+	update_cursor();
+}
+
+void set_cursor_pos(int pos)
+{
+	if (pos < 1) {
+		pos = 1;
+	}
+	else if(pos > input_stat.len + 1) {
+		pos = input_stat.len + 1;
+	}
+
+	input_stat.index = pos - 1;
+	input_stat.curs_pos = pos;
+
 	update_cursor();
 }
 //add by sim1: -------------------

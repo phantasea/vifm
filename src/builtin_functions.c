@@ -92,10 +92,12 @@ static var_t isactive_builtin(const call_info_t *call_info);
 static var_t isdir_builtin(const call_info_t *call_info);
 static var_t isdotfile_builtin(const call_info_t *call_info);
 static var_t toggle_builtin(const call_info_t *call_info);
+static var_t setcmdpos_builtin(const call_info_t *call_info);
 //add by sim1 *************************************************
 static var_t tabpagenr_builtin(const call_info_t *call_info);
 static var_t term_builtin(const call_info_t *call_info);
-var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);  //mod by sim1
+//mod by sim1: remove "static", used in cmdline.c
+var_t execute_cmd(var_t cmd_arg, int interactive, int preserve_stdin);
 
 /* Function descriptions. */
 static const function_t functions[] = {
@@ -118,6 +120,7 @@ static const function_t functions[] = {
 	{ "layoutis",    "query current layout",       {1,1}, &layoutis_builtin },
 	{ "paneisat",    "query pane location",        {1,1}, &paneisat_builtin },
 	{ "selected",    "retrieve selection size",    {0,0}, &selected_builtin },
+	{ "setcmdpos",   "set the cursor position",    {1,1}, &setcmdpos_builtin },  //add by sim1
 	{ "system",      "execute external command",   {1,1}, &system_builtin },
 	{ "tabpagenr",   "number of current/last tab", {0,1}, &tabpagenr_builtin },
 	{ "toggle",      "toggle function",            {1,1}, &toggle_builtin },     //add by sim1
@@ -668,6 +671,17 @@ system_builtin(const call_info_t *call_info)
 }
 
 //add by sim1 ------------------------
+extern void set_cursor_pos(int len);
+
+static var_t
+setcmdpos_builtin(const call_info_t *call_info)
+{
+	int pos = var_to_int(call_info->argv[0]);
+	set_cursor_pos(pos);
+
+	return var_from_str("");
+}
+
 static var_t
 isactive_builtin(const call_info_t *call_info)
 {
