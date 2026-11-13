@@ -6287,6 +6287,7 @@ g/pat/d xx       3; pat, d, xx; /pat/d xx
 ui_sb_msgf("%d; %s, %s; %s",
 		cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
 ******************************/
+int gcmd_running = 0;
 static int
 global_cmd(const cmd_info_t *cmd_info)
 {
@@ -6306,7 +6307,10 @@ global_cmd(const cmd_info_t *cmd_info)
 		//redraw_view(curr_view);
 	}
 
+	gcmd_running = 1;
 	error = vle_cmds_run(cmd_info->argv[1]);
+	gcmd_running = 0;
+
 	return error;
 }
 
@@ -6319,13 +6323,24 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
-	int error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
-	if (error) {
-		return error;
-	}
+	int error = 0;
+	if (!gcmd_running)
+	{
+		error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
+		if (error) {
+			return error;
+		}
 
-	//invert the selection
-	flist_sel_invert(curr_view);
+		//invert the selection
+		flist_sel_invert(curr_view);
+	}
+	else
+	{
+		error = flist_sel_by_pattern(curr_view, selpat, 0, 0);
+		if (error) {
+			return error;
+		}
+	}
 
 	error = vle_cmds_run(cmd_info->argv[1]);
 	return error;
