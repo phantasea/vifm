@@ -1491,6 +1491,13 @@ cmds_eval_args(const char args[], const char **stop_ptr)
 	}
 }
 
+//add by sim1:
+void
+cmds_drop_selection()
+{
+	keep_view_selection = 0;
+}
+
 void
 cmds_preserve_selection(void)
 {

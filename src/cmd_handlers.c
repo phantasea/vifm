@@ -6284,7 +6284,9 @@ g/pat/d xx       3; pat, d, xx; /pat/d xx
 ui_sb_msgf("%d; %s, %s; %s",
 		cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
 ******************************/
+extern void cmds_drop_selection();
 int gcmd_running = 0;
+
 static int
 global_cmd(const cmd_info_t *cmd_info)
 {
@@ -6297,18 +6299,19 @@ global_cmd(const cmd_info_t *cmd_info)
 		return error;
 	}
 
-	int sels = curr_view->selected_files;
-	if (sels <= 0 || sels >= curr_view->list_rows) {
-		return 0;
+	if (curr_view->selected_files <= 0) {
+		ui_sb_msgf("None matched for g%s", selpat);
+		return 1;
 	}
 
 	if (cmd_info->emark) {
 		flist_sel_invert(curr_view);
 		//redraw_view(curr_view);
 
-		sels = curr_view->selected_files;
-		if (sels <= 0 || sels >= curr_view->list_rows) {
-			return 0;
+		if (curr_view->selected_files <= 0) {
+			cmds_drop_selection();
+			ui_sb_msgf("None matched for g!%s", selpat);
+			return 1;
 		}
 	}
 
@@ -6346,7 +6349,9 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	int sels = curr_view->selected_files;
 	if (sels <= 0 || sels >= curr_view->list_rows)
 	{
-		return 0;
+		cmds_drop_selection();
+		ui_sb_msgf("Zero/All matched for v%s", selpat);
+		return 1;
 	}
 
 	if (!gcmd_running)
@@ -6356,7 +6361,9 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 		sels = curr_view->selected_files;
 		if (sels <= 0 || sels >= curr_view->list_rows)
 		{
-			return 0;
+			cmds_drop_selection();
+			ui_sb_msgf("Zero/All matched for v%s", selpat);
+			return 1;
 		}
 	}
 
