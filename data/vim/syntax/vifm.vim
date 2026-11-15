@@ -31,24 +31,24 @@ syntax keyword vifmCommand contained
 		\ w[rite] wq wqa[ll] xa[ll] x[it] y[ank]
 		\ nextgroup=vifmArgs
 syntax keyword vifmCommandCN contained
-		\ select switch ratings boundary copyin copyout movein moveout systcopy systmove
+		\ select switch ratings bo[undary] copyin copyout movein moveout systcopy systmove
 		\ abslink symlink putlink chglink chgperm explore cnewer colder filelist
 		\ smartdiff smarttabmove smartsortbytime smartsortbysize smartHI smartLO
 		\ toggletab togglewide togglezcmd cyclesort cyclenumber cyclesplit
 		\ fileinfo stardict yankrootname yankbasename yankfullname yankpathname
 		\ vswinmoveleft vswinmoverite naviview extract archive imgall imgrall
 		\ ffvids ffwebs ffpics fferos ffauds fffave ffedit ffgoto ffdirs
-		\ filter colorscheme touch manhelp unselect
+		\ filter colorscheme touch manhelp uns[elect] D[ELETE] g[lobal] v[global]
 		\ alink apropos bmark bmarks bmgo cds change chi[story] chmod chown clone
 		\ compare cope[n] co[py] cq[uit] d[elete] delbmarks delm[arks] delsession
 		\ di[splay] dirs e[dit] el[seif] empty en[dif] exi[t] file fin[d] fini[sh]
 		\ go[to] gr[ep] h[elp] hideui histnext his[tory] histprev if keepsel jobs
 		\ locate ls lstrash marks media mes[sages] mkdir m[ove] noh[lsearch]
 		\ on[ly] o[pen] plugin plugins popd pushd pu[t] pw[d] qa[ll] q[uit] redr[aw]
-		\ rege[dit] reg[isters] regular rename restart restore rlink screen sh[ell]
-		\ siblnext siblprev sor[t] sp[lit] st[op] s[ubstitute] tabc[lose] tabm[ove]
+		\ rege[dit] reg[isters] regular r[ename] restart restore rlink screen sh[ell]
+		\ siblnext siblprev so[rt] sp[lit] st[op] s[ubstitute] tabc[lose] tabm[ove]
 		\ tabname tabnew tabn[ext] tabo[nly] tabp[revious] touch tr trashes tree
-		\ session sync undol[ist] ve[rsion] vie[w] vifm vs[plit] winc[md] wingo
+		\ session sync undol[ist] ver[sion] vie[w] vifm vs[plit] winc[md] wingo
 		\ w[rite] wq wqa[ll] xa[ll] x[it] y[ank]
 		\ nextgroup=vifmArgsCN
 

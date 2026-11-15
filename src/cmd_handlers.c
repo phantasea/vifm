@@ -845,7 +845,7 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "view/toggle terminal multiplexer support",
 	  .flags = HAS_COMMENT | HAS_EMARK | HAS_QMARK_NO_ARGS,
 	  .handler = &screen_cmd,      .min_args = 0,   .max_args = 0, },
-	{ .name = "select",            .abbr = NULL,    .id = COM_SELECT,
+	{ .name = "select",            .abbr = "sel",   .id = COM_SELECT,
 	  .descr = "select files matching pattern or range",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_REGEXP_ARGS,
 	  .handler = &select_cmd,      .min_args = 0,   .max_args = NOT_DEF, },
@@ -878,11 +878,11 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "navigate to previous sibling directory",
 	  .flags = HAS_RANGE | HAS_EMARK | HAS_COMMENT,
 	  .handler = &siblprev_cmd,    .min_args = 0,   .max_args = 0, },
-	{ .name = "sort",              .abbr = "sor",   .id = -1,
+	{ .name = "sort",              .abbr = "so",    .id = -1,
 	  .descr = "display sorting dialog",
 	  .flags = HAS_COMMENT,
 	  .handler = &sort_cmd,        .min_args = 0,   .max_args = 0, },
-	{ .name = "source",            .abbr = "so",    .id = COM_SOURCE,
+	{ .name = "source",            .abbr = NULL,    .id = COM_SOURCE,
 	  .descr = "source file with :commands",
 	  .flags = HAS_QUOTED_ARGS | HAS_COMMENT | HAS_ENVVARS,
 	  .handler = &source_cmd,      .min_args = 1,   .max_args = 1, },
@@ -960,11 +960,11 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "unmap user keys in normal and visual modes",
 	  .flags = HAS_EMARK | HAS_RAW_ARGS,
 	  .handler = &unmap_cmd,       .min_args = 1,   .max_args = 1, },
-	{ .name = "unselect",          .abbr = NULL,    .id = COM_SELECT,
+	{ .name = "unselect",          .abbr = "uns",   .id = COM_SELECT,
 	  .descr = "unselect files matching pattern or range",
 	  .flags = HAS_RANGE | HAS_REGEXP_ARGS,
 	  .handler = &unselect_cmd,    .min_args = 0,   .max_args = NOT_DEF, },
-	{ .name = "version",           .abbr = "ve",    .id = -1,
+	{ .name = "version",           .abbr = "ver",   .id = -1,
 	  .descr = "display version information",
 	  .flags = HAS_COMMENT,
 	  .handler = &vifm_cmd,        .min_args = 0,   .max_args = 0, },
@@ -1048,7 +1048,7 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "create absolute symlinks",
 	  .flags = 0,
 	  .handler = &abslink_cmd,     .min_args = 0,   .max_args = 0, },
-	{ .name = "boundary",          .abbr = NULL,    .id = -1,
+	{ .name = "boundary",          .abbr = "bo",    .id = -1,
 	  .descr = "jump to the dir/file boundary",
 	  .flags = HAS_EMARK,
 	  .handler = &boundary_cmd,    .min_args = 0,   .max_args = 0, },
@@ -6283,6 +6283,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 ++++++++++++++++++++++++++++++
+//delete permanently without trashing
 static int
 DELETE_cmd(const cmd_info_t *cmd_info)
 {
@@ -6308,7 +6309,7 @@ DELETE_cmd(const cmd_info_t *cmd_info)
 	return result;
 }
 
-/******************************
+/*********************************
 g[lobal][!]/{pattern}/{command}
 
 g/pat/d          2; pat, d; /pat/d
@@ -6318,7 +6319,7 @@ g/pat/d xx       3; pat, d, xx; /pat/d xx
 
 ui_sb_msgf("%d; %s, %s; %s",
 		cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
-******************************/
+*********************************/
 extern void cmds_drop_selection();
 int gcmd_running = 0;
 
