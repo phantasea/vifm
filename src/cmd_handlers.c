@@ -353,6 +353,7 @@ static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++
+static int DELETE_cmd(const cmd_info_t *cmd_info);
 static int global_cmd(const cmd_info_t *cmd_info);
 static int vglobal_cmd(const cmd_info_t *cmd_info);
 static int copyin_cmd(const cmd_info_t *cmd_info);
@@ -1039,6 +1040,10 @@ const cmd_add_t cmds_list[] = {
 	  .handler = &yank_cmd,        .min_args = 0,   .max_args = 2, },
 
 	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++
+	{ .name = "DELETE",            .abbr = "D",     .id = -1,
+	  .descr = "delete files",
+	  .flags = HAS_RANGE | HAS_BG_FLAG | HAS_SELECTION_SCOPE,
+	  .handler = &DELETE_cmd,      .min_args = 0,   .max_args = 2, },
 	{ .name = "abslink",           .abbr = NULL,    .id = -1,
 	  .descr = "create absolute symlinks",
 	  .flags = 0,
@@ -5671,7 +5676,7 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	wchar_t *keys = substitute_specs(args);
 	wchar_t *mapping = substitute_specs(rhs);
 
-	//add by sim1: all handled as <silent> except for <help>
+	//add by sim1: all handled as <silent> except for <input>
 	if (wcschr(mapping, ':') != NULL && !(flags & KEYS_FLAG_INPUT))
 	{
 		flags |= KEYS_FLAG_SILENT;
@@ -6278,6 +6283,31 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 ++++++++++++++++++++++++++++++
+static int
+DELETE_cmd(const cmd_info_t *cmd_info)
+{
+	int reg = DEFAULT_REG_NAME;
+	int result;
+
+	result = get_reg_and_count(cmd_info, &reg);
+	if(result != 0)
+	{
+		return result;
+	}
+
+	flist_set_marking(curr_view, 0);
+	if(cmd_info->bg)
+	{
+		result = fops_delete_bg(curr_view, 0) != 0;
+	}
+	else
+	{
+		result = fops_delete(curr_view, reg, 0) != 0;
+	}
+
+	return result;
+}
+
 /******************************
 g[lobal][!]/{pattern}/{command}
 
