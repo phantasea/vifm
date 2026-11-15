@@ -56,6 +56,8 @@ enum
 	KEYS_FLAG_SILENT = 2,  /* Postpone screen update until mapping's end. */
 	KEYS_FLAG_WAIT = 4,    /* Do not use short wait to resolve conflict against
 	                          builtin mapping. */
+	//add by sim1
+	KEYS_FLAG_INPUT = 8,  /* Ignore <silent> for input() to take effect. */
 };
 
 /* Checks passed in value for being among list of error codes this unit can

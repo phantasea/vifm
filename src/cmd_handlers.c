@@ -822,7 +822,7 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "switch to regular view leaving custom view",
 	  .flags = HAS_COMMENT,
 	  .handler = &regular_cmd,     .min_args = 0,   .max_args = 0, },
-	{ .name = "rename",            .abbr = NULL,    .id = COM_RENAME,
+	{ .name = "rename",            .abbr = "r",     .id = COM_RENAME,
 	  .descr = "rename files",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_QUOTED_ARGS | HAS_COMMENT
 	         | HAS_SELECTION_SCOPE,
@@ -5672,7 +5672,7 @@ do_map(const cmd_info_t *cmd_info, const char map_type[], int mode,
 	wchar_t *mapping = substitute_specs(rhs);
 
 	//add by sim1: all handled as <silent> except for <help>
-	if (wcschr(mapping, ':') != NULL && with_help == 0)
+	if (wcschr(mapping, ':') != NULL && !(flags & KEYS_FLAG_INPUT))
 	{
 		flags |= KEYS_FLAG_SILENT;
 	}
@@ -5708,6 +5708,11 @@ parse_map_args(const char **args, int *with_help)
 		if(skip_prefix(args, "<silent>"))
 		{
 			flags |= KEYS_FLAG_SILENT;
+		}
+		//add by sim1: if <input> exists, ignore <silent>
+		else if(skip_prefix(args, "<input>"))
+		{
+			flags |= KEYS_FLAG_INPUT;
 		}
 		else if(skip_prefix(args, "<wait>"))
 		{
