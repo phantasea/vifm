@@ -1072,7 +1072,8 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "explore/preview file in the same pane",
 	  .flags = 0,
 	  .handler = &explore_cmd,     .min_args = 0,   .max_args = 0, },
-	{ .name = "global",            .abbr = "g",     .id = COM_SELECT,
+	//.id=COM_COMMAND for :g/pat/v/(aa|bb)/p, or "\|" has to be used!
+	{ .name = "global",            .abbr = "g",     .id = COM_COMMAND,
 	  .descr = "select files to do specified action",
 	  .flags = HAS_EMARK | HAS_REGEXP_ARGS,
 	  .handler = &global_cmd,      .min_args = 2,   .max_args = 2, },
