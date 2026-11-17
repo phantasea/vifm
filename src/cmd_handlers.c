@@ -6336,26 +6336,28 @@ global_cmd(const cmd_info_t *cmd_info)
 		return error;
 	}
 
-	if (curr_view->selected_files <= 0) {
+	if (curr_view->selected_files <= 0)
+	{
 		ui_sb_msgf("None matched for g%s", selpat);
 		return 1;
 	}
 
-	if (cmd_info->emark) {
+	if (cmd_info->emark)
+	{
 		flist_sel_invert(curr_view);
 		//redraw_view(curr_view);
 
-		if (curr_view->selected_files <= 0) {
+		if (curr_view->selected_files <= 0)
+		{
 			cmds_drop_selection();
 			ui_sb_msgf("None matched for g!%s", selpat);
 			return 1;
 		}
 	}
 
-	cmds_preserve_selection();
 
 	gcmd_running = 1;
-	error = vle_cmds_run(cmd_info->argv[1]);
+	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
 	gcmd_running = 0;
 
 	return error;
@@ -6369,44 +6371,33 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
 	int error = 0;
-	if (!gcmd_running)
-	{
+	if (!gcmd_running) {
 		error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
-	}
-	else
-	{
+	} else {
 		error = flist_sel_by_pattern(curr_view, selpat, 0, 0);
 	}
 
-	if (error)
-	{
+	if (error) {
 		return error;
+	}
+
+	if (!gcmd_running) {
+		flist_sel_invert(curr_view);
 	}
 
 	int sels = curr_view->selected_files;
 	if (sels <= 0 || sels >= curr_view->list_rows)
 	{
 		cmds_drop_selection();
-		ui_sb_msgf("Zero/All matched for v%s", selpat);
+		ui_sb_msgf("%s matched for v%s", sels <= 0 ? "Zero" : "All", selpat);
 		return 1;
 	}
 
-	if (!gcmd_running)
-	{
-		flist_sel_invert(curr_view);
-
-		sels = curr_view->selected_files;
-		if (sels <= 0 || sels >= curr_view->list_rows)
-		{
-			cmds_drop_selection();
-			ui_sb_msgf("Zero/All matched for v%s", selpat);
-			return 1;
-		}
-	}
-
+	/***************************************
 	cmds_preserve_selection();
-
 	error = vle_cmds_run(cmd_info->argv[1]);
+	***************************************/
+	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
 	return error;
 }
 
