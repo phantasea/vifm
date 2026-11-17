@@ -6323,10 +6323,17 @@ ui_sb_msgf("%d; %s, %s; %s",
 *********************************/
 extern void cmds_drop_selection();
 int gcmd_running = 0;
+int vcmd_running = 0;
 
 static int
 global_cmd(const cmd_info_t *cmd_info)
 {
+	if (vcmd_running)
+	{
+		ui_sb_msgf("v/pat1/g/pat2/cmd not supported!");
+		return 1;
+	}
+
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
@@ -6354,7 +6361,6 @@ global_cmd(const cmd_info_t *cmd_info)
 			return 1;
 		}
 	}
-
 
 	gcmd_running = 1;
 	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
@@ -6389,7 +6395,7 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	if (sels <= 0 || sels >= curr_view->list_rows)
 	{
 		cmds_drop_selection();
-		ui_sb_msgf("%s matched for v%s", sels <= 0 ? "Zero" : "All", selpat);
+		ui_sb_msgf("%s matched for v%s", sels <= 0 ? "None" : "All", selpat);
 		return 1;
 	}
 
@@ -6397,7 +6403,10 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	cmds_preserve_selection();
 	error = vle_cmds_run(cmd_info->argv[1]);
 	***************************************/
+	vcmd_running = 1;
 	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
+	vcmd_running = 0;
+
 	return error;
 }
 
