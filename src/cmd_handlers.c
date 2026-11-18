@@ -1101,7 +1101,8 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "create or change symbolic link smartly",
 	  .flags = 0,
 	  .handler = &symlink_cmd,     .min_args = 0,   .max_args = 0, },
-	{ .name = "vglobal",           .abbr = "v",     .id = COM_SELECT,
+	//.id=COM_COMMAND for :v/pat/g/(aa|bb)/p, or "\|" has to be used!
+	{ .name = "vglobal",           .abbr = "v",     .id = COM_COMMAND,
 	  .descr = "invert selection to do specified action",
 	  .flags = HAS_REGEXP_ARGS,
 	  .handler = &vglobal_cmd,     .min_args = 2,   .max_args = 2, },
