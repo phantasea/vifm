@@ -624,7 +624,7 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "navigate to specified file/directory",
 	  .flags = HAS_ENVVARS | HAS_COMMENT | HAS_MACROS_FOR_CMD | HAS_QUOTED_ARGS,
 	  .handler = &goto_path_cmd,   .min_args = 1,   .max_args = 1, },
-	{ .name = "grep",              .abbr = "gr",    .id = COM_GREP,
+	{ .name = "grep",              .abbr = NULL,    .id = COM_GREP,
 	  .descr = "query grep results",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_SELECTION_SCOPE,
 	  .handler = &grep_cmd,        .min_args = 0,   .max_args = NOT_DEF, },
@@ -1075,7 +1075,7 @@ const cmd_add_t cmds_list[] = {
 	//.id=COM_COMMAND for :g/pat/v/(aa|bb)/p, or "\|" has to be used!
 	{ .name = "global",            .abbr = "g",     .id = COM_COMMAND,
 	  .descr = "select files to do specified action",
-	  .flags = HAS_EMARK | HAS_REGEXP_ARGS,
+	  .flags = HAS_REGEXP_ARGS,
 	  .handler = &global_cmd,      .min_args = 2,   .max_args = 2, },
 	{ .name = "movein",            .abbr = NULL,    .id = COM_MOVE,
 	  .descr = "move files from other pane to current pane",
@@ -6305,9 +6305,11 @@ global_cmd(const cmd_info_t *cmd_info)
 		return error;
 	}
 
+	/*****************************
 	if (cmd_info->emark) {
 		flist_sel_invert(curr_view);
 	}
+	*****************************/
 
 	int sels = curr_view->selected_files;
 	if (sels <= 0 || sels >= curr_view->list_rows)
