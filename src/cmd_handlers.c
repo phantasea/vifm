@@ -1075,7 +1075,7 @@ const cmd_add_t cmds_list[] = {
 	//.id=COM_COMMAND for :g/pat/v/(aa|bb)/p, or "\|" has to be used!
 	{ .name = "global",            .abbr = "g",     .id = COM_COMMAND,
 	  .descr = "select files to do specified action",
-	  .flags = HAS_REGEXP_ARGS,
+	  .flags = HAS_EMARK | HAS_REGEXP_ARGS,
 	  .handler = &global_cmd,      .min_args = 2,   .max_args = 2, },
 	{ .name = "movein",            .abbr = NULL,    .id = COM_MOVE,
 	  .descr = "move files from other pane to current pane",
@@ -6296,9 +6296,9 @@ global_cmd(const cmd_info_t *cmd_info)
 
 	int error = 0;
 	if (!gvcmd_running) {
-		error = flist_sel_for_gcmd(curr_view, selpat, 1, 1);
+		error = flist_sel_for_gcmd(curr_view, selpat, 1, cmd_info->emark ? 0 : 1);
 	} else {
-		error = flist_sel_for_gcmd(curr_view, selpat, 0, 1);
+		error = flist_sel_for_gcmd(curr_view, selpat, 0, cmd_info->emark ? 0 : 1);
 	}
 
 	if (error) {
