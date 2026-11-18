@@ -133,6 +133,7 @@ char * cmds_eval_args(const char args[], const char **stop_ptr);
 /* Requests unit to do not reset selection after command execution.  Expected to
  * be called from command handlers, or it won't have any effect. */
 void cmds_preserve_selection(void);
+void cmds_drop_selection(void);  //add by sim1
 
 /* Marks current scope as failed unless there is no scope.  This results in not
  * processing any commands until the scope is over. */

@@ -6284,87 +6284,41 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 ++++++++++++++++++++++++++++++
-//delete permanently without trashing
-static int
-DELETE_cmd(const cmd_info_t *cmd_info)
-{
-	int reg = DEFAULT_REG_NAME;
-	int result;
-
-	result = get_reg_and_count(cmd_info, &reg);
-	if(result != 0)
-	{
-		return result;
-	}
-
-	flist_set_marking(curr_view, 0);
-	if(cmd_info->bg)
-	{
-		result = fops_delete_bg(curr_view, 0) != 0;
-	}
-	else
-	{
-		result = fops_delete(curr_view, reg, 0) != 0;
-	}
-
-	return result;
-}
-
-/*********************************
-g[lobal][!]/{pattern}/{command}
-
-g/pat/d          2; pat, d; /pat/d
-g/pat/d!         2; pat, d!; /pat/d!
-g/pat1/v/pat2/d  2; pat, v/pat2/d; /pat1/v/pat2/d
-g/pat/d xx       3; pat, d, xx; /pat/d xx
-
-ui_sb_msgf("%d; %s, %s; %s",
-		cmd_info->argc, cmd_info->argv[0], cmd_info->argv[1], cmd_info->args);
-*********************************/
-extern void cmds_drop_selection();
-int gcmd_running = 0;
-int vcmd_running = 0;
+int gvcmd_running = 0;
 
 static int
 global_cmd(const cmd_info_t *cmd_info)
 {
-	if (vcmd_running)
-	{
-		ui_sb_msgf("v/pat1/g/pat2/cmd not supported!");
-		return 1;
-	}
-
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
-	int error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
+	int error = 0;
+	if (!gvcmd_running) {
+		error = flist_sel_for_gcmd(curr_view, selpat, 1, 1);
+	} else {
+		error = flist_sel_for_gcmd(curr_view, selpat, 0, 1);
+	}
+
 	if (error) {
 		return error;
 	}
 
-	if (curr_view->selected_files <= 0)
+	if (cmd_info->emark) {
+		flist_sel_invert(curr_view);
+	}
+
+	int sels = curr_view->selected_files;
+	if (sels <= 0 || sels >= curr_view->list_rows)
 	{
-		ui_sb_msgf("None matched for g%s", selpat);
+		cmds_drop_selection();
+		ui_sb_msgf("%s matched for pattern: %s", sels <= 0 ? "None" : "All", selpat);
 		return 1;
 	}
 
-	if (cmd_info->emark)
-	{
-		flist_sel_invert(curr_view);
-		//redraw_view(curr_view);
-
-		if (curr_view->selected_files <= 0)
-		{
-			cmds_drop_selection();
-			ui_sb_msgf("None matched for g!%s", selpat);
-			return 1;
-		}
-	}
-
-	gcmd_running = 1;
+	gvcmd_running = 1;
 	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
-	gcmd_running = 0;
+	gvcmd_running = 0;
 
 	return error;
 }
@@ -6377,18 +6331,14 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
 	int error = 0;
-	if (!gcmd_running) {
-		error = flist_sel_by_pattern(curr_view, selpat, 1, 1);
+	if (!gvcmd_running) {
+		error = flist_sel_for_gcmd(curr_view, selpat, 1, 0);
 	} else {
-		error = flist_sel_by_pattern(curr_view, selpat, 0, 0);
+		error = flist_sel_for_gcmd(curr_view, selpat, 0, 0);
 	}
 
 	if (error) {
 		return error;
-	}
-
-	if (!gcmd_running) {
-		flist_sel_invert(curr_view);
 	}
 
 	int sels = curr_view->selected_files;
@@ -6399,13 +6349,9 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	/***************************************
-	cmds_preserve_selection();
-	error = vle_cmds_run(cmd_info->argv[1]);
-	***************************************/
-	vcmd_running = 1;
+	gvcmd_running = 1;
 	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
-	vcmd_running = 0;
+	gvcmd_running = 0;
 
 	return error;
 }
@@ -6432,6 +6378,32 @@ static int
 moveout_cmd(const cmd_info_t *cmd_info)
 {
 	return cpmv_cmd(cmd_info, 1, curr_view);
+}
+
+//delete permanently without trashing
+static int
+DELETE_cmd(const cmd_info_t *cmd_info)
+{
+	int reg = DEFAULT_REG_NAME;
+	int result;
+
+	result = get_reg_and_count(cmd_info, &reg);
+	if(result != 0)
+	{
+		return result;
+	}
+
+	flist_set_marking(curr_view, 0);
+	if(cmd_info->bg)
+	{
+		result = fops_delete_bg(curr_view, 0) != 0;
+	}
+	else
+	{
+		result = fops_delete(curr_view, reg, 0) != 0;
+	}
+
+	return result;
 }
 
 //the same as native normal cmd 'e'(explore)

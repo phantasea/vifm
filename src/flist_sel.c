@@ -349,8 +349,7 @@ flist_sel_by_filter(view_t *view, const char cmd[], int erase_old, int select)
 }
 
 int
-flist_sel_by_pattern(view_t *view, const char pattern[], int erase_old,
-		int select)
+flist_sel_by_pattern(view_t *view, const char pattern[], int erase_old, int select)
 {
 	int i;
 	char *error;
@@ -381,6 +380,10 @@ flist_sel_by_pattern(view_t *view, const char pattern[], int erase_old,
 			continue;
 		}
 
+		//0,0: keep selected, unselect matched from selected
+		//0,1: keep selected, append   matched from non-selected
+		//1,0: keep selected, unselect matched from selected
+		//1,1: drop selected, select   matched from all files
 		get_full_path_of(entry, sizeof(file_path) - 1U, file_path);
 
 		if(matchers_match(ms, file_path) ||
@@ -393,6 +396,75 @@ flist_sel_by_pattern(view_t *view, const char pattern[], int erase_old,
 
 	matchers_free(ms);
 
+	ui_view_schedule_redraw(view);
+	return 0;
+}
+
+
+int
+flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag)
+{
+	char *error;
+	matchers_t *const ms =
+		matchers_alloc(pattern, pattern, 0, 1, hists_search_last(), &error);
+	if(ms == NULL)
+	{
+		ui_sb_errf("Pattern error: %s", error);
+		free(error);
+		return 1;
+	}
+
+	if(drop)
+	{
+		flist_sel_drop(view);
+	}
+
+	char file_path[PATH_MAX + 1] = {0};
+	for(int i = 0; i < view->list_rows; ++i)
+	{
+		dir_entry_t *const entry = &view->dir_entry[i];
+		if(!drop && entry->selected == 0)
+		{
+			continue;
+		}
+
+		//0,0: keep selected, unselect matched
+		//0,1: keep selected, unselect unmatched
+		//1,0: drop selected, select   unmatched
+		//1,1: drop selected, select   matched
+		get_full_path_of(entry, sizeof(file_path) - 1U, file_path);
+		if(matchers_match(ms, file_path) ||
+				(fentry_is_dir(entry) && matchers_match_dir(ms, file_path)))
+		{
+			if (!drop && flag == 0) {
+				entry->selected = 0;
+				view->selected_files -= 1;
+				continue;
+			}
+
+			if (drop && flag == 1) {
+				entry->selected = 1;
+				view->selected_files += 1;
+				continue;
+			}
+		}
+		else
+		{
+			if (!drop && flag == 1) {
+				entry->selected = 0;
+				view->selected_files -= 1;
+				continue;
+			}
+
+			if (drop && flag == 0) {
+				entry->selected = 1;
+				view->selected_files += 1;
+				continue;
+			}
+		}
+	}
+
+	matchers_free(ms);
 	ui_view_schedule_redraw(view);
 	return 0;
 }

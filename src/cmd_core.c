@@ -1493,7 +1493,7 @@ cmds_eval_args(const char args[], const char **stop_ptr)
 
 //add by sim1:
 void
-cmds_drop_selection()
+cmds_drop_selection(void)
 {
 	keep_view_selection = 0;
 }
