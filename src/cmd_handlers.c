@@ -371,6 +371,7 @@ static int putlink_cmd(const cmd_info_t *cmd_info);
 static int boundary_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
 
+static int global_handler(const cmd_info_t *cmd_info, int invert);
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
 
 extern void modview_enter(view_t *view, int explore);
@@ -6290,6 +6291,47 @@ int gvcmd_running = 0;
 static int
 global_cmd(const cmd_info_t *cmd_info)
 {
+	return global_handler(cmd_info, cmd_info->emark);
+}
+
+static int
+vglobal_cmd(const cmd_info_t *cmd_info)
+{
+	return global_handler(cmd_info, 1);
+}
+
+static int
+global_handler(const cmd_info_t *cmd_info, int invert)
+{
+	char selpat[strlen(cmd_info->argv[0]) + 3];
+	memset(selpat, 0, sizeof(selpat));
+	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
+
+	int error = 0;
+	error = flist_sel_for_gcmd(curr_view, selpat, gvcmd_running ? 0 : 1, invert ? 0 : 1);
+	if (error) {
+		return error;
+	}
+
+	int sels = curr_view->selected_files;
+	if (sels <= 0 || sels >= curr_view->list_rows)
+	{
+		cmds_drop_selection();
+		ui_sb_msgf("%s matched for pattern: %s", sels <= 0 ? "None" : "All", selpat);
+		return 1;
+	}
+
+	gvcmd_running = 1;
+	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
+	gvcmd_running = 0;
+
+	return error;
+}
+
+#if 0
+static int
+global_cmd(const cmd_info_t *cmd_info)
+{
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
@@ -6353,6 +6395,7 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 
 	return error;
 }
+#endif
 
 static int
 copyin_cmd(const cmd_info_t *cmd_info)
