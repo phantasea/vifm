@@ -400,7 +400,7 @@ flist_sel_by_pattern(view_t *view, const char pattern[], int erase_old, int sele
 	return 0;
 }
 
-
+//add by sim1: called by global_handler
 int
 flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag)
 {
@@ -414,8 +414,9 @@ flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag)
 		return 1;
 	}
 
-	if(drop)
-	{
+	flag = !!flag;
+	drop = !!drop;
+	if(drop) {
 		flist_sel_drop(view);
 	}
 
@@ -423,45 +424,39 @@ flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag)
 	for(int i = 0; i < view->list_rows; ++i)
 	{
 		dir_entry_t *const entry = &view->dir_entry[i];
-		if(!drop && entry->selected == 0)
-		{
+		if(!drop && !entry->selected) {
 			continue;
 		}
 
-		//0,0: keep selected, unselect matched
-		//0,1: keep selected, unselect unmatched
-		//1,0: drop selected, select   unmatched
-		//1,1: drop selected, select   matched
 		get_full_path_of(entry, sizeof(file_path) - 1U, file_path);
+		int cond = (matchers_match(ms, file_path) ||
+				(fentry_is_dir(entry) && matchers_match_dir(ms, file_path)));
+		if(cond == (drop == flag))
+		{
+			entry->selected = drop;
+			view->selected_files += (drop ? 1 : -1);
+		}
+		/**********************************
+		0,0: keep selected, unselect matched
+		0,1: keep selected, unselect unmatched
+		1,0: drop selected, select   unmatched
+		1,1: drop selected, select   matched
 		if(matchers_match(ms, file_path) ||
 				(fentry_is_dir(entry) && matchers_match_dir(ms, file_path)))
 		{
-			if (!drop && flag == 0) {
-				entry->selected = 0;
-				view->selected_files -= 1;
-				continue;
-			}
-
-			if (drop && flag == 1) {
-				entry->selected = 1;
-				view->selected_files += 1;
-				continue;
+			if (drop == flag) {
+				entry->selected = drop;
+				view->selected_files += (drop ? 1 : -1)
 			}
 		}
 		else
 		{
-			if (!drop && flag == 1) {
-				entry->selected = 0;
-				view->selected_files -= 1;
-				continue;
-			}
-
-			if (drop && flag == 0) {
-				entry->selected = 1;
-				view->selected_files += 1;
-				continue;
+			if (drop == !flag) {
+				entry->selected = drop;
+				view->selected_files += (drop ? 1 : -1)
 			}
 		}
+		**********************************/
 	}
 
 	matchers_free(ms);
