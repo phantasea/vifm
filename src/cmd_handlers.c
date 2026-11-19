@@ -6295,12 +6295,7 @@ global_cmd(const cmd_info_t *cmd_info)
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
 	int error = 0;
-	if (!gvcmd_running) {
-		error = flist_sel_for_gcmd(curr_view, selpat, 1, cmd_info->emark ? 0 : 1);
-	} else {
-		error = flist_sel_for_gcmd(curr_view, selpat, 0, cmd_info->emark ? 0 : 1);
-	}
-
+	error = flist_sel_for_gcmd(curr_view, selpat, !gvcmd_running, !cmd_info->emark);
 	if (error) {
 		return error;
 	}
@@ -6308,6 +6303,7 @@ global_cmd(const cmd_info_t *cmd_info)
 	/*****************************
 	if (cmd_info->emark) {
 		flist_sel_invert(curr_view);
+		//redraw_view(curr_view);
 	}
 	*****************************/
 
@@ -6320,6 +6316,10 @@ global_cmd(const cmd_info_t *cmd_info)
 	}
 
 	gvcmd_running = 1;
+	/***************************************
+	cmds_preserve_selection();
+	error = vle_cmds_run(cmd_info->argv[1]);
+	***************************************/
 	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
 	gvcmd_running = 0;
 
@@ -6334,12 +6334,7 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
 	int error = 0;
-	if (!gvcmd_running) {
-		error = flist_sel_for_gcmd(curr_view, selpat, 1, 0);
-	} else {
-		error = flist_sel_for_gcmd(curr_view, selpat, 0, 0);
-	}
-
+	error = flist_sel_for_gcmd(curr_view, selpat, !gvcmd_running, 0);
 	if (error) {
 		return error;
 	}
