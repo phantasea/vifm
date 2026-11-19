@@ -371,6 +371,7 @@ static int putlink_cmd(const cmd_info_t *cmd_info);
 static int boundary_cmd(const cmd_info_t *cmd_info);
 static int debugshow_cmd(const cmd_info_t *cmd_info);
 
+static int subcmd_exec(const char subcmd[], int keep_sel);
 static int global_handler(const cmd_info_t *cmd_info, int invert);
 static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
 
@@ -6286,7 +6287,7 @@ usercmd_cmd(const cmd_info_t *cmd_info)
 }
 
 //add by sim1 ++++++++++++++++++++++++++++++
-int gvcmd_running = 0;
+int g_subcmd = 0;
 
 static int
 global_cmd(const cmd_info_t *cmd_info)
@@ -6308,7 +6309,7 @@ global_handler(const cmd_info_t *cmd_info, int invert)
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
 	int error = 0;
-	error = flist_sel_for_gcmd(curr_view, selpat, gvcmd_running ? 0 : 1, invert ? 0 : 1);
+	error = flist_sel_for_gcmd(curr_view, selpat, g_subcmd ? 0 : 1, invert ? 0 : 1);
 	if (error) {
 		return error;
 	}
@@ -6321,9 +6322,15 @@ global_handler(const cmd_info_t *cmd_info, int invert)
 		return 1;
 	}
 
-	gvcmd_running = 1;
-	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
-	gvcmd_running = 0;
+	return subcmd_exec(cmd_info->argv[1], 1);
+}
+
+static int
+subcmd_exec(const char subcmd[], int keep_sel)
+{
+	g_subcmd = 1;
+	int error = cmds_exec(subcmd, curr_view, 0, keep_sel);
+	g_subcmd = 0;
 
 	return error;
 }
@@ -6337,7 +6344,7 @@ global_cmd(const cmd_info_t *cmd_info)
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
 	int error = 0;
-	error = flist_sel_for_gcmd(curr_view, selpat, !gvcmd_running, !cmd_info->emark);
+	error = flist_sel_for_gcmd(curr_view, selpat, !g_subcmd, !cmd_info->emark);
 	if (error) {
 		return error;
 	}
@@ -6357,13 +6364,13 @@ global_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	gvcmd_running = 1;
+	g_subcmd = 1;
 	/***************************************
 	cmds_preserve_selection();
 	error = vle_cmds_run(cmd_info->argv[1]);
 	***************************************/
 	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
-	gvcmd_running = 0;
+	g_subcmd = 0;
 
 	return error;
 }
@@ -6376,7 +6383,7 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
 	int error = 0;
-	error = flist_sel_for_gcmd(curr_view, selpat, !gvcmd_running, 0);
+	error = flist_sel_for_gcmd(curr_view, selpat, !g_subcmd, 0);
 	if (error) {
 		return error;
 	}
@@ -6389,9 +6396,9 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 		return 1;
 	}
 
-	gvcmd_running = 1;
+	g_subcmd = 1;
 	error = cmds_exec(cmd_info->argv[1], curr_view, 0, 1);
-	gvcmd_running = 0;
+	g_subcmd = 0;
 
 	return error;
 }
