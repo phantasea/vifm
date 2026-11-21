@@ -354,6 +354,7 @@ static int parse_bg_mark(char cmd[]);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++
 static int DELETE_cmd(const cmd_info_t *cmd_info);
+static int print_cmd(const cmd_info_t *cmd_info);
 static int global_cmd(const cmd_info_t *cmd_info);
 static int vglobal_cmd(const cmd_info_t *cmd_info);
 static int copyin_cmd(const cmd_info_t *cmd_info);
@@ -724,7 +725,7 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "noremap keys in menu mode",
 	  .flags = HAS_RAW_ARGS,
 	  .handler = &mnoremap_cmd,    .min_args = 0,   .max_args = NOT_DEF, },
-	{ .name = "move",              .abbr = "m",     .id = COM_MOVE,
+	{ .name = "move",              .abbr = "mo",     .id = COM_MOVE,
 	  .descr = "move files",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG | HAS_QUOTED_ARGS | HAS_COMMENT
 	         | HAS_QMARK_NO_ARGS | HAS_SELECTION_SCOPE,
@@ -785,7 +786,7 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "paste files from a register",
 	  .flags = HAS_EMARK | HAS_RANGE | HAS_BG_FLAG,
 	  .handler = &put_cmd,         .min_args = 0,   .max_args = 1, },
-	{ .name = "pwd",               .abbr = "p",     .id = -1,
+	{ .name = "pwd",               .abbr = "pw",     .id = -1,
 	  .descr = "display current location",
 	  .flags = HAS_COMMENT,
 	  .handler = &pwd_cmd,         .min_args = 0,   .max_args = 0, },
@@ -1078,7 +1079,7 @@ const cmd_add_t cmds_list[] = {
 	{ .name = "global",            .abbr = "g",     .id = COM_COMMAND,
 	  .descr = "select files to do specified action",
 	  .flags = HAS_EMARK | HAS_REGEXP_ARGS,
-	  .handler = &global_cmd,      .min_args = 2,   .max_args = 2, },
+	  .handler = &global_cmd,      .min_args = 1,   .max_args = 2, },
 	{ .name = "movein",            .abbr = NULL,    .id = COM_MOVE,
 	  .descr = "move files from other pane to current pane",
 	  .flags = HAS_BG_FLAG | HAS_SELECTION_SCOPE,
@@ -1087,6 +1088,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "move files from current pane to other pane",
 	  .flags = HAS_BG_FLAG | HAS_SELECTION_SCOPE,
 	  .handler = &moveout_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "print",             .abbr = "p",     .id = -1,
+	  .descr = "print the just run command or the PWD",
+	  .flags = HAS_EMARK,
+	  .handler = &print_cmd,       .min_args = 0,   .max_args = 0, },
 	{ .name = "putlink",           .abbr = NULL,    .id = -1,
 	  .descr = "put symlink from copied file",
 	  .flags = 0,
@@ -1107,7 +1112,7 @@ const cmd_add_t cmds_list[] = {
 	{ .name = "vglobal",           .abbr = "v",     .id = COM_COMMAND,
 	  .descr = "invert selection to do specified action",
 	  .flags = HAS_REGEXP_ARGS,
-	  .handler = &vglobal_cmd,     .min_args = 2,   .max_args = 2, },
+	  .handler = &vglobal_cmd,     .min_args = 1,   .max_args = 2, },
 	//add by sim1 ---------------------------------------------------
 
 	{ .name = "<USERCMD>",         .abbr = NULL,    .id = -1,
@@ -6318,11 +6323,12 @@ global_handler(const cmd_info_t *cmd_info, int invert)
 	if (sels <= 0 || sels >= curr_view->list_rows)
 	{
 		cmds_drop_selection();
-		ui_sb_msgf("%s matched for pattern: %s", sels <= 0 ? "None" : "All", selpat);
+		ui_sb_msgf("%s matched for cmd: %s",
+				sels <= 0 ? "None" : "All", curr_stats.last_cmdline_command);
 		return 1;
 	}
 
-	return subcmd_exec(cmd_info->argv[1], 1);
+	return subcmd_exec(cmd_info->argc > 1 ? cmd_info->argv[1] : "print", 1);
 }
 
 static int
@@ -6333,6 +6339,23 @@ subcmd_exec(const char subcmd[], int keep_sel)
 	g_subcmd = 0;
 
 	return error;
+}
+
+static int
+print_cmd(const cmd_info_t *cmd_info)
+{
+	if (!cmd_info->emark)
+	{
+		//like cmd_dot()
+		ui_sb_msgf("CMD: %s", curr_stats.last_cmdline_command);
+	}
+	else
+	{
+		//like pwd_cmd()
+		ui_sb_msgf("PWD: %s", flist_get_dir(curr_view));
+	}
+
+	return 1;
 }
 
 #if 0
