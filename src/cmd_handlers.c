@@ -1082,7 +1082,11 @@ const cmd_add_t cmds_list[] = {
 	{ .name = "global",            .abbr = "g",     .id = COM_COMMAND,
 	  .descr = "select files to do specified action",
 	  .flags = HAS_EMARK | HAS_REGEXP_ARGS,
-	  .handler = &global_cmd,      .min_args = 1,   .max_args = 2, },
+	  .handler = &global_cmd,      .min_args = 0,   .max_args = NOT_DEF, },
+	{ .name = "vglobal",           .abbr = "v",     .id = COM_COMMAND,
+	  .descr = "invert selection to do specified action",
+	  .flags = HAS_REGEXP_ARGS,
+	  .handler = &vglobal_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "movein",            .abbr = NULL,    .id = COM_MOVE,
 	  .descr = "move files from other pane to current pane",
 	  .flags = HAS_BG_FLAG | HAS_SELECTION_SCOPE,
@@ -1111,11 +1115,6 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "create or change symbolic link smartly",
 	  .flags = 0,
 	  .handler = &symlink_cmd,     .min_args = 0,   .max_args = 0, },
-	//.id=COM_COMMAND for :v/pat/g/(aa|bb)/p, or "\|" has to be used!
-	{ .name = "vglobal",           .abbr = "v",     .id = COM_COMMAND,
-	  .descr = "invert selection to do specified action",
-	  .flags = HAS_REGEXP_ARGS,
-	  .handler = &vglobal_cmd,     .min_args = 1,   .max_args = 2, },
 	{ .name = "zip",               .abbr = "z",     .id = -1,
 	  .descr = "filter the selected/unselected files",
 	  .flags = HAS_EMARK,
@@ -6320,6 +6319,12 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 static int
 global_handler(const cmd_info_t *cmd_info, int invert)
 {
+	/*****************************************
+	if (strlen(cmd_info->argv[0]) == 0) {
+		ui_sb_msg("usage: (g|v)/pattern/subcmd");
+		return 1;
+	}
+	*****************************************/
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
@@ -6338,8 +6343,23 @@ global_handler(const cmd_info_t *cmd_info, int invert)
 				sels <= 0 ? "None" : "All", curr_stats.last_cmdline_command);
 		return 1;
 	}
+	//return subcmd_exec(cmd_info->argc > 1 ? cmd_info->argv[1] : "print", 1);
 
-	return subcmd_exec(cmd_info->argc > 1 ? cmd_info->argv[1] : "print", 1);
+	int argc = cmd_info->argc;
+	char subcmd[128] = {0};
+	int offset = 0;
+	for (int i = 1; i < argc; i++)
+	{
+		offset += snprintf(subcmd + offset, sizeof(subcmd) - offset,
+				"%s%s", cmd_info->argv[i], (i < argc - 1) ? " " : "");
+		if (offset >= (int)sizeof(subcmd))
+		{
+			ui_sb_msg("subcmd is too long (>=128)!");
+			return 1;
+		}
+	}
+
+	return subcmd_exec(argc > 1 ? subcmd : "print", 1);
 }
 
 static int
