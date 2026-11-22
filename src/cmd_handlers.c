@@ -353,28 +353,31 @@ static int usercmd_cmd(const cmd_info_t* cmd_info);
 static int parse_bg_mark(char cmd[]);
 
 //add by sim1 +++++++++++++++++++++++++++++++++++++++
-static int DELETE_cmd(const cmd_info_t *cmd_info);
-static int print_cmd(const cmd_info_t *cmd_info);
-static int global_cmd(const cmd_info_t *cmd_info);
-static int vglobal_cmd(const cmd_info_t *cmd_info);
+static int abslink_cmd(const cmd_info_t *cmd_info);
+static int boundary_cmd(const cmd_info_t *cmd_info);
+static int chglink_cmd(const cmd_info_t *cmd_info);
+static int chgperm_cmd(const cmd_info_t *cmd_info);
 static int copyin_cmd(const cmd_info_t *cmd_info);
-static int movein_cmd(const cmd_info_t *cmd_info);
 static int copyout_cmd(const cmd_info_t *cmd_info);
-static int moveout_cmd(const cmd_info_t *cmd_info);
+static int debugshow_cmd(const cmd_info_t *cmd_info);
+static int DELETE_cmd(const cmd_info_t *cmd_info);
 static int explore_cmd(const cmd_info_t *cmd_info);
+static int global_cmd(const cmd_info_t *cmd_info);
+static int movein_cmd(const cmd_info_t *cmd_info);
+static int moveout_cmd(const cmd_info_t *cmd_info);
+static int print_cmd(const cmd_info_t *cmd_info);
+static int putlink_cmd(const cmd_info_t *cmd_info);
 static int ratings_cmd(const cmd_info_t *cmd_info);
 static int switch_cmd(const cmd_info_t *cmd_info);
-static int chgperm_cmd(const cmd_info_t *cmd_info);
-static int chglink_cmd(const cmd_info_t *cmd_info);
-static int abslink_cmd(const cmd_info_t *cmd_info);
 static int symlink_cmd(const cmd_info_t *cmd_info);
-static int putlink_cmd(const cmd_info_t *cmd_info);
-static int boundary_cmd(const cmd_info_t *cmd_info);
-static int debugshow_cmd(const cmd_info_t *cmd_info);
+static int vglobal_cmd(const cmd_info_t *cmd_info);
+static int zip_cmd(const cmd_info_t *cmd_info);
+static int ZIP_cmd(const cmd_info_t *cmd_info);
 
+static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
 static int subcmd_exec(const char subcmd[], int keep_sel);
 static int global_handler(const cmd_info_t *cmd_info, int invert);
-static int set_view_filter_cfg(view_t *view, const char filter[], const char fallback[], int invert);
+static int zip_handler(int invert);
 
 extern void modview_enter(view_t *view, int explore);
 extern int  show_ratings_menu(view_t *view);
@@ -1043,10 +1046,6 @@ const cmd_add_t cmds_list[] = {
 	  .handler = &yank_cmd,        .min_args = 0,   .max_args = 2, },
 
 	//add by sim1 +++++++++++++++++++++++++++++++++++++++++++++++++
-	{ .name = "DELETE",            .abbr = "D",     .id = -1,
-	  .descr = "delete files",
-	  .flags = HAS_RANGE | HAS_BG_FLAG | HAS_SELECTION_SCOPE,
-	  .handler = &DELETE_cmd,      .min_args = 0,   .max_args = 2, },
 	{ .name = "abslink",           .abbr = NULL,    .id = -1,
 	  .descr = "create absolute symlinks",
 	  .flags = 0,
@@ -1071,6 +1070,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "copy files from current pane to other pane",
 	  .flags = HAS_BG_FLAG | HAS_SELECTION_SCOPE,
 	  .handler = &copyout_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "DELETE",            .abbr = "D",     .id = -1,
+	  .descr = "delete files permanently",
+	  .flags = HAS_RANGE | HAS_BG_FLAG | HAS_SELECTION_SCOPE,
+	  .handler = &DELETE_cmd,      .min_args = 0,   .max_args = 2, },
 	{ .name = "explore",           .abbr = "exp",   .id = -1,
 	  .descr = "explore/preview file in the same pane",
 	  .flags = 0,
@@ -1113,6 +1116,14 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "invert selection to do specified action",
 	  .flags = HAS_REGEXP_ARGS,
 	  .handler = &vglobal_cmd,     .min_args = 1,   .max_args = 2, },
+	{ .name = "zip",               .abbr = "z",     .id = -1,
+	  .descr = "filter the selected/unselected files",
+	  .flags = HAS_EMARK,
+	  .handler = &zip_cmd,         .min_args = 0,   .max_args = 0, },
+	{ .name = "ZIP",               .abbr = "Z",     .id = -1,
+	  .descr = "filter the unselected files",
+	  .flags = 0,
+	  .handler = &ZIP_cmd,         .min_args = 0,   .max_args = 0, },
 	//add by sim1 ---------------------------------------------------
 
 	{ .name = "<USERCMD>",         .abbr = NULL,    .id = -1,
@@ -6356,6 +6367,37 @@ print_cmd(const cmd_info_t *cmd_info)
 	}
 
 	return 1;
+}
+
+static int
+zip_cmd(const cmd_info_t *cmd_info)
+{
+	return zip_handler(cmd_info->emark);
+}
+
+static int
+ZIP_cmd(const cmd_info_t *cmd_info)
+{
+	return zip_handler(1);
+}
+
+static int
+zip_handler(int invert)
+{
+	int sels = curr_view->selected_files;
+	if (sels <= 0 || sels >= curr_view->list_rows)
+	{
+		ui_sb_msgf("Nothing zipped for %s selected", sels <= 0 ? "NONE" : "ALL");
+		return 1;
+	}
+
+	if (invert)
+	{
+		flist_sel_invert(curr_view);
+	}
+
+	name_filters_add_active(curr_view);
+	return 0;
 }
 
 #if 0
