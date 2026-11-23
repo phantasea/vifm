@@ -367,6 +367,7 @@ static int movein_cmd(const cmd_info_t *cmd_info);
 static int moveout_cmd(const cmd_info_t *cmd_info);
 static int print_cmd(const cmd_info_t *cmd_info);
 static int putlink_cmd(const cmd_info_t *cmd_info);
+static int PWD_cmd(const cmd_info_t *cmd_info);
 static int ratings_cmd(const cmd_info_t *cmd_info);
 static int switch_cmd(const cmd_info_t *cmd_info);
 static int symlink_cmd(const cmd_info_t *cmd_info);
@@ -1103,6 +1104,10 @@ const cmd_add_t cmds_list[] = {
 	  .descr = "put symlink from copied file",
 	  .flags = 0,
 	  .handler = &putlink_cmd,     .min_args = 0,   .max_args = 0, },
+	{ .name = "PWD",               .abbr = "P",     .id = -1,
+	  .descr = "display current working directory",
+	  .flags = 0,
+	  .handler = &PWD_cmd,         .min_args = 0,   .max_args = 0, },
 	{ .name = "ratings",           .abbr = NULL,    .id = -1,
 	  .descr = "show star-ratings info menu",
 	  .flags = 0,
@@ -6386,6 +6391,13 @@ print_cmd(const cmd_info_t *cmd_info)
 		ui_sb_msgf("PWD: %s", flist_get_dir(curr_view));
 	}
 
+	return 1;
+}
+
+static int
+PWD_cmd(const cmd_info_t *cmd_info)
+{
+	ui_sb_msgf("PWD: %s", flist_get_dir(curr_view));
 	return 1;
 }
 
