@@ -1122,7 +1122,7 @@ const cmd_add_t cmds_list[] = {
 	  .handler = &symlink_cmd,     .min_args = 0,   .max_args = 0, },
 	{ .name = "zip",               .abbr = "z",     .id = -1,
 	  .descr = "filter the selected/unselected files",
-	  .flags = HAS_EMARK,
+	  .flags = HAS_RANGE | HAS_SELECTION_SCOPE | HAS_EMARK,
 	  .handler = &zip_cmd,         .min_args = 0,   .max_args = 0, },
 	{ .name = "ZIP",               .abbr = "Z",     .id = -1,
 	  .descr = "filter the unselected files",
@@ -6404,6 +6404,17 @@ PWD_cmd(const cmd_info_t *cmd_info)
 static int
 zip_cmd(const cmd_info_t *cmd_info)
 {
+	if (cmd_info->begin != NOT_DEF)
+	{
+		if (cmd_info->emark) {
+			ui_sb_err("Range and Emark cannot be BOTH allowed!");
+			return 1;
+		}
+
+		name_filters_add_active(curr_view);
+		return 0;
+	}
+
 	return zip_handler(cmd_info->emark);
 }
 
