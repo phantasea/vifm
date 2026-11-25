@@ -404,7 +404,7 @@ flist_sel_by_pattern(view_t *view, const char pattern[], int erase_old, int sele
 int
 flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag, int begin, int end)
 {
-	if (begin < 0 || end >= curr_view->list_rows)
+	if (begin < 0 || end >= curr_view->list_rows || begin > end)
 	{
 		ui_sb_errf("Invalid range: [%i, %i]!", begin, end);
 		return 1;
