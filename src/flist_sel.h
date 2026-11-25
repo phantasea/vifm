@@ -68,7 +68,7 @@ int flist_sel_by_pattern(struct view_t *view, const char pattern[],
 		int erase_old, int select);
 
 //add by sim1:
-int flist_sel_for_gcmd(struct view_t *view, const char pattern[], int drop, int flag);
+int flist_sel_for_gcmd(struct view_t *view, const char pattern[], int drop, int flag, int begin, int end);
 
 /* Marks entries in the range [begin; end].  If begin isn't given (negative),
  * end is marked.  Otherwise, if end is negative and mark_current is non-zero,

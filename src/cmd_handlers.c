@@ -1082,11 +1082,11 @@ const cmd_add_t cmds_list[] = {
 	//.id=COM_COMMAND for :g/pat/v/(aa|bb)/p, or "\|" has to be used!
 	{ .name = "global",            .abbr = "g",     .id = COM_COMMAND,
 	  .descr = "select files to do specified action",
-	  .flags = HAS_EMARK | HAS_REGEXP_ARGS,
+	  .flags = HAS_RANGE | HAS_REGEXP_ARGS | HAS_EMARK,
 	  .handler = &global_cmd,      .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "vglobal",           .abbr = "v",     .id = COM_COMMAND,
 	  .descr = "invert selection to do specified action",
-	  .flags = HAS_REGEXP_ARGS,
+	  .flags = HAS_RANGE | HAS_REGEXP_ARGS,
 	  .handler = &vglobal_cmd,     .min_args = 0,   .max_args = NOT_DEF, },
 	{ .name = "movein",            .abbr = NULL,    .id = COM_MOVE,
 	  .descr = "move files from other pane to current pane",
@@ -6324,19 +6324,28 @@ vglobal_cmd(const cmd_info_t *cmd_info)
 static int
 global_handler(const cmd_info_t *cmd_info, int invert)
 {
-	/*****************************************
-	if (strlen(cmd_info->argv[0]) == 0) {
-		ui_sb_msg("usage: (g|v)/pattern/subcmd");
+	if (g_subcmd && (cmd_info->begin != NOT_DEF))
+	{
+		cmds_drop_selection();
+		ui_sb_err("Range not allowed in g/v subcmd!");
 		return 1;
 	}
-	*****************************************/
+
 	char selpat[strlen(cmd_info->argv[0]) + 3];
 	memset(selpat, 0, sizeof(selpat));
 	snprintf(selpat, sizeof(selpat), "/%s/", cmd_info->argv[0]);
 
-	int error = 0;
-	error = flist_sel_for_gcmd(curr_view, selpat, g_subcmd ? 0 : 1, invert ? 0 : 1);
+	int begin = 0;
+	int end = curr_view->list_rows - 1;
+	if (!g_subcmd && (cmd_info->begin != NOT_DEF))
+	{
+		begin = cmd_info->begin;
+		end = cmd_info->end;
+	}
+
+	int error = flist_sel_for_gcmd(curr_view, selpat, !g_subcmd, !invert, begin, end);
 	if (error) {
+		cmds_drop_selection();
 		return error;
 	}
 
@@ -6348,10 +6357,9 @@ global_handler(const cmd_info_t *cmd_info, int invert)
 				sels <= 0 ? "None" : "All", curr_stats.last_cmdline_command);
 		return 1;
 	}
-	//return subcmd_exec(cmd_info->argc > 1 ? cmd_info->argv[1] : "print", 1);
 
 	int argc = cmd_info->argc;
-	char subcmd[128] = {0};
+	char subcmd[64] = {0};
 	int offset = 0;
 	for (int i = 1; i < argc; i++)
 	{
@@ -6359,7 +6367,8 @@ global_handler(const cmd_info_t *cmd_info, int invert)
 				"%s%s", cmd_info->argv[i], (i < argc - 1) ? " " : "");
 		if (offset >= (int)sizeof(subcmd))
 		{
-			ui_sb_msg("subcmd is too long (>=128)!");
+			cmds_drop_selection();
+			ui_sb_err("subcmd is too long (>=64)!");
 			return 1;
 		}
 	}

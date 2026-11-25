@@ -402,8 +402,14 @@ flist_sel_by_pattern(view_t *view, const char pattern[], int erase_old, int sele
 
 //add by sim1: called by global_handler
 int
-flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag)
+flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag, int begin, int end)
 {
+	if (begin < 0 || end >= curr_view->list_rows)
+	{
+		ui_sb_errf("Invalid range: [%i, %i]!", begin, end);
+		return 1;
+	}
+
 	char *error;
 	matchers_t *const ms =
 		matchers_alloc(pattern, pattern, 0, 1, hists_search_last(), &error);
@@ -421,7 +427,7 @@ flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag)
 	}
 
 	char file_path[PATH_MAX + 1] = {0};
-	for(int i = 0; i < view->list_rows; ++i)
+	for(int i = begin; i <= end; ++i)
 	{
 		dir_entry_t *const entry = &view->dir_entry[i];
 		if(!drop && !entry->selected) {
