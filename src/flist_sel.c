@@ -410,6 +410,22 @@ flist_sel_for_gcmd(view_t *view, const char pattern[], int drop, int flag, int b
 		return 1;
 	}
 
+	/*******************************************************
+	//vifm has already implemented this function originally
+	if (begin > end)
+	{
+		const char *title = "Swap Range";
+		const char *msg = "Confirm you wanna swap the range?";
+		if (!confirm_dialog(title, msg))
+		{
+			ui_sb_errf("Invalid range: [%i > %i]!", begin, end);
+			return 1;
+		}
+
+		int temp = begin; begin = end; end = temp;
+	}
+	*******************************************************/
+
 	char *error;
 	matchers_t *const ms =
 		matchers_alloc(pattern, pattern, 0, 1, hists_search_last(), &error);

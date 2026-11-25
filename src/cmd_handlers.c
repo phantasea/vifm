@@ -382,7 +382,6 @@ static int zip_handler(int invert);
 
 extern void modview_enter(view_t *view, int explore);
 extern int  show_ratings_menu(view_t *view);
-extern int  confirm_dialog(const char *title, const char *msg);
 extern int  fpos_find_boundary(const view_t *view, int same);
 //add by sim1 ---------------------------------------
 
@@ -6337,7 +6336,7 @@ global_handler(const cmd_info_t *cmd_info, int invert)
 
 	int begin = 0;
 	int end = curr_view->list_rows - 1;
-	if (!g_subcmd && (cmd_info->begin != NOT_DEF))
+	if (cmd_info->begin != NOT_DEF)
 	{
 		begin = cmd_info->begin;
 		end = cmd_info->end;

@@ -100,6 +100,9 @@ void draw_msgf(const char title[], const char ctrl_msg[], int recommended_width,
  * otherwise zero is returned. */
 int confirm_deletion(char *files[], int nfiles, int use_trash);
 
+//add by sim1:
+int confirm_dialog(const char *title, const char *msg);
+
 /* Reads contents of the file and displays it in series of dialog messages.  ef
  * can be NULL.  Closes ef. */
 void show_errors_from_file(FILE *ef, const char title[]);
