@@ -2525,9 +2525,7 @@ static int
 empty_cmd(const cmd_info_t *cmd_info)
 {
 	//add by sim1: confirm before empty
-	const char *title = "Trash Deletion";
-	const char *msg = "Confirm you wanna empty trash?";
-	if (!confirm_dialog(title, msg))
+	if (!prompt_msg("Trash Empty", "Are you sure to empty trash?"))
 	{
 		return 0;
 	}
