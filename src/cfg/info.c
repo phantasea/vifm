@@ -293,14 +293,14 @@ static void get_session_dir(char buf[], size_t buf_size);
 
 //add by sim1 ********************************************************
 #define CRYPT_ROT_SHIFT 13
-#define ENCRYPTED 0
-#define DECRYPTED 1
+#define ENCRYPTED 1
+#define DECRYPTED 0
+#define STARS_TOP 7
 
 static rating_entry_t *rating_list = NULL;
 
 extern const char * local_getenv(const char envname[]);
-static void str_rot_encrypt(char *str);
-static void str_rot_decrypt(char *str);
+static void str_rot_crypt(char *str, int flag);
 static void update_rating_star(rating_entry_t *entry, int star);
 static void update_rating_info(int star, char path[], int flag);
 static void save_rating_info(JSON_Object *root);
@@ -664,7 +664,7 @@ read_legacy_info_file(const char info_file[])
 		{
 			char *path;
 			int star = strtol(line_val, &path, 10);
-			str_rot_decrypt(path);
+			str_rot_crypt(path, DECRYPTED);
 
 			JSON_Object *entry = append_object(ratings);
 			set_int(entry, "star", star);
@@ -2664,70 +2664,6 @@ clone_array(JSON_Object *parent, const JSON_Array *array, const char node[])
 	json_object_set_value(parent, node, json_value_deep_copy(value));
 }
 
-//add by sim1 ******************************************
-static void
-save_rating_info(JSON_Object *root)
-{
-	JSON_Array *ratings = add_array(root, "ratings");
-
-	rating_entry_t *entry = rating_list;
-	while (entry != NULL)
-	{
-		rating_entry_t *temp = entry->next;
-
-		if (entry->star > 0)
-		{
-			if (entry->flag == DECRYPTED)
-			{
-				str_rot_encrypt(entry->path);
-			}
-
-			JSON_Object *obj = append_object(ratings);
-			set_int(obj, "star", entry->star);
-			set_str(obj, "path", entry->path);
-		}
-
-		if (entry->path != NULL)
-		{
-			free(entry->path);
-		}
-
-		free(entry);
-
-		entry = temp;
-	}
-}
-
-static void
-load_rating_info(JSON_Object *root)
-{
-	JSON_Array *ratings = json_object_get_array(root, "ratings");
-
-	int i, n;
-	for(i = 0, n = json_array_get_count(ratings); i < n; ++i)
-	{
-		JSON_Object *obj = json_array_get_object(ratings, i);
-
-		int star;
-		char *path;
-		int flag = DECRYPTED;
-
-		if(get_int(obj, "star", &star) &&
-				get_str(obj, "path", (const char **)&path))
-		{
-			str_rot_decrypt(path);
-			if(!path_exists(path, NODEREF))
-			{
-				flag = ENCRYPTED;
-				str_rot_encrypt(path);
-			}
-
-			(void)create_rating_info(star, path, flag);
-		}
-	}
-}
-//add by sim1 ******************************************
-
 /* Serializes trash into JSON table. */
 static void
 store_trash(JSON_Object *root)
@@ -3025,34 +2961,79 @@ append_dstr(JSON_Array *array, char value[])
 	free(value);
 }
 
-//add by sim1 ***************************************************
+//add by sim1 *************************************
 static void
-str_rot_encrypt(char *str)
+save_rating_info(JSON_Object *root)
 {
-	if (NULL == str)
-	{
-		return;
-	}
+	JSON_Array *ratings = add_array(root, "ratings");
 
-	for (int idx=0; idx < strlen(str); idx++)
+	rating_entry_t *entry = rating_list;
+	while (entry != NULL)
 	{
-		str[idx] = str[idx] + CRYPT_ROT_SHIFT;
-	}
+		rating_entry_t *temp = entry->next;
 
-	return;
+		if (entry->star > 0)
+		{
+			if (entry->flag == DECRYPTED)
+			{
+				str_rot_crypt(entry->path, ENCRYPTED);
+			}
+
+			JSON_Object *obj = append_object(ratings);
+			set_int(obj, "star", entry->star);
+			set_str(obj, "path", entry->path);
+		}
+
+		if (entry->path != NULL)
+		{
+			free(entry->path);
+		}
+
+		free(entry);
+
+		entry = temp;
+	}
 }
 
 static void
-str_rot_decrypt(char *str)
+load_rating_info(JSON_Object *root)
 {
-	if (NULL == str)
+	JSON_Array *ratings = json_object_get_array(root, "ratings");
+
+	int i, n;
+	for(i = 0, n = json_array_get_count(ratings); i < n; ++i)
 	{
+		JSON_Object *obj = json_array_get_object(ratings, i);
+
+		int star;
+		char *path;
+		int flag = DECRYPTED;
+
+		if(get_int(obj, "star", &star) &&
+				get_str(obj, "path", (const char **)&path))
+		{
+			str_rot_crypt(path, DECRYPTED);
+			if(!path_exists(path, NODEREF))
+			{
+				str_rot_crypt(path, ENCRYPTED);
+				flag = ENCRYPTED;
+			}
+
+			(void)create_rating_info(star, path, flag);
+		}
+	}
+}
+
+static void
+str_rot_crypt(char *str, int flag)
+{
+	if (NULL == str) {
 		return;
 	}
 
-	for (int idx=0; idx < strlen(str); idx++)
+	for (int i = 0; i < strlen(str); i++)
 	{
-		str[idx] = str[idx] - CRYPT_ROT_SHIFT;
+		str[i] += (flag == ENCRYPTED ? CRYPT_ROT_SHIFT : -CRYPT_ROT_SHIFT);
 	}
 
 	return;
@@ -3127,9 +3108,9 @@ update_rating_star(rating_entry_t *entry, int star)
 	}
 
 	entry->star += star;
-	if (entry->star > 7)
+	if (entry->star > STARS_TOP)
 	{
-		entry->star = 7;
+		entry->star = STARS_TOP;
 	}
 	else if (entry->star < 0)
 	{
@@ -3197,33 +3178,30 @@ get_rating_stars(char path[])
 	}
 
 	rating_entry_t *entry = search_rating_info(path);
-	if (entry != NULL)
+	if (entry == NULL)
 	{
-	  return entry->star;
+		return 0;
 	}
 
-	return 0;
+	int stars = entry->star;
+	if (stars < 0) {
+		stars = 0;
+	}
+	else if (stars > STARS_TOP) {
+		stars = STARS_TOP;
+	}
+
+	return stars;
 }
 
 int
 get_rating_string(char buf[], int buf_len, char path[], int format)
 {
-		int i, stars;
 		char rating[64] = {0};
 
-    stars = get_rating_stars(path);
-		if (stars <= 0)
-		{
-			return 0;
-		}
-
-		if (stars > 7)
-		{
-			stars = 7;
-		}
-
 		const char *display = local_getenv("DISPLAY");
-		for (i = 0; i < stars; i++)
+    int stars = get_rating_stars(path);
+		for (int i = 0; i < stars; i++)
 		{
 			if (strlen(display) > 0)  //$DISPLAY==":0" in X
 			{
@@ -3237,7 +3215,7 @@ get_rating_string(char buf[], int buf_len, char path[], int format)
 
 		if (format)
 		{
-			snprintf(buf, buf_len, "%*s%s", (7 - stars), "", rating);
+			snprintf(buf, buf_len, "%*s%s", (STARS_TOP - stars), "", rating);
 		}
 		else
 		{
@@ -3305,7 +3283,7 @@ decrypt_rating_path(char path[])
 		return;
 	}
 
-	str_rot_decrypt(path);
+	str_rot_crypt(path, DECRYPTED);
 	entry->path = strdup(path);
 	entry->flag = DECRYPTED;
 	return;
