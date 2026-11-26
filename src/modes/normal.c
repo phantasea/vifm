@@ -557,14 +557,14 @@ static keys_add_info_t selectors[] = {
 static void
 cmd_star(key_info_t key_info, keys_info_t *keys_info)
 {
-	int star_num = 1;
+	int stars = 1;
 	if(key_info.count != NO_COUNT_GIVEN)
 	{
-		star_num = key_info.count;
+		stars = key_info.count;
 	}
 
 	check_marking(curr_view, 0, NULL);
-  update_rating_info_selected(star_num);
+  update_rating_info_selected(stars);
 
 	draw_dir_list(curr_view);
 	return;
@@ -573,14 +573,14 @@ cmd_star(key_info_t key_info, keys_info_t *keys_info)
 static void
 cmd_hash(key_info_t key_info, keys_info_t *keys_info)
 {
-	int star_num = -1;
+	int stars = -1;
 	if(key_info.count != NO_COUNT_GIVEN)
 	{
-		star_num = 0 - key_info.count;
+		stars = -key_info.count;
 	}
 
 	check_marking(curr_view, 0, NULL);
-  update_rating_info_selected(star_num);
+  update_rating_info_selected(stars);
 
 	draw_dir_list(curr_view);
 	return;

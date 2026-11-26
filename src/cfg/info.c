@@ -3039,12 +3039,6 @@ str_rot_crypt(char *str, int flag)
 	return;
 }
 
-rating_entry_t *
-get_rating_list()
-{
-	return rating_list;
-}
-
 static rating_entry_t *
 create_rating_info(int star, char path[], int flag)
 {
@@ -3137,6 +3131,12 @@ update_rating_info(int star, char path[], int flag)
 
 	update_rating_star(entry, star);
 	return;
+}
+
+rating_entry_t *
+get_rating_list()
+{
+	return rating_list;
 }
 
 void
